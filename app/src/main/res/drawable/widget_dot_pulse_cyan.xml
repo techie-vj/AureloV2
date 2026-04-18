@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Pulse animation: small → bloom → large → bloom → repeat  -->
+<animation-list xmlns:android="http://schemas.android.com/apk/res/android"
+    android:oneshot="false">
+
+    <!-- Frame 1: contracted – solid core only -->
+    <item android:duration="600">
+        <layer-list>
+            <item android:gravity="center">
+                <shape android:shape="oval">
+                    <solid android:color="#305DD6F8"/>
+                    <size android:width="14dp" android:height="14dp"/>
+                </shape>
+            </item>
+            <item android:left="4dp" android:top="4dp"
+                  android:right="4dp" android:bottom="4dp">
+                <shape android:shape="oval">
+                    <solid android:color="#FF5DD6F8"/>
+                </shape>
+            </item>
+        </layer-list>
+    </item>
+
+    <!-- Frame 2: mid-expand -->
+    <item android:duration="400">
+        <layer-list>
+            <item android:gravity="center">
+                <shape android:shape="oval">
+                    <solid android:color="#555DD6F8"/>
+                    <size android:width="14dp" android:height="14dp"/>
+                </shape>
+            </item>
+            <item android:left="2dp" android:top="2dp"
+                  android:right="2dp" android:bottom="2dp">
+                <shape android:shape="oval">
+                    <solid android:color="#FF5DD6F8"/>
+                </shape>
+            </item>
+        </layer-list>
+    </item>
+
+    <!-- Frame 3: full bloom – core + large halo -->
+    <item android:duration="600">
+        <layer-list>
+            <item android:gravity="center">
+                <shape android:shape="oval">
+                    <solid android:color="#805DD6F8"/>
+                    <size android:width="14dp" android:height="14dp"/>
+                </shape>
+            </item>
+            <item android:left="1dp" android:top="1dp"
+                  android:right="1dp" android:bottom="1dp">
+                <shape android:shape="oval">
+                    <solid android:color="#FF5DD6F8"/>
+                </shape>
+            </item>
+        </layer-list>
+    </item>
+
+    <!-- Frame 4: mid-contract -->
+    <item android:duration="400">
+        <layer-list>
+            <item android:gravity="center">
+                <shape android:shape="oval">
+                    <solid android:color="#555DD6F8"/>
+                    <size android:width="14dp" android:height="14dp"/>
+                </shape>
+            </item>
+            <item android:left="2dp" android:top="2dp"
+                  android:right="2dp" android:bottom="2dp">
+                <shape android:shape="oval">
+                    <solid android:color="#FF5DD6F8"/>
+                </shape>
+            </item>
+        </layer-list>
+    </item>
+
+</animation-list>

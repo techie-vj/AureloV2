@@ -1,0 +1,35 @@
+/* ═══ TOKENS ══════════════════════════════════════ */
+:root{
+  --bg:#060610;--s0:#0B0B1C;--s1:#10101F;--s2:#161628;--s3:#1C1C2E;
+  --border:#1C1C34;--border2:#252545;
+  --p:#6C63FF;--p2:#9B95FF;--c:#05C8E8;--g:#12D48A;
+  --a:#F7A623;--r:#F04E7A;--pu:#B06EFF;
+  --t1:#EEEEFF;--t2:#8888BB;--t3:#444466;
+  --ff-d:'Bodoni Moda',Georgia,serif;
+  --ff-b:'Bricolage Grotesque',sans-serif;
+  --ff-m:'JetBrains Mono',monospace;
+  --rad:16px;
+}
+:root[data-theme=light]{
+  --bg:#F2F4FA;--s0:#fff;--s1:#fff;--s2:#EAECF5;--s3:#E4E6F0;
+  --border:#DEE1ED;--border2:#CED2E3;--t1:#101223;--t2:#484C6A;--t3:#727798;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden;background:var(--bg);-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
+body{font-family:var(--ff-b);color:var(--t1);overscroll-behavior:none;-webkit-tap-highlight-color:transparent}
+button,input{font-family:inherit}
+img{display:block}
+/* Re-enable text selection only inside real input fields */
+input[type=text],input[type=search],input[type=email],textarea{-webkit-user-select:text;user-select:text}
+
+/* ── BUG-002 Typography floor ─────────────────────────────────────────────
+   JetBrains Mono (--ff-m) renders visually thinner than a sans-serif at the
+   same px size. Without explicit weight it defaults to 400 on most Android
+   WebViews, but some OEM fonts substitute a lighter variant.
+   font-weight:500 on all --ff-m usage ensures minimum Medium weight so
+   labels stay legible at small sizes on devices like the Redmi Note 11S.
+   font-weight:300 has been eliminated throughout app.css and component CSS. */
+:root { --fw-mono: 500; }   /* consumed as font-weight:var(--fw-mono) in new rules */
+
+/* Global weight floor for all elements that carry the mono font inline */
+[style*="font-family:var(--ff-m)"] { font-weight: 500; font-synthesis: weight; }

@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Aurelo</string>
+    <string name="accessibility_service_description">Aurelo uses Accessibility to block distracting apps during Focus Mode and enforce daily app time limits. No personal data is collected or transmitted.</string>
+</resources>

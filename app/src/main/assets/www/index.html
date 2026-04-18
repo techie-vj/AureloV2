@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no"/>
+    <meta http-equiv="Content-Security-Policy"
+          content="default-src 'self' app-icon:;
+               script-src 'self' 'unsafe-inline';
+               style-src 'self' 'unsafe-inline';
+               font-src 'self';
+               img-src 'self' app-icon: data: blob:;
+               connect-src 'none';"/>
+    <title>Aurelo</title>
+    <style>
+        @font-face{font-family:'Clash Display';src:url('assets/fonts/ClashDisplay-Medium.woff2') format('woff2');font-weight:500;font-display:swap;}
+        @font-face{font-family:'Clash Display';src:url('assets/fonts/ClashDisplay-SemiBold.woff2') format('woff2');font-weight:600;font-display:swap;}
+        @font-face{font-family:'Clash Display';src:url('assets/fonts/ClashDisplay-Bold.woff2') format('woff2');font-weight:700;font-display:swap;}
+        @font-face{font-family:'Bricolage Grotesque';src:url('assets/fonts/BricolageGrotesque-Light.ttf') format('woff2');font-weight:300;font-display:swap;}
+        @font-face{font-family:'Bricolage Grotesque';src:url('assets/fonts/BricolageGrotesque-Regular.ttf') format('woff2');font-weight:400;font-display:swap;}
+        @font-face{font-family:'Bricolage Grotesque';src:url('assets/fonts/BricolageGrotesque-Medium.ttf') format('woff2');font-weight:500;font-display:swap;}
+        @font-face{font-family:'Bricolage Grotesque';src:url('assets/fonts/BricolageGrotesque-SemiBold.ttf') format('woff2');font-weight:600;font-display:swap;}
+        @font-face{font-family:'Bricolage Grotesque';src:url('assets/fonts/BricolageGrotesque-Bold.ttf') format('woff2');font-weight:700;font-display:swap;}
+        @font-face{font-family:'JetBrains Mono';src:url('assets/fonts/JetBrainsMono-Regular.woff2') format('woff2');font-weight:400;font-display:swap;}
+        @font-face{font-family:'JetBrains Mono';src:url('assets/fonts/JetBrainsMono-Medium.woff2') format('woff2');font-weight:500;font-display:swap;}
+        @font-face{font-family:'Bodoni Moda';src:url('assets/fonts/BodoniModa_9pt-Regular.ttf') format('truetype');font-weight:300;font-display:swap;}
+        @font-face{font-family:'Bodoni Moda';src:url('assets/fonts/BodoniModa_9pt-Regular.ttf') format('truetype');font-weight:400;font-display:swap;}
+    </style>
+    <!-- CSS load order: tokens > shell > components > panels > features > themes -->
+    <link rel="stylesheet" href="css/tokens.css"/>
+    <link rel="stylesheet" href="css/shell.css"/>
+    <link rel="stylesheet" href="css/components.css"/>
+    <link rel="stylesheet" href="css/panels.css"/>
+    <link rel="stylesheet" href="css/home.css"/>
+    <link rel="stylesheet" href="css/wellness.css"/>
+    <link rel="stylesheet" href="css/focus.css"/>
+    <link rel="stylesheet" href="css/settings.css"/>
+    <link rel="stylesheet" href="css/discover.css"/>
+    <link rel="stylesheet" href="css/themes.css"/>
+    <style>
+        .w-tpb{background:transparent!important;color:var(--t3)!important;}
+        .w-tpb.on{background:var(--p)!important;color:#fff!important;box-shadow:0 2px 12px rgba(108,99,255,0.45),0 1px 3px rgba(0,0,0,0.25)!important;transform:translateY(-1px);}
+        .w-tpb:active{transform:scale(0.96) translateY(0px);}
+        #aurelo-score-sheet::-webkit-scrollbar{display:none;}
+        #aurelo-score-sheet{-ms-overflow-style:none;scrollbar-width:none;}
+        #home-aurelo-score [onclick]:active{opacity:0.7;transform:scale(0.97);transition:transform 0.1s,opacity 0.1s;}
+    </style>
+    <style id="splash-styles">
+        #loading-screen{position:fixed;inset:0;z-index:9999;background:linear-gradient(160deg,#1a1208 0%,#0e0a04 100%);display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden;cursor:pointer;}
+        #loading-screen.hidden{opacity:0;transform:scale(1.04) translateY(-6px);pointer-events:none;transition:opacity .55s cubic-bezier(.4,0,.2,1),transform .55s cubic-bezier(.4,0,.2,1);}
+        .ls-aura{position:absolute;width:560px;height:560px;background:radial-gradient(circle,rgba(255,160,50,.11) 0%,transparent 68%);filter:blur(72px);top:50%;left:50%;transform:translate(-50%,-52%);pointer-events:none;z-index:0;animation:lsAura 9s ease-in-out infinite alternate;}
+        @keyframes lsAura{0%{transform:translate(-50%,-52%) scale(1);opacity:.8;}100%{transform:translate(-50%,-52%) scale(1.18);opacity:.5;}}
+        .ls-grid{position:absolute;inset:0;pointer-events:none;opacity:1;z-index:0;background-image:linear-gradient(rgba(255,170,68,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(255,170,68,.025) 1px,transparent 1px);background-size:28px 28px;mask-image:radial-gradient(circle at center,black 15%,transparent 68%);-webkit-mask-image:radial-gradient(circle at center,black 15%,transparent 68%);animation:lsGridDrift 22s linear infinite;}
+        @keyframes lsGridDrift{from{transform:translate3d(0,0,0);}to{transform:translate3d(-28px,-28px,0);}}
+        .ls-vignette{position:absolute;inset:0;pointer-events:none;z-index:0;background:radial-gradient(circle at 50% 46%,transparent 0 28%,rgba(14,10,4,.18) 52%,rgba(14,10,4,.72) 100%);}
+        .ls-mark{position:absolute!important;width:min(34vw,148px)!important;height:min(34vw,148px)!important;top:50%!important;left:50%!important;transform:translate(-50%,-54%)!important;pointer-events:none;z-index:2;}
+        .ls-mark svg{width:100%!important;height:100%!important;overflow:visible!important;filter:drop-shadow(0 0 0px rgba(255,170,68,0));transition:filter .6s ease;}
+        .ls-mark .ls-arch{stroke-dasharray:420;stroke-dashoffset:420;animation:lsStrokeDraw 2.8s cubic-bezier(.2,0,.6,1) forwards;animation-play-state:paused;}
+        .ls-mark .ls-dot{opacity:0;transform:scale(0);transform-origin:54px 20px;animation:lsDotPop .45s cubic-bezier(.34,1.56,.64,1) 1.6s forwards;animation-play-state:paused;}
+        .ls-mark.show svg{filter:drop-shadow(0 0 22px rgba(255,170,68,.4));}
+        .ls-mark.show .ls-arch,.ls-mark.show .ls-dot{animation-play-state:running;}
+        @keyframes lsStrokeDraw{from{stroke-dashoffset:420;}to{stroke-dashoffset:0;}}
+        @keyframes lsDotPop{0%{opacity:0;transform:scale(0);}60%{opacity:1;transform:scale(1.35);}100%{opacity:1;transform:scale(1);}}
+        .ls-wordmark{display:flex!important;align-items:flex-end!important;gap:1px!important;justify-content:center!important;margin-bottom:5px!important;opacity:0!important;transform:translateY(10px)!important;transition:opacity .6s ease .3s,transform .6s ease .3s!important;}
+        .ls-wordmark-text{font-family:'Bodoni Moda','Didot',Georgia,serif!important;font-size:clamp(22px,5vw,28px)!important;font-weight:300!important;letter-spacing:3px!important;background:linear-gradient(135deg,#FFE082 30%,#FFAA44 70%)!important;-webkit-background-clip:text!important;background-clip:text!important;-webkit-text-fill-color:transparent!important;color:transparent!important;line-height:1!important;padding-bottom:3px!important;}
+        .ls-bar-wrap{width:128px!important;height:2px!important;border-radius:999px!important;background:rgba(255,255,255,.06)!important;overflow:hidden!important;animation:none!important;opacity:1!important;}
+        .ls-bar{height:100%!important;width:0!important;background:linear-gradient(90deg,#FF7020,#FFAA44 50%,#FFE082)!important;border-radius:999px!important;box-shadow:0 0 14px rgba(255,170,68,.45)!important;animation:none!important;transition:width .12s ease!important;}
+    </style>
+</head>
+<body>
+
+<!-- ═══ SPLASH SCREEN ═════════════════════════════════════════════════ -->
+<div id="loading-screen" onclick="splashSkip()">
+    <div class="ls-aura"></div><div class="ls-grid"></div><div class="ls-vignette"></div>
+    <div id="ls-logo" class="ls-mark">
+        <svg viewBox="0 0 108 108" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+                <linearGradient id="lsArchGold" x1="28" y1="20" x2="80" y2="90" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#FFE082"/><stop offset="55%" stop-color="#FFAA44"/><stop offset="100%" stop-color="#FF7020"/></linearGradient>
+                <linearGradient id="lsDotGold" x1="48" y1="22" x2="60" y2="34" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#FFF3C0"/><stop offset="100%" stop-color="#FFD060"/></linearGradient>
+                <linearGradient id="lsTaper" x1="0" y1="90" x2="0" y2="26" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="white" stop-opacity="1"/><stop offset="100%" stop-color="white" stop-opacity="0.22"/></linearGradient>
+                <mask id="lsTaperMask"><rect width="108" height="108" fill="url(#lsTaper)"/></mask>
+            </defs>
+            <g mask="url(#lsTaperMask)"><path class="ls-arch" d="M 22 88 C 22 88 30 30 54 20 C 78 30 86 88 86 88" stroke="url(#lsArchGold)" stroke-width="7.5" fill="none" stroke-linecap="round"/></g>
+            <path class="ls-arch" d="M 22 88 C 22 88 30 30 54 20 C 78 30 86 88 86 88" stroke="url(#lsArchGold)" stroke-width="1.5" fill="none" stroke-linecap="round" opacity="0.5"/>
+            <circle class="ls-dot" cx="54" cy="20" r="5.5" fill="url(#lsDotGold)"/>
+        </svg>
+    </div>
+    <div id="ls-copy" style="position:absolute;left:50%;bottom:max(52px,9vh);transform:translateX(-50%);width:min(88vw,360px);display:flex;flex-direction:column;align-items:center;text-align:center;z-index:10;pointer-events:none;">
+        <div id="ls-title" class="ls-wordmark">
+            <svg width="28" height="28" viewBox="0 0 108 108" fill="none" style="flex-shrink:0;margin-bottom:1px">
+                <defs>
+                    <linearGradient id="lsWmGold" x1="28" y1="20" x2="80" y2="90" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#FFE082"/><stop offset="55%" stop-color="#FFAA44"/><stop offset="100%" stop-color="#FF7020"/></linearGradient>
+                    <linearGradient id="lsWmDot" x1="48" y1="22" x2="60" y2="34" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#FFF3C0"/><stop offset="100%" stop-color="#FFD060"/></linearGradient>
+                    <linearGradient id="lsWmTaper" x1="0" y1="90" x2="0" y2="26" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="white" stop-opacity="1"/><stop offset="100%" stop-color="white" stop-opacity="0.22"/></linearGradient>
+                    <mask id="lsWmMask"><rect width="108" height="108" fill="url(#lsWmTaper)"/></mask>
+                </defs>
+                <g mask="url(#lsWmMask)"><path d="M 22 88 C 22 88 30 30 54 20 C 78 30 86 88 86 88" stroke="url(#lsWmGold)" stroke-width="7.5" fill="none" stroke-linecap="round"/></g>
+                <path d="M 22 88 C 22 88 30 30 54 20 C 78 30 86 88 86 88" stroke="url(#lsWmGold)" stroke-width="1.5" fill="none" stroke-linecap="round" opacity="0.5"/>
+                <circle cx="54" cy="20" r="5.5" fill="url(#lsWmDot)"/>
+            </svg>
+            <span class="ls-wordmark-text">URELO</span>
+        </div>
+        <div id="ls-sub" style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:2.2px;text-transform:uppercase;color:rgba(255,190,100,.5);-webkit-text-fill-color:rgba(255,190,100,.5);margin-bottom:18px;opacity:0;transform:translateY(8px);transition:opacity .6s ease .18s,transform .6s ease .18s;">Screen Time · Focus · Habits</div>
+        <div id="ls-status" style="font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:1.8px;text-transform:uppercase;color:rgba(255,170,68,.45);-webkit-text-fill-color:rgba(255,170,68,.45);min-height:13px;margin-bottom:14px;opacity:0;transition:opacity .4s ease .35s;">Preparing your day…</div>
+        <div id="ls-bar-wrap" style="width:128px;height:2px;border-radius:999px;background:rgba(255,255,255,.06);overflow:hidden;opacity:0;transition:opacity .4s ease .4s;">
+            <div id="ls-bar" style="height:100%;width:0;border-radius:999px;background:linear-gradient(90deg,#FF7020,#FFAA44 50%,#FFE082);box-shadow:0 0 14px rgba(255,170,68,.45);transition:width .12s ease;"></div>
+        </div>
+    </div>
+</div>
+
+<!-- ═══ GLOBAL OVERLAYS ════════════════════════════════════════════════ -->
+<div id="toast-wrap"></div>
+<div id="confirm-dlg">
+    <div class="confirm-box">
+        <div class="confirm-title" id="cdlg-title">Are you sure?</div>
+        <div class="confirm-body" id="cdlg-body">This cannot be undone.</div>
+        <div class="confirm-acts">
+            <button class="confirm-btn cancel" onclick="closeConfirm()">Cancel</button>
+            <button class="confirm-btn danger" id="cdlg-ok">Confirm</button>
+        </div>
+    </div>
+</div>
+
+<!-- ═══ APP ROOT ════════════════════════════════════════════════════════ -->
+<div id="app" style="display:none">
+    <div class="screens" id="screens-root">
+        <!-- Populated by TemplateLoader before bootApp() runs -->
+    </div>
+    <div class="bottom-nav" style="position:relative">
+        <div id="swipe-indicator" class="swipe-indicator"></div>
+        <div class="nav-item active" id="nav-home"     onclick="activateTab('home')"><div class="nav-icon"><img id="nav-home-icon" src="" style="width:24px;height:24px;border-radius:6px;object-fit:cover" onerror="this.outerHTML='<span style=font-size:20px>🏠</span>'" alt=""/></div><div class="nav-lbl">Home</div></div>
+        <div class="nav-item"        id="nav-wellness" onclick="activateTab('wellness')"><div class="nav-icon">📊</div><div class="nav-lbl">Stats</div></div>
+        <div class="nav-item"        id="nav-focus"    onclick="activateTab('focus')"><div class="nav-icon">🎯</div><div class="nav-lbl">Focus</div></div>
+        <div class="nav-item"        id="nav-discover" onclick="activateTab('discover')" style="display:none"><div class="nav-icon">💡</div><div class="nav-lbl">Discover</div></div>
+        <div class="nav-item"        id="nav-settings" onclick="activateTab('settings')" style="display:none"></div>
+    </div>
+</div>
+
+<!-- ═══ PANELS ROOT (injected by TemplateLoader) ════════════════════════ -->
+<div id="panels-root"></div>
+<!-- ═══ MODALS ROOT (injected by TemplateLoader) ════════════════════════ -->
+<div id="modals-root"></div>
+<!-- ═══ ONBOARDING ROOT (injected by TemplateLoader) ═══════════════════ -->
+<div id="onboarding-root"></div>
+
+<script>window.AURELO_ICON_B64="data:image/png;base64,iVBORw0KGgo...AAASUVORK5CYII=";</script>
+
+<!-- ══ SPLASH GATE ══ -->
+<script>
+    (function(){
+      window.__splashDone=false;window.__hideLoadingQueued=false;window.__splashGateReady=true;
+      window.splashRelease=function(){window.__splashDone=true;if(window.__hideLoadingQueued){window.__hideLoadingQueued=false;if(typeof window.__realHideLoading==='function')window.__realHideLoading();}};
+    })();
+</script>
+
+<!-- ══ JS MODULES ════════════════════════════════ -->
+<script src="pro-gate.js"></script>
+<script src="pro-upsell.js"></script>
+<script src="js/bridge.js"></script>
+<script src="js/app-core.js"></script>
+<script>
+    (function(){var _real=window.hideLoading;window.__realHideLoading=_real;window.hideLoading=function(){if(window.__splashDone){_real&&_real();}else{window.__hideLoadingQueued=true;}};})();
+</script>
+<script src="js/app-share-utils.js"></script>
+<script src="js/app-share.js"></script>
+<script src="js/app-home.js"></script>
+<script src="js/app-home-score.js"></script>
+<script src="js/app-home-sleep.js"></script>
+<script src="js/app-notifications.js"></script>
+<script src="js/app-wellness.js"></script>
+<script src="js/app-wellness-views.js"></script>
+<script src="js/app-wellness-week.js"></script>
+<script src="js/app-wellness-month.js"></script>
+<!-- Focus sub-modules must load before the shell. app-focus.js depends on all of them. -->
+<script src="js/app-focus-score.js"></script>
+<script src="js/app-focus-timers.js"></script>
+<script src="js/app-focus-mindful.js"></script>
+<script src="js/app-focus-bedtime.js"></script>
+<script src="js/app-focus-challenge.js"></script>
+<script src="js/app-focus-routine.js"></script>
+<script src="js/app-focus-picker.js"></script>
+<script src="js/app-focus-home.js"></script>
+<!-- Shell loads last — FOCUS_DIFF global and all sub-modules must be defined first -->
+<script src="js/app-focus.js"></script>
+<script src="js/app-discover.js"></script>
+<script src="js/app-panels.js"></script>
+<script src="js/app-onboarding.js"></script>
+<script src="js/app-nav.js"></script>
+<script src="js/app-settings.js"></script>
+<script src="js/app-settings-widget.js"></script>
+<script src="js/app-categories.js"></script>
+<script src="js/app-widget.js"></script>
+
+<!-- ══ SPLASH SCREEN SCRIPT ════════════════════════════════════ -->
+<script id="splash-script">
+    (function(){
+      'use strict';
+      const MIN_MS=3400,TIPS=['Organizing your space…','Take a deep breath…','Data stays on device','Focus on what matters','Setting your focus…'];
+      const T_LOGO_START=60,T_LOGO_FADE=480;
+      const screen=document.getElementById('loading-screen'),logoEl=document.getElementById('ls-logo'),statusEl=document.getElementById('ls-status'),barEl=document.getElementById('ls-bar');
+      if(!screen)return;
+      function resize(){const W=window.innerWidth,H=window.innerHeight;if(logoEl){logoEl.style.left=(W/2)+'px';logoEl.style.top=(H/2)+'px';}}
+      window.addEventListener('resize',resize);resize();
+      let bootTs=Date.now(),skipped=false,raf=null,logoShown=false,textShown=false,tipIndex=-1,finished=false;
+      function _showText(){var t=document.getElementById('ls-title'),s=document.getElementById('ls-sub'),st=document.getElementById('ls-status'),bw=document.getElementById('ls-bar-wrap');if(t){t.style.setProperty('opacity','1','important');t.style.setProperty('transform','translateY(0)','important');}if(s){s.style.setProperty('opacity','1','important');s.style.setProperty('transform','translateY(0)','important');}if(st)st.style.setProperty('opacity','1','important');if(bw)bw.style.setProperty('opacity','1','important');}
+      screen.addEventListener('click',function(){skipped=true;if(logoShown&&!textShown){textShown=true;_showText();}});
+      function updateTip(e){const idx=Math.min(Math.floor(e/820),TIPS.length-1);if(idx!==tipIndex){tipIndex=idx;statusEl.style.opacity='0';setTimeout(function(){statusEl.textContent=TIPS[idx];statusEl.style.opacity='1';},300);}}
+      function updateBar(e){const p=Math.min(0.92,e/MIN_MS),ea=p<0.5?2*p*p:1-Math.pow(-2*p+2,2)/2;barEl.style.width=(ea*100)+'%';}
+      function tick(){
+        const elapsed=skipped?MIN_MS+100:(Date.now()-bootTs);
+        if(!textShown&&elapsed>=T_LOGO_START+T_LOGO_FADE){textShown=true;_showText();}
+        if(!logoShown&&elapsed>=T_LOGO_START){logoShown=true;logoEl.classList.add('show');}
+        updateTip(elapsed);updateBar(elapsed);
+        if(elapsed>=MIN_MS&&!finished){
+          finished=true;cancelAnimationFrame(raf);
+          statusEl.style.opacity='0';setTimeout(function(){statusEl.textContent='Ready ✦';statusEl.style.opacity='1';},200);
+          barEl.style.transition='width .28s cubic-bezier(.4,0,.2,1)';barEl.style.width='100%';
+          setTimeout(function(){screen.classList.add('hidden');setTimeout(function(){if(typeof splashRelease==='function')splashRelease();else if(typeof checkPermissions==='function')checkPermissions();},580);},320);
+          return;
+        }
+        raf=requestAnimationFrame(tick);
+      }
+      window.splashSkip=function(){skipped=true;};
+      if(statusEl)statusEl.textContent=TIPS[0];tipIndex=0;
+      raf=requestAnimationFrame(tick);
+    })();
+</script>
+</body>
+</html>

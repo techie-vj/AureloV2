@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Pulse step 3 — full bloom (largest, fully opaque)
+     Place in: app/src/main/res/drawable/widget_dot_s3_cyan.xml -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Outer glow ring -->
+    <item>
+        <shape android:shape="oval">
+            <solid android:color="#335DD6F8" />
+            <size android:width="14dp" android:height="14dp" />
+        </shape>
+    </item>
+    <!-- Solid center dot -->
+    <item
+        android:top="3dp" android:bottom="3dp"
+        android:left="3dp" android:right="3dp">
+        <shape android:shape="oval">
+            <solid android:color="#FF5DD6F8" />
+        </shape>
+    </item>
+</layer-list>

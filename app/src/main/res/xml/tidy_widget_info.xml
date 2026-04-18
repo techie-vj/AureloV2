@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Aurelo Smart Widget — metadata
+  Place in:  app/src/main/res/xml/tidy_widget_info.xml
+-->
+<appwidget-provider
+    xmlns:android="http://schemas.android.com/apk/res/android"
+
+    android:minWidth="250dp"
+    android:minHeight="74dp"
+    android:targetCellWidth="4"
+    android:targetCellHeight="2"
+
+    android:updatePeriodMillis="1800000"
+    android:initialLayout="@layout/widget_tidy"
+
+    android:resizeMode="horizontal|vertical"
+    android:widgetCategory="home_screen"
+
+    android:previewImage="@drawable/widget_preview"
+    android:previewLayout="@layout/widget_tidy"
+    android:description="@string/app_name" />

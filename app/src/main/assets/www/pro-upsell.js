@@ -1,0 +1,875 @@
+/**
+ * pro-upsell.js — Aurelo upsell bottom sheet
+ *
+ * Drop into assets/www/ alongside pro-gate.js.
+ * Load AFTER pro-gate.js in index.html.
+ *
+ * Improvements over v1:
+ *   1. Personalised data stat callout — shows user's real numbers in the sheet
+ *   2. Free trial line below CTA — "7 days free · then $X/year · cancel anytime"
+ *   3. Inline pricing in CTA button text where relevant
+ *   4. Social proof line in footer
+ *   5. Outcome-led copy rewrites across all features
+ *
+ * Exposes: window.ProUpsell
+ *   ProUpsell.show('focus_unlimited', 'work')  // open sheet
+ *   ProUpsell.hide()                           // close sheet
+ *   ProUpsell.onBillingError(message)          // show error in sheet
+ *   ProUpsell.showRestoring()                  // show restore spinner
+ *   ProUpsell.showRestoreNotFound()            // show "no purchase found"
+ */
+
+(function(window) {
+  'use strict';
+
+  // ── PERSONALISED DATA ─────────────────────────────────────────
+  // Pulls one live data point from the current session to inject into the sheet.
+  // Returns null if the data isn't available (demo mode / no permission granted).
+  // Each COPY entry optionally defines a dataStat key to identify which stat to show.
+  function _getSessionStat(key) {
+    try {
+      switch (key) {
+        case 'screen_time': {
+          const mins = (typeof TODAY_MINS !== 'undefined' && TODAY_MINS > 0) ? TODAY_MINS : 0;
+          if (!mins) return null;
+          const h = Math.floor(mins / 60), m = mins % 60;
+          return (h > 0 ? h + 'h ' + m + 'm' : m + 'm') + ' on your phone today';
+        }
+        case 'pickups': {
+          const p = (typeof PICKUPS !== 'undefined' && PICKUPS > 0) ? PICKUPS : 0;
+          return p > 0 ? p + ' phone pickups today' : null;
+        }
+        case 'streak': {
+          const s = (typeof IS_NATIVE !== 'undefined' && IS_NATIVE &&
+                     typeof N !== 'undefined' && N.getStreakDays)
+            ? N.getStreakDays() : 0;
+          return s > 0 ? s + '-day streak — keep it going' : null;
+        }
+        case 'top_app': {
+          const top = (typeof DAILY_USE !== 'undefined' && DAILY_USE.length > 0) ? DAILY_USE[0] : null;
+          if (!top) return null;
+          const h = Math.floor(top.totalMinutes / 60), m = top.totalMinutes % 60;
+          const t = h > 0 ? h + 'h ' + m + 'm' : m + 'm';
+          return t + ' on ' + top.name + ' today';
+        }
+        case 'ghost_count': {
+          const g = (typeof GHOSTS !== 'undefined') ? GHOSTS.length : 0;
+          return g > 0 ? g + ' unused app' + (g === 1 ? '' : 's') + ' on your phone' : null;
+        }
+        default: return null;
+      }
+    } catch(_) { return null; }
+  }
+
+  // ── UPSELL COPY ───────────────────────────────────────────────
+  // dataStat: key passed to _getSessionStat() — shown as a highlighted callout
+  //           above the body copy when the data is available.
+  const COPY = {
+    home_insight: {
+      tag: 'Pro Insight',
+      headline: 'Know what your screen time actually means.',
+      body: 'Numbers alone don\'t change habits. Pro unlocks a daily contextual insight above your stats — telling you if today is better or worse than your average, and why it matters.',
+      dataStat: 'screen_time',
+      cta: 'Unlock Daily Insights',
+      dismiss: 'Not now',
+    },
+    focus_unlimited: {
+      tag: 'Unlimited Focus',
+      headline: 'Want to block more apps?',
+      body: 'Most people who build real focus habits block 5–7 apps per mode, not 3. Go Pro to remove the ceiling entirely and design a focus environment that actually works for you.',
+      dataStat: 'pickups',
+      cta: 'Unlock unlimited · from $1.67/mo',
+      dismiss: 'Not now',
+      variants: {
+        work: {
+          headline: 'Three apps blocked. Still distracted?',
+          body: 'Deep focus usually means blocking more than 3. Pro removes the ceiling so you can block every app that pulls you away — social, news, games, all of it.',
+          cta: 'Go Pro · Unlock unlimited',
+          dismiss: 'Keep 3 for now',
+        },
+      },
+    },
+    focus_schedule: {
+      tag: 'Focus Scheduling',
+      headline: 'Stop relying on willpower to focus.',
+      body: 'Set recurring focus sessions — like "Weekdays 9–11 AM" — and Aurelo activates the mode automatically. The apps that steal your attention get blocked before you even think to open them.',
+      bullets: [
+        'Recurring daily or weekly schedules',
+        'Unlimited apps per mode',
+        'Focus session history + streaks',
+      ],
+      cta: 'Unlock Focus Scheduling',
+      dismiss: 'Maybe later',
+    },
+    focus_history: {
+      tag: 'Focus History',
+      headline: 'Are your focus habits building or slipping?',
+      body: 'Track your weekly time-in-focus, session count, and streaks over time. You can\'t improve what you can\'t see — Pro shows you the full picture.',
+      dataStat: 'streak',
+      cta: 'Unlock Focus History',
+      dismiss: 'Not now',
+    },
+    weekly_challenge: {
+      tag: 'Weekly Challenge',
+      headline: 'A new goal every Monday, built around your patterns.',
+      body: 'Pro users get weekly challenges personalised to their real usage — not generic tips, but specific targets based on where your screen time actually goes.',
+      dataStat: 'screen_time',
+      cta: 'Join Weekly Challenges',
+      dismiss: 'Maybe later',
+    },
+    monthly_depth: {
+      tag: 'Monthly Deep Dive',
+      headline: 'Are your habits actually improving over time?',
+      body: 'A single day tells you nothing. The monthly calendar, App DNA review, and streak heatmap show whether your screen time is trending down — or just fluctuating.',
+      dataStat: 'screen_time',
+      cta: 'Unlock Monthly View',
+      dismiss: 'Not now',
+    },
+    history_depth: {
+      tag: 'Extended History',
+      headline: 'Your patterns only show up over weeks.',
+      body: 'Sort All Apps by Week or Month to find the apps that are quietly taking more and more of your time. Free users see today only — Pro shows you the trend.',
+      dataStat: 'top_app',
+      cta: 'Unlock History',
+      dismiss: 'Not now',
+    },
+    unlimited_apps_list: {
+      tag: 'Full App List',
+      headline: 'See every app, not just your top 6.',
+      body: 'Pro unlocks the full ranked list — every app you used today, with exact time and session count. The ones hiding outside the top 6 are often the most surprising.',
+      dataStat: 'top_app',
+      cta: 'Unlock Full List',
+      dismiss: 'Not now',
+    },
+    categories: {
+      tag: 'Pro Categories',
+      headline: 'Organise your apps the way your brain works.',
+      body: 'Unlimited custom categories, Play Store sync, and per-app overrides. Free users get auto-generated categories — Pro users decide what counts as productive.',
+      cta: 'Unlock Categories',
+      dismiss: 'Not now',
+    },
+    widget_themes: {
+      tag: 'Widget Themes',
+      headline: 'Your home screen, upgraded.',
+      body: 'Unlock AMOLED Black, Minimal Mono, Neon Glow, Frosted Glass, and Dynamic Color — five themes designed to match your wallpaper and reduce visual noise every time you unlock.',
+      cta: 'Unlock Themes',
+      dismiss: 'Not now',
+    },
+    widget_insight: {
+      tag: 'Widget Insight Bar',
+      headline: 'One line that tells you where you stand.',
+      body: 'The widget insight bar gives you a live daily signal — like "20% below your weekly average" — without opening the app. It turns your home screen into a habit checkpoint.',
+      dataStat: 'screen_time',
+      cta: 'Unlock Widget Insights',
+      dismiss: 'Not now',
+    },
+    streak_depth: {
+      tag: 'Streak Calendar',
+      headline: 'See every streak day — and every break.',
+      body: 'The streak calendar shows your whole month as a habit heatmap. Know exactly which days broke your streak, so you can spot the pattern and prevent it next time.',
+      dataStat: 'streak',
+      cta: 'Unlock Streak Calendar',
+      dismiss: 'Not now',
+    },
+    app_mgmt: {
+      tag: 'Unlimited Locks & Hides',
+      headline: 'You\'ve reached the free limit.',
+      body: 'Free users can lock or hide up to 3 apps. If you need more, Pro removes the ceiling — lock and hide as many as you need, no restrictions.',
+      dataStat: 'pickups',
+      cta: 'Go Pro · Unlock unlimited',
+      dismiss: 'Keep limit for now',
+    },
+    timer_unlimited: {
+          tag: 'Unlock All Timers',
+          headline: "You've reached the free limit.",
+          body: "Limit reached: 3 app timers set. Research shows managing 5–7 apps is the sweet spot for productivity. Go Pro for unlimited access.",
+          cta: 'Go Pro · Unlock unlimited',
+          dismiss: 'Keep limit for now',
+        },
+    mindful_unlimited: {
+              tag: 'Total Mindful Access',
+              headline: "You've reached the free limit.",
+              body: "You're practicing mindfulness on 3 apps. To truly master your focus, we recommend covering your top 7 distractions. Go Pro to protect every app.",
+              cta: 'Go Pro · Unlock unlimited',
+              dismiss: 'Keep limit for now',
+            },
+    bedtime: {
+      tag: 'Bedtime Mode',
+      headline: 'Sleep Better, Stay Off Your Phone.',
+      body: 'Set your bedtime once and Aurelo does the rest. We block 🚫 distracting apps and silence notifications automatically. No willpower needed—just better rest and a clear summary 📊 every morning.',
+      dataStat: 'screen_time',
+      cta: 'Unlock Bedtime Mode',
+      dismiss: 'Not now',
+    },
+    themes: {
+      tag: 'Pro Themes',
+      headline: 'Make Aurelo feel like yours.',
+      body: 'Unlock AMOLED Black, Warm Sand, Midnight, Forest, and Rose. Each theme is designed to reduce eye strain and give the app a feel that matches how you use your phone.',
+      cta: 'Unlock All Themes',
+      dismiss: 'Not now',
+    },
+    ad_free: {
+      tag: 'Ad-Free',
+      headline: 'A screen time app with ads is a contradiction.',
+      body: 'Pro removes all sponsored cards from Discover. Pure signal, no noise — which is kind of the whole point of Aurelo.',
+      cta: 'Go Ad-Free',
+      dismiss: 'Not now',
+    },
+    tidy_score_pillars: {
+      tag: 'Aurelo Score',
+      headline: 'What\'s actually driving your score today?',
+      body: 'Your Aurelo Score rolls Screen, Focus, and Sleep habits into one daily number. Pro unlocks the full per-pillar breakdown — with the specific score for each area and personalised tips on where to improve first.',
+      dataStat: 'screen_time',
+      cta: 'Unlock Score Breakdown',
+      dismiss: 'Not now',
+    },
+    upgrade_pro: {
+      tag: 'Aurelo Pro',
+      headline: 'Master your time, without limits.',
+      body: 'Break the scroll with unlimited focus tools and deep habit analytics. No accounts, no tracking—just a cleaner, more intentional phone experience.',
+      bullets: [
+          'Unlimited Focus Tools — No limits on Focus Mode, Mindful Pause, timers, app locks, and hidden apps.',
+          'Deep Habit Analytics — Unlock your Monthly App DNA, 30-day trends, and streak calendars.',
+          'Advanced Pro Widgets — Full themes, Rotating Insight bars, and all 6 Smart Routine slots with frequency rings.',
+          'Healthy Boundaries — Automate your day with Unlimited Scheduled Focus, Bedtime Mode, and Weekly Challenges.',
+          'Pro Personalization — Exclusive themes, Custom categories and Play Store sync.'
+        ],
+      cta: 'Unlock Pro',
+      dismiss: 'Maybe later',
+    },
+  };
+
+  // ── DOM INJECTION ─────────────────────────────────────────────
+  const CSS = `
+    .pu-backdrop {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.62);
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+      z-index: 9999;
+      display: flex; align-items: flex-end; justify-content: center;
+      opacity: 0; transition: opacity 0.25s;
+      pointer-events: none;
+    }
+    .pu-backdrop.pu-visible {
+      opacity: 1; pointer-events: all;
+    }
+    .pu-sheet {
+      width: 100%; max-width: 480px;
+      background: #16181f;
+      border-radius: 24px 24px 0 0;
+      border: 1px solid #353849; border-bottom: none;
+      padding: 12px 22px 44px;
+      transform: translateY(100%);
+      transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+      box-sizing: border-box;
+    }
+    .pu-backdrop.pu-visible .pu-sheet {
+      transform: translateY(0);
+    }
+    .pu-handle {
+      width: 40px; height: 4px;
+      background: #353849; border-radius: 2px;
+      margin: 0 auto 20px;
+    }
+    .pu-tag {
+      display: inline-block;
+      padding: 3px 10px; border-radius: 40px;
+      background: rgba(247,201,72,0.12);
+      border: 1px solid rgba(247,201,72,0.25);
+      color: #f7c948;
+      font-size: 10px; font-weight: 700;
+      letter-spacing: 0.08em; font-family: monospace;
+      margin-bottom: 14px;
+    }
+    .pu-headline {
+      font-size: 20px; font-weight: 800;
+      color: #e8eaf0; line-height: 1.25;
+      margin-bottom: 10px; letter-spacing: -0.3px;
+    }
+
+    /* ── Personalised data callout ── */
+    .pu-data-stat {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 14px; border-radius: 10px;
+      background: rgba(108,99,255,0.10);
+      border: 1px solid rgba(108,99,255,0.22);
+      margin-bottom: 14px;
+      animation: pgSlideIn 0.3s ease;
+    }
+    .pu-data-stat-icon { font-size: 16px; flex-shrink: 0; }
+    .pu-data-stat-text {
+      font-size: 13px; font-weight: 700; color: #c4c0ff;
+      line-height: 1.3;
+    }
+
+    .pu-body {
+      font-size: 14px; color: #a0a6b8;
+      line-height: 1.6; margin-bottom: 16px;
+    }
+    .pu-bullets {
+      list-style: none; padding: 0; margin: 0 0 18px;
+      display: flex; flex-direction: column; gap: 12px;
+    }
+    .pu-bullets li {
+      display: flex; align-items: center; gap: 10px;
+      font-size: 13px; color: #a0a6b8; padding: 4px 0;
+
+    }
+    .pu-check {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 18px; height: 18px; border-radius: 50%;
+      background: rgba(78,205,196,0.15); color: #4ecdc4;
+      font-size: 10px; font-weight: 700; flex-shrink: 0;
+    }
+
+    /* ── Footer: privacy + social proof ── */
+    .pu-footer {
+      margin-bottom: 18px;
+      display: flex; flex-direction: column; gap: 6px;
+    }
+    .pu-privacy {
+      font-size: 11.5px; color: #56b7280;
+      padding: 9px 14px;
+      background: rgba(255,255,255,0.07);
+      border-radius: 8px 8px 0 0;
+      border: 1px solid #353849; border-bottom: none;
+    }
+    .pu-social-proof {
+      font-size: 11.5px; color: #56b7280;
+      padding: 9px 14px;
+      background: rgba(255,255,255,0.07);
+      border-radius: 0 0 8px 8px;
+      border: 1px solid #353849;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .pu-social-proof-dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: #12D48A; flex-shrink: 0;
+      box-shadow: 0 0 4px rgba(18,212,138,0.5);
+    }
+
+    .pu-cta {
+      width: 100%; padding: 15px; border-radius: 14px;
+      background: linear-gradient(135deg, #7c6ff7, #9b6fff);
+      color: #fff; font-size: 15px; font-weight: 800;
+      border: none; cursor: pointer; margin-bottom: 6px;
+      letter-spacing: -0.1px;
+      transition: opacity 0.2s, transform 0.1s;
+      box-sizing: border-box;
+      box-shadow: 0 6px 20px rgba(124,111,247,0.35);
+    }
+    .pu-cta:hover { opacity: 0.9; }
+    .pu-cta:active { transform: scale(0.98); }
+    .pu-cta:disabled { opacity: 0.5; cursor: not-allowed; box-shadow: none; }
+
+    /* Plan picker */
+    .pu-plans {
+      display: flex; gap: 8px;
+      margin-bottom: 14px;
+    }
+    .pu-plan {
+      flex: 1; position: relative;
+      display: flex; flex-direction: column; align-items: center;
+      padding: 12px 8px 10px;
+      border-radius: 14px;
+      background: #1e2029;
+      border: 1.5px solid #7c6ff7;
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s;
+      text-align: center;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .pu-plan:hover { border-color: #5a5280; }
+    .pu-plan.pu-plan-selected {
+      border-color: #7c6ff7;
+      background: rgba(124,111,247,0.10);
+    }
+    .pu-plan-badge {
+      position: absolute; top: -9px; left: 50%; transform: translateX(-50%);
+      padding: 2px 8px; border-radius: 40px;
+      background: linear-gradient(135deg, #7c6ff7, #9b6fff);
+      color: #fff; font-size: 9px; font-weight: 800;
+      letter-spacing: 0.06em; white-space: nowrap; font-family: monospace;
+    }
+    .pu-plan-name {
+      font-size: 11px; font-weight: 700; color: #a0a6b8;
+      text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 6px;
+    }
+    .pu-plan-price {
+      font-size: 22px; font-weight: 800; color: #e8eaf0;
+      line-height: 1; letter-spacing: -0.5px; margin-bottom: 2px;
+    }
+    .pu-plan-per { font-size: 10px; color: #5c6070; line-height: 1.3; }
+    .pu-plan-trial {
+      font-size: 9.5px; color: #4ecdc4; font-weight: 700;
+      margin-top: 5px; font-family: monospace;
+    }
+    .pu-plan-selected .pu-plan-name  { color: #c4c0ff; }
+    .pu-plan-selected .pu-plan-price { color: #fff; }
+    .pu-plan-selected .pu-plan-price span { color: #a09cdd; }
+    .pu-plan-selected .pu-plan-per   { color: #a09cdd; }
+    .pu-plan-selected .pu-plan-trial { color: #6eddd8; }
+
+    /* Subtext line below CTA */
+    .pu-cta-sub {
+      text-align: center;
+      font-size: 11px; color: #454a65;
+      margin-bottom: 4px; min-height: 16px;
+    }
+
+    .pu-dismiss {
+      width: 100%; padding: 12px; border-radius: 14px;
+      background: transparent; color: #5c6070;
+      font-size: 13px; font-weight: 600; border: none; cursor: pointer;
+      box-sizing: border-box;
+    }
+    .pu-restore-link {
+      display: block; text-align: center; margin-top: 6px;
+      font-size: 11px; color: #454a65; cursor: pointer;
+      text-decoration: underline;
+    }
+    .pu-status {
+      text-align: center; font-size: 13px;
+      color: #a0a6b8; padding: 8px 0;
+      display: none;
+    }
+    .pu-status.pu-visible { display: block; }
+    .pu-error { color: #ff6b6b !important; }
+
+    /* ── Gate component styles ── */
+
+
+    /* Pro header */
+    .aurelo-header--pro {
+      background: linear-gradient(135deg, #1a1730 0%, #141824 60%, var(--bg, #0e0f13) 100%) !important;
+      border-bottom-color: rgba(124,111,247,0.2) !important;
+    }
+    .pg-pro-pill {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 3px 9px 3px 7px; border-radius: 40px;
+      background: rgba(247,201,72,0.12); border: 1px solid rgba(247,201,72,0.25);
+      color: #f7c948; margin-left: 8px; vertical-align: middle;
+      animation: pgPillIn 0.35s ease;
+    }
+    .pg-pill-star { font-size: 8px; opacity: 0.85; }
+    .pg-pill-text { font-family: monospace; font-size: 10.5px; font-weight: 800; letter-spacing: 0.08em; }
+
+    @keyframes pgSlideIn { from { opacity:0; transform:translateY(-4px); } to { opacity:1; transform:translateY(0); } }
+    @keyframes pgPillIn  { from { opacity:0; transform:translateX(-4px) scale(0.9); } to { opacity:1; transform:translateX(0) scale(1); } }
+  `;
+
+  // ── PRICING ───────────────────────────────────────────────────
+  // Fetched once from AppBridge.getProPricing() on first show(), cached for the session.
+  // Falls back to hardcoded defaults if bridge is unavailable (demo / web mode).
+  // AppBridge.getProPricing() should return JSON:
+  //   {
+  //     monthly:  { price: "$2.99",  perMonth: "$2.99", trialDays: 7 },
+  //     annual:   { price: "$17.99", perMonth: "$1.49", trialDays: 7 },
+  //     lifetime: { price: "$29.99", perMonth: null,    trialDays: 0 }
+  //   }
+  // Any key can be null/absent — that plan will be hidden from the picker.
+  const PRICING_FALLBACK = {
+    monthly:  { price: '$2.99',  perMonth: '$2.99', trialDays: 7 },
+    annual:   { price: '$17.99', perMonth: '$1.49', trialDays: 7 },
+    lifetime: { price: '$39.99', perMonth: null,    trialDays: 0 },
+  };
+  // ── PRICING ─────────────────────────────────────────────────────
+  let _pricingCache = null;
+  let _pricingFetched = false; // tracks whether a live fetch has ever succeeded
+
+  function _fetchLivePricing() {
+      // Always re-fetch on each sheet open so prices stay fresh
+      _pricingFetched = false;
+      try { AppBridge.getProPricing(); } catch(_) {}
+  }
+
+  window.onProPricingLoaded = function(json) {
+      try {
+          console.log('ProUpsell pricing received:', JSON.stringify(json));
+          const parsed = typeof json === 'string' ? JSON.parse(json) : json;
+          // Only merge non-null values — preserve fallback for missing plans
+          const merged = Object.assign({}, PRICING_FALLBACK);
+          if (parsed && typeof parsed === 'object') {
+              Object.keys(parsed).forEach(k => {
+                  if (parsed[k] != null && parsed[k].price) merged[k] = parsed[k];
+              });
+          }
+          _pricingCache = merged;
+          _pricingFetched = true;
+
+          // Always re-render when live prices arrive, whether sheet is open or not
+          if (_backdrop && _backdrop.classList.contains('pu-visible')) {
+              _renderPlans(_pricingCache);
+              _updateCtaForPlan(_selectedPlan);
+          }
+      } catch(_) {}
+  };
+
+  // ── STATE ─────────────────────────────────────────────────────
+  let _backdrop, _ctaBtn, _dismissBtn, _statusEl, _restoreLink;
+  let _currentUpsell = null;
+  let _selectedPlan  = 'annual';   // always pre-select annual
+  let _injected      = false;
+  let _restoreInProgress = false;
+  let _restoreTimer      = null;   // safety-net timeout handle
+
+  // ── INIT ──────────────────────────────────────────────────────
+  function _inject() {
+    if (_injected) return;
+    _injected = true;
+
+    const style = document.createElement('style');
+    style.textContent = CSS;
+    document.head.appendChild(style);
+
+    _backdrop = document.createElement('div');
+    _backdrop.className = 'pu-backdrop';
+    _backdrop.innerHTML = `
+      <div class="pu-sheet" role="dialog" aria-modal="true">
+        <div class="pu-handle"></div>
+        <div class="pu-tag"      id="pu-tag"></div>
+        <div class="pu-headline" id="pu-headline"></div>
+        <div class="pu-data-stat" id="pu-data-stat" style="display:none">
+          <span class="pu-data-stat-icon" id="pu-data-stat-icon">📊</span>
+          <span class="pu-data-stat-text" id="pu-data-stat-text"></span>
+        </div>
+        <div class="pu-body"    id="pu-body"></div>
+        <ul  class="pu-bullets" id="pu-bullets" style="display:none"></ul>
+        <div class="pu-footer">
+          <div class="pu-privacy">🔒 No account needed. All data stays on your phone.</div>
+          <div class="pu-social-proof">
+            <span>✨ All current and future Pro features included.</span>
+          </div>
+        </div>
+        <div class="pu-plans"   id="pu-plans"></div>
+        <div class="pu-status"  id="pu-status"></div>
+        <button class="pu-cta"  id="pu-cta"></button>
+        <div class="pu-cta-sub" id="pu-cta-sub"></div>
+        <button class="pu-dismiss"     id="pu-dismiss"></button>
+        <span  class="pu-restore-link" id="pu-restore">Restore purchase</span>
+      </div>
+    `;
+    document.body.appendChild(_backdrop);
+
+    _ctaBtn      = _backdrop.querySelector('#pu-cta');
+    _dismissBtn  = _backdrop.querySelector('#pu-dismiss');
+    _statusEl    = _backdrop.querySelector('#pu-status');
+    _restoreLink = _backdrop.querySelector('#pu-restore');
+
+    _backdrop.addEventListener('click', function(e) {
+      if (e.target === _backdrop) hide();
+    });
+    _dismissBtn.addEventListener('click', hide);
+
+    _ctaBtn.addEventListener('click', function() {
+      _ctaBtn.disabled = true;
+      _ctaBtn.textContent = 'Opening Play Store…';
+      try {
+        // Pass selected plan key so BillingManager can launch the correct SKU
+        AppBridge.launchBillingFlow(_selectedPlan);
+      } catch(e) {
+        _showStatus('Could not connect to Play Store. Please try again.', true);
+        _ctaBtn.disabled = false;
+        _updateCtaForPlan(_selectedPlan);
+      }
+    });
+
+    _restoreLink.addEventListener('click', function() {
+      _restoreInProgress = true;
+      _showStatus('Checking your purchases…');
+
+      // Safety net — if Kotlin never calls back within 10s, show failure
+      _clearRestoreTimeout();
+      _restoreTimer = setTimeout(function() {
+        if (_restoreInProgress) {
+          _restoreInProgress = false;
+          _showStatus('Could not verify purchase. Please try again.', true);
+        }
+      }, 10000);
+
+      try {
+        AppBridge.restorePurchase();
+      } catch(e) {
+        _clearRestoreTimeout();
+        _restoreInProgress = false;
+        _showStatus('Could not connect to Play Store.', true);
+      }
+    });
+  }
+
+  // ── PLAN PICKER ───────────────────────────────────────────────
+  function _renderPlans(pricing) {
+    const container = _backdrop ? _backdrop.querySelector('#pu-plans') : document.getElementById('pu-plans');
+    if (!container) return;
+
+    const defs = [
+      { key: 'monthly',  label: 'Monthly',  badge: null         },
+      { key: 'annual',   label: 'Annual',   badge: 'Best Value' },
+      { key: 'lifetime', label: 'Lifetime', badge: null         },
+    ].filter(function(p) { return pricing[p.key] != null; });
+
+    container.innerHTML = defs.map(function(p) {
+      const pd       = pricing[p.key];
+      const selected = p.key === _selectedPlan;
+      const hasTrial = pd.trialDays > 0;
+
+      let priceDisplay, perLine;
+      if (p.key === 'annual' && pd.perMonth) {
+        priceDisplay = _esc(pd.perMonth) + '<span style="font-size:11px;font-weight:500;color:#5c6070">/mo</span>';
+        perLine      = '<div class="pu-plan-per">' + _esc(pd.price) + '/year</div>';
+      } else if (p.key === 'lifetime') {
+        priceDisplay = _esc(pd.price);
+        perLine      = '<div class="pu-plan-per">one-time</div>';
+      } else {
+        priceDisplay = _esc(pd.price) + '<span style="font-size:11px;font-weight:500;color:#5c6070">/mo</span>';
+        perLine      = '<div class="pu-plan-per">billed monthly</div>';
+      }
+
+      return '<div class="pu-plan' + (selected ? ' pu-plan-selected' : '') + '"'
+        + ' id="pu-plan-' + p.key + '"'
+        + ' onclick="window._puSelectPlan(\'' + p.key + '\')">'
+        + (p.badge ? '<div class="pu-plan-badge">' + _esc(p.badge) + '</div>' : '')
+        + '<div class="pu-plan-name">'  + _esc(p.label) + '</div>'
+        + '<div class="pu-plan-price">' + priceDisplay  + '</div>'
+        + perLine
+        + (hasTrial ? '<div class="pu-plan-trial">' + pd.trialDays + '-day free trial</div>' : '')
+        + '</div>';
+    }).join('');
+  }
+
+  // Exposed on window so the injected onclick can reach it
+  window._puSelectPlan = function(plan) {
+    _selectedPlan = plan;
+    document.querySelectorAll('.pu-plan').forEach(function(el) {
+      el.classList.toggle('pu-plan-selected', el.id === 'pu-plan-' + plan);
+    });
+    _updateCtaForPlan(plan);
+    if (_statusEl) { _statusEl.textContent = ''; _statusEl.className = 'pu-status'; }
+  };
+
+  function _updateCtaForPlan(plan) {
+       const pricing = _pricingCache || PRICING_FALLBACK;
+      const pd      = pricing[plan];
+
+      // Re-query every time — guards against stale references after DOM resets
+      const btn    = _backdrop ? _backdrop.querySelector('#pu-cta')     : document.getElementById('pu-cta');
+      const ctaSub = _backdrop ? _backdrop.querySelector('#pu-cta-sub') : document.getElementById('pu-cta-sub');
+
+      // Also keep _ctaBtn in sync in case it went stale
+      if (btn) _ctaBtn = btn;
+
+      if (!pd) {
+          // pd missing — still show a generic CTA so it's never blank
+          if (_ctaBtn) { _ctaBtn.textContent = 'Unlock Pro'; _ctaBtn.disabled = false; }
+          return;
+      }
+      if (!_ctaBtn) return;
+
+      if (plan === 'lifetime') {
+          _ctaBtn.textContent = 'Get Lifetime Access — ' + pd.price;
+          if (ctaSub) ctaSub.textContent = 'One-time payment · All future updates included';
+      } else if (pd.trialDays > 0) {
+          _ctaBtn.textContent = 'Start ' + pd.trialDays + '-Day Free Trial →';
+          if (ctaSub) ctaSub.textContent = 'Then ' + pd.price
+              + (plan === 'annual' ? '/year' : '/month') + ' · Cancel anytime';
+      } else {
+          _ctaBtn.textContent = 'Unlock Pro — ' + pd.price
+              + (plan === 'annual' ? '/year' : '/month');
+          if (ctaSub) ctaSub.textContent = 'Cancel anytime';
+      }
+      _ctaBtn.disabled = false;
+  }
+
+  // ── PUBLIC API ────────────────────────────────────────────────
+  function show(upsellKey, context) {
+
+      if (window.ProTier && window.ProTier.isPro) return;
+
+      const base = COPY[upsellKey];
+      if (!base) { console.warn('ProUpsell: Unknown key', upsellKey); return; }
+
+      const variant = context && base.variants && base.variants[context];
+      const copy = variant ? Object.assign({}, base, variant) : base;
+
+      _currentUpsell = { key: upsellKey, context, copy };
+
+      // Tag / Headline / Body
+      document.getElementById('pu-tag').textContent      = base.tag;
+      document.getElementById('pu-headline').textContent = copy.headline;
+      document.getElementById('pu-body').textContent     = copy.body;
+
+      // Personalised stat
+      const statEl     = document.getElementById('pu-data-stat');
+      const statTextEl = document.getElementById('pu-data-stat-text');
+      const statIconEl = document.getElementById('pu-data-stat-icon');
+      const statKey    = base.dataStat || null;
+      const statValue  = statKey ? _getSessionStat(statKey) : null;
+
+      if (statValue && statEl && statTextEl) {
+          statTextEl.textContent = statValue;
+          if (statIconEl) {
+              statIconEl.textContent =
+                  statKey === 'streak'   ? '🔥' :
+                  statKey === 'pickups'  ? '📱' :
+                  statKey === 'top_app'  ? '⏱️' : '📊';
+          }
+          statEl.style.display = 'flex';
+      } else if (statEl) {
+          statEl.style.display = 'none';
+      }
+
+      // Bullets
+      const bulletsList = document.getElementById('pu-bullets');
+      if (copy.bullets && copy.bullets.length) {
+          bulletsList.innerHTML = copy.bullets.map(b =>
+              `<li><span class="pu-check">✓</span>${_esc(b)}</li>`
+          ).join('');
+          bulletsList.style.display = 'flex';
+      } else {
+          bulletsList.style.display = 'none';
+      }
+
+      // Dismiss label
+      _dismissBtn.textContent = copy.dismiss || 'Not now';
+
+      // Clear status
+      _statusEl.textContent = '';
+      _statusEl.className   = 'pu-status';
+
+      // Always default to annual
+      _selectedPlan = 'annual';
+
+      // Pricing: render fallback immediately
+      const immediatePricing = _pricingCache || PRICING_FALLBACK;
+      _renderPlans(immediatePricing);
+      _updateCtaForPlan(_selectedPlan);
+
+      // Dim prices while live fetch in-flight
+      if (!_pricingFetched) {
+          document.querySelectorAll('.pu-plan-price').forEach(el => {
+              el.style.opacity = '0.3';
+          });
+          document.querySelectorAll('.pu-plan-trial').forEach(el => {
+              el.style.opacity = '0.3';
+          });
+      }
+
+      // Trigger fresh live fetch
+      _fetchLivePricing();
+
+      // Show sheet
+      _backdrop.classList.add('pu-visible');
+      document.body.style.overflow = 'hidden';
+  }
+
+  function hide() {
+    if (!_backdrop) return;
+    _backdrop.classList.remove('pu-visible');
+    document.body.style.overflow = '';
+    _currentUpsell = null;
+  }
+
+  function onBillingError(message) {
+    if (!_backdrop || !_backdrop.classList.contains('pu-visible')) return;
+    _showStatus(message || 'Something went wrong. Please try again.', true);
+    if (_ctaBtn) {
+      _ctaBtn.disabled = false;
+      _updateCtaForPlan(_selectedPlan);
+    }
+  }
+
+  function showRestoring() {
+    _showStatus('Checking your purchases…');
+  }
+
+  function showRestoreNotFound() {
+    _showStatus('No Pro purchase found for this Google account.', false);
+  }
+
+  function onPurchaseSuccess() {
+    if (!_backdrop || !_backdrop.classList.contains('pu-visible')) return;
+    _clearRestoreTimeout();
+    _restoreInProgress = false;
+
+    document.getElementById('pu-tag').textContent      = 'Purchase Complete';
+    document.getElementById('pu-headline').textContent = '✦ Welcome to Aurelo Pro';
+    document.getElementById('pu-body').textContent     = 'All features are now unlocked. As always, your data never leaves your device.';
+
+    const bullets = document.getElementById('pu-bullets');
+    const statEl  = document.getElementById('pu-data-stat');
+    const plans   = document.getElementById('pu-plans');
+    const ctaSub  = document.getElementById('pu-cta-sub');
+    if (bullets) bullets.style.display = 'none';
+    if (statEl)  statEl.style.display  = 'none';
+    if (plans)   plans.style.display   = 'none';
+    if (ctaSub)  ctaSub.style.display  = 'none';
+
+    if (_ctaBtn) {
+      _ctaBtn.textContent          = '✓ You\'re Pro now!';
+      _ctaBtn.disabled             = true;
+      _ctaBtn.style.background     = 'linear-gradient(135deg,#12D48A,#0aab6e)';
+      _ctaBtn.style.boxShadow      = '0 6px 20px rgba(18,212,138,0.3)';
+    }
+    if (_dismissBtn)  _dismissBtn.style.display  = 'none';
+    if (_restoreLink) _restoreLink.style.display = 'none';
+    if (_statusEl)  { _statusEl.textContent = ''; _statusEl.className = 'pu-status'; }
+
+    setTimeout(function() {
+      hide();
+      // Reset for next open
+      if (_ctaBtn) {
+        _ctaBtn.style.background = '';
+        _ctaBtn.style.boxShadow  = '';
+        _ctaBtn.disabled         = false;
+      }
+      if (_dismissBtn)  _dismissBtn.style.display  = '';
+      if (_restoreLink) _restoreLink.style.display = '';
+      if (plans)        plans.style.display        = '';
+      if (ctaSub)       ctaSub.style.display       = '';
+    }, 3000);
+  }
+
+  // ── INTERNAL ─────────────────────────────────────────────────
+
+  function _showStatus(msg, isError) {
+    if (!_statusEl) return;
+    _statusEl.textContent = msg;
+    _statusEl.className   = 'pu-status pu-visible' + (isError ? ' pu-error' : '');
+  }
+
+  function _clearRestoreTimeout() {
+    if (_restoreTimer) { clearTimeout(_restoreTimer); _restoreTimer = null; }
+  }
+
+  function _esc(str) {
+    return String(str)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  // ── EXPOSE ────────────────────────────────────────────────────
+  window.ProUpsell = { show, hide, onBillingError, showRestoring, showRestoreNotFound, onPurchaseSuccess };
+  // Eager-inject sheet HTML so it's ready before first open
+  _inject();
+
+  // Called by Kotlin (PurchaseRestoreHandler) when restore query begins
+  window.onRestoreStarted = function () {
+      _restoreInProgress = true
+      if (_backdrop && _backdrop.classList.contains('pu-visible')) {
+          showRestoring()  // sheet is open — show inline spinner text
+      }
+  }
+
+  // Called by Kotlin when no active purchase found on this account
+  window.onRestoreNoPurchase = function () {
+      _restoreInProgress = false
+      _clearRestoreTimeout()
+      if (_backdrop && _backdrop.classList.contains('pu-visible')) {
+          showRestoreNotFound()  // sheet is open — show inline message
+      } else if (typeof toast === 'function') {
+          toast('No previous purchase found.', 'warn')  // settings context
+      }
+  }
+
+})(window);

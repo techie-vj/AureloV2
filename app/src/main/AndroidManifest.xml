@@ -1,0 +1,205 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- ── PERMISSIONS ─────────────────────────────────────────── -->
+
+    <!-- Real-time screen time data (user must grant in Settings) -->
+    <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS"
+        tools:ignore="ProtectedPermissions" />
+
+    <!-- List installed apps (Android 11+) — required for categories screen -->
+    <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES"
+        tools:ignore="PackageVisibilityPolicy,QueryAllPackagesPermission" />
+
+    <!-- Required for Intent.ACTION_DELETE to work on Android 8.0+ (API 26+) -->
+    <uses-permission android:name="android.permission.REQUEST_DELETE_PACKAGES" />
+
+    <!-- Push notifications for limit warnings -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!-- DND / Bedtime mode control -->
+    <uses-permission android:name="android.permission.ACCESS_NOTIFICATION_POLICY" />
+
+    <!-- WorkManager: reschedule background tasks after device reboot -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
+    <!-- Network access (Google Fonts CDN) -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+    <uses-permission android:name="android.permission.VIBRATE"/>
+
+    <!-- Required for setExactAndAllowWhileIdle on API 31+ -->
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <!-- API 33+ alternative (works without user approval unlike SCHEDULE_EXACT_ALARM) -->
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
+
+    <!-- Required for billing API -->
+    <uses-permission android:name="com.android.vending.BILLING" />
+
+
+    <!--
+        SYSTEM_ALERT_WINDOW (Draw Over Other Apps)
+        ──────────────────────────────────────────
+        Required for FocusSessionService (Firm/Deep mode overlay) and
+        IntentionPromptService (pause-before-scroll overlay).
+
+        PRECEDENT: Forest, StayFree, One Sec, and ActionDash all use this
+        permission for the same purpose and are approved on the Play Store.
+
+        Play Store justification text to add in your Data Safety form:
+        "Aurelo uses Draw Over Other Apps to display a mindful pause screen
+         when a user opens a distraction app during an active Focus session.
+         This is the user's explicit choice; the feature is opt-in and can
+         be disabled at any time in Settings."
+
+        The permission is only requested contextually when the user first
+        starts a Firm or Deep session — not during onboarding.
+    -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+
+    <!--
+        FOREGROUND_SERVICE + FOREGROUND_SERVICE_SPECIAL_USE
+        ─────────────────────────────────────────────────────
+        Required to keep FocusSessionService and IntentionPromptService
+        alive while the user is on other apps. Both services show a
+        persistent notification so the user always knows they're running.
+
+        FOREGROUND_SERVICE_SPECIAL_USE is required on API 34+ for services
+        that don't fit the standard foreground service types. We use it
+        because our services draw overlays (TYPE_APPLICATION_OVERLAY) rather
+        than playing media, navigating, or doing file transfers.
+    -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="market" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="https" />
+        </intent>
+    </queries>
+
+    <application
+        android:label="Aurelo"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:theme="@style/AppTheme"
+        android:hardwareAccelerated="true"
+        android:allowBackup="false"
+        android:supportsRtl="true"
+        android:usesCleartextTraffic="false">
+
+        <!-- 1. Google Play Services Version (Required for Ads/GMS) -->
+        <meta-data
+            android:name="com.google.android.gms.version"
+            android:value="@integer/google_play_services_version" />
+
+        <!-- 2. App Category -->
+        <meta-data
+            android:name="android.app.PRODUCTIVITY"
+            android:value="true" />
+
+        <!-- ── BACKGROUND NOTIFICATION WORKER ──────────────── -->
+        <provider
+            android:name="androidx.startup.InitializationProvider"
+            android:authorities="${applicationId}.androidx-startup"
+            android:exported="false"
+            tools:node="merge">
+            <meta-data
+                android:name="androidx.work.WorkManagerInitializer"
+                android:value="androidx.startup" />
+        </provider>
+
+        <!-- ── MAIN ACTIVITY ─────────────────────────────────── -->
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:windowSoftInputMode="adjustResize"
+            android:configChanges="orientation|screenSize|keyboardHidden"
+            android:launchMode="singleTop">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <!-- Widget tap actions — handled in onNewIntent() -->
+            <intent-filter>
+                <action android:name="com.javikastudio.tidyapp.WIDGET_OPEN_SEARCH" />
+                <action android:name="com.javikastudio.tidyapp.WIDGET_OPEN_HOME" />
+                <action android:name="com.javikastudio.tidyapp.WIDGET_OPEN_WELLNESS" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
+
+        <!-- ── HOME SCREEN WIDGET ──────────────────────────── -->
+        <receiver
+            android:name=".AureloWidgetProvider"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="com.javikastudio.tidyapp.ACTION_CYCLE_INSIGHT" />
+                <action android:name="com.javikastudio.tidyapp.ACTION_LAUNCH_APP" />
+                <action android:name="com.javikastudio.tidyapp.ACTION_OPEN_HOME" />
+                <action android:name="com.javikastudio.tidyapp.ACTION_OPEN_WELLNESS" />
+                <action android:name="com.javikastudio.tidyapp.ACTION_OPEN_SEARCH" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/tidy_widget_info" />
+        </receiver>
+
+        <!-- BedtimeReceiver — receives scheduled bedtime alarms -->
+        <receiver
+            android:name=".BedtimeReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="${applicationId}.BEDTIME_ON" />
+                <action android:name="${applicationId}.BEDTIME_OFF" />
+                <action android:name="${applicationId}.BEDTIME_WINDOWN" />
+            </intent-filter>
+        </receiver>
+
+        <!-- RoutineAlarmReceiver — fires scheduled focus-routine alarms -->
+        <receiver android:name=".RoutineAlarmReceiver" android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
+
+        <!-- BootReceiver — reschedules alarms after device reboot -->
+        <!-- SEC-14 FIX: exported=false — the system delivers BOOT_COMPLETED regardless;
+             exported=true was unnecessary and allowed any app to send fake boot broadcasts. -->
+        <receiver
+            android:name=".BootReceiver"
+            android:enabled="true"
+            android:exported="false">
+            <intent-filter android:priority="999">
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+                <action android:name="android.intent.action.QUICKBOOT_POWERON" />
+            </intent-filter>
+        </receiver>
+
+        <!--
+            ── APP MONITOR SERVICE ────────────────────────────────────────
+            Unified foreground service for overlay monitoring, focus enforcement,
+            intention prompts, and timer soft-block handling.
+            SEC-05 FIX: AccessibilityService declaration removed — the app uses
+            UsageEvents polling (AppMonitorService) for focus blocking, not an
+            AccessibilityService. The accessibility_service_config.xml is also
+            removed. All onboarding references to Accessibility Service are removed.
+        -->
+        <service
+            android:name=".AppMonitorService"
+            android:enabled="true"
+            android:exported="false"
+            android:foregroundServiceType="specialUse"
+            android:stopWithTask="false" />
+    </application>
+</manifest>

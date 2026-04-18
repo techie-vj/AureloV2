@@ -1,0 +1,117 @@
+<!-- ══ FOCUS ══════════════════════════════════════ -->
+<div class="screen" id="screen-focus">
+    <div class="app-top-bar">
+        <div style="display:flex;align-items:center;gap:0px">
+            <div style="display:flex;align-items:flex-end;gap:1px">
+                <svg width="21" height="21" viewBox="0 0 108 108" fill="none" style="flex-shrink:0;margin-bottom:1px">
+                    <defs>
+                        <linearGradient id="hGc" x1="28" y1="20" x2="80" y2="90" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#FFE082"/><stop offset="55%" stop-color="#FFAA44"/><stop offset="100%" stop-color="#FF7020"/></linearGradient>
+                        <linearGradient id="hDc" x1="48" y1="22" x2="60" y2="34" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#FFF3C0"/><stop offset="100%" stop-color="#FFD060"/></linearGradient>
+                        <linearGradient id="hTc" x1="0" y1="90" x2="0" y2="26" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="white" stop-opacity="1"/><stop offset="100%" stop-color="white" stop-opacity="0.22"/></linearGradient>
+                        <mask id="hMc"><rect width="108" height="108" fill="url(#hTc)"/></mask>
+                    </defs>
+                    <g mask="url(#hMc)"><path d="M 22 88 C 22 88 30 30 54 20 C 78 30 86 88 86 88" stroke="url(#hGc)" stroke-width="7.5" fill="none" stroke-linecap="round"/></g>
+                    <path d="M 22 88 C 22 88 30 30 54 20 C 78 30 86 88 86 88" stroke="url(#hGc)" stroke-width="1.5" fill="none" stroke-linecap="round" opacity="0.5"/>
+                    <circle cx="54" cy="20" r="5.5" fill="url(#hDc)"/>
+                </svg>
+                <span style="font-family:'Bodoni Moda',Georgia,serif;font-size:20px;font-weight:300;background:linear-gradient(135deg,#FFE082 30%,#FFAA44 70%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;letter-spacing:2px;line-height:1;padding-bottom:2px">URELO</span>
+            </div>
+            <span class="pro-pill-clone" style="display:none;margin-left:7px;padding:2px 8px 2px 6px;border-radius:40px;background:rgba(247,201,72,0.12);border:1px solid rgba(247,201,72,0.25);color:#f7c948;font-size:10px;font-weight:800;font-family:monospace;letter-spacing:0.08em;vertical-align:middle">✦ PRO</span>
+        </div>
+        <div style="cursor:pointer;width:36px;height:36px;border-radius:10px;background:var(--s1);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;flex-shrink:0" onclick="activateTab('settings')">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--t2)"><circle cx="12" cy="8" r="4"/><path d="M20 21a8 8 0 1 0-16 0"/></svg>
+        </div>
+    </div>
+
+    <!-- ── Sub-tab pills ──────────────────────────────── -->
+    <div id="focus-subtab-pills" style="display:flex;gap:6px;padding:12px 16px 12px;flex-shrink:0">
+        <button id="focus-pill-focus" class="w-tpb on" onclick="FocusTab._switchFocusSubTab('focus')"
+                style="flex:1;padding:8px 0;border-radius:10px;border:none;cursor:pointer;
+                   font-family:var(--ff-m);font-size:12px;font-weight:700;transition:all .15s">
+            🎯 Focus
+        </button>
+        <button id="focus-pill-habits" class="w-tpb off" onclick="FocusTab._switchFocusSubTab('habits')"
+                style="flex:1;padding:8px 0;border-radius:10px;border:none;cursor:pointer;
+                   font-family:var(--ff-m);font-size:12px;font-weight:700;transition:all .15s">
+            🌿 Habits
+        </button>
+    </div>
+
+    <!-- ══ FOCUS sub-tab ══════════════════════════════ -->
+    <div id="focus-subtab-focus">
+        <div id="focus-static-row" style="padding:0 16px 10px"></div>
+        <div id="focus-dynamic-row" style="padding:0 16px 10px"></div>
+
+        <!-- ── 1. FOCUS SESSION ─────────────────────────── -->
+        <div style="margin:0 16px 18px;border-radius:22px;
+                background:linear-gradient(145deg,rgba(108,99,255,.14),rgba(5,200,232,.07));
+                border:1px solid rgba(108,99,255,.28);padding:18px 18px 16px;
+                overflow:hidden;position:relative;">
+            <div style="position:absolute;top:-40px;right:-40px;width:160px;height:160px;border-radius:50%;
+                     background:radial-gradient(circle,rgba(108,99,255,.15) 0%,transparent 70%);
+                     pointer-events:none"></div>
+            <div id="focus-session-wrap">
+                <!-- rendered by app-focus.js _renderSessionIdle() -->
+            </div>
+        </div>
+
+        <!-- Routines card -->
+        <div style="padding:0 16px 6px">
+            <div id="focus-routines-wrap"></div>
+        </div>
+
+        <!-- ── App Timers ─────────────────────────── -->
+        <div style="padding:0 20px 8px;font-family:var(--ff-m);font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--t3)">App Timers · Today</div>
+        <div style="margin:0 16px 18px;background:var(--s1);border:1px solid var(--border);border-radius:16px;padding:4px 16px 8px">
+            <div id="focus-timers-wrap">
+                <!-- rendered by app-focus.js _renderFocusTimers() -->
+            </div>
+        </div>
+
+        <!-- ── Mindful Pause ─────────── -->
+        <div style="padding:0 20px 8px;font-family:var(--ff-m);font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--t3)">Mindful Pause</div>
+        <div id="focus-intention-card" style="margin:0 16px 18px;padding:16px;
+              background:linear-gradient(135deg,rgba(18,212,138,.08),rgba(5,200,232,.04));
+              border:1px solid rgba(18,212,138,.2);border-radius:18px;position:relative;overflow:hidden">
+            <!-- rendered by app-focus.js _renderIntentionPrompt() -->
+        </div>
+
+        <div style="height:20px"></div>
+    </div><!-- /focus-subtab-focus -->
+
+    <!-- Routine picker modal -->
+    <div id="focus-routine-modal"
+         style="display:none;position:fixed;inset:0;z-index:1100;background:var(--bg,#0a0a0a)">
+        <div id="focus-routine-sheet"
+             style="height:100%;overflow-y:auto;
+          transform:translateX(100%);
+          transition:transform .3s cubic-bezier(.4,0,.2,1)">
+        </div>
+    </div>
+
+    <!-- ══ HABITS sub-tab ═════════════════════════════ -->
+    <div id="focus-subtab-habits" style="display:none">
+        <div id="habits-static-row" style="padding:0 16px 10px"></div>
+        <div id="habits-dynamic-row" style="padding:0 16px 10px"></div>
+
+        <!-- ── Bedtime / Sleep ────────────────────────────── -->
+        <div style="padding:0 20px 8px;font-family:var(--ff-m);font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--t3)">Wind Down</div>
+        <div id="focus-bedtime-strip" style="margin:0 16px 28px;padding:14px 16px;
+              background:linear-gradient(135deg,rgba(168,156,255,.08),rgba(108,99,255,.04));
+              border:1px solid rgba(168,156,255,.2);border-radius:16px;
+              display:flex;align-items:center;gap:12px;cursor:pointer"
+             onclick="openBedtimePicker()">
+            <!-- rendered by app-focus.js _renderBedtimeStrip() -->
+        </div>
+
+        <!-- ── Weekly Challenge ──────────────────────────── -->
+        <div id="focus-challenge-wrap" style="margin:0 0 4px">
+            <!-- rendered by app-focus.js _renderFocusChallenge() -->
+        </div>
+    </div><!-- /focus-subtab-habits -->
+
+    <!-- legacy stubs -->
+    <div id="focus-subtab-limits" style="display:none"></div>
+    <div id="focus-subtab-strip" style="display:none"></div>
+    <div id="focus-limits-strip" style="display:none"></div>
+</div>

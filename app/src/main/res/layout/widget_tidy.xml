@@ -1,0 +1,279 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Aurelo Smart Routine Widget — v3.2
+  Layout:  app/src/main/res/layout/widget_tidy.xml
+  Drawables needed:
+    widget_dot_s1/s2/s3_amber/cyan/purple.xml  (3-state pulse, swapped each tick)
+    widget_freq_ring_high/mid/low.xml
+    widget_slot_bg.xml   widget_search_bg.xml   ic_search_widget.xml
+-->
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_root"
+    android:orientation="vertical"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:paddingStart="12dp"
+    android:paddingEnd="12dp"
+    android:paddingTop="10dp"
+    android:paddingBottom="0dp">
+
+    <!-- ── Row 1: [GlowDot · RoutineName]  [Logo]  [LearnBadge] ── -->
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="8dp">
+
+        <!-- Left: pulsing dot + routine name -->
+        <LinearLayout
+            android:id="@+id/widget_header_left"
+            android:orientation="horizontal"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerVertical="true"
+            android:layout_alignParentStart="true"
+            android:gravity="center_vertical">
+
+            <ImageView
+                android:id="@+id/widget_slot_dot"
+                android:layout_width="13dp"
+                android:layout_height="13dp"
+                android:src="@drawable/widget_dot_s2_amber"
+                android:layout_marginEnd="6dp"
+                android:contentDescription="Live"/>
+
+            <TextView
+                android:id="@+id/widget_slot_name"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="🌙 Evening Routine"
+                android:textSize="11sp"
+                android:textStyle="bold"
+                android:singleLine="true"
+                android:maxWidth="130dp"
+                android:ellipsize="end"/>
+        </LinearLayout>
+
+        <!-- Center: Aurelo logo -->
+        <ImageView
+            android:id="@+id/widget_tidy_logo"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:src="@mipmap/ic_launcher"
+            android:layout_centerInParent="true"
+            android:scaleType="fitCenter"
+            android:contentDescription="Aurelo"/>
+
+        <!-- Right: learning badge -->
+        <TextView
+            android:id="@+id/widget_learning_label"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Learning… 1 day"
+            android:textSize="10sp"
+            android:paddingStart="7dp"
+            android:paddingEnd="7dp"
+            android:paddingTop="2dp"
+            android:paddingBottom="2dp"
+            android:layout_centerVertical="true"
+            android:layout_alignParentEnd="true"
+            android:background="@drawable/widget_search_bg"/>
+    </RelativeLayout>
+
+    <!-- ── Row 2: App icon slots ───────────────────────────────── -->
+    <LinearLayout
+        android:id="@+id/widget_apps_row"
+        android:orientation="horizontal"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="7dp">
+
+        <LinearLayout android:id="@+id/widget_slot_0"
+            android:orientation="vertical" android:layout_width="0dp"
+            android:layout_height="wrap_content" android:layout_weight="1"
+            android:gravity="center" android:padding="3dp"
+            android:background="@drawable/widget_slot_bg">
+            <ImageView android:id="@+id/widget_icon_0"
+                android:layout_width="42dp" android:layout_height="42dp"
+                android:scaleType="fitCenter" android:contentDescription="App 1"/>
+            <TextView android:id="@+id/widget_label_0"
+                android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:textSize="9sp" android:singleLine="true" android:gravity="center"
+                android:layout_marginTop="2dp" android:ellipsize="end"/>
+            <TextView android:id="@+id/widget_freq_0"
+                android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:textSize="8sp" android:gravity="center" android:textStyle="bold" android:text="–"/>
+        </LinearLayout>
+
+        <LinearLayout android:id="@+id/widget_slot_1"
+            android:orientation="vertical" android:layout_width="0dp"
+            android:layout_height="wrap_content" android:layout_weight="1"
+            android:gravity="center" android:padding="3dp"
+            android:background="@drawable/widget_slot_bg">
+            <ImageView android:id="@+id/widget_icon_1"
+                android:layout_width="42dp" android:layout_height="42dp"
+                android:scaleType="fitCenter" android:contentDescription="App 2"/>
+            <TextView android:id="@+id/widget_label_1"
+                android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:textSize="9sp" android:singleLine="true" android:gravity="center"
+                android:layout_marginTop="2dp" android:ellipsize="end"/>
+            <TextView android:id="@+id/widget_freq_1"
+                android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:textSize="8sp" android:gravity="center" android:textStyle="bold" android:text="–"/>
+        </LinearLayout>
+
+        <LinearLayout android:id="@+id/widget_slot_2"
+            android:orientation="vertical" android:layout_width="0dp"
+            android:layout_height="wrap_content" android:layout_weight="1"
+            android:gravity="center" android:padding="3dp"
+            android:background="@drawable/widget_slot_bg">
+            <ImageView android:id="@+id/widget_icon_2"
+                android:layout_width="42dp" android:layout_height="42dp"
+                android:scaleType="fitCenter" android:contentDescription="App 3"/>
+            <TextView android:id="@+id/widget_label_2"
+                android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:textSize="9sp" android:singleLine="true" android:gravity="center"
+                android:layout_marginTop="2dp" android:ellipsize="end"/>
+            <TextView android:id="@+id/widget_freq_2"
+                android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:textSize="8sp" android:gravity="center" android:textStyle="bold" android:text="–"/>
+        </LinearLayout>
+
+        <LinearLayout android:id="@+id/widget_slot_3"
+            android:orientation="vertical" android:layout_width="0dp"
+            android:layout_height="wrap_content" android:layout_weight="1"
+            android:gravity="center" android:padding="3dp"
+            android:background="@drawable/widget_slot_bg">
+            <ImageView android:id="@+id/widget_icon_3"
+                android:layout_width="42dp" android:layout_height="42dp"
+                android:scaleType="fitCenter" android:contentDescription="App 4"/>
+            <TextView android:id="@+id/widget_label_3"
+                android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:textSize="9sp" android:singleLine="true" android:gravity="center"
+                android:layout_marginTop="2dp" android:ellipsize="end"/>
+            <TextView android:id="@+id/widget_freq_3"
+                android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:textSize="8sp" android:gravity="center" android:textStyle="bold" android:text="–"/>
+        </LinearLayout>
+
+        <LinearLayout android:id="@+id/widget_slot_4"
+            android:orientation="vertical" android:layout_width="0dp"
+            android:layout_height="wrap_content" android:layout_weight="1"
+            android:gravity="center" android:padding="3dp"
+            android:background="@drawable/widget_slot_bg">
+            <ImageView android:id="@+id/widget_icon_4"
+                android:layout_width="42dp" android:layout_height="42dp"
+                android:scaleType="fitCenter" android:contentDescription="App 5"/>
+            <TextView android:id="@+id/widget_label_4"
+                android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:textSize="9sp" android:singleLine="true" android:gravity="center"
+                android:layout_marginTop="2dp" android:ellipsize="end"/>
+            <TextView android:id="@+id/widget_freq_4"
+                android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:textSize="8sp" android:gravity="center" android:textStyle="bold" android:text="–"/>
+        </LinearLayout>
+
+        <LinearLayout android:id="@+id/widget_more_btn"
+            android:orientation="vertical" android:layout_width="0dp"
+            android:layout_height="wrap_content" android:layout_weight="1"
+            android:gravity="center" android:padding="3dp">
+            <TextView
+                android:layout_width="42dp" android:layout_height="42dp"
+                android:gravity="center" android:text="···" android:textSize="20sp"/>
+            <TextView
+                android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:text="More" android:textSize="9sp" android:gravity="center"
+                android:layout_marginTop="2dp"/>
+            <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:text="" android:textSize="8sp"/>
+        </LinearLayout>
+
+    </LinearLayout>
+
+    <!-- ── Row 3: Insight bar (contextual + emotional intelligence) ─ -->
+    <!-- Tap to cycle through 3 rotating message variants -->
+    <TextView
+        android:id="@+id/widget_insight_bar"
+        android:layout_width="match_parent"
+        android:layout_height="36dp"
+        android:gravity="center"
+        android:text="🌅 Rise &amp; shine! Start your streak today"
+        android:textSize="12sp"
+        android:singleLine="true"
+        android:ellipsize="marquee"
+        android:paddingStart="10dp"
+        android:paddingEnd="10dp"
+        android:layout_marginBottom="6dp"
+        android:background="@drawable/widget_search_bg"/>
+
+    <!-- ── Row 4: Stats strip → Wellness ─────────────────────── -->
+    <LinearLayout
+        android:id="@+id/widget_st_row"
+        android:orientation="horizontal"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <LinearLayout android:orientation="vertical" android:layout_width="0dp"
+            android:layout_height="wrap_content" android:layout_weight="1"
+            android:gravity="center" android:paddingTop="5dp" android:paddingBottom="5dp">
+            <TextView android:id="@+id/widget_stat_val_0"
+                android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:text="0m" android:textSize="13sp" android:textStyle="bold"
+                android:textColor="#FF12D48A"/>
+            <TextView android:id="@+id/widget_stat_key_0"
+                android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:text="TODAY" android:textSize="7.5sp"/>
+        </LinearLayout>
+
+        <LinearLayout android:orientation="vertical" android:layout_width="0dp"
+            android:layout_height="wrap_content" android:layout_weight="1"
+            android:gravity="center" android:paddingTop="5dp" android:paddingBottom="5dp">
+            <TextView android:id="@+id/widget_stat_val_1"
+                android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:text="--" android:textSize="13sp" android:textStyle="bold"
+                android:textColor="#FFA89CFF"/>
+            <TextView android:id="@+id/widget_stat_key_1"
+                android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:text="AURELO SCORE" android:textSize="7.5sp"/>
+        </LinearLayout>
+
+        <LinearLayout android:orientation="vertical" android:layout_width="0dp"
+            android:layout_height="wrap_content" android:layout_weight="1"
+            android:gravity="center" android:paddingTop="5dp" android:paddingBottom="5dp">
+            <TextView android:id="@+id/widget_stat_val_2"
+                android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:text="0🔥" android:textSize="13sp" android:textStyle="bold"
+                android:textColor="#FFA89CFF"/>
+            <TextView android:id="@+id/widget_stat_key_2"
+                android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:text="STREAK" android:textSize="7.5sp"/>
+        </LinearLayout>
+
+        <LinearLayout android:orientation="vertical" android:layout_width="0dp"
+            android:layout_height="wrap_content" android:layout_weight="1"
+            android:gravity="center" android:paddingTop="5dp" android:paddingBottom="5dp">
+            <TextView android:id="@+id/widget_stat_val_3"
+                android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:text="–" android:textSize="13sp" android:textStyle="bold"
+                android:textColor="#FFF04E7A"/>
+            <TextView android:id="@+id/widget_stat_key_3_view"
+                android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:text="PICKUPS" android:textSize="7.5sp"/>
+        </LinearLayout>
+
+    </LinearLayout>
+
+    <!-- ── Row 5: Staleness indicator (FUN-09) ──────────────────────── -->
+    <!-- Coloured grey when fresh, amber >30 min, red >60 min (Doze mode). -->
+    <TextView
+        android:id="@+id/widget_last_updated"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Updated just now"
+        android:textSize="8sp"
+        android:gravity="end"
+        android:paddingEnd="4dp"
+        android:paddingBottom="4dp"
+        android:textColor="#88FFFFFF"/>
+
+</LinearLayout>

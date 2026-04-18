@@ -1,0 +1,107 @@
+/* ═══ DISCOVER ════════════════════════════════════ */
+/* ── Shared section labels ── */
+.dsec-hdr{padding:0 16px 12px;display:flex;align-items:flex-end;justify-content:space-between}
+.dsec-title{font-size:14px;font-weight:800;letter-spacing:-.1px}
+.dsec-kicker{font-family:var(--ff-m);font-size:11px;color:var(--t3);letter-spacing:1px;text-transform:uppercase}
+
+/* ── ① Hero carousel ── */
+.dhero-track{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;scrollbar-width:none;gap:0}
+.dhero-track::-webkit-scrollbar{display:none}
+.dhero-card{flex:0 0 100%;scroll-snap-align:start;position:relative;height:240px;overflow:hidden;cursor:pointer}
+.dhero-card:active .dhero-inner{transform:scale(.985);opacity:.9}
+.dhero-inner{width:calc(100% - 32px);margin:0 16px;border-radius:24px;height:100%;overflow:hidden;position:relative;box-shadow:0 14px 50px rgba(0,0,0,.55),0 0 0 .5px rgba(255,255,255,.06) inset;transition:transform .2s,opacity .16s}
+.dhero-bg{position:absolute;inset:0}
+.dhero-mesh{position:absolute;inset:0;opacity:.07;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40'%3E%3Ccircle cx='20' cy='20' r='18' fill='none' stroke='%23fff' stroke-width='.5' stroke-dasharray='2 4'/%3E%3C/svg%3E")}
+.dhero-scrim{position:absolute;inset:0;background:linear-gradient(165deg,transparent 25%,rgba(0,0,0,.7) 100%)}
+.dhero-badge{position:absolute;top:16px;left:16px;display:inline-flex;align-items:center;gap:5px;font-family:var(--ff-m);font-size:10px;letter-spacing:1.6px;font-weight:700;color:#fff;padding:4px 12px;border-radius:99px;background:rgba(255,255,255,.18);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.28);text-transform:uppercase}
+.dhero-badge-dot{width:5px;height:5px;border-radius:50%;background:#12D48A;flex-shrink:0;box-shadow:0 0 6px #12D48A}
+.dhero-deco{position:absolute;top:-4px;right:-8px;font-size:120px;opacity:.11;line-height:1;pointer-events:none;transform:rotate(12deg);filter:blur(1px)}
+.dhero-body{position:absolute;bottom:0;left:0;right:0;padding:18px 20px 22px}
+.dhero-rating{font-family:var(--ff-m);font-size:10px;color:rgba(255,255,255,.6);margin-bottom:5px;letter-spacing:.2px}
+.dhero-name{font-size:26px;font-weight:900;font-family:'Bodoni Moda',Georgia,serif;color:#fff;line-height:1.08;margin-bottom:6px;text-shadow:0 2px 16px rgba(0,0,0,.5)}
+.dhero-tag{font-family:var(--ff-m);font-size:11px;color:rgba(255,255,255,.72);margin-bottom:16px;line-height:1.4}
+.dhero-cta{display:inline-flex;align-items:center;gap:7px;padding:11px 26px;border-radius:999px;border:none;font-family:var(--ff-m);font-size:12px;font-weight:900;cursor:pointer;letter-spacing:.5px;transition:transform .14s,opacity .14s,box-shadow .14s;box-shadow:0 4px 16px rgba(0,0,0,.35)}
+.dhero-cta:active{transform:scale(.93);opacity:.82}
+.disc-dots{display:flex;justify-content:center;align-items:center;gap:7px;padding:10px 0 2px}
+.disc-dot{width:5px;height:5px;border-radius:50%;background:rgba(255,255,255,.25);transition:all .28s;cursor:pointer}
+.disc-dot.on{width:22px;border-radius:99px;background:var(--p)}
+
+/* ── ② Playable ads ── */
+.dplay-track{display:flex;gap:12px;padding:0 16px;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.dplay-track::-webkit-scrollbar{display:none}
+.dplay-card{flex:0 0 calc(50% - 20px);scroll-snap-align:start;border-radius:20px;overflow:hidden;background:var(--s1);border:1px solid var(--border2);cursor:pointer;transition:transform .15s,box-shadow .15s;box-shadow:0 4px 20px rgba(0,0,0,.25)}
+.dplay-card:active{transform:scale(.96)}
+.dplay-preview{height:140px;position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center}
+.dplay-overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.22);opacity:1;transition:opacity .3s;z-index:2}
+.dplay-overlay.hidden{opacity:0;pointer-events:none}
+.dplay-btn{width:42px;height:42px;border-radius:50%;background:rgba(255,255,255,.92);border:none;display:flex;align-items:center;justify-content:center;font-size:14px;cursor:pointer;box-shadow:0 2px 14px rgba(0,0,0,.3);padding-left:3px}
+.dplay-meta{padding:14px 16px 16px}
+.dplay-name{font-size:14px;font-weight:800;line-height:1.25;margin-bottom:4px}
+.dplay-genre{font-family:var(--ff-m);font-size:10px;color:var(--t3);margin-bottom:10px}
+.dplay-get{margin-top:2px;width:100%;padding:10px;border-radius:12px;border:none;background:linear-gradient(135deg,var(--p),var(--c));font-family:var(--ff-m);font-size:12px;font-weight:700;color:#fff;cursor:pointer;transition:all .15s}
+.dplay-get:active{transform:scale(.95);opacity:.85}
+
+/* Playable game animations */
+@keyframes wFlip{0%{transform:rotateX(0)scaleY(1)}50%{transform:rotateX(90deg)scaleY(.6)}100%{transform:rotateX(0)scaleY(1)}}
+@keyframes blockDrop{0%{transform:translateY(-30px);opacity:0}100%{transform:translateY(0);opacity:1}}
+@keyframes cardFlip{0%{transform:perspective(200px)rotateY(0)}100%{transform:perspective(200px)rotateY(180deg)}}
+@keyframes ballBounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-18px)}}
+.wanim{animation:wFlip .5s ease forwards}
+.banim{animation:blockDrop .35s ease forwards}
+/* Wordle grid */
+.wl-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:3px;padding:10px 10px 6px;width:100%;box-sizing:border-box}
+.wl-c{aspect-ratio:1;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:900;color:#fff;transform-origin:center}
+/* Stack tower */
+.stk-wrap{display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;padding-bottom:8px;gap:3px}
+.stk-blk{height:12px;border-radius:4px;min-width:30px}
+/* Memory match */
+.mem-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:10px;width:100%;box-sizing:border-box}
+.mem-card{aspect-ratio:1;border-radius:10px;background:rgba(255,255,255,.12);border:1.5px solid rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;font-size:18px;cursor:pointer;position:relative;transform-style:preserve-3d;transition:transform .35s}
+.mem-card.flipped,.mem-card.matched{transform:rotateY(180deg)}
+.mem-card.matched{border-color:rgba(18,212,138,.5);background:rgba(18,212,138,.1)}
+.mem-front,.mem-back{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;border-radius:8px;backface-visibility:hidden}
+.mem-back{transform:rotateY(180deg);font-size:20px}
+/* Sudoku */
+.sdk-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:2px;padding:10px;box-sizing:border-box}
+.sdk-c{aspect-ratio:1;border-radius:5px;background:rgba(79,195,247,.18);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#4FC3F7}
+.sdk-c.empty{background:rgba(255,255,255,.06);cursor:pointer;font-size:10px;color:var(--p2)}
+.sdk-c.empty:active{background:rgba(108,99,255,.22)}
+
+/* ── ③ Habit tiles — exactly mirror .cat-tile ── */
+.dhabit-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:0 16px}
+.dhabit-tile{background:var(--s1);border:1px solid var(--border);border-radius:16px;padding:14px;cursor:pointer;position:relative;overflow:hidden;min-height:108px;transition:all .18s}
+.dhabit-tile:active{transform:scale(.96)}
+.dht-glow{position:absolute;bottom:-22px;right:-22px;width:72px;height:72px;border-radius:50%;opacity:.13;filter:blur(22px);pointer-events:none}
+.dht-badge{position:absolute;top:8px;right:8px;font-family:var(--ff-m);font-size:10px;letter-spacing:.8px;padding:2px 6px;border-radius:99px;text-transform:uppercase}
+.dht-badge.sp{background:rgba(108,99,255,.15);color:var(--p2);border:1px solid rgba(108,99,255,.22)}
+.dht-badge.tv{background:rgba(18,212,138,.1);color:var(--g);border:1px solid rgba(18,212,138,.22)}
+.dht-hdr{display:flex;align-items:center;gap:7px;margin-bottom:4px}
+.dht-ico{width:52px;height:52px;border-radius:14px;background:var(--s2);display:flex;align-items:center;justify-content:center;font-size:32px;flex-shrink:0;overflow:hidden;margin-bottom:12px}
+.dht-name{font-size:13px;font-weight:700;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dht-why{font-family:var(--ff-m);font-size:10px;color:var(--t3);margin-bottom:8px;line-height:1.4}
+.dht-strip{display:grid;grid-template-columns:1fr 1fr;gap:4px}
+.dht-mini{width:100%;aspect-ratio:1;border-radius:7px;background:var(--s2);display:flex;align-items:center;justify-content:center;font-size:18px;overflow:hidden}
+
+/* ── ④ Trending collections ── */
+.dtrend-track{display:flex;gap:11px;padding:0 16px 2px;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.dtrend-track::-webkit-scrollbar{display:none}
+.dtrend-card{flex:0 0 140px;scroll-snap-align:start;background:var(--s1);border:1px solid var(--border2);border-radius:18px;padding:15px 13px 13px;cursor:pointer;transition:transform .15s,box-shadow .18s;position:relative;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,.18);min-height:210px;display:flex;flex-direction:column}
+.dtrend-card:active{transform:scale(.95)}
+.dtrend-num{position:absolute;top:9px;right:10px;font-family:var(--ff-m);font-size:11px;font-weight:700;color:var(--t3)}
+.dtrend-num.top{color:var(--p2)}
+.dtrend-rank{position:absolute;top:10px;right:10px;font-family:var(--ff-m);font-size:10px;color:var(--t3);font-weight:700}
+
+/* New trending cards - two cards visible + peek */
+.dtrend-track-new{display:flex;gap:12px;padding:0 16px 4px;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.dtrend-track-new::-webkit-scrollbar{display:none}
+.dtrend-card-new{flex:0 0 calc(50% - 20px);scroll-snap-align:start;background:var(--s1);border:1px solid var(--border2);border-radius:20px;padding:20px 18px 18px;cursor:pointer;transition:transform .15s,box-shadow .18s;position:relative;overflow:hidden;box-shadow:0 3px 16px rgba(0,0,0,.22);min-height:230px;display:flex;flex-direction:column;align-items:center;text-align:center}
+.dtrend-card-new:active{transform:scale(.97)}
+.dtrend-badge{position:absolute;top:12px;right:12px;font-size:20px;line-height:1}
+.trd-get-new{transition:all .15s}
+.trd-get-new:active{transform:scale(.95);opacity:.8}
+
+/* Habits section - horizontal scroll like other sections */
+.dhabit-track{display:flex;gap:12px;padding:0 16px 4px;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.dhabit-track::-webkit-scrollbar{display:none}
+.dhabit-tile-new{flex:0 0 calc(50% - 20px);scroll-snap-align:start;background:var(--s1);border:1px solid var(--border2);border-radius:20px;padding:20px 18px 18px;cursor:pointer;position:relative;overflow:hidden;min-height:230px;transition:transform .15s,box-shadow .18s;box-shadow:0 3px 16px rgba(0,0,0,.22);display:flex;flex-direction:column;align-items:center;text-align:center}
+.dhabit-tile-new:active{transform:scale(.97)}

@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Background for the widget search field.
+  Place in: app/src/main/res/drawable/widget_search_field_bg.xml
+
+  Semi-transparent fill + visible white border = looks like a real text input.
+  The stroke is what was missing — without it the field blends into the widget
+  background and looks like floating text rather than a tappable input.
+-->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+
+    <!-- 15% white fill — subtle surface -->
+    <solid android:color="#26FFFFFF" />
+
+    <!-- 1.5dp white border at 55% opacity — clearly defines the field boundary -->
+    <stroke
+        android:width="1.5dp"
+        android:color="#8CFFFFFF" />
+
+    <corners android:radius="8dp" />
+
+</shape>

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Pulse step 1 — contracted (small, lower opacity)
+     Place in: app/src/main/res/drawable/widget_dot_s1_purple.xml -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="oval">
+    <solid android:color="#88A89CFF" />
+    <size android:width="6dp" android:height="6dp" />
+</shape>

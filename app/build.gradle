@@ -1,0 +1,90 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace   'com.javikastudio.tidyapp'
+    compileSdk  36
+
+
+    defaultConfig {
+        applicationId  "com.javikastudio.tidyapp"
+        minSdk         26   // Android 8.0 — covers 95%+ of devices
+        targetSdk      36
+        versionCode    7
+        versionName    "1.2.0"
+    }
+
+    def props = new Properties()
+    file("../local.properties").withInputStream { props.load(it) }
+
+    signingConfigs {
+        release {
+            storeFile     file(props['RELEASE_STORE_FILE'])
+            storePassword props['RELEASE_STORE_PASSWORD']
+            keyAlias      props['RELEASE_KEY_ALIAS']
+            keyPassword   props['RELEASE_KEY_PASSWORD']
+        }
+    }
+
+    buildTypes {
+        release {
+            // Enable R8 minification for release to reduce APK size
+            // and improve load performance on mid-range devices.
+            minifyEnabled   true
+            shrinkResources true
+            proguardFiles   getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            signingConfig signingConfigs.release
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+    buildFeatures {
+        buildConfig true
+    }
+
+    packagingOptions {
+        resources { excludes += '/META-INF/{AL2.0,LGPL2.1,DEPENDENCIES}' }
+    }
+}
+
+dependencies {
+    implementation 'androidx.appcompat:appcompat:1.7.1'
+    implementation 'androidx.webkit:webkit:1.15.0'
+    implementation 'com.google.android.material:material:1.13.0'
+    implementation 'androidx.core:core-ktx:1.18.0'
+
+    // WorkManager — background notifications when app is closed
+    implementation 'androidx.work:work-runtime-ktx:2.11.2'
+    // Startup — used by WorkManager's InitializationProvider
+    implementation 'androidx.startup:startup-runtime:1.2.0'
+    // BUILD-01 FIX: Upgraded from alpha06 to stable 1.0.0. Alpha releases are not
+    // API-stable and are not recommended for production — especially for the library
+    // that protects the app's most sensitive data (locked apps, limits, settings).
+    implementation 'androidx.security:security-crypto:1.1.0'
+
+    // Fix for Missing class com.google.api.client.http.GenericUrl
+    implementation 'com.google.http-client:google-http-client:2.1.0'
+    implementation 'joda-time:joda-time:2.14.1'
+    // Add joda-convert for string conversion functionality
+    implementation 'org.joda:joda-convert:3.0.1'
+    // For auto categorisation of apps
+    implementation("org.jsoup:jsoup:1.22.1")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
+    implementation("io.github.kdroidfilter:gplayscrapper:0.3.2")
+    implementation "androidx.lifecycle:lifecycle-runtime-ktx:2.10.0"
+    // For billing
+    implementation 'com.android.billingclient:billing-ktx:7.1.1'
+    // In-App Review — shows native Play Store rating dialog without leaving the app
+    implementation 'com.google.android.play:review-ktx:2.0.2'
+
+    // SEC-09 FIX: SQLCipher — encrypts LaunchTracker behavioural fingerprint database.
+    // The DB stores per-app launch timestamps by time-slot and day-of-week, which
+    // constitutes sensitive usage behaviour. Without encryption it is readable on
+    // rooted devices or via ADB backup.
+    implementation 'net.zetetic:sqlcipher-android:4.14.1'
+    implementation 'androidx.sqlite:sqlite:2.6.2'
+}

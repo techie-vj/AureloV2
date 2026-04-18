@@ -1,0 +1,468 @@
+/* ═══════════════════════════════════════════════════════
+   FOCUS TAB
+═══════════════════════════════════════════════════════ */
+
+/* ── Orbit ring ─────────────────────────────────────── */
+.focus-orbit-wrap{display:flex;justify-content:center;margin:6px 0 16px;position:relative}
+.focus-orbit{
+  width:136px;height:136px;border-radius:50%;
+  border:1.5px solid rgba(108,99,255,.2);
+  display:flex;align-items:center;justify-content:center;position:relative;
+}
+.focus-orbit::before{
+  content:'';position:absolute;inset:-10px;border-radius:50%;
+  border:1px dashed rgba(108,99,255,.12);
+  animation:focusOrbitSpin 12s linear infinite;
+}
+.focus-orbit::after{
+  content:'';position:absolute;inset:10px;border-radius:50%;
+  border:1px solid rgba(5,200,232,.08);
+  animation:focusOrbitSpin 8s linear infinite reverse;
+}
+.focus-orbit.active::before{border-color:rgba(108,99,255,.3)}
+.focus-orbit.active::after{border-color:rgba(5,200,232,.2)}
+@keyframes focusOrbitSpin{to{transform:rotate(360deg)}}
+
+.focus-orbit-dot{
+  position:absolute;top:-5px;left:50%;transform:translateX(-50%);
+  width:10px;height:10px;border-radius:50%;
+  background:var(--p);box-shadow:0 0 12px var(--p);
+}
+.focus-orbit-inner{
+  width:96px;height:96px;border-radius:50%;z-index:2;
+  background:radial-gradient(circle,rgba(108,99,255,.22),rgba(6,6,16,.85));
+  border:1px solid rgba(108,99,255,.3);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  box-shadow:0 0 30px rgba(108,99,255,.18),inset 0 0 20px rgba(108,99,255,.05);
+}
+.focus-orbit-inner.active{animation:focusPulse 2s ease-in-out infinite}
+@keyframes focusPulse{0%,100%{box-shadow:0 0 20px rgba(108,99,255,.18)}50%{box-shadow:0 0 36px rgba(108,99,255,.35)}}
+.focus-orbit-time{font-family:var(--ff-d);font-size:22px;font-weight:700;color:#fff;line-height:1}
+.focus-orbit-lbl{font-family:var(--ff-m);font-size:11px;color:var(--p2);letter-spacing:1px;margin-top:4px}
+
+/* Orbit inner is a tap target in idle mode */
+.focus-orbit-inner { cursor: pointer; }
+
+/* Idle orbit has gentler rings than active */
+.focus-orbit.idle::before { animation-duration: 18s; opacity: .6; }
+.focus-orbit.idle::after  { animation-duration: 12s; opacity: .4; }
+
+/* Make idle orbit rings visible (currently nearly transparent) */
+.focus-orbit.idle::before {
+  border-color: rgba(108,99,255,.22);
+  animation-duration: 18s;
+}
+.focus-orbit.idle::after {
+  border-color: rgba(5,200,232,.14);
+  animation-duration: 12s;
+}
+
+/* Duration buttons — ensure consistent height and font */
+.focus-dur-btn {
+  min-height: 34px;
+  font-size: 12px;
+  letter-spacing: 0.02em;
+}
+
+/* Custom duration button matches the row */
+.focus-dur-btn:last-child {
+  flex: 1.3;   /* slightly wider so "Custom" label doesn't clip */
+}
+
+/* Difficulty pills — base sizing was missing line-height */
+.focus-diff-pill {
+  line-height: 1.2;
+  letter-spacing: 0.01em;
+}
+
+/* Orbit inner cursor already in inline style, but also set here as fallback */
+.focus-orbit-inner {
+  cursor: pointer;
+}
+.focus-orbit-inner:active {
+  transform: scale(0.96);
+  transition: transform 0.1s;
+}
+
+/* ── Duration selector ──────────────────────────────── */
+.focus-dur-row{display:flex;gap:6px;margin-bottom:12px}
+.focus-dur-btn{
+  flex:1;padding:7px 0;text-align:center;border-radius:10px;cursor:pointer;
+  font-family:var(--ff-d);font-size:14px;font-weight:600;
+  background:var(--s2);border:1px solid var(--border2);color:var(--t2);
+  transition:all .15s;
+}
+.focus-dur-btn span{display:block;font-family:var(--ff-m);font-size:11px;color:var(--t3);margin-top:1px}
+.focus-dur-btn.active{background:rgba(108,99,255,.15);border-color:rgba(108,99,255,.4);color:var(--p2)}
+.focus-dur-btn.active span{color:var(--p2)}
+
+/* ── Custom duration button ─────────────────────────────── */
+.focus-dur-custom{
+  display:flex;align-items:center;justify-content:center;gap:6px;
+  width:100%;padding:7px 12px;margin-bottom:12px;box-sizing:border-box;
+  border-radius:10px;cursor:pointer;
+  border:1px dashed var(--border2);
+  font-family:var(--ff-m);font-size:11px;color:var(--t3);
+  transition:all .15s;
+}
+.focus-dur-custom.active{
+  background:rgba(108,99,255,.15);
+  border:1px solid rgba(108,99,255,.4);
+  color:var(--p2);
+}
+
+/* ── Drum scroll-wheel picker ───────────────────────────── */
+.focus-drum-col{
+  height:132px; /* 3 × 44px */
+  overflow-y:scroll;
+  scroll-snap-type:y mandatory;
+  scrollbar-width:none;
+  -webkit-overflow-scrolling:touch;
+  width:88px;
+}
+.focus-drum-col::-webkit-scrollbar{display:none}
+.focus-drum-item{
+  height:44px;
+  display:flex;align-items:center;justify-content:center;
+  font-family:var(--ff-m);font-size:22px;font-weight:400;
+  color:var(--t3);scroll-snap-align:center;user-select:none;
+  cursor:pointer;transition:color .1s, font-weight .1s;
+}
+/* Selected drum item — highlighted and bold */
+.focus-drum-item.sel{
+  color:var(--t1);font-weight:700;font-size:24px;
+}
+.focus-drum-pad{height:44px;flex-shrink:0}
+
+/* ── Difficulty pills ───────────────────────────────── */
+.focus-diff-row{display:flex;gap:6px;margin-bottom:10px}
+.focus-diff-pill{
+  flex:1;padding:8px 0;text-align:center;border-radius:10px;cursor:pointer;
+  font-family:var(--ff-m);font-size:10px;font-weight:600;
+  background:var(--s2);border:1px solid var(--border2);color:var(--t2);
+  transition:all .18s;
+}
+.focus-diff-pill.active[data-diff="gentle"]{background:rgba(18,212,138,.12);border-color:rgba(18,212,138,.35);color:var(--g)}
+.focus-diff-pill.active[data-diff="firm"]  {background:rgba(247,166,35,.12);border-color:rgba(247,166,35,.35);color:var(--a)}
+.focus-diff-pill.active[data-diff="deep"]  {background:rgba(240,78,122,.12);border-color:rgba(240,78,122,.35);color:var(--r)}
+
+.focus-diff-desc{
+  font-family:var(--ff-m);font-size:10px;color:var(--t2);text-align:center;
+  margin-bottom:12px;line-height:1.55;min-height:28px;
+}
+
+/* ── App chips ──────────────────────────────────────── */
+.focus-app-chips{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:14px}
+.focus-app-chip{
+  display:flex;align-items:center;gap:6px;padding:6px 10px;
+  border-radius:10px;background:var(--s2);border:1px solid var(--border2);
+  font-size:11px;color:var(--t2);
+}
+.focus-app-chip.blocked{
+  background:rgba(240,78,122,.09);border-color:rgba(240,78,122,.22);color:var(--r);
+}
+.focus-chip-ico{width:20px;height:20px;border-radius:5px;background:var(--s1);
+  display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0}
+.focus-chip-add{
+  display:flex;align-items:center;gap:4px;padding:6px 10px;
+  border-radius:10px;border:1px dashed var(--border2);
+  font-family:var(--ff-m);font-size:10px;color:var(--t3);cursor:pointer;
+}
+
+/* ── Start / End buttons ────────────────────────────── */
+.focus-start-btn{
+  width:100%;padding:14px;border-radius:14px;border:none;cursor:pointer;
+  font-family:var(--ff-d);font-size:15px;font-weight:600;color:#fff;
+  background:linear-gradient(135deg,var(--p),var(--c));
+  box-shadow:0 8px 24px rgba(108,99,255,.3);
+  transition:transform .15s,box-shadow .15s;
+}
+.focus-start-btn:active{transform:scale(.97)}
+.focus-end-btn{
+  flex:1;padding:12px;border-radius:12px;border:1px solid var(--border2);
+  background:var(--s2);color:var(--t2);
+  font-family:var(--ff-m);font-size:12px;font-weight:600;cursor:pointer;
+  transition:all .2s;
+}
+.focus-end-btn:active{opacity:.7}
+.focus-deep-lock{
+  text-align:center;font-family:var(--ff-m);font-size:11px;color:var(--r);
+  padding:11px;background:rgba(240,78,122,.07);border-radius:12px;
+  border:1px solid rgba(240,78,122,.18);
+}
+
+/* ── Timer rows ─────────────────────────────────────── */
+.focus-timer-row{
+  display:flex;align-items:center;gap:12px;
+  padding:10px 0;border-bottom:1px solid var(--border);cursor:pointer;
+}
+.focus-timer-row:last-of-type{border:none}
+.focus-timer-ico{width:36px;height:36px;border-radius:10px;overflow:hidden;
+  background:var(--s2);display:flex;align-items:center;justify-content:center;
+  font-size:18px;flex-shrink:0}
+.focus-timer-info{flex:1;min-width:0}
+.focus-timer-name{font-size:12px;font-weight:600;margin-bottom:5px;color:var(--t1)}
+.focus-timer-bar-wrap{height:4px;background:var(--s2);border-radius:2px;overflow:hidden}
+.focus-timer-bar-fill{height:100%;border-radius:2px;transition:width .5s}
+.focus-timer-time{font-family:var(--ff-m);font-size:11px;text-align:right;flex-shrink:0;min-width:46px}
+.focus-timer-time span{display:block;font-size:11px;color:var(--t3);text-align:right}
+
+/* ── Timer add / edit / remove controls ─────────────── */
+.focus-timer-add-btn{
+  display:flex;align-items:center;justify-content:center;gap:6px;
+  width:100%;padding:10px 0;border-radius:10px;
+  border:1px dashed var(--border2);background:transparent;
+  font-family:var(--ff-m);font-size:11px;color:var(--t3);
+  cursor:pointer;transition:all .15s;margin-top:4px;
+}
+.focus-timer-add-btn:active{opacity:.7}
+.focus-timer-remove{
+  width:28px;height:28px;border-radius:8px;
+  border:1px solid var(--border2);background:transparent;
+  color:var(--t3);font-size:15px;line-height:1;
+  cursor:pointer;display:flex;align-items:center;justify-content:center;
+  flex-shrink:0;transition:all .15s;
+}
+.focus-timer-remove:active{color:var(--r);border-color:rgba(240,78,122,.35);background:rgba(240,78,122,.08)}
+.focus-timer-edit{
+  display:flex;align-items:center;gap:4px;
+  padding:4px 9px;border-radius:7px;
+  border:1px solid var(--border2);background:transparent;
+  font-family:var(--ff-m);font-size:10px;color:var(--t3);
+  cursor:pointer;transition:all .15s;flex-shrink:0;
+}
+.focus-timer-edit:active{opacity:.7}
+
+/* ── Intention prompt ───────────────────────────────── */
+.intention-badge{
+  font-family:var(--ff-m);font-size:11px;color:var(--g);letter-spacing:1.2px;
+  padding:3px 8px;border-radius:999px;text-transform:uppercase;
+  background:rgba(18,212,138,.12);border:1px solid rgba(18,212,138,.25);
+}
+/* ═══ FOCUS STRIP ══════════════════════════════════════════════════ */
+@keyframes fade-in-up {
+  from { opacity:0; transform:translateY(8px); }
+  to   { opacity:1; transform:translateY(0);   }
+}
+@keyframes fs-pulse {
+  0%,100% { box-shadow:0 0 0 3px rgba(108,99,255,.2); }
+  50%     { box-shadow:0 0 0 6px rgba(108,99,255,.07); }
+}
+
+
+/* ── Orbit ring ─────────────────────────────────────── */
+.focus-orbit-wrap{display:flex;justify-content:center;margin:6px 0 16px;position:relative}
+.focus-orbit{
+  width:136px;height:136px;border-radius:50%;
+  border:1.5px solid rgba(108,99,255,.2);
+  display:flex;align-items:center;justify-content:center;position:relative;
+}
+.focus-orbit::before{
+  content:'';position:absolute;inset:-10px;border-radius:50%;
+  border:1px dashed rgba(108,99,255,.12);
+  animation:focusOrbitSpin 12s linear infinite;
+}
+.focus-orbit::after{
+  content:'';position:absolute;inset:10px;border-radius:50%;
+  border:1px solid rgba(5,200,232,.08);
+  animation:focusOrbitSpin 8s linear infinite reverse;
+}
+.focus-orbit.active::before{border-color:rgba(108,99,255,.3)}
+.focus-orbit.active::after{border-color:rgba(5,200,232,.2)}
+@keyframes focusOrbitSpin{to{transform:rotate(360deg)}}
+
+.focus-orbit-dot{
+  position:absolute;top:-5px;left:50%;transform:translateX(-50%);
+  width:10px;height:10px;border-radius:50%;
+  background:var(--p);box-shadow:0 0 12px var(--p);
+}
+.focus-orbit-inner{
+  width:96px;height:96px;border-radius:50%;z-index:2;
+  background:radial-gradient(circle,rgba(108,99,255,.22),rgba(6,6,16,.85));
+  border:1px solid rgba(108,99,255,.3);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  box-shadow:0 0 30px rgba(108,99,255,.18),inset 0 0 20px rgba(108,99,255,.05);
+}
+.focus-orbit-inner.active{animation:focusPulse 2s ease-in-out infinite}
+@keyframes focusPulse{0%,100%{box-shadow:0 0 20px rgba(108,99,255,.18)}50%{box-shadow:0 0 36px rgba(108,99,255,.35)}}
+.focus-orbit-time{font-family:var(--ff-d);font-size:22px;font-weight:700;color:#fff;line-height:1}
+.focus-orbit-lbl{font-family:var(--ff-m);font-size:11px;color:var(--p2);letter-spacing:1px;margin-top:4px}
+
+/* Orbit inner is a tap target in idle mode */
+.focus-orbit-inner { cursor: pointer; }
+
+/* Idle orbit has gentler rings than active */
+.focus-orbit.idle::before { animation-duration: 18s; opacity: .6; }
+.focus-orbit.idle::after  { animation-duration: 12s; opacity: .4; }
+
+/* Make idle orbit rings visible (currently nearly transparent) */
+.focus-orbit.idle::before {
+  border-color: rgba(108,99,255,.22);
+  animation-duration: 18s;
+}
+.focus-orbit.idle::after {
+  border-color: rgba(5,200,232,.14);
+  animation-duration: 12s;
+}
+
+/* Duration buttons — ensure consistent height and font */
+.focus-dur-btn {
+  min-height: 34px;
+  font-size: 12px;
+  letter-spacing: 0.02em;
+}
+
+/* Custom duration button matches the row */
+.focus-dur-btn:last-child {
+  flex: 1.3;   /* slightly wider so "Custom" label doesn't clip */
+}
+
+/* Difficulty pills — base sizing was missing line-height */
+.focus-diff-pill {
+  line-height: 1.2;
+  letter-spacing: 0.01em;
+}
+
+/* Orbit inner cursor already in inline style, but also set here as fallback */
+.focus-orbit-inner {
+  cursor: pointer;
+}
+.focus-orbit-inner:active {
+  transform: scale(0.96);
+  transition: transform 0.1s;
+}
+
+/* ── Duration selector ──────────────────────────────── */
+.focus-dur-row{display:flex;gap:6px;margin-bottom:12px}
+.focus-dur-btn{
+  flex:1;padding:7px 0;text-align:center;border-radius:10px;cursor:pointer;
+  font-family:var(--ff-d);font-size:14px;font-weight:600;
+  background:var(--s2);border:1px solid var(--border2);color:var(--t2);
+  transition:all .15s;
+}
+.focus-dur-btn span{display:block;font-family:var(--ff-m);font-size:11px;color:var(--t3);margin-top:1px}
+.focus-dur-btn.active{background:rgba(108,99,255,.15);border-color:rgba(108,99,255,.4);color:var(--p2)}
+.focus-dur-btn.active span{color:var(--p2)}
+
+/* ── Custom duration button ─────────────────────────────── */
+.focus-dur-custom{
+  display:flex;align-items:center;justify-content:center;gap:6px;
+  width:100%;padding:7px 12px;margin-bottom:12px;box-sizing:border-box;
+  border-radius:10px;cursor:pointer;
+  border:1px dashed var(--border2);
+  font-family:var(--ff-m);font-size:11px;color:var(--t3);
+  transition:all .15s;
+}
+.focus-dur-custom.active{
+  background:rgba(108,99,255,.15);
+  border:1px solid rgba(108,99,255,.4);
+  color:var(--p2);
+}
+
+/* ── Drum scroll-wheel picker ───────────────────────────── */
+.focus-drum-col{
+  height:132px; /* 3 × 44px */
+  overflow-y:scroll;
+  scroll-snap-type:y mandatory;
+  scrollbar-width:none;
+  -webkit-overflow-scrolling:touch;
+  width:88px;
+}
+.focus-drum-col::-webkit-scrollbar{display:none}
+.focus-drum-item{
+  height:44px;
+  display:flex;align-items:center;justify-content:center;
+  padding-top: 15px;
+  font-family:var(--ff-m);font-size:24px;font-weight:500;
+  color:var(--t3);scroll-snap-align:center;user-select:none;
+}
+.focus-drum-pad{height:44px;flex-shrink:0}
+
+/* ── Difficulty pills ───────────────────────────────── */
+.focus-diff-row{display:flex;gap:6px;margin-bottom:10px}
+.focus-diff-pill{
+  flex:1;padding:8px 0;text-align:center;border-radius:10px;cursor:pointer;
+  font-family:var(--ff-m);font-size:10px;font-weight:600;
+  background:var(--s2);border:1px solid var(--border2);color:var(--t2);
+  transition:all .18s;
+}
+.focus-diff-pill.active[data-diff="gentle"]{background:rgba(18,212,138,.12);border-color:rgba(18,212,138,.35);color:var(--g)}
+.focus-diff-pill.active[data-diff="firm"]  {background:rgba(247,166,35,.12);border-color:rgba(247,166,35,.35);color:var(--a)}
+.focus-diff-pill.active[data-diff="deep"]  {background:rgba(240,78,122,.12);border-color:rgba(240,78,122,.35);color:var(--r)}
+
+.focus-diff-desc{
+  font-family:var(--ff-m);font-size:10px;color:var(--t2);text-align:center;
+  margin-bottom:12px;line-height:1.55;min-height:28px;
+}
+
+/* ── App chips ──────────────────────────────────────── */
+.focus-app-chips{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:14px}
+.focus-app-chip{
+  display:flex;align-items:center;gap:6px;padding:6px 10px;
+  border-radius:10px;background:var(--s2);border:1px solid var(--border2);
+  font-size:11px;color:var(--t2);
+}
+.focus-app-chip.blocked{
+  background:rgba(240,78,122,.09);border-color:rgba(240,78,122,.22);color:var(--r);
+}
+.focus-chip-ico{width:20px;height:20px;border-radius:5px;background:var(--s1);
+  display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0}
+.focus-chip-add{
+  display:flex;align-items:center;gap:4px;padding:6px 10px;
+  border-radius:10px;border:1px dashed var(--border2);
+  font-family:var(--ff-m);font-size:10px;color:var(--t3);cursor:pointer;
+}
+
+/* ── Start / End buttons ────────────────────────────── */
+.focus-start-btn{
+  width:100%;padding:14px;border-radius:14px;border:none;cursor:pointer;
+  font-family:var(--ff-d);font-size:15px;font-weight:600;color:#fff;
+  background:linear-gradient(135deg,var(--p),var(--c));
+  box-shadow:0 8px 24px rgba(108,99,255,.3);
+  transition:transform .15s,box-shadow .15s;
+}
+.focus-start-btn:active{transform:scale(.97)}
+.focus-end-btn{
+  width:100%;padding:12px;border-radius:12px;border:1px solid var(--border2);
+  background:var(--s2);color:var(--t2);
+  font-family:var(--ff-m);font-size:12px;font-weight:600;cursor:pointer;
+  transition:all .2s;
+}
+.focus-end-btn:active{opacity:.7}
+.focus-deep-lock{
+  text-align:center;font-family:var(--ff-m);font-size:11px;color:var(--r);
+  padding:11px;background:rgba(240,78,122,.07);border-radius:12px;
+  border:1px solid rgba(240,78,122,.18);
+}
+
+/* ── Timer rows ─────────────────────────────────────── */
+.focus-timer-row{
+  display:flex;align-items:center;gap:12px;
+  padding:10px 0;border-bottom:1px solid var(--border);cursor:pointer;
+}
+.focus-timer-row:last-of-type{border:none}
+.focus-timer-ico{width:36px;height:36px;border-radius:10px;overflow:hidden;
+  background:var(--s2);display:flex;align-items:center;justify-content:center;
+  font-size:18px;flex-shrink:0}
+.focus-timer-info{flex:1;min-width:0}
+.focus-timer-name{font-size:12px;font-weight:600;margin-bottom:5px;color:var(--t1)}
+.focus-timer-bar-wrap{height:4px;background:var(--s2);border-radius:2px;overflow:hidden}
+.focus-timer-bar-fill{height:100%;border-radius:2px;transition:width .5s}
+.focus-timer-time{font-family:var(--ff-m);font-size:11px;text-align:right;flex-shrink:0;min-width:46px}
+.focus-timer-time span{display:block;font-size:11px;color:var(--t3);text-align:right}
+
+/* ── Intention prompt ───────────────────────────────── */
+.intention-badge{
+  font-family:var(--ff-m);font-size:11px;color:var(--g);letter-spacing:1.2px;
+  padding:3px 8px;border-radius:999px;text-transform:uppercase;
+  background:rgba(18,212,138,.12);border:1px solid rgba(18,212,138,.25);
+}
+/* ═══ FOCUS STRIP ══════════════════════════════════════════════════ */
+@keyframes fade-in-up {
+  from { opacity:0; transform:translateY(8px); }
+  to   { opacity:1; transform:translateY(0);   }
+}
+@keyframes fs-pulse {
+  0%,100% { box-shadow:0 0 0 3px rgba(108,99,255,.2); }
+  50%     { box-shadow:0 0 0 6px rgba(108,99,255,.07); }
+}

@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  UI-03 FIX: Widget picker preview drawable.
+  android:previewImage in tidy_widget_info.xml now references this drawable
+  instead of @mipmap/ic_launcher, so the widget picker shows a recognisable
+  dark panel instead of the bare app icon.
+
+  NOTE FOR RELEASE: Replace this file with a pixel-accurate screenshot of the
+  real widget at 4×2 cell size (approx 284×148 dp at mdpi) captured on a
+  real device or emulator.  Save as res/drawable/widget_preview.webp (or .png)
+  and keep this XML as a fallback only.
+
+  The android:previewLayout="@layout/widget_tidy" entry added to
+  tidy_widget_info.xml provides a live dynamic preview on API 31+ regardless
+  of this static image, so the static image only matters for API 26–30.
+-->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Dark widget background -->
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="#1A1A2E"/>
+            <corners android:radius="16dp"/>
+        </shape>
+    </item>
+
+    <!-- Subtle top accent strip in Aurelo purple -->
+    <item
+        android:top="0dp"
+        android:bottom="0dp"
+        android:left="0dp"
+        android:right="0dp">
+        <shape android:shape="rectangle">
+            <gradient
+                android:startColor="#33A89CFF"
+                android:endColor="#001A1A2E"
+                android:angle="270"/>
+            <corners android:radius="16dp"/>
+        </shape>
+    </item>
+
+    <!-- Centred Aurelo wordmark placeholder text -->
+    <item>
+        <inset
+            android:insetLeft="20dp"
+            android:insetRight="20dp"
+            android:insetTop="40dp"
+            android:insetBottom="40dp">
+            <shape android:shape="rectangle">
+                <solid android:color="#00000000"/>
+            </shape>
+        </inset>
+    </item>
+
+</layer-list>

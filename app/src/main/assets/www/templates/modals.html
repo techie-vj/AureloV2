@@ -1,0 +1,226 @@
+<!-- ═══════════════════════════════════════════════════════════════════════
+     modals.html — All bottom-sheet modals injected into #modals-root
+     Loaded by TemplateLoader before bootApp() runs.
+     ═══════════════════════════════════════════════════════════════════════ -->
+
+<!-- ─── Category Popup ────────────────────────────────────────────────── -->
+<div class="modal-bg" id="cat-popup" onclick="if(event.target===this)closeModal('cat-popup')">
+    <div class="sheet" style="max-height:82vh">
+        <div class="sheet-handle"></div>
+        <div class="sheet-hdr">
+            <span id="cp-ico" style="font-size:22px">📱</span>
+            <span class="sheet-title" id="cp-title">Category</span>
+            <span id="cp-cnt" style="font-family:var(--ff-m);font-size:10px;color:var(--t3)"></span>
+            <div style="display:flex;gap:8px;margin-left:auto">
+                <button onclick="openEditCatFromPopup()"
+                        style="padding:6px 12px;border-radius:10px;border:1px solid var(--border2);background:var(--s2);color:var(--t2);font-family:var(--ff-m);font-size:11px;cursor:pointer">
+                    Edit
+                </button>
+                <button onclick="closeModal('cat-popup')"
+                        style="width:32px;height:32px;border-radius:10px;border:1px solid var(--border2);background:var(--s2);color:var(--t2);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center">
+                    ×
+                </button>
+            </div>
+        </div>
+        <div class="sheet-body">
+            <div id="cp-grid" class="cp-grid"></div>
+        </div>
+    </div>
+</div>
+
+<!-- ─── Edit / Add Category Modal ─────────────────────────────────────── -->
+<div class="modal-bg" id="edit-cat-modal" onclick="if(event.target===this)closeModal('edit-cat-modal')">
+    <div class="sheet">
+        <div class="sheet-handle"></div>
+        <div class="sheet-hdr">
+            <span class="sheet-title" id="ecm-title">New Category</span>
+            <button onclick="closeModal('edit-cat-modal')"
+                    style="width:32px;height:32px;border-radius:10px;border:1px solid var(--border2);background:var(--s2);color:var(--t2);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+                ×
+            </button>
+        </div>
+        <div class="sheet-body" style="padding:16px 18px 40px">
+            <div style="font-family:var(--ff-m);font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--t3);margin-bottom:8px">Name</div>
+            <input id="ecm-name" type="text" placeholder="Category name…" autocomplete="off"
+                   style="width:100%;box-sizing:border-box;padding:11px 14px;border-radius:12px;border:1px solid var(--border2);background:var(--s1);color:var(--t1);font-family:var(--ff-m);font-size:14px;outline:none;margin-bottom:18px"/>
+            <div style="font-family:var(--ff-m);font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--t3);margin-bottom:10px">Icon</div>
+            <div id="ecm-icons"
+                 style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:22px;max-height:130px;overflow-y:auto;scrollbar-width:none"></div>
+            <button onclick="saveEditCat()"
+                    style="width:100%;padding:14px;border-radius:14px;border:none;background:var(--p);color:#fff;font-family:var(--ff-m);font-size:14px;font-weight:700;cursor:pointer;margin-bottom:10px">
+                Save Category
+            </button>
+            <div id="ecm-del-row" style="display:none">
+                <button onclick="confirmDelCat()"
+                        style="width:100%;padding:13px;border-radius:14px;border:1px solid rgba(240,78,122,.35);background:rgba(240,78,122,.08);color:#f04e7a;font-family:var(--ff-m);font-size:13px;cursor:pointer">
+                    🗑 Delete Category
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ─── Move App to Category Modal ────────────────────────────────────── -->
+<div class="modal-bg" id="move-app-modal" onclick="if(event.target===this)closeModal('move-app-modal')">
+    <div class="sheet">
+        <div class="sheet-handle"></div>
+        <div class="sheet-body" id="move-app-sheet-body" style="padding:0">
+            <!-- Populated dynamically by openMoveAppSheet() in app-categories.js -->
+        </div>
+    </div>
+</div>
+
+<!-- ─── App Timer Picker Modal ─────────────────────────────────────────── -->
+<div class="modal-bg" id="timer-modal" onclick="if(event.target===this)closeModal('timer-modal')">
+    <div class="sheet">
+        <div class="sheet-handle"></div>
+        <div class="sheet-hdr">
+            <span class="sheet-title" id="timer-modal-title">Set Timer</span>
+            <button onclick="closeModal('timer-modal')"
+                    style="width:32px;height:32px;border-radius:10px;border:1px solid var(--border2);background:var(--s2);color:var(--t2);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+                ×
+            </button>
+        </div>
+        <div class="sheet-body" style="padding:14px 18px 40px">
+            <div id="timer-modal-sub"
+                 style="font-family:var(--ff-m);font-size:11px;color:var(--t3);margin-bottom:14px;min-height:14px"></div>
+            <div style="font-family:var(--ff-m);font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--t3);margin-bottom:10px">Daily limit</div>
+            <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px">
+                <button class="dur-btn" data-mins="15" onclick="selDur(15,this)"
+                        style="padding:9px 14px;border-radius:11px;border:1px solid var(--border2);background:var(--s2);color:var(--t2);font-family:var(--ff-m);font-size:13px;cursor:pointer;transition:all .15s">
+                    15m
+                </button>
+                <button class="dur-btn" data-mins="30" onclick="selDur(30,this)"
+                        style="padding:9px 14px;border-radius:11px;border:1px solid var(--border2);background:var(--s2);color:var(--t2);font-family:var(--ff-m);font-size:13px;cursor:pointer;transition:all .15s">
+                    30m
+                </button>
+                <button class="dur-btn on" data-mins="45" onclick="selDur(45,this)"
+                        style="padding:9px 14px;border-radius:11px;border:1px solid var(--border2);background:var(--s2);color:var(--t2);font-family:var(--ff-m);font-size:13px;cursor:pointer;transition:all .15s">
+                    45m
+                </button>
+                <button class="dur-btn" data-mins="60" onclick="selDur(60,this)"
+                        style="padding:9px 14px;border-radius:11px;border:1px solid var(--border2);background:var(--s2);color:var(--t2);font-family:var(--ff-m);font-size:13px;cursor:pointer;transition:all .15s">
+                    1h
+                </button>
+                <button class="dur-btn" data-mins="90" onclick="selDur(90,this)"
+                        style="padding:9px 14px;border-radius:11px;border:1px solid var(--border2);background:var(--s2);color:var(--t2);font-family:var(--ff-m);font-size:13px;cursor:pointer;transition:all .15s">
+                    1h 30m
+                </button>
+                <button class="dur-btn" data-mins="120" onclick="selDur(120,this)"
+                        style="padding:9px 14px;border-radius:11px;border:1px solid var(--border2);background:var(--s2);color:var(--t2);font-family:var(--ff-m);font-size:13px;cursor:pointer;transition:all .15s">
+                    2h
+                </button>
+                <button class="dur-btn" data-mins="180" onclick="selDur(180,this)"
+                        style="padding:9px 14px;border-radius:11px;border:1px solid var(--border2);background:var(--s2);color:var(--t2);font-family:var(--ff-m);font-size:13px;cursor:pointer;transition:all .15s">
+                    3h
+                </button>
+                <button class="dur-btn" data-mins="240" onclick="selDur(240,this)"
+                        style="padding:9px 14px;border-radius:11px;border:1px solid var(--border2);background:var(--s2);color:var(--t2);font-family:var(--ff-m);font-size:13px;cursor:pointer;transition:all .15s">
+                    4h
+                </button>
+            </div>
+            <button onclick="applyTimer()"
+                    style="width:100%;padding:14px;border-radius:14px;border:none;background:var(--p);color:#fff;font-family:var(--ff-m);font-size:14px;font-weight:700;cursor:pointer;margin-bottom:10px">
+                Set Timer
+            </button>
+            <button id="timer-remove-btn" onclick="removeTimerFromModal()" style="display:none;width:100%;padding:13px;border-radius:14px;border:1px solid rgba(240,78,122,.35);background:rgba(240,78,122,.08);color:#f04e7a;font-family:var(--ff-m);font-size:13px;cursor:pointer">
+                Remove Timer
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- ─── Focus Custom Duration Picker Modal ─────────────────────────────── -->
+<div id="focus-dur-modal"
+     style="display:none;position:fixed;inset:0;z-index:1200;background:rgba(0,0,0,.7);
+            backdrop-filter:blur(6px);align-items:flex-end;justify-content:center"
+     onclick="if(event.target===this)FocusTab.closeCustomDurPicker()">
+    <div id="focus-dur-sheet"
+         style="width:100%;max-width:480px;background:var(--s0);border-radius:24px 24px 0 0;
+                border-top:1px solid var(--border2);padding:0 0 max(40px,env(safe-area-inset-bottom,0px)) 0;
+                transform:translateY(100%);transition:transform .3s cubic-bezier(.32,.72,0,1)">
+        <div style="width:40px;height:4px;border-radius:2px;background:var(--border2);margin:12px auto 0"></div>
+        <div style="display:flex;align-items:center;padding:14px 20px 10px;border-bottom:1px solid var(--border)">
+            <span style="font-family:var(--ff-d);font-size:18px;font-weight:300;flex:1">Custom Duration</span>
+            <button onclick="FocusTab.closeCustomDurPicker()"
+                    style="width:32px;height:32px;border-radius:10px;border:1px solid var(--border2);background:var(--s2);color:var(--t2);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center">
+                ×
+            </button>
+        </div>
+        <!-- Drum picker columns -->
+        <div style="display:flex;align-items:center;justify-content:center;gap:0;padding:0 20px;position:relative;height:220px;overflow:hidden">
+            <!-- Highlight stripe -->
+            <div style="position:absolute;left:20px;right:20px;top:50%;transform:translateY(-50%);height:44px;background:rgba(108,99,255,.12);border-radius:10px;border:1px solid rgba(108,99,255,.25);pointer-events:none"></div>
+            <!-- Hours column -->
+            <div id="focus-dur-hrs"
+                 style="flex:1;height:100%;overflow-y:scroll;scroll-snap-type:y mandatory;scrollbar-width:none;
+                        -webkit-overflow-scrolling:touch;text-align:center">
+                <!-- Populated by _initDrumColumns() in app-focus.js -->
+            </div>
+            <div style="font-family:var(--ff-m);font-size:13px;color:var(--t3);padding:0 6px;flex-shrink:0;pointer-events:none">:</div>
+            <!-- Minutes column -->
+            <div id="focus-dur-mins"
+                 style="flex:1;height:100%;overflow-y:scroll;scroll-snap-type:y mandatory;scrollbar-width:none;
+                        -webkit-overflow-scrolling:touch;text-align:center">
+                <!-- Populated by _initDrumColumns() in app-focus.js -->
+            </div>
+        </div>
+        <div style="padding:12px 20px 0;display:flex;gap:10px">
+            <button onclick="FocusTab.closeCustomDurPicker()"
+                    style="flex:1;padding:14px;border-radius:14px;border:1px solid var(--border2);background:transparent;color:var(--t2);font-family:var(--ff-m);font-size:13px;cursor:pointer">
+                Cancel
+            </button>
+            <button onclick="FocusTab.confirmCustomDur()"
+                    style="flex:2;padding:14px;border-radius:14px;border:none;background:var(--p);color:#fff;font-family:var(--ff-m);font-size:14px;font-weight:700;cursor:pointer">
+                Set Duration
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- ─── drum item CSS (scoped inline — only used inside focus-dur-modal) ── -->
+<style>
+    #focus-dur-hrs .focus-drum-pad,
+    #focus-dur-mins .focus-drum-pad {
+      height: 88px; /* top + bottom padding to centre first/last item */
+      flex-shrink: 0;
+    }
+    #focus-dur-hrs .focus-drum-item,
+    #focus-dur-mins .focus-drum-item {
+      height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      scroll-snap-align: center;
+      font-family: var(--ff-m);
+      font-size: 20px;
+      color: var(--t1);
+      flex-shrink: 0;
+      cursor: pointer;
+    }
+    #focus-dur-hrs::-webkit-scrollbar,
+    #focus-dur-mins::-webkit-scrollbar { display: none; }
+    .dur-btn.on {
+      background: var(--p) !important;
+      color: #fff !important;
+      border-color: var(--p) !important;
+    }
+    .icon-btn {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      border: 1px solid var(--border2);
+      background: var(--s2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      cursor: pointer;
+      transition: all .15s;
+    }
+    .icon-btn.on {
+      background: var(--p);
+      border-color: var(--p);
+      box-shadow: 0 2px 8px rgba(108,99,255,.4);
+    }
+</style>

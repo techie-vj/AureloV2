@@ -1,0 +1,389 @@
+{
+  "version": 1,
+  "updated": "2026-03-20",
+  "notes": "All links via Impact.com. Update affiliateUrl when campaign IDs change. AppLovin MAX is fallback only - never shown when a matching affiliate link exists.",
+
+  "apps": [
+
+    {
+      "id": "forest",
+      "pkg": "cc.forestapp",
+      "name": "Forest",
+      "emoji": "🌲",
+      "tagline": "Stay focused. Grow real trees.",
+      "description": "Every time you put your phone down, a tree grows. Forest has helped millions break the scrolling habit.",
+      "category": "productivity",
+      "relevantFor": ["social", "gaming", "entertainment", "communication"],
+      "countries": ["*"],
+      "affiliateUrl": "https://impact.com/r/REPLACE_WITH_FOREST_LINK",
+      "playStorePkg": "cc.forestapp",
+      "accentColor": "#3CB371",
+      "collection": "no-attention"
+    },
+
+    {
+      "id": "calm",
+      "pkg": "com.calm.android",
+      "name": "Calm",
+      "emoji": "🌊",
+      "tagline": "Sleep better. Stress less.",
+      "description": "Wind down with guided meditations, sleep stories, and breathing exercises.",
+      "category": "wellness",
+      "relevantFor": ["social", "entertainment", "gaming"],
+      "countries": ["US","GB","CA","AU","IE","NZ","DE","FR","IT","ES","NL","BE","SE","NO","DK","FI","AT","CH","PT","PL","CZ","HU","RO","BG","HR","SK","SI","EE","LV","LT","GR","CY","MT","LU","JP","KR","SG","HK","TW","IN","BR","MX","AR","CL","CO","PE","ZA","AE","SA","TR"],
+      "affiliateUrl": "https://impact.com/r/REPLACE_WITH_CALM_LINK",
+      "playStorePkg": "com.calm.android",
+      "accentColor": "#4FC3F7",
+      "collection": "no-attention"
+    },
+
+    {
+      "id": "headspace",
+      "pkg": "com.getsomeheadspace.android",
+      "name": "Headspace",
+      "emoji": "🧘",
+      "tagline": "Meditation made simple.",
+      "description": "Guided meditation, sleep sounds, and mindfulness for everyday life.",
+      "category": "wellness",
+      "relevantFor": ["social", "entertainment", "news"],
+      "countries": ["US","GB","CA","AU","IE","NZ","DE","FR","IT","ES","NL","BE","SE","NO","DK","FI","AT","CH","PT","PL","CZ","HU","ZA","AE","SA","SG","HK","JP","KR","BR","MX","AR"],
+      "affiliateUrl": "https://impact.com/r/REPLACE_WITH_HEADSPACE_LINK",
+      "playStorePkg": "com.getsomeheadspace.android",
+      "accentColor": "#FFAF7B",
+      "collection": "no-attention"
+    },
+
+    {
+      "id": "finch",
+      "pkg": "com.finchcare",
+      "name": "Finch",
+      "emoji": "🐣",
+      "tagline": "Self-care that feels like a game.",
+      "description": "Set goals, reflect on your day, and watch your little bird grow.",
+      "category": "wellness",
+      "relevantFor": ["social", "gaming", "entertainment"],
+      "countries": ["US","GB","CA","AU","IE","NZ","DE","FR","IT","ES","NL","BE","SE","NO","DK","FI","AT","CH","PT","PL","BR","MX","IN","SG","JP","KR","HK","TW","ZA","AE"],
+      "affiliateUrl": "https://impact.com/r/REPLACE_WITH_FINCH_LINK",
+      "playStorePkg": "com.finchcare",
+      "accentColor": "#F7B823",
+      "collection": "no-attention"
+    },
+
+    {
+      "id": "duolingo",
+      "pkg": "com.duolingo",
+      "name": "Duolingo",
+      "emoji": "🦉",
+      "tagline": "5 minutes a day. Fluent in a year.",
+      "description": "The world's most popular language learning app. Free forever.",
+      "category": "education",
+      "relevantFor": ["social", "entertainment", "gaming", "news"],
+      "countries": ["*"],
+      "affiliateUrl": "https://impact.com/r/REPLACE_WITH_DUOLINGO_LINK",
+      "playStorePkg": "com.duolingo",
+      "accentColor": "#58CC02",
+      "collection": "learn"
+    },
+
+    {
+      "id": "brilliant",
+      "pkg": "com.brilliant.android",
+      "name": "Brilliant",
+      "emoji": "✨",
+      "tagline": "Math, science & CS — interactively.",
+      "description": "Learn by solving problems. Real skills that stick.",
+      "category": "education",
+      "relevantFor": ["gaming", "entertainment", "social"],
+      "countries": ["US","GB","CA","AU","IE","NZ","DE","FR","IT","ES","NL","BE","SE","NO","DK","FI","AT","CH","PT","PL","IN","SG","HK","JP","KR","TW","BR","MX","AR","ZA","AE","TR"],
+      "affiliateUrl": "https://impact.com/r/REPLACE_WITH_BRILLIANT_LINK",
+      "playStorePkg": "com.brilliant.android",
+      "accentColor": "#FF6B35",
+      "collection": "learn"
+    },
+
+    {
+      "id": "khanacademy",
+      "pkg": "org.khanacademy.android",
+      "name": "Khan Academy",
+      "emoji": "🎓",
+      "tagline": "World-class education. Free for everyone.",
+      "description": "Learn anything — math, science, history, art. No ads, no cost.",
+      "category": "education",
+      "relevantFor": ["gaming", "entertainment", "social"],
+      "countries": ["*"],
+      "affiliateUrl": "https://impact.com/r/REPLACE_WITH_KHAN_LINK",
+      "playStorePkg": "org.khanacademy.android",
+      "accentColor": "#14BF96",
+      "collection": "learn"
+    },
+
+    {
+      "id": "audible",
+      "pkg": "com.audible.application",
+      "name": "Audible",
+      "emoji": "🎧",
+      "tagline": "Books while you move.",
+      "description": "Listen to bestselling audiobooks on your commute, at the gym, anywhere.",
+      "category": "education",
+      "relevantFor": ["entertainment", "social", "news"],
+      "countries": ["US","GB","CA","AU","IE","DE","FR","IT","ES","JP","IN","BR"],
+      "affiliateUrl": "https://impact.com/r/REPLACE_WITH_AUDIBLE_LINK",
+      "playStorePkg": "com.audible.application",
+      "accentColor": "#F79000",
+      "collection": "learn"
+    },
+
+    {
+      "id": "strava",
+      "pkg": "com.strava",
+      "name": "Strava",
+      "emoji": "🏃",
+      "tagline": "Find your motivation to move.",
+      "description": "Track runs, rides, and workouts. Join the world's most active community.",
+      "category": "fitness",
+      "relevantFor": ["social", "entertainment", "gaming"],
+      "countries": ["*"],
+      "affiliateUrl": "https://impact.com/r/REPLACE_WITH_STRAVA_LINK",
+      "playStorePkg": "com.strava",
+      "accentColor": "#FC4C02",
+      "collection": "move"
+    },
+
+    {
+      "id": "nikerunclub",
+      "pkg": "com.nike.plusgps",
+      "name": "Nike Run Club",
+      "emoji": "👟",
+      "tagline": "Run further, faster, together.",
+      "description": "Free guided runs, coaching plans, and a community that keeps you moving.",
+      "category": "fitness",
+      "relevantFor": ["social", "entertainment", "gaming"],
+      "countries": ["*"],
+      "affiliateUrl": "https://impact.com/r/REPLACE_WITH_NRC_LINK",
+      "playStorePkg": "com.nike.plusgps",
+      "accentColor": "#FA5400",
+      "collection": "move"
+    },
+
+    {
+      "id": "myfitnesspal",
+      "pkg": "com.myfitnesspal.android",
+      "name": "MyFitnessPal",
+      "emoji": "🥗",
+      "tagline": "Know what you eat. Feel better.",
+      "description": "Track food, exercise, and progress. 14 million foods in the database.",
+      "category": "fitness",
+      "relevantFor": ["food", "health", "social"],
+      "countries": ["US","GB","CA","AU","IE","NZ","DE","FR","IT","ES","NL","BE","SE","NO","DK","FI","AT","CH","PT","PL","BR","MX","IN","SG","JP","KR","HK","ZA","AE","TR"],
+      "affiliateUrl": "https://impact.com/r/REPLACE_WITH_MFP_LINK",
+      "playStorePkg": "com.myfitnesspal.android",
+      "accentColor": "#2196F3",
+      "collection": "move"
+    },
+
+    {
+      "id": "bereal",
+      "pkg": "com.bnc.bereal",
+      "name": "BeReal",
+      "emoji": "📸",
+      "tagline": "Authentic moments. No algorithm.",
+      "description": "One photo a day, front and back camera, no filters. Real life only.",
+      "category": "social",
+      "relevantFor": ["social"],
+      "replaces": ["com.instagram.android","com.snapchat.android","com.facebook.katana","com.twitter.android","com.zhiliaoapp.musically"],
+      "countries": ["US","GB","CA","AU","IE","NZ","DE","FR","IT","ES","NL","BE","SE","NO","DK","FI","AT","CH","PT","PL","BR","MX","JP","KR","SG","HK","IN","ZA","AE","AR","CL","CO"],
+      "affiliateUrl": "https://impact.com/r/REPLACE_WITH_BEREAL_LINK",
+      "playStorePkg": "com.bnc.bereal",
+      "accentColor": "#000000",
+      "collection": null
+    },
+
+    {
+      "id": "chess",
+      "pkg": "com.chess",
+      "name": "Chess.com",
+      "emoji": "♟️",
+      "tagline": "Strategy over dopamine.",
+      "description": "Play chess against real people or AI. Improve your game every day.",
+      "category": "gaming",
+      "relevantFor": ["gaming"],
+      "replaces": ["com.supercell.clashofclans","com.king.candycrushsaga","com.supercell.brawlstars","com.mojang.minecraftpe"],
+      "countries": ["*"],
+      "affiliateUrl": "https://impact.com/r/REPLACE_WITH_CHESS_LINK",
+      "playStorePkg": "com.chess",
+      "accentColor": "#7FA650",
+      "collection": null
+    },
+
+    {
+      "id": "notion",
+      "pkg": "notion.id",
+      "name": "Notion",
+      "emoji": "📝",
+      "tagline": "Your second brain.",
+      "description": "Notes, tasks, wikis, and databases — all in one beautiful workspace.",
+      "category": "productivity",
+      "relevantFor": ["productivity", "social"],
+      "countries": ["*"],
+      "affiliateUrl": "https://impact.com/r/REPLACE_WITH_NOTION_LINK",
+      "playStorePkg": "notion.id",
+      "accentColor": "#FFFFFF",
+      "collection": null
+    },
+
+    {
+      "id": "dayonejournal",
+      "pkg": "com.bloombuilt.dayone",
+      "name": "Day One",
+      "emoji": "📓",
+      "tagline": "Journal the moments that matter.",
+      "description": "Private, beautiful journaling. Write, capture photos, track moods.",
+      "category": "productivity",
+      "relevantFor": ["social", "entertainment", "news"],
+      "countries": ["US","GB","CA","AU","IE","NZ","DE","FR","IT","ES","NL","BE","SE","NO","DK","FI","AT","CH","PT","PL","BR","MX","IN","SG","JP","KR","HK","ZA","AE"],
+      "affiliateUrl": "https://impact.com/r/REPLACE_WITH_DAYONE_LINK",
+      "playStorePkg": "com.bloombuilt.dayone",
+      "accentColor": "#4A90D9",
+      "collection": null
+    },
+
+    {
+      "id": "mubi",
+      "pkg": "com.mubi.android",
+      "name": "MUBI",
+      "emoji": "🎞️",
+      "tagline": "One great film, every day.",
+      "description": "Curated cinema. No endless scroll — just one handpicked film daily.",
+      "category": "entertainment",
+      "relevantFor": ["entertainment"],
+      "replaces": ["com.netflix.mediaclient","com.google.android.youtube","com.zhiliaoapp.musically"],
+      "countries": ["US","GB","CA","AU","IE","DE","FR","IT","ES","NL","BE","SE","NO","DK","FI","AT","CH","PT","PL","BR","MX","IN","TR","JP","KR","SG","HK","AR","CL","CO","ZA","AE"],
+      "affiliateUrl": "https://impact.com/r/REPLACE_WITH_MUBI_LINK",
+      "playStorePkg": "com.mubi.android",
+      "accentColor": "#0055FF",
+      "collection": null
+    },
+
+    {
+      "id": "blinkist",
+      "pkg": "com.blinkist.android",
+      "name": "Blinkist",
+      "emoji": "⚡",
+      "tagline": "Key ideas from 7,000+ books in 15 min.",
+      "description": "Read or listen to the most important takeaways from nonfiction bestsellers.",
+      "category": "education",
+      "relevantFor": ["news", "entertainment", "social"],
+      "countries": ["US","GB","CA","AU","IE","NZ","DE","FR","IT","ES","NL","BE","SE","NO","DK","FI","AT","CH","PT","PL","IN","SG","HK","JP","KR","BR","MX","ZA","AE","TR"],
+      "affiliateUrl": "https://impact.com/r/REPLACE_WITH_BLINKIST_LINK",
+      "playStorePkg": "com.blinkist.android",
+      "accentColor": "#2CCBA1",
+      "collection": "learn"
+    },
+
+    {
+      "id": "insight-timer",
+      "pkg": "com.spotlightsix.flutter.insighttimer",
+      "name": "Insight Timer",
+      "emoji": "⏱️",
+      "tagline": "Free meditation. 100,000+ guided sessions.",
+      "description": "The world's largest library of free meditations, sleep music, and talks.",
+      "category": "wellness",
+      "relevantFor": ["social", "entertainment", "gaming", "news"],
+      "countries": ["*"],
+      "affiliateUrl": "https://impact.com/r/REPLACE_WITH_INSIGHT_LINK",
+      "playStorePkg": "com.spotlightsix.flutter.insighttimer",
+      "accentColor": "#FF6B35",
+      "collection": "no-attention"
+    },
+
+    {
+      "id": "pocket",
+      "pkg": "com.ideashower.readitlater.pro",
+      "name": "Pocket",
+      "emoji": "📌",
+      "tagline": "Save now. Read with focus.",
+      "description": "Save articles, videos, and pages. Read them later without distractions.",
+      "category": "productivity",
+      "relevantFor": ["news", "social", "entertainment"],
+      "countries": ["*"],
+      "affiliateUrl": "https://impact.com/r/REPLACE_WITH_POCKET_LINK",
+      "playStorePkg": "com.ideashower.readitlater.pro",
+      "accentColor": "#EF4056",
+      "collection": null
+    },
+
+    {
+      "id": "seven",
+      "pkg": "se.perigee.android.seven",
+      "name": "Seven — 7 Minute Workout",
+      "emoji": "💪",
+      "tagline": "7 minutes. Every day. That's it.",
+      "description": "Science-backed workouts. No equipment. No excuses.",
+      "category": "fitness",
+      "relevantFor": ["gaming", "entertainment", "social"],
+      "countries": ["*"],
+      "affiliateUrl": "https://impact.com/r/REPLACE_WITH_SEVEN_LINK",
+      "playStorePkg": "se.perigee.android.seven",
+      "accentColor": "#FF3B5C",
+      "collection": "move"
+    }
+
+  ],
+
+  "collections": [
+    {
+      "id": "no-attention",
+      "title": "Apps that don't want your attention",
+      "emoji": "🌱",
+      "description": "Designed to improve your life, not maximise your time in them.",
+      "accentColor": "#3CB371",
+      "appIds": ["forest", "calm", "headspace", "finch", "insight-timer"]
+    },
+    {
+      "id": "learn",
+      "title": "Learn something instead",
+      "emoji": "📚",
+      "description": "Replace passive scrolling with something that builds real skills.",
+      "accentColor": "#F7B823",
+      "appIds": ["duolingo", "brilliant", "khanacademy", "audible", "blinkist"]
+    },
+    {
+      "id": "move",
+      "title": "Move your body",
+      "emoji": "🏃",
+      "description": "Apps that get you off the couch instead of keeping you on it.",
+      "accentColor": "#FC4C02",
+      "appIds": ["strava", "nikerunclub", "myfitnesspal", "seven"]
+    }
+  ],
+
+  "replacements": {
+    "social":        ["bereal", "dayonejournal", "pocket"],
+    "entertainment": ["mubi", "audible", "blinkist"],
+    "gaming":        ["chess", "brilliant", "seven"],
+    "news":          ["pocket", "blinkist", "dayonejournal"],
+    "productivity":  ["forest", "notion", "calm"],
+    "health":        ["headspace", "finch", "insight-timer"],
+    "education":     null,
+    "fitness":       null,
+    "finance":       null,
+    "communication": null,
+    "shopping":      null,
+    "photography":   null,
+    "travel":        null,
+    "music":         null,
+    "utilities":     null
+  },
+
+  "noReplaceMessage": {
+    "finance":       "You're just managing money — that's healthy phone use.",
+    "communication": "Staying connected with people isn't the problem.",
+    "fitness":       "You're already doing the right thing here.",
+    "education":     "Learning apps are exactly what we'd recommend anyway.",
+    "music":         "Listening to music is a healthy screen habit.",
+    "photography":   "Creating content is better than consuming it.",
+    "travel":        "Navigation and travel planning is intentional use.",
+    "utilities":     "Utility apps are tools, not habits to break.",
+    "shopping":      null
+  }
+}

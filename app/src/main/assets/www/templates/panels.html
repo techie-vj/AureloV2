@@ -1,0 +1,217 @@
+<!-- ═══ FOCUS APP PICKER PANEL ═══════════════════════════════════════════ -->
+<div class="panel" id="focus-picker-panel">
+    <div class="panel-hdr">
+        <div class="panel-back" onclick="closePanel('focus-picker-panel')">←</div>
+        <div class="panel-title" id="focus-picker-title">Block During Session</div>
+        <div class="header-btn" onclick="FocusTab.saveFocusPick()">Save</div>
+    </div>
+    <div style="padding:10px 16px 8px;border-bottom:1px solid var(--border);flex-shrink:0">
+        <input type="text" placeholder="Search apps or categories…" autocomplete="off"
+               oninput="filterPickerSearch(this.value)"
+               id="focus-picker-search"
+               style="width:100%;box-sizing:border-box;padding:8px 12px;border-radius:10px;border:1px solid var(--border2);background:var(--s1);color:var(--t1);font-family:var(--ff-m);font-size:12px;outline:none"/>
+    </div>
+    <div id="focus-picker-list" style="flex:1;overflow-y:auto;scrollbar-width:none;padding-bottom:40px"></div>
+</div>
+
+<!-- ─── All Apps Panel ─────────────────────────────────────────────────── -->
+<div class="panel" id="all-apps-panel">
+    <div class="panel-hdr">
+        <div class="panel-back" onclick="closePanel('all-apps-panel')">←</div>
+        <div class="panel-title">All Apps</div>
+        <div id="all-apps-count" style="font-family:var(--ff-m);font-size:10px;color:var(--t3)"></div>
+    </div>
+    <div style="padding:10px 16px 8px; border-bottom:1px solid var(--border); flex-shrink:0; display:flex; flex-direction:column; gap:12px;">
+
+    <input id="all-apps-search" type="text" placeholder="Search apps or categories…"
+           style="width:100%; box-sizing:border-box; background:var(--s2); border:1px solid var(--border2); border-radius:10px; padding:8px 12px; font-family:var(--ff-m); font-size:12px; color:var(--t1); outline:none"
+           oninput="renderAllAppsPanel()"/>
+
+    <div style="display:flex; width:100%; background:var(--s2); border:1px solid var(--border2); border-radius:10px; overflow:hidden;">
+        <button id="aa-sort-today" onclick="setAllAppsSort('today')" style="flex:1; padding:8px 0; font-family:var(--ff-m); font-size:10px; border:none; cursor:pointer; background:var(--p); color:#fff; transition:all .15s; text-align:center;">Today</button>
+        <button id="aa-sort-week"  onclick="setAllAppsSort('week')"  style="flex:1; padding:8px 0; font-family:var(--ff-m); font-size:10px; border:none; cursor:pointer; background:transparent; color:var(--t2); transition:all .15s; text-align:center;">Week</button>
+        <button id="aa-sort-month" onclick="setAllAppsSort('month')" style="flex:1; padding:8px 0; font-family:var(--ff-m); font-size:10px; border:none; cursor:pointer; background:transparent; color:var(--t2); transition:all .15s; text-align:center;">Month</button>
+        <button id="aa-sort-az"   onclick="setAllAppsSort('az')"    style="flex:1; padding:8px 0; font-family:var(--ff-m); font-size:10px; border:none; cursor:pointer; background:transparent; color:var(--t2); transition:all .15s; text-align:center;">A–Z</button>
+    </div>
+
+</div>
+    <div id="all-apps-list" style="flex:1;overflow-y:auto;scrollbar-width:none;padding-bottom:40px"></div>
+</div>
+
+<!-- ─── Privacy & Data Detail Panel ───────────────────────────────────── -->
+<div class="panel" id="privacy-panel">
+    <div class="panel-hdr">
+        <div class="panel-back" onclick="closePanel('privacy-panel')">←</div>
+        <div class="panel-title">Data & Privacy</div>
+    </div>
+    <div class="panel-body">
+        <div style="background:rgba(18,212,138,.08);border:1px solid rgba(18,212,138,.2);border-radius:14px;padding:20px;text-align:center;margin-bottom:20px">
+            <div style="font-size:32px;margin-bottom:10px">🛡️</div>
+            <div style="font-family:var(--ff-d);font-size:18px;font-weight:700;color:var(--g);margin-bottom:8px">Zero servers. Zero accounts. Zero data shared.</div>
+            <div style="font-size:13px;color:var(--t2);line-height:1.7">Aurelo has no backend. Your screen time is computed on this device and never transmitted anywhere.</div>
+        </div>
+        <div style="font-family:var(--ff-m);font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--t3);margin-bottom:8px">Permissions</div>
+        <div class="sr" onclick="tapPerm('usage')" style="margin-bottom:6px">
+            <div class="sr-ico" style="background:rgba(108,99,255,.15)">📊</div>
+            <div style="flex:1"><div class="sr-lbl">Usage Access</div><div class="sr-sub">Required for screen time tracking</div></div>
+            <div class="perm-badge no" id="perm-usage">Check</div><span class="sr-chev">›</span>
+        </div>
+        <div class="sr" onclick="tapPerm('notif')" style="margin-bottom:6px">
+            <div class="sr-ico" style="background:rgba(5,200,232,.12)">🔔</div>
+            <div style="flex:1"><div class="sr-lbl">Notifications</div><div class="sr-sub">Goal and limit alerts</div></div>
+            <div class="perm-badge no" id="perm-notif">Check</div><span class="sr-chev">›</span>
+        </div>
+        <div class="sr" onclick="tapPerm('dnd')" style="margin-bottom:6px">
+            <div class="sr-ico" style="background:rgba(18,212,138,.12)">🌙</div>
+            <div style="flex:1"><div class="sr-lbl">Do Not Disturb</div><div class="sr-sub" id="perm-dnd-sub">Required for Bedtime Mode</div></div>
+            <div class="perm-badge no" id="perm-dnd">Check</div><span class="sr-chev">›</span>
+        </div>
+        <div class="sr" onclick="tapPerm('overlay')" style="margin-bottom:16px">
+            <div class="sr-ico" style="background:rgba(108,99,255,.12)">🪟</div>
+            <div style="flex:1"><div class="sr-lbl">Display Over Other Apps</div><div class="sr-sub" id="perm-overlay-sub">Required for Focus Mode, timers &amp; Mindful prompts</div></div>
+            <div class="perm-badge no" id="perm-overlay">Check</div><span class="sr-chev">›</span>
+        </div>
+        <div style="font-family:var(--ff-m);font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--t3);margin-bottom:8px">Data</div>
+        <div class="sr" onclick="confirmClearData()">
+            <div class="sr-ico" style="background:rgba(240,78,122,.12)">🗑️</div>
+            <div style="flex:1"><div class="sr-lbl">Clear All Data</div><div class="sr-sub">Reset categories, limits, and history</div></div>
+            <span class="sr-chev">›</span>
+        </div>
+    </div>
+</div>
+
+<!-- ─── Ghost Panel ────────────────────────────────────────────────────── -->
+<div class="panel" id="ghost-panel">
+    <div class="panel-hdr">
+        <div class="panel-back" onclick="closePanel('ghost-panel')">←</div>
+        <div class="panel-title">👻 Ghost Apps</div>
+        <div style="font-family:var(--ff-m);font-size:10px;color:var(--t3)">Tap Uninstall to remove</div>
+    </div>
+    <div class="panel-body">
+        <div style="background:rgba(176,110,255,.08);border:1px solid rgba(176,110,255,.2);border-radius:11px;padding:10px 13px;margin-bottom:12px;font-family:var(--ff-m);font-size:11px;color:var(--t2)">
+            👻 Apps not opened in 30+ days. Uninstalling frees up storage.
+        </div>
+        <div id="ghost-list"></div>
+        <div class="ghost-empty" id="ghost-empty">
+            <div style="font-size:40px;margin-bottom:10px">✨</div>
+            <div style="font-family:var(--ff-d);font-size:18px;font-weight:700">All clean!</div>
+            <div style="font-family:var(--ff-m);font-size:12px;color:var(--t3);margin-top:6px">No ghost apps found.</div>
+        </div>
+    </div>
+</div>
+
+<!-- ─── Notification Panel ────────────────────────────────────────────── -->
+<div class="panel" id="notif-panel">
+    <div class="panel-hdr">
+        <div class="panel-back" onclick="closePanel('notif-panel')">←</div>
+        <div class="panel-title">Notifications</div>
+        <div class="header-btn" onclick="clearNotifications()">Clear All</div>
+    </div>
+    <div class="panel-body">
+        <div id="notif-list"><div style="text-align:center;font-family:var(--ff-m);font-size:11px;color:var(--t3);padding:30px">Loading…</div></div>
+    </div>
+</div>
+
+<!-- ─── Manage Categories Panel ───────────────────────────────────────── -->
+<div class="panel" id="manage-cats-panel">
+    <div class="panel-hdr">
+        <div class="panel-back" onclick="closePanel('manage-cats-panel')">←</div>
+        <div class="panel-title">Categories</div>
+        <button class="header-btn" onclick="openAddCatModal()">＋ New</button>
+    </div>
+    <div class="panel-body">
+        <div style="position:sticky;top:0;background:var(--bg);padding-bottom:8px;z-index:5">
+            <div style="position:relative">
+                <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);pointer-events:none">🔍</span>
+                <input id="mcp-search" type="text" placeholder="Search categories…" autocomplete="off"
+                       oninput="filterManageCategories(this.value)"
+                       style="width:100%;box-sizing:border-box;padding:9px 12px 9px 36px;border-radius:12px;border:1px solid var(--border2);background:var(--s1);color:var(--t1);font-size:13px;font-family:var(--ff-m);outline:none"/>
+            </div>
+            <div style="font-family:var(--ff-m);font-size:10px;color:var(--t3);margin-top:8px">⠿ Drag to reorder categories</div>
+        </div>
+        <div id="mcp-rows"></div>
+    </div>
+</div>
+
+<!-- ─── Locked Apps Panel ──────────────────────────────────────────────── -->
+<div class="panel" id="lock-panel">
+    <div class="panel-hdr">
+        <div class="panel-back" onclick="closePanel('lock-panel')">←</div>
+        <div class="panel-title">🔒 Locked Apps</div>
+        <div class="header-btn" onclick="saveLockedApps()">Save</div>
+    </div>
+    <div class="panel-body">
+        <div style="position:sticky;top:0;background:var(--bg);padding-bottom:8px;z-index:5">
+            <div style="position:relative">
+                <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);pointer-events:none">🔍</span>
+                <input id="lock-search" type="text" placeholder="Search apps or categories…" autocomplete="off"
+                       oninput="filterPanelListCat('lock-list',this.value)"
+                       style="width:100%;box-sizing:border-box;padding:9px 12px 9px 36px;border-radius:12px;border:1px solid var(--border2);background:var(--s1);color:var(--t1);font-size:13px;font-family:var(--ff-m);outline:none"/>
+            </div>
+            <div style="font-family:var(--ff-m);font-size:11px;color:var(--t2);margin-top:8px;line-height:1.6">Locked apps are restricted within Aurelo only — they remain fully accessible from your phone.</div>
+        </div>
+        <div id="lock-list"></div>
+    </div>
+</div>
+
+<!-- ─── Hidden Apps Panel ─────────────────────────────────────────────── -->
+<div class="panel" id="hide-panel">
+    <div class="panel-hdr">
+        <div class="panel-back" onclick="closePanel('hide-panel')">←</div>
+        <div class="panel-title">🙈 Hidden Apps</div>
+        <div class="header-btn" onclick="saveHiddenApps()">Save</div>
+    </div>
+    <div class="panel-body">
+        <div style="position:sticky;top:0;background:var(--bg);padding-bottom:8px;z-index:5">
+            <div style="position:relative">
+                <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);pointer-events:none">🔍</span>
+                <input id="hide-search" type="text" placeholder="Search apps or categories…" autocomplete="off"
+                       oninput="filterPanelListCat('hide-list',this.value)"
+                       style="width:100%;box-sizing:border-box;padding:9px 12px 9px 36px;border-radius:12px;border:1px solid var(--border2);background:var(--s1);color:var(--t1);font-size:13px;font-family:var(--ff-m);outline:none"/>
+            </div>
+            <div style="font-family:var(--ff-m);font-size:11px;color:var(--t2);margin-top:8px;line-height:1.6">Hidden apps are removed from Aurelo's categories, search and stats only. They remain fully accessible on your phone.</div>
+        </div>
+        <div id="hide-list"></div>
+    </div>
+</div>
+
+<!-- ─── Timer (App Limits) Panel ──────────────────────────────────────── -->
+<div class="panel" id="timer-panel">
+    <div class="panel-hdr">
+        <div class="panel-back" onclick="closePanel('timer-panel')">←</div>
+        <div class="panel-title">⏱️ App Timers</div>
+    </div>
+    <div class="panel-body">
+        <div style="position:sticky;top:0;background:var(--bg);padding-bottom:8px;z-index:5">
+            <div style="position:relative">
+                <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);pointer-events:none">🔍</span>
+                <input id="timer-search" type="text" placeholder="Search apps or categories…" autocomplete="off"
+                       oninput="filterPanelListCat('timer-list',this.value)"
+                       style="width:100%;box-sizing:border-box;padding:9px 12px 9px 36px;border-radius:12px;border:1px solid var(--border2);background:var(--s1);color:var(--t1);font-size:13px;font-family:var(--ff-m);outline:none"/>
+            </div>
+            <div style="font-family:var(--ff-m);font-size:11px;color:var(--t2);margin-top:8px;line-height:1.6">Set daily time limits. Tap an app to set or remove its timer.</div>
+        </div>
+        <div id="timer-list"></div>
+    </div>
+</div>
+
+<!-- ─── Add to Category Panel ─────────────────────────────────────────── -->
+<div class="panel" id="add-to-cat-panel">
+    <div class="panel-hdr">
+        <div class="panel-back" onclick="closePanel('add-to-cat-panel')">←</div>
+        <div class="panel-title" id="add-to-cat-title">Add Apps</div>
+        <div class="header-btn" onclick="saveAddToCat()">Save</div>
+    </div>
+    <div class="panel-body">
+        <div style="position:sticky;top:0;background:var(--bg);padding-bottom:10px;z-index:5">
+            <div style="position:relative;margin-bottom:8px">
+                <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:15px;pointer-events:none">🔍</span>
+                <input id="atc-search" type="text" placeholder="Search apps…" autocomplete="off"
+                       oninput="filterAddToCatList(this.value)"
+                       style="width:100%;box-sizing:border-box;padding:10px 12px 10px 38px;border-radius:12px;border:1px solid var(--border2);background:var(--s1);color:var(--t1);font-size:13px;font-family:var(--ff-m);outline:none"/>
+            </div>
+            <div style="font-family:var(--ff-m);font-size:11px;color:var(--t2);line-height:1.6">Check apps to add. Uncheck to return to auto-detected category.</div>
+        </div>
+        <div id="add-to-cat-list"></div>
+    </div>
+</div>
