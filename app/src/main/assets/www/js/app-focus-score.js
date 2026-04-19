@@ -239,7 +239,7 @@ window.FocusScore = (function () {
       }
     });
     if (events.some(function(e){return e.tier===1;})) return events;
-    Object.keys(limits).forEach(function(pkg){ var used=usageMap[pkg]||0,lim=limits[pkg],pct=lim>0?used/lim:0; if(pct>=0.8&&pct<1){var name=(DAILY_USE&&DAILY_USE.find(function(u){return u.packageName===pkg;})||{}).name||pkg.split('.').pop(); events.push({tier:2,id:'timer_warn_'+pkg,html:'<div style="background:rgba(247,166,35,.07);border:1px solid rgba(247,166,35,.25);border-radius:14px;padding:10px 13px;display:flex;align-items:center;gap:9px"><div style="width:7px;height:7px;border-radius:50%;background:var(--a);flex-shrink:0"></div><div style="flex:1;font-size:12px;font-weight:600;color:var(--t1)">'+name+'</div><div style="font-family:var(--ff-m);font-size:10px;font-weight:700;color:var(--a)">'+fmtM(lim-used)+' left today</div></div>'}); }});
+    Object.keys(limits).forEach(function(pkg){ var used=usageMap[pkg]||0,lim=limits[pkg],pct=lim>0?used/lim:0; if(pct>=0.8&&pct<1){var name=(DAILY_USE&&DAILY_USE.find(function(u){return u.packageName===pkg;})||{}).name||pkg.split('.').pop(); events.push({tier:2,id:'timer_warn_'+pkg,html:'<div style="background:rgba(247,166,35,.07);border:1px solid rgba(247,166,35,.25);border-radius:14px;padding:10px 13px;display:flex;align-items:center;gap:9px"><div style="width:7px;height:7px;border-radius:50%;background:var(--a);flex-shrink:0"></div><div style="flex:1;font-size:12px;font-weight:600;color:var(--t1)">'+name+' approaching daily limit</div><div style="font-family:var(--ff-m);font-size:10px;font-weight:700;color:var(--a)">'+fmtM(lim-used)+' left today</div></div>'}); }});
 
     // Tier 2: scheduled routine starting within 60 min
     if (!events.some(function(e){return e.tier===2;})) {

@@ -413,7 +413,7 @@ window.FocusHome = (function () {
       var chips   = (ss.blockedApps || []).slice(0, 3).map(function (a) {
         return '<span style="background:rgba(108,99,255,.15);border:1px solid rgba(108,99,255,.25);border-radius:6px;padding:2px 7px;font-family:var(--ff-m);font-size:11px;color:var(--p2)">' + a.name.split(' ')[0] + '</span>';
       }).join('');
-      el.innerHTML = '<div style="background:var(--s2);border:1px solid ' + diff.color + ';border-radius:14px;padding:11px 13px">' +
+      el.innerHTML = '<div onclick="FocusTab._switchFocusSubTab(\'focus\');activateTab(\'focus\')" style="background:var(--s2);border:1px solid ' + diff.color + ';border-radius:14px;padding:11px 13px">' +
         '<div style="display:flex;align-items:center;gap:10px;margin-bottom:' + (chips ? '8' : '0') + 'px">' +
           '<div style="width:7px;height:7px;border-radius:50%;background:' + diff.color + ';box-shadow:0 0 0 3px ' + diff.color + '22;flex-shrink:0;animation:fs-pulse 2s ease-in-out infinite"></div>' +
           '<div style="flex:1"><div style="font-size:12px;font-weight:700;color:var(--t1)">Focus Mode Active</div><div style="font-family:var(--ff-m);font-size:11px;color:var(--t2);margin-top:1px">' + diff.label + '</div></div>' +
@@ -422,20 +422,28 @@ window.FocusHome = (function () {
       return;
     }
 
-    // Tier 1b: timer over limit
-    var overPkg = Object.keys(limits).find(function (pkg) { return (usageMap[pkg] || 0) >= limits[pkg]; });
-    if (overPkg) {
+    // Tier 1b: timer over limit — collect all, show worst + "+N more", navigate to limits subtab
+    var allOverPkgs = Object.keys(limits).filter(function (pkg) { return (usageMap[pkg] || 0) > limits[pkg]; });
+    if (allOverPkgs.length) {
+      // sort worst-first (most over by minutes)
+      allOverPkgs.sort(function (a, b) { return ((usageMap[b]||0) - limits[b]) - ((usageMap[a]||0) - limits[a]); });
+      var overPkg  = allOverPkgs[0];
       var overName = (typeof DAILY_USE !== 'undefined' && (DAILY_USE.find(function (u) { return u.packageName === overPkg; }) || {}).name) || overPkg.split('.').pop();
-      el.innerHTML = '<div style="background:rgba(240,78,122,.07);border:0.5px solid rgba(240,78,122,.3);border-radius:14px;padding:9px 12px;display:flex;align-items:center;gap:9px"><div style="width:6px;height:6px;border-radius:50%;background:var(--r);flex-shrink:0"></div><div style="flex:1;font-family:var(--ff-m);font-size:11px;color:var(--r)">' + overName + ' limit reached today</div></div>';
+      var overExtra = allOverPkgs.length > 1 ? '<span style="color:var(--t3);margin-left:4px">+'   + (allOverPkgs.length - 1) + ' more</span>' : '';
+      var overOver  = fmtM((usageMap[overPkg] || 0) - limits[overPkg]);
+      el.innerHTML = '<div onclick="FocusTab._switchFocusSubTab(\'focus\');activateTab(\'focus\')" style="background:rgba(240,78,122,.07);border:0.5px solid rgba(240,78,122,.3);border-radius:14px;padding:9px 12px;display:flex;align-items:center;gap:9px;cursor:pointer"><div style="width:6px;height:6px;border-radius:50%;background:var(--r);flex-shrink:0"></div><div style="flex:1;font-family:var(--ff-m);font-size:11px;color:var(--r)">' + overName + ' limit reached today' + '\u00b7 +' + overOver  + overExtra + '</div><div style="font-family:var(--ff-m);font-size:10px;color:var(--r);opacity:.7;flex-shrink:0"></div></div>';
       return;
     }
 
-    // Tier 2a: timer approaching 80–99%
-    var warnPkg = Object.keys(limits).find(function (pkg) { var u=usageMap[pkg]||0,l=limits[pkg],p=l>0?u/l:0; return p>=0.8&&p<1; });
-    if (warnPkg) {
+    // Tier 2a: timer approaching 80–99% — collect all, show worst + "+N more", navigate to limits subtab
+    var allWarnPkgs = Object.keys(limits).filter(function (pkg) { var u=usageMap[pkg]||0,l=limits[pkg],p=l>0?u/l:0; return p>=0.8&&p<1; });
+    if (allWarnPkgs.length) {
+      allWarnPkgs.sort(function (a, b) { var pa=(usageMap[b]||0)/limits[b], pb=(usageMap[a]||0)/limits[a]; return pa - pb; });
+      var warnPkg  = allWarnPkgs[0];
       var warnName = (typeof DAILY_USE !== 'undefined' && (DAILY_USE.find(function (u) { return u.packageName === warnPkg; }) || {}).name) || warnPkg.split('.').pop();
+      var warnExtra = allWarnPkgs.length > 1 ? '<span style="color:var(--t3);margin-left:4px">+' + (allWarnPkgs.length - 1) + ' more</span>' : '';
       var left = fmtM(Math.max(0, limits[warnPkg] - (usageMap[warnPkg] || 0)));
-      el.innerHTML = '<div style="background:rgba(247,166,35,.07);border:0.5px solid rgba(247,166,35,.25);border-radius:14px;padding:9px 12px;display:flex;align-items:center;gap:9px"><div style="width:6px;height:6px;border-radius:50%;background:var(--a);flex-shrink:0"></div><div style="flex:1;font-family:var(--ff-m);font-size:11px;color:var(--a)">' + warnName + ' \u00b7 ' + left + ' left today</div></div>';
+      el.innerHTML = '<div onclick="FocusTab._switchFocusSubTab(\'focus\');activateTab(\'focus\')" style="background:rgba(247,166,35,.07);border:0.5px solid rgba(247,166,35,.25);border-radius:14px;padding:9px 12px;display:flex;align-items:center;gap:9px;cursor:pointer"><div style="width:6px;height:6px;border-radius:50%;background:var(--a);flex-shrink:0"></div><div style="flex:1;font-family:var(--ff-m);font-size:11px;color:var(--a)">' + warnName + ' approaching daily limit' +'\u00b7 ' + left + ' left today' + warnExtra + '</div><div style="font-family:var(--ff-m);font-size:10px;color:var(--a);opacity:.7;flex-shrink:0"></div></div>';
       return;
     }
 
@@ -450,7 +458,7 @@ window.FocusHome = (function () {
     });
     if (soon) {
       var rH = soon.startHour || soon.hour || 0, rM = soon.startMin || soon.minute || 0;
-      el.innerHTML = '<div onclick="activateTab(\'focus\')" style="background:rgba(108,99,255,.07);border:0.5px solid rgba(108,99,255,.25);border-radius:14px;padding:9px 12px;display:flex;align-items:center;gap:9px;cursor:pointer"><div style="width:6px;height:6px;border-radius:50%;background:var(--p);flex-shrink:0"></div><div style="flex:1;font-family:var(--ff-m);font-size:11px;color:var(--p2)">Your ' + _fmt12h(rH, rM) + ' focus session starts soon</div><div style="font-family:var(--ff-m);font-size:10px;color:var(--p2)">Start early \u2192</div></div>';
+      el.innerHTML = '<div onclick="FocusTab._switchFocusSubTab(\'focus\');activateTab(\'focus\')" style="background:rgba(108,99,255,.07);border:0.5px solid rgba(108,99,255,.25);border-radius:14px;padding:9px 12px;display:flex;align-items:center;gap:9px;cursor:pointer"><div style="width:6px;height:6px;border-radius:50%;background:var(--p);flex-shrink:0"></div><div style="flex:1;font-family:var(--ff-m);font-size:11px;color:var(--p2)">Your ' + _fmt12h(rH, rM) + ' focus session starts soon</div><div style="font-family:var(--ff-m);font-size:10px;color:var(--p2)">Start early \u2192</div></div>';
       return;
     }
 
@@ -459,14 +467,14 @@ window.FocusHome = (function () {
       var isComplete  = ls.state === 'completed';
       var scoreDelta  = '';
       try { var sfr = (typeof FocusScore !== 'undefined') ? FocusScore.calculateFocus(loadStripData()) : null; if (sfr && sfr.score >= 0) scoreDelta = '+' + Math.round(sfr.score * 0.4 / 10); } catch (_) {}
-      el.innerHTML = '<div style="background:rgba(110,201,122,0.07);border:0.5px solid rgba(110,201,122,0.2);border-radius:14px;padding:9px 12px;display:flex;align-items:center;gap:9px"><div style="width:6px;height:6px;border-radius:50%;background:#6ec97a;flex-shrink:0"></div><div style="flex:1;font-family:var(--ff-m);font-size:11px;color:#448855">' + (isComplete ? 'Session completed' : 'Session ended early') + ' \u00b7 ' + fmtM(ls.totalMins) + (scoreDelta ? ' \u00b7 Score ' + scoreDelta + ' pts' : '') + '</div></div>';
+      el.innerHTML = '<div onclick="FocusTab._switchFocusSubTab(\'focus\');activateTab(\'focus\')" style="background:rgba(110,201,122,0.07);border:0.5px solid rgba(110,201,122,0.2);border-radius:14px;padding:9px 12px;display:flex;align-items:center;gap:9px"><div style="width:6px;height:6px;border-radius:50%;background:#6ec97a;flex-shrink:0"></div><div style="flex:1;font-family:var(--ff-m);font-size:11px;color:#448855">' + (isComplete ? 'Session completed' : 'Session ended early') + ' \u00b7 ' + fmtM(ls.totalMins) + (scoreDelta ? ' \u00b7 Score ' + scoreDelta + ' pts' : '') + '</div></div>';
       return;
     }
 
     // Tier 3b: streak celebration
     if (sk.focusStreakCelebUntil && now < sk.focusStreakCelebUntil) {
       var fsN = sk.prevFocusStreak || 0, fsPrev = fsN > 0 ? fsN - 1 : 0;
-      el.innerHTML = '<div style="background:rgba(108,99,255,0.08);border:0.5px solid rgba(108,99,255,0.22);border-radius:14px;padding:9px 12px;display:flex;align-items:center;gap:9px"><div style="width:22px;height:22px;border-radius:7px;background:rgba(108,99,255,0.15);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:12px">🎯</div><div style="flex:1"><div style="font-family:var(--ff-m);font-size:11px;font-weight:600;color:#9b95ff;margin-bottom:2px">Focus streak \u00b7 ' + fsN + ' days</div><div style="font-family:var(--ff-m);font-size:10px;color:#6666aa">Complete a session, respect timers, or resist a pause</div></div><div style="font-family:var(--ff-m);font-size:10px;color:#9b95ff;background:rgba(108,99,255,0.15);border-radius:99px;padding:3px 8px;flex-shrink:0">\u2191 ' + fsPrev + '\u2192' + fsN + '</div></div>';
+      el.innerHTML = '<div onclick="FocusTab._switchFocusSubTab(\'focus\');activateTab(\'focus\')" style="background:rgba(108,99,255,0.08);border:0.5px solid rgba(108,99,255,0.22);border-radius:14px;padding:9px 12px;display:flex;align-items:center;gap:9px"><div style="width:22px;height:22px;border-radius:7px;background:rgba(108,99,255,0.15);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:12px">🎯</div><div style="flex:1"><div style="font-family:var(--ff-m);font-size:11px;font-weight:600;color:#9b95ff;margin-bottom:2px">Focus streak \u00b7 ' + fsN + ' days</div><div style="font-family:var(--ff-m);font-size:10px;color:#6666aa">Complete a session, respect timers, or resist a pause</div></div><div style="font-family:var(--ff-m);font-size:10px;color:#9b95ff;background:rgba(108,99,255,0.15);border-radius:99px;padding:3px 8px;flex-shrink:0">\u2191 ' + fsPrev + '\u2192' + fsN + '</div></div>';
       return;
     }
     el.innerHTML = '';
@@ -483,24 +491,33 @@ window.FocusHome = (function () {
     var now     = Date.now();
     var sk      = typeof FocusTab !== 'undefined' ? FocusTab.getStreakState() : {};
 
-    // Tier 1: bedtime active
+    // Tier 1: bedtime active — click navigates to habits subtab
     if (inWindow) {
       var blockedCount = Array.isArray(cfg.blockedApps) ? cfg.blockedApps.length : 0;
       var wakeStr      = _fmt12((cfg.wakeHour || 7) + (cfg.wakeMinute || 0) / 60);
+      var bedStreakNow  = 0;
+      try { if (IS_NATIVE && typeof N.getBedtimeStreak === 'function') bedStreakNow = (JSON.parse(N.getBedtimeStreak() || '{}') || {}).streak || 0; } catch (_) {}
       var snoozeEndsAt = 0;
       try { if (IS_NATIVE && typeof N.getBedtimeSnoozeEndsAt === 'function') snoozeEndsAt = N.getBedtimeSnoozeEndsAt() || 0; } catch (_) {}
       var snoozeActive = snoozeEndsAt > now, minsLeft = snoozeActive ? Math.ceil((snoozeEndsAt - now) / 60000) : 0;
-      var snoozeBtn = '<div onclick="' + (snoozeActive ? '' : 'snoozeBedtimePrompt()') + '" style="font-family:var(--ff-m);font-size:10px;' + (snoozeActive ? 'color:var(--t3);background:var(--s3);cursor:default;opacity:.5;' : 'color:#7a80ff;background:rgba(80,100,255,0.15);cursor:pointer;') + 'border-radius:99px;padding:3px 8px;flex-shrink:0">' + (snoozeActive ? minsLeft + 'm' : 'Snooze') + '</div>';
-      el.innerHTML = '<div style="background:rgba(80,100,255,0.1);border:0.5px solid rgba(100,120,255,0.28);border-radius:14px;padding:9px 12px;display:flex;align-items:center;gap:9px"><div style="width:22px;height:22px;border-radius:7px;background:rgba(80,100,255,0.15);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:12px">🌙</div><div style="flex:1"><div style="font-family:var(--ff-m);font-size:11px;font-weight:600;color:#7a80ff;margin-bottom:2px">Bedtime mode on \u00b7 ' + blockedCount + ' app' + (blockedCount !== 1 ? 's' : '') + ' blocked</div><div style="font-family:var(--ff-m);font-size:10px;color:#445588">Ends at ' + wakeStr + '</div></div>' + snoozeBtn + '</div>';
+      var streakPill   = bedStreakNow > 1
+        ? '<div style="font-family:var(--ff-m);font-size:10px;font-weight:600;color:#7a80ff;background:rgba(80,100,255,.15);border-radius:99px;padding:3px 8px;flex-shrink:0">\uD83D\uDD25 ' + bedStreakNow + '</div>'
+        : '';
+      var snoozeBtn = '<div onclick="event.stopPropagation();' + (snoozeActive ? '' : 'snoozeBedtimePrompt()') + '" style="font-family:var(--ff-m);font-size:10px;' + (snoozeActive ? 'color:var(--t3);background:var(--s3);cursor:default;opacity:.5;' : 'color:#7a80ff;background:rgba(80,100,255,0.15);cursor:pointer;') + 'border-radius:99px;padding:3px 8px;flex-shrink:0">' + (snoozeActive ? minsLeft + 'm' : 'Snooze') + '</div>';
+      el.innerHTML = '<div onclick="FocusTab._switchFocusSubTab(\'habits\');activateTab(\'focus\')" style="background:rgba(80,100,255,0.1);border:0.5px solid rgba(100,120,255,0.28);border-radius:14px;padding:9px 12px;display:flex;align-items:center;gap:9px;cursor:pointer"><div style="width:22px;height:22px;border-radius:7px;background:rgba(80,100,255,0.15);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:12px">\uD83C\uDF19</div><div style="flex:1"><div style="font-family:var(--ff-m);font-size:11px;font-weight:600;color:#7a80ff;margin-bottom:2px">Bedtime mode on \u00b7 ' + blockedCount + ' app' + (blockedCount !== 1 ? 's' : '') + ' blocked</div><div style="font-family:var(--ff-m);font-size:10px;color:#445588">Ends at ' + wakeStr + '</div></div>' + streakPill + snoozeBtn + '</div>';
       return;
     }
 
-    // Tier 2a: wind-down
+    // Tier 2a: wind-down — extended to 120 min before bedtime (was 60), click navigates to habits subtab
     if (cfg.enabled) {
       var minsUntil = (bedH - nowH) * 60; if (minsUntil < 0) minsUntil += 1440;
-      if (minsUntil <= 60 && minsUntil > 0) {
-        var bedStr = _fmt12((cfg.bedHour || 22) + (cfg.bedMinute || 0) / 60);
-        el.innerHTML = '<div style="background:rgba(80,100,255,0.08);border:0.5px solid rgba(100,120,255,0.2);border-radius:14px;padding:9px 12px;display:flex;align-items:center;gap:9px"><div style="width:6px;height:6px;border-radius:50%;background:#7a80ff;flex-shrink:0"></div><div style="flex:1;font-family:var(--ff-m);font-size:11px;color:#6666aa">Bedtime in ' + Math.round(minsUntil) + ' min \u00b7 Apps blocked at ' + bedStr + '</div></div>';
+      if (minsUntil <= 120 && minsUntil > 0) {
+        var bedStr2    = _fmt12((cfg.bedHour || 22) + (cfg.bedMinute || 0) / 60);
+        var btStreak2  = 0;
+        try { if (IS_NATIVE && typeof N.getBedtimeStreak === 'function') btStreak2 = (JSON.parse(N.getBedtimeStreak() || '{}') || {}).streak || 0; } catch (_) {}
+        var streakNote = btStreak2 > 0 ? ' \u00b7 \uD83D\uDD25 ' + btStreak2 + '-night streak' : '';
+        var urgency    = minsUntil <= 30 ? 'Wind down now' : 'Wind down soon';
+        el.innerHTML = '<div onclick="FocusTab._switchFocusSubTab(\'habits\');activateTab(\'focus\')" style="background:rgba(80,100,255,0.08);border:0.5px solid rgba(100,120,255,0.2);border-radius:14px;padding:9px 12px;display:flex;align-items:center;gap:9px;cursor:pointer"><div style="width:6px;height:6px;border-radius:50%;background:#7a80ff;flex-shrink:0"></div><div style="flex:1;font-family:var(--ff-m);font-size:11px;color:#6666aa">' + urgency + ' \u00b7 Bedtime at ' + bedStr2 + ' in ' + Math.round(minsUntil) + ' min' + streakNote + '</div><div style="font-family:var(--ff-m);font-size:10px;color:#7a80ff;opacity:.7;flex-shrink:0">\u2192</div></div>';
         return;
       }
     }
@@ -510,22 +527,39 @@ window.FocusHome = (function () {
     if (d.challengeLabel && d.challengeDone !== undefined) {
       var remaining = d.challengeTarget - d.challengeDone, daysLeft = 7 - new Date().getDay();
       if (remaining > 0 && remaining >= daysLeft) {
-        el.innerHTML = '<div style="background:rgba(247,201,72,0.07);border:0.5px solid rgba(247,201,72,0.2);border-radius:14px;padding:9px 12px;display:flex;align-items:center;gap:9px"><div style="width:6px;height:6px;border-radius:50%;background:#f7c948;flex-shrink:0"></div><div style="flex:1;font-family:var(--ff-m);font-size:11px;color:#998844">Challenge at risk \u00b7 ' + daysLeft + ' day' + (daysLeft !== 1 ? 's' : '') + ' left to complete</div></div>';
+        el.innerHTML = '<div onclick="FocusTab._switchFocusSubTab(\'habits\');activateTab(\'focus\')" style="background:rgba(247,201,72,0.07);border:0.5px solid rgba(247,201,72,0.2);border-radius:14px;padding:9px 12px;display:flex;align-items:center;gap:9px"><div style="width:6px;height:6px;border-radius:50%;background:#f7c948;flex-shrink:0"></div><div style="flex:1;font-family:var(--ff-m);font-size:11px;color:#998844">Challenge at risk \u00b7 ' + daysLeft + ' day' + (daysLeft !== 1 ? 's' : '') + ' left to complete</div></div>';
         return;
       }
     }
 
-    // Tier 3a: morning summary
+    // Tier 3a: morning summary (6–11 am) — native stats primary, FocusScore fallback
     var h = new Date().getHours();
     if (h >= 6 && h < 11 && !_getMorningSummaryDismissed()) {
-      var sleepRes = typeof FocusScore !== 'undefined' ? FocusScore.calculateSleep() : null;
-      var ln = sleepRes && sleepRes.lastNight;
+      // Try native bridge first (richer data), fall back to FocusScore.calculateSleep()
+      var ln = null;
+      if (IS_NATIVE && typeof N.getBedtimeLastNightStats === 'function') {
+        try { var _raw = JSON.parse(N.getBedtimeLastNightStats() || 'null'); if (_raw && _raw.hasData) ln = _raw; } catch (_) {}
+      }
+      if (!ln) {
+        var sleepRes = typeof FocusScore !== 'undefined' ? FocusScore.calculateSleep() : null;
+        ln = sleepRes && sleepRes.lastNight;
+        var sleepStrN = (sleepRes && sleepRes.bedStreak) || 0;
+      }
+      if (!sleepStrN) {
+        try { if (IS_NATIVE && typeof N.getBedtimeStreak === 'function') sleepStrN = (JSON.parse(N.getBedtimeStreak() || '{}') || {}).streak || 0; } catch (_) {}
+      }
       if (ln && ln.hasData) {
-        var keptTxt    = ln.bedtimeKept ? 'Bedtime kept' : 'Bedtime missed';
-        var snoozeStr  = ln.snoozeCount + ' snooze' + (ln.snoozeCount !== 1 ? 's' : '');
-        var attemptStr = (ln.appAttemptsTotal || 0) + ' app' + ((ln.appAttemptsTotal || 0) !== 1 ? 's' : '') + ' blocked';
-        var sleepStrN  = sleepRes.bedStreak || 0;
-        el.innerHTML = '<div style="background:rgba(80,100,255,0.08);border:0.5px solid rgba(100,120,255,0.2);border-radius:14px;padding:9px 12px;display:flex;align-items:center;gap:9px"><div style="width:22px;height:22px;border-radius:7px;background:rgba(80,100,255,0.15);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:12px">🌙</div><div style="flex:1"><div style="font-family:var(--ff-m);font-size:11px;font-weight:600;color:#7a80ff;margin-bottom:2px">Last night \u00b7 ' + keptTxt + '</div><div style="font-family:var(--ff-m);font-size:10px;color:#445588">' + snoozeStr + ' \u00b7 ' + attemptStr + (sleepStrN > 0 ? ' \u00b7 🌙 ' + sleepStrN + '-day streak' : '') + '</div></div><div onclick="FocusHome.dismissMorningSummary()" style="font-family:var(--ff-m);font-size:14px;color:#445588;cursor:pointer;padding:0 4px;flex-shrink:0">\u00d7</div></div>';
+        var keptTxt    = ln.bedtimeKept ? 'Bedtime kept \u2713' : 'Bedtime missed';
+        var keptColor  = ln.bedtimeKept ? '#6ec97a' : '#ff6b8a';
+        var parts      = [];
+        if ((ln.appAttemptsTotal || 0) > 0) parts.push((ln.appAttemptsTotal) + ' app attempt' + (ln.appAttemptsTotal !== 1 ? 's' : ''));
+        else if (ln.bedtimeKept)            parts.push('0 app attempts');
+        if ((ln.snoozeCount || 0) > 0)      parts.push(ln.snoozeCount + ' snooze' + (ln.snoozeCount !== 1 ? 's' : ''));
+        var subTxt     = parts.length ? parts.join(' \u00b7 ') : 'Clean night';
+        var streakPillM = sleepStrN > 0
+          ? '<div style="font-family:var(--ff-m);font-size:10px;font-weight:600;color:#7a80ff;background:rgba(80,100,255,.15);border-radius:99px;padding:3px 8px;flex-shrink:0">\uD83D\uDD25 ' + sleepStrN + '</div>'
+          : '';
+        el.innerHTML = '<div onclick="FocusTab._switchFocusSubTab(\'habits\');activateTab(\'focus\')" style="background:rgba(80,100,255,0.08);border:0.5px solid rgba(100,120,255,0.2);border-radius:14px;padding:9px 12px;display:flex;align-items:center;gap:9px;cursor:pointer"><div style="width:22px;height:22px;border-radius:7px;background:rgba(80,100,255,0.15);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:12px">\uD83C\uDF19</div><div style="flex:1"><div style="font-family:var(--ff-m);font-size:11px;font-weight:600;color:' + keptColor + ';margin-bottom:2px">Last night \u00b7 ' + keptTxt + '</div><div style="font-family:var(--ff-m);font-size:10px;color:#445588">' + subTxt + '</div></div>' + streakPillM + '<div onclick="event.stopPropagation();FocusHome.dismissMorningSummary()" style="font-family:var(--ff-m);font-size:14px;color:#445588;cursor:pointer;padding:0 4px;flex-shrink:0">\u00d7</div></div>';
         return;
       }
     }
@@ -533,16 +567,36 @@ window.FocusHome = (function () {
     // Tier 3b: sleep streak celebration
     if (sk.sleepStreakCelebUntil && now < sk.sleepStreakCelebUntil) {
       var ssN = sk.prevSleepStreak || 0, ssPrev = ssN > 0 ? ssN - 1 : 0;
-      el.innerHTML = '<div style="background:rgba(80,100,255,0.08);border:0.5px solid rgba(100,120,255,0.22);border-radius:14px;padding:9px 12px;display:flex;align-items:center;gap:9px"><div style="width:22px;height:22px;border-radius:7px;background:rgba(80,100,255,0.15);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:12px">🌙</div><div style="flex:1"><div style="font-family:var(--ff-m);font-size:11px;font-weight:600;color:#7a80ff;margin-bottom:2px">Sleep streak \u00b7 ' + ssN + ' days</div><div style="font-family:var(--ff-m);font-size:10px;color:#445588">Bedtime respected last night</div></div><div style="font-family:var(--ff-m);font-size:10px;color:#7a80ff;background:rgba(80,100,255,0.15);border-radius:99px;padding:3px 8px;flex-shrink:0">\u2191 ' + ssPrev + '\u2192' + ssN + '</div></div>';
+      el.innerHTML = '<div onclick="FocusTab._switchFocusSubTab(\'habits\');activateTab(\'focus\')" style="background:rgba(80,100,255,0.08);border:0.5px solid rgba(100,120,255,0.22);border-radius:14px;padding:9px 12px;display:flex;align-items:center;gap:9px"><div style="width:22px;height:22px;border-radius:7px;background:rgba(80,100,255,0.15);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:12px">🌙</div><div style="flex:1"><div style="font-family:var(--ff-m);font-size:11px;font-weight:600;color:#7a80ff;margin-bottom:2px">Sleep streak \u00b7 ' + ssN + ' days</div><div style="font-family:var(--ff-m);font-size:10px;color:#445588">Bedtime respected last night</div></div><div style="font-family:var(--ff-m);font-size:10px;color:#7a80ff;background:rgba(80,100,255,0.15);border-radius:99px;padding:3px 8px;flex-shrink:0">\u2191 ' + ssPrev + '\u2192' + ssN + '</div></div>';
       return;
     }
 
     // Tier 3c: challenge milestone
     if (d.challengeDone > 0 && d.challengeTarget > 0 && d.challengeDone < d.challengeTarget) {
-      el.innerHTML = '<div style="background:rgba(247,201,72,0.07);border:0.5px solid rgba(247,201,72,0.2);border-radius:14px;padding:9px 12px;display:flex;align-items:center;gap:9px"><div style="width:6px;height:6px;border-radius:50%;background:#f7c948;flex-shrink:0"></div><div style="flex:1;font-family:var(--ff-m);font-size:11px;color:#998844">' + d.challengeDone + ' of 7 days done \u00b7 On track to complete this week</div></div>';
+      el.innerHTML = '<div onclick="FocusTab._switchFocusSubTab(\'habits\');activateTab(\'focus\')" style="background:rgba(247,201,72,0.07);border:0.5px solid rgba(247,201,72,0.2);border-radius:14px;padding:9px 12px;display:flex;align-items:center;gap:9px"><div style="width:6px;height:6px;border-radius:50%;background:#f7c948;flex-shrink:0"></div><div style="flex:1;font-family:var(--ff-m);font-size:11px;color:#998844">' + d.challengeDone + ' of 7 days done \u00b7 On track to complete this week</div></div>';
       return;
     }
     el.innerHTML = '';
+  }
+
+  /* ═══════════════════════════════════════════════════════════════
+   * SLEEP CARD  (#home-sleep-card)
+   * Content consolidated into renderHomeHabitsDynamicRow.
+   * This stub hides the legacy element so no duplicate strip appears.
+   * ═══════════════════════════════════════════════════════════════ */
+  function renderSleepCard() {
+    var el = document.getElementById('home-sleep-card');
+    if (el) el.style.display = 'none';
+  }
+
+  /* ═══════════════════════════════════════════════════════════════
+   * TIMER ALERT  (#home-timer-alert)
+   * Content consolidated into renderHomeFocusDynamicRow.
+   * This stub hides the legacy element so no duplicate strip appears.
+   * ═══════════════════════════════════════════════════════════════ */
+  function renderTimerAlert() {
+    var el = document.getElementById('home-timer-alert');
+    if (el) el.style.display = 'none';
   }
 
   /* ── Global shims ─────────────────────────────────────────────── */
@@ -552,6 +606,8 @@ window.FocusHome = (function () {
   window.renderHomeFocusDynamicRow   = function () { FocusHome.renderHomeFocusDynamicRow(); };
   window.renderHomeHabitsDynamicRow  = function () { FocusHome.renderHomeHabitsDynamicRow(); };
   window.dismissMorningSummary       = function () { FocusHome.dismissMorningSummary(); };
+  window.renderSleepCard             = function () { FocusHome.renderSleepCard(); };
+  window.renderTimerAlert            = function () { FocusHome.renderTimerAlert(); };
 
   /* ── Public API ──────────────────────────────────────────────── */
   return {
@@ -562,6 +618,8 @@ window.FocusHome = (function () {
     renderHomeHabitsDynamicRow:  renderHomeHabitsDynamicRow,
     checkStreakIncrements:        checkStreakIncrements,
     dismissMorningSummary:        dismissMorningSummary,
+    renderSleepCard:             renderSleepCard,
+    renderTimerAlert:            renderTimerAlert,
     buildDayDots:                buildDayDots,
     buildLiveSessionStripHtml:   buildLiveSessionStripHtml,
     buildCompletedStripHtml:     buildCompletedStripHtml,

@@ -48,7 +48,7 @@ window.FocusBedtime = (function () {
    */
   function _applyBedtimeConfig(cfg) {
     S.settings.bedtime = !!cfg.enabled;
-
+    saveS();
     // Sanitize decimal hours (e.g. 7.75 → bedHour:7, bedMinute:45)
     (function _sanitize(hKey, mKey) {
       var dec = cfg[hKey];
@@ -100,6 +100,7 @@ window.FocusBedtime = (function () {
     } else {
       try { localStorage.setItem('bedtimeSettings', JSON.stringify(cfg)); } catch (_) {}
     }
+    if (typeof updateBedtimeSub === 'function') updateBedtimeSub();
   }
 
   /**
@@ -108,7 +109,6 @@ window.FocusBedtime = (function () {
   function _getBedtimeCfg() {
     var now = Date.now();
     if (_bedtimeCfgCache && (now - _bedtimeCfgCacheTs) < _CFG_CACHE_TTL_MS) {
-      _bedtimeCfgCache.enabled = !!S.settings.bedtime;
       return _bedtimeCfgCache;
     }
     var cfg = {
@@ -128,7 +128,7 @@ window.FocusBedtime = (function () {
         }
       } catch (_) {}
     }
-    cfg.enabled        = !!S.settings.bedtime;
+    S.settings.bedtime = cfg.enabled;
     _bedtimeCfgCache   = cfg;
     _bedtimeCfgCacheTs = now;
     return cfg;
@@ -185,6 +185,20 @@ window.FocusBedtime = (function () {
       render();
       if (typeof FocusScore !== 'undefined') FocusScore.renderHabitsDynamicRow();
       if (typeof renderHomeHabitsDynamicRow === 'function') renderHomeHabitsDynamicRow();
+      // BUG-1b FIX: show a confirmation toast on enable, mirroring the
+      // 'Bedtime mode off' toast shown on disable. Include the scheduled
+      // window so the user sees what time was set.
+      (function () {
+        var c    = newCfg;
+        var pad  = function (n) { return String(n).padStart(2, '0'); };
+        var fmt  = function (h, m) {
+          var h12 = h % 12 === 0 ? 12 : h % 12;
+          return h12 + ':' + pad(m || 0) + ' ' + (h >= 12 ? 'PM' : 'AM');
+        };
+        var bedStr  = fmt(c.bedHour  != null ? c.bedHour  : 22, c.bedMinute  || 0);
+        var wakeStr = fmt(c.wakeHour != null ? c.wakeHour : 7,  c.wakeMinute || 0);
+        toast('Bedtime mode on \u00b7 ' + bedStr + ' \u2013 ' + wakeStr, 'success');
+      })();
     } else {
       // Disable
       window._btDirty = false;
@@ -232,8 +246,14 @@ window.FocusBedtime = (function () {
     const pad  = n => String(n).padStart(2, '0');
     const timeStr = `${pad(nowH % 12 === 0 ? 12 : nowH % 12)}:${pad(nowM)} ${nowH >= 12 ? 'PM' : 'AM'}`;
 
-    const wakeH   = cfg.wakeHour   || 7;
-    const wakeM   = cfg.wakeMinute || 0;
+    // BUG-1 FIX: compute and display bedtime start alongside wake time so the
+    // user can see the full scheduled window in the nudge (was showing wake only).
+    const bedH    = cfg.bedHour    != null ? cfg.bedHour    : 22;
+    const bedM    = cfg.bedMinute  != null ? cfg.bedMinute  : 0;
+    const bedStr  = `${bedH % 12 === 0 ? 12 : bedH % 12}:${pad(bedM)} ${bedH >= 12 ? 'PM' : 'AM'}`;
+
+    const wakeH   = cfg.wakeHour   != null ? cfg.wakeHour   : 7;
+    const wakeM   = cfg.wakeMinute != null ? cfg.wakeMinute : 0;
     const wakeStr = `${wakeH % 12 === 0 ? 12 : wakeH % 12}:${pad(wakeM)} ${wakeH >= 12 ? 'PM' : 'AM'}`;
 
     document.getElementById('bt-nudge-popup')?.remove();
@@ -255,8 +275,11 @@ window.FocusBedtime = (function () {
             It's ${timeStr} — you set a bedtime
           </div>
           <div style="font-size:12px;color:rgba(238,238,255,.5);line-height:1.6;
-                      margin-bottom:24px">
-            Bedtime mode is active until <strong style="color:#a09bff">${wakeStr}</strong>.<br>
+                      margin-bottom:16px">
+            Bedtime mode is active
+            (<strong style="color:#a09bff">${bedStr}</strong>
+            &rarr;
+            <strong style="color:#a09bff">${wakeStr}</strong>).<br>
             What would you like to do?
           </div>
 
@@ -265,7 +288,7 @@ window.FocusBedtime = (function () {
                    border:1px solid rgba(108,99,255,.35);
                    background:rgba(108,99,255,.12);color:#a09bff;
                    font-size:13px;font-weight:700;cursor:pointer;
-                   margin-bottom:8px;display:block">
+                   margin-bottom:8px;margin-top:8px;display:block">
             Just 15 more minutes
           </button>
 
@@ -837,9 +860,44 @@ window.FocusBedtime = (function () {
 
     // Streak badge
     var streakData  = _getBedtimeStreak();
-    var streakBadge = streakData.streak > 1
+    var streakCount = streakData.streak || 0;
+
+    // BUG-2 FIX: build per-day completion dots for the last 7 days.
+    // Previously the tick for each day was inferred solely from cfg.activeDays
+    // (scheduled days), so only today ever showed a filled dot even when the
+    // streak was > 1 — yesterday's (and earlier) completed nights were ignored.
+    //
+    // Strategy: always mark the last `streakCount` consecutive days as complete
+    // (a streak is by definition consecutive, so this is always authoritative).
+    // Then additionally OR-in any explicit completions from the native `days`
+    // array so days beyond the streak window are also shown if the bridge
+    // provides them.
+    //
+    // Previously the native `days` array was trusted verbatim, but the bridge
+    // can return streak:N while days[N-1] is still false (native write lag),
+    // which caused only today's dot to appear even when the streak was > 1.
+    var today = new Date().getDay(); // 0=Sun … 6=Sat
+    var completedDotDays = new Set();
+    // Step 1: seed from streak count — always correct for consecutive nights.
+    // Use lastCompletedDow as anchor if available; fall back to yesterday
+    var anchor = (typeof streakData.lastCompletedDow === 'number')
+        ? streakData.lastCompletedDow
+        : (today - 1 + 7) % 7;   // yesterday (last completed night ended this morning)
+
+    for (var _d = 0; _d < Math.min(streakCount, 7); _d++) {
+        completedDotDays.add((anchor - _d + 7) % 7);
+    }
+    // Step 2: merge native per-day array when available (additive only).
+    if (Array.isArray(streakData.days) && streakData.days.length >= 7) {
+      // streakData.days[0] = today, [1] = yesterday, etc.
+      streakData.days.forEach(function (done, offset) {
+        if (done) completedDotDays.add((today - offset + 7) % 7);
+      });
+    }
+
+    var streakBadge = streakCount > 1
       ? '<span style="font-family:var(--ff-m);font-size:11px;padding:2px 7px;border-radius:99px;' +
-        'background:rgba(247,166,35,.15);color:var(--a);margin-left:5px">🔥 ' + streakData.streak + ' nights</span>'
+        'background:rgba(247,166,35,.15);color:var(--a);margin-left:5px">🔥 ' + streakCount + ' nights</span>'
       : '';
 
     // Status text
@@ -949,14 +1007,22 @@ window.FocusBedtime = (function () {
           '<div style="font-family:var(--ff-m);font-size:11px;color:var(--t2);font-weight:600;margin-bottom:8px">Active days</div>' +
           '<div style="display:flex;gap:6px">' +
             ['S','M','T','W','T','F','S'].map(function (lbl, idx) {
-              var on = cfg.activeDays.includes(idx);
+              var on      = cfg.activeDays.includes(idx);
+              // BUG-2 FIX: show a completion dot when this day-of-week is in
+              // the completed set (streak-derived), not just today's live state.
+              var done    = cfg.enabled && completedDotDays.has(idx);
+              var dotHtml = done
+                ? '<div style="width:4px;height:4px;border-radius:50%;' +
+                  'background:' + (on ? '#fff' : 'var(--g)') + ';' +
+                  'margin:2px auto 0;opacity:.85"></div>'
+                : '<div style="width:4px;height:4px;margin:2px auto 0"></div>';
               return '<div id="bt-day-' + idx + '" data-active="' + (on ? '1' : '0') + '"' +
                 ' onclick="event.stopPropagation();FocusBedtime.btToggleDay(' + idx + ')"' +
-                ' style="flex:1;text-align:center;padding:7px 0;border-radius:8px;cursor:pointer;' +
+                ' style="flex:1;text-align:center;padding:7px 0 4px;border-radius:8px;cursor:pointer;' +
                 'font-family:var(--ff-m);font-size:11px;font-weight:700;' +
                 'border:1px solid ' + (on ? 'var(--p)' : 'var(--border2)') + ';' +
                 'background:' + (on ? 'var(--p)' : 'var(--bg)') + ';' +
-                'color:' + (on ? '#fff' : 'var(--t3)') + '">' + lbl + '</div>';
+                'color:' + (on ? '#fff' : 'var(--t3)') + '">' + lbl + dotHtml + '</div>';
             }).join('') +
           '</div>' +
         '</div>' +
@@ -1063,6 +1129,10 @@ window.FocusBedtime = (function () {
   window._toggleBedtimeSettings  = function() { FocusBedtime.toggleSettings(); };
   window._saveBedtimeInline       = function() { FocusBedtime.save(); };
   window.snoozeBedtimePrompt      = snoozeBedtimePrompt;
+  // These two are called by inline onclick strings inside the nudge popup but
+  // were never exported — causing ReferenceError on both buttons.
+  window._doDisableBedtime        = _doDisableBedtime;
+  window._bedtimeSnooze           = _bedtimeSnooze;
 
   /* ── Public API ──────────────────────────────────────────────── */
   return {
