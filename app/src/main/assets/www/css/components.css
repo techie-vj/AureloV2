@@ -99,8 +99,8 @@
 .toast-error{background:rgba(44,10,20,.92);border:1px solid rgba(240,78,122,.55);color:#FF8FAF}
 
 /* ═══ CONFIRM ══════════════════════════════════════ */
-#confirm-dlg{position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:400;display:none;align-items:center;justify-content:center;backdrop-filter:blur(8px);padding:24px}
-#confirm-dlg.open{display:flex}
+#confirm-dlg{position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:400;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(8px);padding:24px;opacity:0;visibility:hidden;pointer-events:none;transition:opacity .22s ease,visibility .22s ease}
+#confirm-dlg.open{opacity:1;visibility:visible;pointer-events:auto}
 .confirm-box{background:var(--s0);border-radius:18px;border:1px solid var(--border2);padding:24px;width:100%;max-width:300px;text-align:center}
 .confirm-title{font-family:var(--ff-d);font-size:18px;font-weight:400;margin-bottom:8px}
 .confirm-body{font-size:13px;color:var(--t2);margin-bottom:20px;line-height:1.5}
@@ -174,7 +174,7 @@
 /* Free chip — shown on the default/free widget theme */
 .free-chip {
   font-family: var(--ff-m);
-  font-size: 9px;
+  font-size: 10px;
   padding: 1px 6px;
   border-radius: 999px;
   background: rgba(18,212,138,.15);
@@ -185,9 +185,9 @@
 }
 
 /* Pro chip on the settings nav icon */
-.pro-nav-chip {
+/* WCAG min-size fix: was 8px */ .pro-nav-chip {
   font-family: monospace;
-  font-size: 8px;
+  font-size: 11px;
   font-weight: 800;
   letter-spacing: .08em;
   color: #f7c948;
@@ -222,7 +222,7 @@
   align-items: center;
   justify-content: center;
   gap: 6px;
-  background: rgba(6,6,16,.45);
+  background: rgba(0,0,0,.45);
   cursor: pointer;
 }
 
@@ -235,7 +235,7 @@
   align-items: center;
   justify-content: center;
   gap: 6px;
-  background: rgba(6,6,16,.5);
+  background: rgba(0,0,0,.50);
   border-radius: inherit;
   cursor: pointer;
   font-family: var(--ff-m);
@@ -349,14 +349,14 @@
 }
 .pw-plan-pill .pw-plan-sub {
   font-family: var(--ff-m);
-  font-size: 9px;
+  font-size: 11px;
   color: var(--t3);
   margin-top: 3px;
 }
 .pw-plan-pill .pw-best-badge {
   display: inline-block;
   font-family: var(--ff-m);
-  font-size: 8px;
+  font-size: 10px;
   font-weight: 700;
   letter-spacing: .5px;
   text-transform: uppercase;

@@ -16,7 +16,7 @@
 .swipe-indicator.visible{opacity:1}
 
 /* ═══ NAV ═════════════════════════════════════════ */
-.bottom-nav{flex-shrink:0;height:calc(68px + env(safe-area-inset-bottom, 0px));background:rgba(6,6,16,.95);border-top:1px solid var(--border);display:flex;align-items:flex-start;justify-content:space-around;padding:8px 0 0;padding-bottom:env(safe-area-inset-bottom, 0px);backdrop-filter:blur(20px)}
+.bottom-nav{flex-shrink:0;height:calc(68px + env(safe-area-inset-bottom, 0px));background:var(--nav-bg,rgba(6,6,16,.95));border-top:1px solid var(--border);display:flex;align-items:flex-start;justify-content:space-around;padding:8px 0 0;padding-bottom:env(safe-area-inset-bottom, 0px);backdrop-filter:blur(20px)}
 .nav-item{display:flex;flex-direction:column;align-items:center;gap:3px;padding:8px 20px;border-radius:14px;cursor:pointer;transition:all .18s;position:relative}
 .nav-item:active{transform:scale(.88)}
 .nav-item.active{background:rgba(108,99,255,.12)}

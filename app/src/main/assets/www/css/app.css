@@ -183,8 +183,8 @@ input[type=text],input[type=search],input[type=email],textarea{-webkit-user-sele
 .panel-body::-webkit-scrollbar{display:none}
 
 /* ═══ BOTTOM SHEETS / MODALS ══════════════════════ */
-.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:65;display:none;align-items:flex-end;justify-content:center;backdrop-filter:blur(6px)}
-.modal-bg.open{display:flex}
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:65;display:flex;align-items:flex-end;justify-content:center;backdrop-filter:blur(6px)}
+.modal-bg.open{opacity:1;visibility:visible;pointer-events:auto;}
 .sheet{width:100%;background:var(--s0);border-radius:24px 24px 0 0;border-top:1px solid var(--border2);max-height:90%;display:flex;flex-direction:column;animation:slideUp .3s cubic-bezier(.32,.72,0,1)}
 @keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
 .sheet-handle{width:40px;height:4px;border-radius:2px;background:var(--border2);margin:12px auto 0;flex-shrink:0}
