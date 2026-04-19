@@ -151,7 +151,7 @@ const SELF_PKG = (IS_NATIVE && typeof N.getPackageName === 'function')
 /* ═══ STATE ═════════════════════════════════════════ */
 const SK = 'tidy_state_v4';
 let S = defaultState();
-function defaultState(){ return { onboardingDone:false, theme:'dark', catView:'grid', settings:{notif:true,bedtime:false,bedtimeHour:22}, catOrder:[], lockedPkgs:[], hiddenPkgs:[], limits:{}, streakGoalMins:240, userName:'', userGoal:'', widgetNudgeDone:false, firstRunCardDone:false }; }
+function defaultState(){ return { onboardingDone:false, restoreWelcomeShown: false, theme:'dark', catView:'grid', settings:{notif:true,bedtime:false,bedtimeHour:22}, catOrder:[], lockedPkgs:[], hiddenPkgs:[], limits:{}, streakGoalMins:240, userName:'', userGoal:'', widgetNudgeDone:false, firstRunCardDone:false }; }
 function loadS(){
   let base = defaultState();
   try { base = {...base, ...JSON.parse(localStorage.getItem(SK)||'{}')}; } catch(_){}
@@ -179,6 +179,7 @@ const CAT_ICONS = {'Social':'👥','Entertainment':'🎬','Productivity':'⚡','
 const CAT_COLOR = {'Social':'E1306C','Entertainment':'FF6B35','Productivity':'4285F4','Health & Fitness':'FC4C02','Gaming':'9B59B6','Shopping':'27AE60','Finance':'2ECC71','Education':'FF9900','Travel & Maps':'3498DB','Photography':'E91E63','Utilities':'607D8B','Other':'6C63FF','Music & Audio':'9C27B0','News':'00BCD4','Food & Drink':'FF5722','Communication':'26A69A'};
 
 const ICON_SET = ['👥','🎬','⚡','❤️','📚','🎮','💰','🎨','📷','🗺️','🔧','📱','🛒','💼','🧘','🐦','📧','🎵','🌐','📰','🍔','💬','🏠','✈️','🎓','💻','🌍','🎯'];
+
 const DEMO_EMOJI = {'com.instagram.android':'📸','com.google.android.youtube':'▶️','com.whatsapp':'💬','com.spotify.music':'🎵','com.android.chrome':'🌐','com.google.android.gm':'📧','com.zhiliaoapp.musically':'🎵','com.netflix.mediaclient':'📺','com.twitter.android':'🐦','notion.id':'📝','com.getsomeheadspace.android':'🧘','com.duolingo':'🎓','com.ubercab':'🚗','com.Slack':'💬','com.facebook.katana':'👤','com.snapchat.android':'👻','com.linkedin.android':'💼','com.tiktok':'🎵'};
 
 // ── Icon grid (used in DOMContentLoaded init, must be defined before DOMContentLoaded fires)
@@ -298,7 +299,17 @@ window.onPageReady = function(alreadyDone) {
   //    window.onProStatusChanged handler. Must happen first.
   ProTier.init();
 
-  // 2. Extend onProStatusChanged NOW — ProTier.init() has just registered it so
+  // 2. Capture Pro status synchronously right after init — before any async
+  //    billing callback fires. Used below to distinguish a cached-Pro session
+  //    (already Pro at init = not a restore event) from a silent restore
+  //    (Pro becomes true via async callback after init returned false).
+  const _proAtInit = ProTier.isPro;
+
+  // Only show the restore welcome once per app session, even if
+  // onProStatusChanged fires multiple times.
+  let _restoreWelcomeShown = false;
+
+  // 3. Extend onProStatusChanged NOW — ProTier.init() has just registered it so
   //    window.onProStatusChanged is guaranteed to exist at this point.
   //    Doing this at parse time (IIFE) was too early — the handler was undefined.
   const _proTierHandler = window.onProStatusChanged;
@@ -311,6 +322,35 @@ window.onPageReady = function(alreadyDone) {
       // overlays stamped during the initial renderAll() (when isPro was false) are
       // never removed — the user sees free-tier UI until the next cold start.
       if (typeof renderAll === 'function' && S && S.onboardingDone) renderAll();
+
+      // ── Silent restore detection ───────────────────────────────────────────
+      // Fires when Play Billing automatically restores a subscription on
+      // reinstall or a new device — no user action required. In this path,
+      // only onProStatusChanged fires; PurchaseRestoreHandler is never called.
+      //
+      // Conditions to show the welcome snackbar:
+      //   1. Pro just became true via this async callback (not already true at init)
+      //   2. Upsell sheet is NOT open (fresh purchases are handled by onPurchaseSuccess)
+      //   3. Haven't shown it yet this session
+      const isNewRestore = isPro && (!_proAtInit || !S.onboardingDone);
+      if (isNewRestore && !_restoreWelcomeShown) {
+              const sheetOpen = document.getElementById('pu-backdrop') &&
+                               document.getElementById('pu-backdrop').classList.contains('pu-visible');
+              if (!sheetOpen) {
+                  _restoreWelcomeShown = true;
+                  if (typeof ProUpsell !== 'undefined') {
+                      // This will set a internal "pending" flag if S.onboardingDone is false
+                      ProUpsell.triggerRestoreWelcome();
+                  }
+              }
+          }else {
+                   // Reset the flag if they are no longer Pro (e.g., subscription expired)
+                   // This allows the welcome to show again if they resubscribe later.
+                   if (_restoreWelcomeShown) {
+                       _restoreWelcomeShown = false;
+                       saveS();
+                   }
+               }
   };
 
   // If native billing fired onProStatusChanged before this handler was registered,
@@ -437,6 +477,13 @@ function loadNativeData() {
   // Day-2 widget nudge — fires once when user has real data and hasn't been nudged yet
   if(S.onboardingDone) setTimeout(_maybeShowWidgetNudge, 4000);
   _isFirstBoot = false; // reset so subsequent sessions (app kills/reopens) see it
+
+  // Consume any restore welcome that was deferred because billing responded
+  // before the loading screen had been dismissed. By this point home is painted
+  // and visible, so the snackbar will appear correctly.
+  setTimeout(function() {
+    if (typeof ProUpsell !== 'undefined') ProUpsell.consumePendingWelcome();
+  }, 500);
 }
 
 function loadDemoData(){
@@ -667,6 +714,25 @@ function refreshUsage(){
   updateNotifDot();
 }
 
+function dismissFirstRunCard() {
+    // Mark as done in the state object
+    if (typeof S !== 'undefined') {
+        S.firstRunCardDone = true;
+        saveS(); // Persist to localStorage
+    }
+
+    // Remove the card from the UI if it exists
+    const card = document.getElementById('first-run-card');
+    if (card) {
+        card.style.display = 'none';
+    }
+
+    // Refresh the UI to fill the gap left by the card
+    if (typeof renderAll === 'function') {
+        renderAll();
+    }
+}
+
 function showApp(){
   document.getElementById('app').style.display='flex';
   initPullToRefresh();
@@ -675,10 +741,20 @@ function showApp(){
   if(IS_NATIVE && typeof N.isOnboardingDone==='function' && N.isOnboardingDone()){
     maybePromptMissingPerms();
   }
-  // First-boot only: staggered entrance animation + first-run snapshot card
-  if(_isFirstBoot && !S.firstRunCardDone){
-    _runFirstBootEntrance();
-  }
+
+   // First-boot only: staggered entrance animation + first-run snapshot card
+  const isPro = typeof ProTier !== 'undefined' && ProTier.isPro;
+    if(_isFirstBoot && !S.firstRunCardDone && !isPro){
+      _runFirstBootEntrance();
+    }
+
+  // This will show the "Welcome Back" message if it was queued during
+    // the boot/onboarding process.
+    if (typeof ProUpsell !== 'undefined') {
+      ProUpsell.consumePendingWelcome();
+    }
+
+  renderAll();
 }
 
 // Staggered entrance animation on first boot.

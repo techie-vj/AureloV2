@@ -17,6 +17,8 @@
  *   ProUpsell.onBillingError(message)          // show error in sheet
  *   ProUpsell.showRestoring()                  // show restore spinner
  *   ProUpsell.showRestoreNotFound()            // show "no purchase found"
+ *   ProUpsell.triggerRestoreWelcome()          // show "welcome back" snackbar
+ *   ProUpsell.consumePendingWelcome()          // consume deferred snackbar (called by app-core)
  */
 
 (function(window) {
@@ -439,7 +441,6 @@
 
     /* ── Gate component styles ── */
 
-
     /* Pro header */
     .aurelo-header--pro {
       background: linear-gradient(135deg, #1a1730 0%, #141824 60%, var(--bg, #0e0f13) 100%) !important;
@@ -513,6 +514,7 @@
   let _injected      = false;
   let _restoreInProgress = false;
   let _restoreTimer      = null;   // safety-net timeout handle
+  let _pendingRestoreWelcome = false; // set when restore fires before home is visible
 
   // ── INIT ──────────────────────────────────────────────────────
   function _inject() {
@@ -789,6 +791,7 @@
 
   function onPurchaseSuccess() {
     if (!_backdrop || !_backdrop.classList.contains('pu-visible')) return;
+    _restoreWelcomeShown = true;
     _clearRestoreTimeout();
     _restoreInProgress = false;
 
@@ -830,6 +833,102 @@
     }, 3000);
   }
 
+  // ── RESTORE WELCOME SNACKBAR ──────────────────────────────────
+  // Shown when a Pro subscription is silently restored on reinstall / new device.
+  // Self-contained: injects its own DOM and CSS, safe to call multiple times.
+
+  function _injectRestoreSnackbar() {
+    if (document.getElementById('au-restore-snack')) return;
+    const style = document.createElement('style');
+    style.textContent = `
+      #au-restore-snack {
+        position: fixed;
+        bottom: -80px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 99999;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 14px 20px;
+        min-width: 280px;
+        max-width: 88vw;
+        border-radius: 14px;
+        background: linear-gradient(135deg, #1a1040 0%, #0d2240 100%);
+        border: 1px solid rgba(18,212,138,0.35);
+        box-shadow: 0 8px 32px rgba(0,0,0,0.45), 0 0 0 1px rgba(18,212,138,0.1);
+        color: #fff;
+        font-family: inherit;
+        font-size: 14px;
+        line-height: 1.35;
+        transition: bottom 0.38s cubic-bezier(0.34,1.56,0.64,1), opacity 0.25s ease;
+        opacity: 0;
+        pointer-events: none;
+        white-space: nowrap;
+      }
+      #au-restore-snack.au-snack-show {
+        bottom: calc(env(safe-area-inset-bottom, 0px) + 24px);
+        opacity: 1;
+        pointer-events: auto;
+      }
+      #au-restore-snack .au-snack-icon { font-size: 20px; flex-shrink: 0; }
+      #au-restore-snack .au-snack-text strong {
+        display: block; font-size: 14px; color: #12D48A; margin-bottom: 1px;
+      }
+      #au-restore-snack .au-snack-text span {
+        font-size: 12px; color: rgba(255,255,255,0.65);
+      }
+    `;
+    document.head.appendChild(style);
+    const el = document.createElement('div');
+    el.id = 'au-restore-snack';
+    el.innerHTML = `
+      <div class="au-snack-icon">✦</div>
+      <div class="au-snack-text">
+        <strong>Welcome back to Pro!</strong>
+        <span>Your subscription has been restored.</span>
+      </div>`;
+    document.body.appendChild(el);
+  }
+
+  function _showRestoreSnackbar() {
+    _injectRestoreSnackbar();
+    const el = document.getElementById('au-restore-snack');
+    if (!el) return;
+    el.classList.remove('au-snack-show');
+    void el.offsetWidth; // force reflow so transition fires
+    el.classList.add('au-snack-show');
+    setTimeout(function() { el.classList.remove('au-snack-show'); }, 4500);
+  }
+
+  // Called by app-core.js onProStatusChanged when a silent restore is detected.
+  // Handles its own timing: shows immediately if home is visible, defers if not.
+  function triggerRestoreWelcome() {
+    const loadingEl = document.getElementById('loading-screen');
+    const loadingHidden = loadingEl && loadingEl.classList.contains('hidden');
+    if (typeof S !== 'undefined' && !S.onboardingDone) {
+            _pendingRestoreWelcome = true;
+            return;
+        }
+    if (loadingHidden) {
+      // Home is on screen — small delay lets the UI settle first
+      setTimeout(_showRestoreSnackbar, 400);
+    } else {
+      // Still behind loading screen — defer; loadNativeData() will consume via
+      // consumePendingWelcome() once home is painted.
+      _pendingRestoreWelcome = true;
+    }
+  }
+
+  // Called by loadNativeData() in app-core.js after home is fully painted.
+  // Consumes the pending flag set by triggerRestoreWelcome() when home wasn't ready.
+  function consumePendingWelcome() {
+    if (_pendingRestoreWelcome) {
+      _pendingRestoreWelcome = false;
+      setTimeout(_showRestoreSnackbar, 400);
+    }
+  }
+
   // ── INTERNAL ─────────────────────────────────────────────────
 
   function _showStatus(msg, isError) {
@@ -849,27 +948,37 @@
   }
 
   // ── EXPOSE ────────────────────────────────────────────────────
-  window.ProUpsell = { show, hide, onBillingError, showRestoring, showRestoreNotFound, onPurchaseSuccess };
+  window.ProUpsell = {
+    show,
+    hide,
+    onBillingError,
+    showRestoring,
+    showRestoreNotFound,
+    onPurchaseSuccess,
+    triggerRestoreWelcome,
+    consumePendingWelcome,
+  };
+
   // Eager-inject sheet HTML so it's ready before first open
   _inject();
 
   // Called by Kotlin (PurchaseRestoreHandler) when restore query begins
   window.onRestoreStarted = function () {
-      _restoreInProgress = true
+      _restoreInProgress = true;
       if (_backdrop && _backdrop.classList.contains('pu-visible')) {
-          showRestoring()  // sheet is open — show inline spinner text
+          showRestoring(); // sheet is open — show inline spinner text
       }
-  }
+  };
 
   // Called by Kotlin when no active purchase found on this account
   window.onRestoreNoPurchase = function () {
-      _restoreInProgress = false
-      _clearRestoreTimeout()
+      _restoreInProgress = false;
+      _clearRestoreTimeout();
       if (_backdrop && _backdrop.classList.contains('pu-visible')) {
-          showRestoreNotFound()  // sheet is open — show inline message
+          showRestoreNotFound(); // sheet is open — show inline message
       } else if (typeof toast === 'function') {
-          toast('No previous purchase found.', 'warn')  // settings context
+          toast('No previous purchase found.', 'warn'); // settings context
       }
-  }
+  };
 
 })(window);
