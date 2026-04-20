@@ -103,9 +103,16 @@ class TimerBlockingEngine(
         if (timerBlockApps.isEmpty()) { isActive = false; coordinator.dismiss(AppMonitorService.PRIORITY_TIMER); return false }
         if (!isSameDay(now, lastBlockedTs)) { clearAll(); return false }
 
-        currentlyInFgApps.clear()
-        if (currentFgPkg.isNotEmpty() && timerBlockApps.containsKey(currentFgPkg))
-            currentlyInFgApps.add(currentFgPkg)
+        // ✅ Only update currentlyInFgApps from real events, don't clear blindly
+        if (currentFgPkg.isNotEmpty()) {
+            if (timerBlockApps.containsKey(currentFgPkg)) {
+                currentlyInFgApps.add(currentFgPkg)
+            } else {
+                // A non-blocked app came to foreground — clear tracked blocked apps
+                // (they must have gone to background to let this one through)
+                currentlyInFgApps.clear()
+            }
+        }
 
         if (coordinator.isShowing(AppMonitorService.PRIORITY_TIMER)) return true
 

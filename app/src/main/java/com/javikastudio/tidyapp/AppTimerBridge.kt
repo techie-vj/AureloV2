@@ -143,7 +143,12 @@ class AppTimerBridge(
         val isSameDay = (lastDay == todayDateString())
         if (isSameDay && lastStart > 0 && now - lastStart < graceWindowMs) return
         prefs.edit().putLong(tsKey, now).putString(dayKey, todayDateString()).apply()
-        if (!hasOverlayPermission()) { postTimerWarningNotification(pkg, appName, limitMins, usedMins); return }
+        if (!hasOverlayPermission()) {
+            // Still dedup notifications
+            prefs.edit().putLong(tsKey, now).putString(dayKey, todayDateString()).apply()
+            postTimerWarningNotification(pkg, appName, limitMins, usedMins)
+            return
+        }
         val intent = Intent(context, AppMonitorService::class.java).apply {
             action = AppMonitorService.ACTION_TIMER_BLOCK; putExtra("pkg",pkg); putExtra("appName",appName); putExtra("usedMins",usedMins); putExtra("limitMins",limitMins)
         }
@@ -151,8 +156,15 @@ class AppTimerBridge(
         val mapObj = runCatching { JSONObject(mapJson) }.getOrElse { JSONObject() }
         mapObj.put(pkg, JSONObject().apply { put("name",appName); put("used",usedMins); put("limit",limitMins) })
         prefs.edit().putBoolean("timerblockmode",true).putString(TIMERBLOCK_PKGS_MAP, mapObj.toString()).apply()
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) context.startForegroundService(intent)
-        else context.startService(intent)
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) context.startForegroundService(intent)
+            else context.startService(intent)
+            // ✅ Only stamp AFTER successful start — allows retry if service failed to start
+            prefs.edit().putLong(tsKey, now).putString(dayKey, todayDateString()).apply()
+        } catch (e: Exception) {
+            // Android 12+ ForegroundServiceStartNotAllowedException — don't stamp,
+            // allow the next checkTimerThresholds() cycle to retry
+        }
     }
 
     /** Called from UsageStatsBridge.refreshUsageStats() — checks all limits and fires blocks. */

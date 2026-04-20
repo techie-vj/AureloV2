@@ -93,6 +93,7 @@ class AppMonitorService : Service() {
 
     // Foreground package resolved once per poll tick, shared across all engines
     private var currentFgPkg = ""
+    private var currentFgPkgTs = 0L
 
     // ── Polling runnable ───────────────────────────────────────────────────────
     private val pollRunnable = object : Runnable {
@@ -122,8 +123,25 @@ class AppMonitorService : Service() {
                         }
                     }
                 }
-                currentFgPkg = if (latestFgTs > 0L && (bgTs[latestFgPkg] ?: 0L) < latestFgTs)
-                    latestFgPkg else ""
+
+                when {
+                    // Saw a new foreground event this tick
+                    latestFgTs > 0L -> {
+                        if ((bgTs[latestFgPkg] ?: 0L) < latestFgTs) {
+                            currentFgPkg   = latestFgPkg
+                            currentFgPkgTs = latestFgTs
+                        } else {
+                            currentFgPkg = ""
+                        }
+                    }
+                    // No new events — check if the pkg we remember went to background
+                    currentFgPkg.isNotEmpty() -> {
+                        val wentBg = bgTs[currentFgPkg] ?: 0L
+                        if (wentBg > currentFgPkgTs) currentFgPkg = ""
+                        // else: no events at all → assume still in foreground, keep currentFgPkg as-is
+                    }
+                    // currentFgPkg already empty, no events → nothing to do
+                }
             }
 
             // Dispatch in priority order; each handler returns true if it owns the overlay slot
