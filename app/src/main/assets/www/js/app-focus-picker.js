@@ -2,22 +2,12 @@
 /* ═══════════════════════════════════════════════════════════════
  * APP PICKER MODULE — app-focus-picker.js
  *
- * Depends on globals: FocusTab, FocusRoutine, FocusMindful,
- *   FocusBedtime, ProTier, S, IS_NATIVE, N, CATS_MAP, CAT_ICONS,
- *   DAILY_USE, toast, escAttr, escHtml, fmtM, appIco, proBadge,
- *   openPanel, closePanel, buildCatsMap
- *
- * Public API (via FocusPicker.*):
- *   openPicker(mode)           — open panel ('block'|'intention'|
- *                                 'bedtime'|'routine')
- *   savePick()                 — commit selection
- *   togglePick(pkg,name,row)   — flip one app
- *   toggleCategory(catName)    — select/deselect whole category
- *   toggleCatExpand(catName)   — collapse/expand category
- *   filterSearch(query)        — search within picker
- *   activateTemplate(tplId)    — open routine editor from template
- *   buildPickerHTML()          — returns HTML string (for FocusTab delegation)
- *   buildPickerUsageMap()      — populate usage data before building HTML
+ * CHANGES:
+ *  • Filter pills: "All" / "Selected (N)" — one tap to see only
+ *    apps you've already added, categories auto-expanded.
+ *  • Selected-count badge on Save button updates live.
+ *  • openPicker() accepts optional openInSelectedView param so
+ *    tappable +X overflow chips land directly in selected view.
  * ═══════════════════════════════════════════════════════════════ */
 window.FocusPicker = (function () {
 
@@ -352,6 +342,14 @@ window.FocusPicker = (function () {
     _updateSelectionUI();
     // In selected view, hide a row that was just de-selected
     if (_pickerFilter === 'selected' && !sel.has(pkg) && row) row.style.display = 'none';
+    // If the routine inline picker is open, sync its list + update Done badge
+    var inlinePicker = document.getElementById('rp-inline-picker');
+    if (inlinePicker) {
+      var stdList    = document.getElementById('focus-picker-list');
+      var inlineList = document.getElementById('rp-picker-list-inline');
+      if (stdList && inlineList) inlineList.innerHTML = stdList.innerHTML;
+      if (typeof window._rpOnInlinePickToggle === 'function') window._rpOnInlinePickToggle();
+    }
   }
 
   /* ═══════════════════════════════════════════════════════════

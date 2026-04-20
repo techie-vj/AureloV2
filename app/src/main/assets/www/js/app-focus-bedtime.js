@@ -1004,23 +1004,15 @@ window.FocusBedtime = (function () {
           '</div>' +
         '</div>' +
 
-        /* 2. Active days */
+        /* 2. Active days — rolling 7-day rolling ticks now removed; streak shown above */
         '<div style="margin-bottom:16px">' +
           '<div style="font-family:var(--ff-m);font-size:11px;color:var(--t2);font-weight:600;margin-bottom:8px">Active days</div>' +
           '<div style="display:flex;gap:6px">' +
             ['S','M','T','W','T','F','S'].map(function (lbl, idx) {
-              var on      = cfg.activeDays.includes(idx);
-              // BUG-2 FIX: show a completion dot when this day-of-week is in
-              // the completed set (streak-derived), not just today's live state.
-              var done    = cfg.enabled && completedDotDays.has(idx);
-              var dotHtml = done
-                ? '<div style="width:4px;height:4px;border-radius:50%;' +
-                  'background:' + (on ? '#fff' : 'var(--g)') + ';' +
-                  'margin:2px auto 0;opacity:.85"></div>'
-                : '<div style="width:4px;height:4px;margin:2px auto 0"></div>';
+              var on = cfg.activeDays.includes(idx);
               return '<div id="bt-day-' + idx + '" data-active="' + (on ? '1' : '0') + '"' +
                 ' onclick="event.stopPropagation();FocusBedtime.btToggleDay(' + idx + ')"' +
-                ' style="flex:1;text-align:center;padding:7px 0 4px;border-radius:8px;cursor:pointer;' +
+                ' style="flex:1;text-align:center;padding:7px 0 5px;border-radius:8px;cursor:pointer;' +
                 'font-family:var(--ff-m);font-size:11px;font-weight:700;' +
                 'border:1px solid ' + (on ? 'var(--p)' : 'var(--border2)') + ';' +
                 'background:' + (on ? 'var(--p)' : 'var(--bg)') + ';' +

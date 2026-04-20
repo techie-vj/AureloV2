@@ -609,7 +609,11 @@ window.FocusRoutine = (function () {
           '<span onclick="event.stopPropagation();FocusRoutine._rpRemoveApp(\'' + escAttr(a.packageName) + '\')" style="opacity:.45;font-size:12px;margin-left:2px;cursor:pointer">×</span>' +
         '</div>';
       }).join('');
-      var more = (rp.blockedApps||[]).length>5 ? '<div class="focus-app-chip" style="background:var(--s2);border-color:var(--border2);color:var(--t3);font-family:var(--ff-m);font-size:10px;cursor:default">+' + (rp.blockedApps.length-5) + '</div>' : '';
+      var more = (rp.blockedApps||[]).length>5
+        ? '<div class="focus-app-chip" onclick="FocusRoutine._rpOpenAppPicker(true)"' +
+          ' style="background:var(--s2);border-color:var(--border2);color:var(--p);' +
+          'font-family:var(--ff-m);font-size:10px;cursor:pointer;font-weight:700">+' + (rp.blockedApps.length-5) + ' more</div>'
+        : '';
       return chips + more + '<div class="focus-chip-add" onclick="FocusRoutine._rpOpenAppPicker()">＋ Add app</div>';
     }
 
@@ -767,7 +771,11 @@ window.FocusRoutine = (function () {
         '<span>' + escHtml(a.name.split(' ')[0]) + '</span>' +
         '<span onclick="event.stopPropagation();FocusRoutine._rpRemoveApp(\'' + escAttr(a.packageName) + '\')" style="opacity:.45;font-size:12px;margin-left:2px;cursor:pointer">×</span></div>';
     }).join('');
-    var more=arr.length>5?'<div class="focus-app-chip" style="background:var(--s2);border-color:var(--border2);color:var(--t3);font-family:var(--ff-m);font-size:10px;cursor:default">+' + (arr.length-5) + '</div>':'';
+    var more=arr.length>5
+      ? '<div class="focus-app-chip" onclick="FocusRoutine._rpOpenAppPicker(true)"' +
+        ' style="background:var(--s2);border-color:var(--border2);color:var(--p);' +
+        'font-family:var(--ff-m);font-size:10px;cursor:pointer;font-weight:700">+' + (arr.length-5) + ' more</div>'
+      : '';
     chips.innerHTML=html+more+'<div class="focus-chip-add" onclick="FocusRoutine._rpOpenAppPicker()">＋ Add app</div>';
   }
 
@@ -825,18 +833,89 @@ window.FocusRoutine = (function () {
   }
 
   /* ── Inline app picker ─────────────────────────────────────────── */
-  function _rpOpenAppPicker() {
-    if (typeof FocusTab !== 'undefined') {
-      FocusTab.setPickerReturnTarget('routine');
-      var currentPkgs = new Set((window._rp?.blockedApps||[]).map(function (a) { return a.packageName; }));
-      FocusTab.setPickerSelected(currentPkgs);
+
+  // Sync the shared focus-picker-list DOM into the inline picker.
+  // Called after any FocusPicker operation that mutates #focus-picker-list.
+  function _rpSyncInlinePicker() {
+    var stdList    = document.getElementById('focus-picker-list');
+    var inlineList = document.getElementById('rp-picker-list-inline');
+    if (stdList && inlineList) inlineList.innerHTML = stdList.innerHTML;
+  }
+
+  // Patch FocusPicker category methods once so that expand/collapse and
+  // select-all operations are reflected in the inline picker list.
+  // The patch is a no-op when #rp-picker-list-inline is not in the DOM.
+  function _rpPatchFocusPicker() {
+    if (typeof FocusPicker === 'undefined') return;
+    if (FocusPicker._rpPatched) return;
+    FocusPicker._rpPatched = true;
+
+    if (typeof FocusPicker.toggleCatExpand === 'function') {
+      var _origExpand = FocusPicker.toggleCatExpand;
+      FocusPicker.toggleCatExpand = function (catId) {
+        _origExpand(catId);
+        if (document.getElementById('rp-picker-list-inline')) _rpSyncInlinePicker();
+      };
     }
+
+    if (typeof FocusPicker.toggleCategory === 'function') {
+      var _origToggleCat = FocusPicker.toggleCategory;
+      FocusPicker.toggleCategory = function (catId) {
+        _origToggleCat(catId);
+        if (document.getElementById('rp-picker-list-inline')) {
+          _rpSyncInlinePicker();
+          window._rpOnInlinePickToggle();
+        }
+      };
+    }
+
+    if (typeof FocusPicker.togglePick === 'function') {
+      var _origTogglePick = FocusPicker.togglePick;
+      FocusPicker.togglePick = function (pkg) {
+        _origTogglePick(pkg);
+        if (document.getElementById('rp-picker-list-inline')) {
+          _rpSyncInlinePicker();
+          window._rpOnInlinePickToggle();
+        }
+      };
+    }
+  }
+
+  function _rpOpenAppPicker(inSelected) {
+    // Patch FocusPicker once so that category expand/collapse and select-all
+    // operations are mirrored into #rp-picker-list-inline automatically.
+    _rpPatchFocusPicker();
+
+    // FIX #3 & #4: Seed picker state from routine's own app list (not focus session).
+    // Also populate #focus-picker-list (the shared picker) so that FocusPicker's
+    // internal category expand/collapse/toggle functions operate on routine data,
+    // not stale focus-session data from a previous picker open.
     if (!Object.keys(CATS_MAP||{}).length && IS_NATIVE) {
       try { buildCatsMap(JSON.parse(N.getCachedApps()||'[]')); } catch(_) {}
     }
-    if (typeof FocusTab !== 'undefined' && typeof FocusTab.buildPickerUsageMap === 'function') FocusTab.buildPickerUsageMap();
-    var listHTML = typeof FocusTab !== 'undefined' && typeof FocusTab.buildPickerHTML === 'function' ? FocusTab.buildPickerHTML() : '';
+    if (typeof FocusTab !== 'undefined') {
+      FocusTab.setPickerReturnTarget('routine');
+      var currentPkgs = new Set((window._rp && window._rp.blockedApps ? window._rp.blockedApps : []).map(function (a) { return a.packageName; }));
+      FocusTab.setPickerSelected(currentPkgs);
+      if (typeof FocusTab.buildPickerUsageMap === 'function') FocusTab.buildPickerUsageMap();
+    }
+
+    // Use FocusPicker to build routine-seeded HTML and write it into the shared
+    // #focus-picker-list so all FocusPicker internals (togglePick, toggleCatExpand,
+    // toggleCategory, filter) operate correctly on routine data.
+    var listHTML = '';
+    if (typeof FocusPicker !== 'undefined') {
+      listHTML = FocusPicker.buildPickerHTML();
+      var stdList = document.getElementById('focus-picker-list');
+      if (stdList) stdList.innerHTML = listHTML;
+      // Reset filter state to 'all' (or 'selected' if inSelected)
+      if (typeof FocusPicker.setFilter === 'function') {
+        FocusPicker.setFilter(inSelected ? 'selected' : 'all');
+      }
+    }
+
     document.getElementById('rp-inline-picker')?.remove();
+    var selCount = (window._rp && window._rp.blockedApps) ? window._rp.blockedApps.length : 0;
     var pickerEl = document.createElement('div');
     pickerEl.id = 'rp-inline-picker';
     pickerEl.style.cssText = 'position:fixed;inset:0;z-index:1300;background:var(--bg,var(--s1));display:flex;flex-direction:column;overflow:hidden;';
@@ -846,67 +925,87 @@ window.FocusRoutine = (function () {
           '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--t2)" stroke-width="2.5" stroke-linecap="round"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>' +
         '</div>' +
         '<div style="flex:1;font-size:16px;font-weight:700;color:var(--t1)">Block During Routine</div>' +
-        '<div onclick="FocusRoutine._rpSaveInlinePicker()" style="font-family:var(--ff-m);font-size:13px;font-weight:700;color:var(--p);cursor:pointer;padding:6px 10px">Done</div>' +
+        '<div id="rp-picker-done-btn" onclick="FocusRoutine._rpSaveInlinePicker()"' +
+          ' style="font-family:var(--ff-m);font-size:13px;font-weight:700;color:var(--p);cursor:pointer;padding:6px 10px">' +
+          (selCount > 0 ? 'Done (' + selCount + ')' : 'Done') +
+        '</div>' +
       '</div>' +
-      '<div style="padding:10px 16px 8px;border-bottom:1px solid var(--border);flex-shrink:0">' +
+      '<div style="padding:10px 16px 6px;border-bottom:1px solid var(--border);flex-shrink:0">' +
         '<input id="rp-picker-search-inline" placeholder="Search apps or categories…"' +
           ' oninput="FocusRoutine._rpFilterInlinePicker(this.value)"' +
-          ' style="width:100%;box-sizing:border-box;padding:9px 12px;border-radius:12px;border:1px solid var(--border2);background:var(--s3);color:var(--t1);font-size:13px;outline:none"/>' +
+          ' style="width:100%;box-sizing:border-box;padding:9px 12px;border-radius:12px;border:1px solid var(--border2);background:var(--s3);color:var(--t1);font-size:13px;outline:none;margin-bottom:8px"/>' +
+        '<div id="rp-filter-row" style="display:flex;gap:7px">' +
+          '<button id="rp-filter-all" onclick="FocusRoutine._rpSetFilter(\'all\')"' +
+          ' style="padding:5px 14px;border-radius:99px;border:1px solid ' + (inSelected?'var(--border2)':'var(--p)') + ';' +
+          'background:' + (inSelected?'transparent':'var(--p)') + ';color:' + (inSelected?'var(--t3)':'#fff') + ';' +
+          'font-family:var(--ff-m);font-size:11px;font-weight:700;cursor:pointer">All</button>' +
+          '<button id="rp-filter-selected" onclick="FocusRoutine._rpSetFilter(\'selected\')"' +
+          ' style="padding:5px 14px;border-radius:99px;border:1px solid ' + (inSelected?'var(--p)':'var(--border2)') + ';' +
+          'background:' + (inSelected?'var(--p)':'transparent') + ';color:' + (inSelected?'#fff':'var(--t3)') + ';' +
+          'font-family:var(--ff-m);font-size:11px;font-weight:700;cursor:pointer">' +
+          'Selected' + (selCount > 0 ? ' (' + selCount + ')' : '') + '</button>' +
+        '</div>' +
       '</div>' +
       '<div id="rp-picker-list-inline" style="flex:1;overflow-y:auto;scrollbar-width:none;padding-bottom:20px">' + listHTML + '</div>';
     document.body.appendChild(pickerEl);
 
-    /* ── Category expand mirror fix ────────────────────────────────
-     * Category expand/collapse buttons in the picker HTML call a FocusPicker
-     * internal function that re-renders into #focus-picker-list (the hidden
-     * standard panel).  The inline picker container (#rp-picker-list-inline)
-     * never sees those updates.
-     *
-     * Fix: snapshot the standard panel's content before each click and, if it
-     * changed after the click (meaning a category toggle fired), copy the new
-     * content into the inline container.  Uses requestAnimationFrame so the
-     * re-render inside FocusPicker has already completed by the time we diff.
-     * ─────────────────────────────────────────────────────────────── */
-    var _standardPanel = document.getElementById('focus-picker-list');
-    if (_standardPanel) {
-      var _lastSnapshot = _standardPanel.innerHTML;
-      pickerEl.addEventListener('click', function () {
-        requestAnimationFrame(function () {
-          var inlineList = document.getElementById('rp-picker-list-inline');
-          if (!inlineList || !_standardPanel) return;
-          var current = _standardPanel.innerHTML;
-          if (current !== _lastSnapshot) {
-            _lastSnapshot  = current;
-            inlineList.innerHTML = current;
-          }
-        });
-      }, true /* capture — fires before onclick bubbling stops */);
+    // Apply initial filter to the inline list
+    if (inSelected && typeof FocusPicker !== 'undefined' && typeof FocusPicker.setFilter === 'function') {
+      FocusPicker.setFilter('selected');
+      // After setFilter updated #focus-picker-list, copy to inline
+      var stdList2 = document.getElementById('focus-picker-list');
+      var inlineList2 = document.getElementById('rp-picker-list-inline');
+      if (stdList2 && inlineList2) inlineList2.innerHTML = stdList2.innerHTML;
     }
   }
   function _rpFilterInlinePicker(query) {
-    var q = query.toLowerCase().trim();
-    var list = document.getElementById('rp-picker-list-inline');
-    if (!list) return;
-
-    // 1. Show / hide individual app rows
-    list.querySelectorAll('.app-sel-row').forEach(function (row) {
-      var name = (row.querySelector('.app-sel-name') || row).textContent.toLowerCase();
-      var cat  = (row.dataset.cat || '').toLowerCase();
-      row.style.display = (name.includes(q) || cat.includes(q)) ? '' : 'none';
-    });
-
-    // 2. Hide category section wrappers whose every app row is now hidden.
-    //    Handles both flat lists (no wrapper) and grouped layouts gracefully.
-    list.querySelectorAll('.picker-cat-section, [data-cat-section]').forEach(function (sec) {
-      var hasVisible = Array.from(sec.querySelectorAll('.app-sel-row'))
-                           .some(function (r) { return r.style.display !== 'none'; });
-      sec.style.display = hasVisible ? '' : 'none';
-    });
+    // Delegate to FocusPicker.filterSearch which operates on #focus-picker-list,
+    // then sync the result to the inline picker list.
+    if (typeof FocusPicker !== 'undefined' && typeof FocusPicker.filterSearch === 'function') {
+      FocusPicker.filterSearch(query);
+      var stdList   = document.getElementById('focus-picker-list');
+      var inlineList = document.getElementById('rp-picker-list-inline');
+      if (stdList && inlineList) inlineList.innerHTML = stdList.innerHTML;
+    }
+  }
+  function _rpSetFilter(filter) {
+    // Update routine inline picker filter pills
+    var allBtn = document.getElementById('rp-filter-all');
+    var selBtn = document.getElementById('rp-filter-selected');
+    var sel    = typeof FocusTab !== 'undefined' ? FocusTab.getPickerSelected() : new Set();
+    var count  = sel ? sel.size : 0;
+    if (allBtn) {
+      allBtn.style.background  = filter === 'all' ? 'var(--p)' : 'transparent';
+      allBtn.style.color       = filter === 'all' ? '#fff'     : 'var(--t3)';
+      allBtn.style.borderColor = filter === 'all' ? 'var(--p)' : 'var(--border2)';
+    }
+    if (selBtn) {
+      selBtn.textContent       = 'Selected' + (count > 0 ? ' (' + count + ')' : '');
+      selBtn.style.background  = filter === 'selected' ? 'var(--p)' : 'transparent';
+      selBtn.style.color       = filter === 'selected' ? '#fff'      : 'var(--t3)';
+      selBtn.style.borderColor = filter === 'selected' ? 'var(--p)'  : 'var(--border2)';
+    }
+    // Apply via FocusPicker (operates on #focus-picker-list), then sync
+    if (typeof FocusPicker !== 'undefined' && typeof FocusPicker.setFilter === 'function') {
+      FocusPicker.setFilter(filter);
+      var stdList    = document.getElementById('focus-picker-list');
+      var inlineList = document.getElementById('rp-picker-list-inline');
+      if (stdList && inlineList) inlineList.innerHTML = stdList.innerHTML;
+    }
   }
   function _rpSaveInlinePicker() {
     document.getElementById('rp-inline-picker')?.remove();
     _rpHandlePickerSave();
   }
+  // Called when the user toggles an app in the inline picker — updates Done badge
+  window._rpOnInlinePickToggle = function() {
+    var sel   = typeof FocusTab !== 'undefined' ? FocusTab.getPickerSelected() : new Set();
+    var count = sel ? sel.size : 0;
+    var doneBtn = document.getElementById('rp-picker-done-btn');
+    if (doneBtn) doneBtn.textContent = count > 0 ? 'Done (' + count + ')' : 'Done';
+    var selBtn  = document.getElementById('rp-filter-selected');
+    if (selBtn) selBtn.textContent = 'Selected' + (count > 0 ? ' (' + count + ')' : '');
+  };
   function handlePickerSave() { _rpHandlePickerSave(); }
   function _rpHandlePickerSave() {
     if (typeof FocusTab === 'undefined') return;

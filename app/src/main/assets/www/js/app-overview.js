@@ -84,7 +84,7 @@ window.AppOverview = (function () {
           color: 'rgba(168,156,255,.08)', borderColor: 'rgba(168,156,255,.2)',
           textColor: '#a09bff',
           apps: btApps,
-          action: "FocusBedtime && FocusBedtime.render()",
+          action: "activateTab('focus');FocusTab._switchFocusSubTab('habits');setTimeout(function(){_btInlineOpenBlockPicker(true);},300)",
         });
       }
     } catch (_) {}
@@ -187,6 +187,7 @@ window.AppOverview = (function () {
 
     var sectionsHtml = features.map(function (f) {
       var MAX_CHIPS = 50;
+      var safeId = 'aov-section-' + f.id;
       var chips = f.apps.slice(0, MAX_CHIPS).map(function (a) {
         return '<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border)">' +
           '<div style="width:34px;height:34px;border-radius:9px;overflow:hidden;background:var(--s2);' +
@@ -212,12 +213,20 @@ window.AppOverview = (function () {
           'Edit →</div>'
         : '';
 
-      return '<div style="margin-bottom:18px;border-radius:14px;background:var(--s1);' +
+      // Collapsible section: header is tappable to toggle body
+      return '<div style="margin-bottom:12px;border-radius:14px;background:var(--s1);' +
         'border:1px solid var(--border2);overflow:hidden">' +
-        '<div style="display:flex;align-items:center;justify-content:space-between;' +
-          'padding:11px 14px;background:' + f.color + ';border-bottom:1px solid ' + f.borderColor + '">' +
+        '<div onclick="(function(){' +
+          'var b=document.getElementById(\'' + safeId + '\');' +
+          'var a=document.getElementById(\'' + safeId + '-arrow\');' +
+          'var open=b.style.display!==\'none\';' +
+          'b.style.display=open?\'none\':\'block\';' +
+          'if(a)a.style.transform=open?\'rotate(0deg)\':\'rotate(90deg)\';' +
+        '})()" style="display:flex;align-items:center;justify-content:space-between;' +
+          'padding:11px 14px;background:' + f.color + ';cursor:pointer;user-select:none">' +
           '<div style="display:flex;align-items:center;gap:7px">' +
-            '<span style="font-size:16px">' + f.icon + '</span>' +
+            '<span id="' + safeId + '-arrow" style="font-size:12px;color:' + f.textColor + ';transition:transform .2s">›</span>' +
+            '<span style="font-size:15px">' + f.icon + '</span>' +
             '<span style="font-size:12px;font-weight:700;color:' + f.textColor + '">' + f.label + '</span>' +
             '<span style="font-family:var(--ff-m);font-size:10px;color:' + f.textColor + ';opacity:.7">' +
               f.apps.length + ' app' + (f.apps.length !== 1 ? 's' : '') +
@@ -225,7 +234,7 @@ window.AppOverview = (function () {
           '</div>' +
           editBtn +
         '</div>' +
-        '<div style="padding:0 14px">' + chips + more + '</div>' +
+        '<div id="' + safeId + '" style="padding:0 14px;display:block">' + chips + more + '</div>' +
       '</div>';
     }).join('');
 
