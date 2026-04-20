@@ -42,6 +42,12 @@ class IntentionEngine(
     // Dedup: 3-second window suppresses duplicate events for the same app open
     private val lastEventMap = mutableMapOf<String, Long>()
 
+    // Session allow-list: packages where the user clicked "Continue" — overlay
+    // won't re-show while the app remains in the foreground. Cleared automatically
+    // the moment the app moves to background (previousFgPkg changes away from it).
+    private val allowedPkgs  = mutableSetOf<String>()
+    private var previousFgPkg = ""
+
     // ── Public API ────────────────────────────────────────────────────────────
 
     fun enable() {
@@ -87,8 +93,18 @@ class IntentionEngine(
         if (!isActive) return
         if (coordinator.isShowing(AppMonitorService.PRIORITY_INTENTION)) return
 
+        // When the foreground app changes, the previous app has been closed/backgrounded —
+        // evict it from the allow-list so the next open of that app triggers a prompt again.
+        if (currentFgPkg != previousFgPkg) {
+            if (previousFgPkg.isNotEmpty()) allowedPkgs.remove(previousFgPkg)
+            previousFgPkg = currentFgPkg
+        }
+
         if (currentFgPkg.isEmpty() || currentFgPkg == h.packageName) return
         if (!intentionPkgs.contains(currentFgPkg)) return
+
+        // User already clicked "Continue" for this app in this foreground session — don't re-show.
+        if (allowedPkgs.contains(currentFgPkg)) return
 
         // Skip if focus session is blocking this specific app
         if (prefs.getBoolean("focus_session_active", false)) {
@@ -252,7 +268,9 @@ class IntentionEngine(
             isClickable = true; isFocusable = true
             setOnClickListener {
                 coordinator.dismiss(AppMonitorService.PRIORITY_INTENTION)
-                lastEventMap.clear()
+                // Remove only this pkg's timestamp so the prompt fires again if user returns to the app.
+                // Don't touch other entries in lastEventMap.
+                lastEventMap.remove(pkg)
                 recordResist()
                 runCatching {
                     h.startActivity(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME)
@@ -268,7 +286,10 @@ class IntentionEngine(
             }
             isClickable = true; isFocusable = true
             setOnClickListener {
-                coordinator.dismiss(AppMonitorService.PRIORITY_INTENTION); lastEventMap.clear()
+                // Allow this app for the current foreground session.
+                // The overlay will re-appear only after the user closes and reopens the app.
+                allowedPkgs.add(pkg)
+                coordinator.dismiss(AppMonitorService.PRIORITY_INTENTION)
             }
         }
         btnRow.addView(resistBtn, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
