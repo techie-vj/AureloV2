@@ -31,6 +31,19 @@ function initWidgetSettings(){
   renderWidgetThemeList();
   renderMiniWidget();
   if(IS_NATIVE){ renderWidgetStorageStats(); updateWidgetBar(); }
+  // FIX #6: Always attempt to refresh the mini-widget preview with real/demo data
+  // so the "Current theme" card never shows blank stats when opened in settings.
+  else {
+    // Non-native (web preview) — seed with demo-quality values so it looks complete
+    const sv  = document.getElementById('mwStValue');
+    const sp  = document.getElementById('mwPickups');
+    const ss  = document.getElementById('mwStreak');
+    const sfp = document.getElementById('mwFirstPickup');
+    if(sv)  sv.textContent  = '2h 14m';
+    if(sp)  sp.textContent  = '18';
+    if(ss)  ss.textContent  = '5🔥';
+    if(sfp) sfp.textContent = '8:42 AM';
+  }
 }
 
 function renderWidgetThemeList(){
@@ -121,33 +134,77 @@ function renderMiniWidget(){
 
   // Apps
   const wrap = document.getElementById('miniWidgetApps'); if(!wrap) return;
-  const apps = _wApps.length>0 ? _wApps.slice(0,5)
-    : ['📷','🎵','💬','▶️','🗺️'].map((e,i)=>({name:'App '+(i+1),iconUrl:null,_emoji:e}));
-  wrap.innerHTML = apps.map(a=>`<div class="mw-app">
-    <div class="mw-app-icon" style="background:${t.mini.searchBg}">
-      ${a.iconUrl ? '<img src="' + a.iconUrl + '" onerror="this.parentElement.innerHTML=&#x27;📱&#x27;">' : (a._emoji || '📱')}
-    </div>
-    <div class="mw-app-lbl" style="color:${subColor}">${(a.name||'').split(' ')[0].substring(0,7)}</div>
-  </div>`).join('')+`<div class="mw-app">
-    <div class="mw-app-icon" style="background:${t.mini.searchBg};font-size:12px;color:${subColor}">···</div>
+
+  // FIX #6: Populate preview with real apps — priority: pinned widget apps →
+  // top DAILY_USE apps → decent-looking dummy data so preview is never empty.
+  let previewApps = [];
+  if(_wApps.length > 0){
+    previewApps = _wApps.slice(0, 5);
+  } else if(typeof DAILY_USE !== 'undefined' && DAILY_USE.length > 0){
+    previewApps = DAILY_USE.slice(0, 5).map(a => ({ packageName: a.packageName, name: a.name }));
+  } else {
+    // Visually complete fallback — mirrors what a typical user would see
+    previewApps = [
+      {name:'Instagram', packageName:'com.instagram.android'},
+      {name:'YouTube',   packageName:'com.google.android.youtube'},
+      {name:'WhatsApp',  packageName:'com.whatsapp'},
+      {name:'Chrome',    packageName:'com.android.chrome'},
+      {name:'Spotify',   packageName:'com.spotify.music'},
+    ];
+  }
+
+  wrap.innerHTML = previewApps.map(a => {
+    const icoHtml = (typeof appIco === 'function')
+      ? appIco(a.packageName, 28, 7)
+      : (a.iconUrl ? `<img src="${a.iconUrl}" style="width:28px;height:28px;border-radius:7px">` : '📱');
+    return `<div class="mw-app">
+      <div class="mw-app-icon" style="background:${t.mini.searchBg};width:32px;height:32px;border-radius:9px;overflow:hidden;display:flex;align-items:center;justify-content:center">
+        ${icoHtml}
+      </div>
+      <div class="mw-app-lbl" style="color:${subColor}">${(a.name||'').split(' ')[0].substring(0,7)}</div>
+    </div>`;
+  }).join('') + `<div class="mw-app">
+    <div class="mw-app-icon" style="background:${t.mini.searchBg};font-size:12px;color:${subColor};width:32px;height:32px;border-radius:9px;display:flex;align-items:center;justify-content:center">···</div>
     <div class="mw-app-lbl" style="color:${subColor}">More</div>
   </div>`;
+
+  // Also refresh stats bar in preview with real data (covers non-native view in settings)
+  const total   = (typeof TODAY_MINS !== 'undefined' && TODAY_MINS > 0) ? TODAY_MINS : 0;
+  const pickups = (typeof PICKUPS    !== 'undefined' && PICKUPS    > 0) ? PICKUPS    : 0;
+  const sv  = document.getElementById('mwStValue');
+  const sp  = document.getElementById('mwPickups');
+  if(sv && sv.textContent === '0m') sv.textContent = total   > 0 ? fmtM(total)       : '2h 14m';
+  if(sp && sp.textContent === '–')  sp.textContent = pickups > 0 ? pickups.toString(): '18';
 }
 
 function updateWidgetBar(){
-  if(!IS_NATIVE) return;
   try{
-    const total   = N.getTotalScreenTimeToday ? N.getTotalScreenTimeToday() : 0;
-    const pickups = N.getPickupCountToday ? N.getPickupCountToday() : 0;
-    const streak  = N.getStreakDays ? N.getStreakDays() : 0;
+    // FIX #1: Use TODAY_MINS (same source as the in-app gold arc) so the widget
+    // preview and the Today tab always show an identical number.
+    // getTotalScreenTimeToday() can diverge because the background widget scan
+    // may flush an INTERVAL_BEST value to SharedPrefs before refreshUsageData()
+    // reconciles it — reading TODAY_MINS avoids that race.
+    const total = (typeof TODAY_MINS !== 'undefined' && TODAY_MINS > 0)
+      ? TODAY_MINS
+      : (IS_NATIVE && N.getTotalScreenTimeToday ? N.getTotalScreenTimeToday() : 0);
+
+    const pickups = IS_NATIVE && N.getPickupCountToday ? N.getPickupCountToday()
+                  : (typeof PICKUPS !== 'undefined' ? PICKUPS : 0);
+    const streak  = IS_NATIVE && N.getStreakDays ? N.getStreakDays() : 0;
+    const firstPu = IS_NATIVE && N.getFirstPickupTime ? N.getFirstPickupTime() : '–';
+
     const sv  = document.getElementById('mwStValue');
     const sp  = document.getElementById('mwPickups');
     const ss  = document.getElementById('mwStreak');
     const sfp = document.getElementById('mwFirstPickup');
-    if(sv)  sv.textContent  = fmtM(total);
-    if(sp)  sp.textContent  = pickups > 0 ? pickups.toString() : '–';
-    if(ss)  ss.textContent  = streak  > 0 ? streak+'🔥' : '–';
-    if(sfp) sfp.textContent = (N.getFirstPickupTime ? N.getFirstPickupTime() : '–') || '–';
+    // FIX #6: Show real values (or meaningful fallbacks) so the in-settings
+    // preview is never stuck at "0m / – / –" for non-zero sessions.
+    if(sv)  sv.textContent  = total   > 0 ? fmtM(total)           : '–';
+    if(sp)  sp.textContent  = pickups > 0 ? pickups.toString()     : '–';
+    if(ss)  ss.textContent  = streak  > 0 ? streak + '🔥'          : '–';
+    if(sfp) sfp.textContent = firstPu || '–';
+
+    if(!IS_NATIVE) return; // stats already painted; skip native-only calls below
 
     // Phase 3 (#2): Gate insight bar data for free users — pass nothing so native
     // widget renders blurred/empty. Pro users get the full insight text pushed.

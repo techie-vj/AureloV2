@@ -1,5 +1,74 @@
 /* ═══ APP SELECTION PANELS ════════════════════════════ */
 
+/* ── Shared: panel filter state ────────────────────── */
+var _panelFilters = { lock: 'all', hide: 'all', timer: 'all' };
+
+/**
+ * Toggle All / Selected filter pills for lock, hide, timer panels.
+ * 'selected' filter: hides rows that aren't checked, auto-expands categories.
+ */
+function setPanelFilter(panel, filter) {
+  _panelFilters[panel] = filter;
+  var listId   = panel + '-list';
+  var allBtn   = document.getElementById(panel + '-filter-all');
+  var selBtn   = document.getElementById(panel + '-filter-selected');
+  var saveBtn  = document.getElementById(panel + '-save-btn');
+
+  // Update pill styles
+  if (allBtn) {
+    var onAll = filter === 'all';
+    allBtn.style.background  = onAll ? 'var(--p)' : 'transparent';
+    allBtn.style.color       = onAll ? '#fff'     : 'var(--t3)';
+    allBtn.style.borderColor = onAll ? 'var(--p)' : 'var(--border2)';
+  }
+  if (selBtn) {
+    var onSel = filter === 'selected';
+    selBtn.style.background  = onSel ? 'var(--p)' : 'transparent';
+    selBtn.style.color       = onSel ? '#fff'      : 'var(--t3)';
+    selBtn.style.borderColor = onSel ? 'var(--p)'  : 'var(--border2)';
+  }
+
+  var list = document.getElementById(listId);
+  if (!list) return;
+
+  if (filter === 'all') {
+    list.querySelectorAll('.cat-pick-group').forEach(function(g) {
+      g.style.display = '';
+      g.querySelectorAll('.app-sel-row').forEach(function(r) { r.style.display = ''; });
+    });
+  } else {
+    // Selected filter: for timer panel use data-has-timer; others use .app-sel-check.on
+    var isTimer = (panel === 'timer');
+    list.querySelectorAll('.cat-pick-group').forEach(function(g) {
+      var rows = g.querySelectorAll('.app-sel-row');
+      var anyOn = false;
+      rows.forEach(function(row) {
+        var isOn = isTimer
+          ? row.getAttribute('data-has-timer') === '1'
+          : !!(row.querySelector('.app-sel-check') && row.querySelector('.app-sel-check').classList.contains('on'));
+        row.style.display = isOn ? '' : 'none';
+        if (isOn) anyOn = true;
+      });
+      g.style.display = anyOn ? '' : 'none';
+      if (anyOn) {
+        var catName = g.getAttribute('data-cat') || '';
+        var safeKey = listId + '_' + catName.replace(/[^a-zA-Z0-9]/g,'_');
+        var appsEl  = document.getElementById('pcap_' + safeKey);
+        var arrow   = document.getElementById('pcar_' + safeKey);
+        if (appsEl) appsEl.style.display = 'block';
+        if (arrow)  arrow.classList.add('open');
+      }
+    });
+  }
+}
+
+/* Helper: update save button with selected count */
+function _updatePanelSaveBtn(panel, count) {
+  var btn = document.getElementById(panel + '-save-btn');
+  var labels = { lock: 'Save', hide: 'Save' };
+  if (btn) btn.textContent = count > 0 ? (labels[panel] || 'Save') + ' (' + count + ')' : (labels[panel] || 'Save');
+}
+
 /* ── Shared: category-aware search + expand/collapse ── */
 function filterPanelListCat(listId, query) {
   const q = (query || '').toLowerCase().trim();
@@ -12,7 +81,13 @@ function filterPanelListCat(listId, query) {
     let anyApp = false;
     rows.forEach(row => {
       const name = (row.getAttribute('data-name') || '').toLowerCase();
-      const show = !q || catMatch || name.includes(q);
+      const panel = listId.replace('-list','');
+      const filter = _panelFilters[panel] || 'all';
+      const chk    = row.querySelector('.app-sel-check');
+      const isOn   = chk && chk.classList.contains('on');
+      const matchQ   = !q || catMatch || name.includes(q);
+      const matchSel = filter !== 'selected' || isOn;
+      const show = matchQ && matchSel;
       row.style.display = show ? '' : 'none';
       if (show) anyApp = true;
     });
@@ -81,7 +156,10 @@ function _buildPanelCatHTML(listId, apps, rowBuilder) {
 let tempLocked=new Set();
 function openPanel_lock(){
   tempLocked=new Set(S.lockedPkgs);
+  _panelFilters.lock = 'all';
+  setPanelFilter('lock','all');
   renderLockList();
+  _updatePanelSaveBtn('lock', tempLocked.size);
 }
 function renderLockList(){
   const all=Object.values(CATS_MAP).flat();
@@ -100,12 +178,14 @@ function toggleTempLock(pkg,name,row){
   const chk=document.getElementById('chk-lock-'+pkg.replace(/\./g,'_'));
   if(tempLocked.has(pkg)){
     tempLocked.delete(pkg); chk?.classList.remove('on');
+    if(_panelFilters.lock==='selected' && row) row.style.display='none';
   } else {
     if(!ProTier.isPro && tempLocked.size >= ProTier.getLimit('LOCKED_APPS_UNLIMITED')){
       ProTier.triggerUpsell('LOCKED_APPS_UNLIMITED'); return;
     }
     tempLocked.add(pkg); chk?.classList.add('on');
   }
+  _updatePanelSaveBtn('lock', tempLocked.size);
 }
 function saveLockedApps(){
   S.lockedPkgs=[...tempLocked]; saveS();
@@ -120,7 +200,10 @@ function updateLockedSub(){
 let tempHidden=new Set();
 function openPanel_hide(){
   tempHidden=new Set(S.hiddenPkgs);
+  _panelFilters.hide = 'all';
+  setPanelFilter('hide','all');
   renderHideList();
+  _updatePanelSaveBtn('hide', tempHidden.size);
 }
 function renderHideList(){
   let all = [];
@@ -143,12 +226,14 @@ function toggleTempHide(pkg,row){
   const chk=document.getElementById('chk-hide-'+pkg.replace(/\./g,'_'));
   if(tempHidden.has(pkg)){
     tempHidden.delete(pkg); chk?.classList.remove('on');
+    if(_panelFilters.hide==='selected' && row) row.style.display='none';
   } else {
     if(!ProTier.isPro && tempHidden.size >= ProTier.getLimit('HIDDEN_APPS_UNLIMITED')){
       ProTier.triggerUpsell('HIDDEN_APPS_UNLIMITED'); return;
     }
     tempHidden.add(pkg); chk?.classList.add('on');
   }
+  _updatePanelSaveBtn('hide', tempHidden.size);
 }
 function saveHiddenApps(){
   S.hiddenPkgs=[...tempHidden]; saveS();
@@ -174,7 +259,7 @@ function renderTimerList(){
       ? `ProTier.triggerUpsell('TIMER_APPS_UNLIMITED')`
       : `openTimerForApp('${escAttr(a.packageName)}','${escHtml(a.name)}',${usageMap[a.packageName]||0})`;
     return `
-    <div class="app-sel-row" data-name="${escAttr(a.name)}"
+    <div class="app-sel-row" data-name="${escAttr(a.name)}" data-has-timer="${hasLimit?'1':'0'}"
          onclick="${onclick}" style="${atLimit?'opacity:.55':''}">
       <div class="app-sel-ico">${appIco(a.packageName,40,11)}</div>
       <div style="flex:1;min-width:0">
@@ -190,6 +275,28 @@ function renderTimerList(){
           :`<div style="font-family:var(--ff-m);font-size:10px;color:var(--t3)">No limit</div>`}
     </div>`;
   });
+  // Re-apply "Has Timer" filter if active, using data-has-timer attr
+  if (_panelFilters.timer === 'selected') {
+    const list = document.getElementById('timer-list');
+    list && list.querySelectorAll('.cat-pick-group').forEach(function(g) {
+      var rows = g.querySelectorAll('.app-sel-row');
+      var anyOn = false;
+      rows.forEach(function(row) {
+        var has = row.getAttribute('data-has-timer') === '1';
+        row.style.display = has ? '' : 'none';
+        if (has) anyOn = true;
+      });
+      g.style.display = anyOn ? '' : 'none';
+      if (anyOn) {
+        var catName = g.getAttribute('data-cat') || '';
+        var safeKey = 'timer-list_' + catName.replace(/[^a-zA-Z0-9]/g,'_');
+        var appsEl  = document.getElementById('pcap_' + safeKey);
+        var arrow   = document.getElementById('pcar_' + safeKey);
+        if (appsEl) appsEl.style.display = 'block';
+        if (arrow)  arrow.classList.add('open');
+      }
+    });
+  }
 }
 function updateTimersSub(){
   const count=Object.keys(S.limits).length;

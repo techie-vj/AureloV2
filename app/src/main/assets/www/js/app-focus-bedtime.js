@@ -530,9 +530,10 @@ window.FocusBedtime = (function () {
         '</div>';
     }).join('');
     var overflow = _btBlockedApps.length > 5
-      ? '<div class="focus-app-chip" style="background:var(--s2);border-color:var(--border2);' +
-        'color:var(--t3);font-family:var(--ff-m);font-size:10px;cursor:default">' +
-        '+' + (_btBlockedApps.length - 5) + '</div>'
+      ? '<div class="focus-app-chip" onclick="_btInlineOpenBlockPicker(true)"' +
+        ' style="background:var(--s2);border-color:var(--border2);color:var(--t3);' +
+        'font-family:var(--ff-m);font-size:10px;cursor:pointer;font-weight:700">' +
+        '+' + (_btBlockedApps.length - 5) + ' more</div>'
       : '';
     wrap.innerHTML = chips + overflow + (_btBlockedApps.length < 20
       ? '<div onclick="_btInlineOpenBlockPicker()" style="font-family:var(--ff-m);font-size:11px;color:var(--t3);' +
@@ -545,7 +546,7 @@ window.FocusBedtime = (function () {
    * Check overlay permission, then open the app-picker panel seeded with
    * the current bedtime blocked-apps list.
    */
-  function _btInlineOpenBlockPicker() {
+  function _btInlineOpenBlockPicker(inSelected) {
     if (IS_NATIVE && typeof N.hasOverlayPermission === 'function' && !N.hasOverlayPermission()) {
       showConfirm(
         '"Display over other apps" needed',
@@ -558,12 +559,12 @@ window.FocusBedtime = (function () {
       );
       return;
     }
-    _btInlineOpenBlockPickerNow();
+    _btInlineOpenBlockPickerNow(inSelected);
   }
   window._btInlineOpenBlockPicker = _btInlineOpenBlockPicker;
 
   /** Open the picker immediately (called after permission confirmed). */
-  function _btInlineOpenBlockPickerNow() {
+  function _btInlineOpenBlockPickerNow(inSelected) {
     // Seed live list from saved cfg if empty
     if (!_btBlockedApps.length) {
       var cfg = _getBedtimeCfg();
@@ -595,7 +596,7 @@ window.FocusBedtime = (function () {
     // We do this after building the picker (which uses the selection we seeded)
     if (typeof openFocusAppPicker === 'function') {
       // openFocusAppPicker sets mode='bedtime' — then we re-apply our selection
-      openFocusAppPicker('bedtime');
+      openFocusAppPicker('bedtime', inSelected);
       // Re-seed selection & rebuild list because openFocusAppPicker overwrites from _focusBlockedApps
       if (typeof FocusTab !== 'undefined') {
         FocusTab.setPickerSelected(new Set(_btBlockedApps.map(function (a) { return a.packageName; })));
@@ -955,9 +956,10 @@ window.FocusBedtime = (function () {
         '</div>';
     }).join('');
     var overflowChip = blockedApps.length > 5
-      ? '<div class="focus-app-chip" style="background:var(--s2);border-color:var(--border2);' +
-        'color:var(--t3);font-family:var(--ff-m);font-size:10px;cursor:default">' +
-        '+' + (blockedApps.length - 5) + '</div>'
+      ? '<div class="focus-app-chip" onclick="openFocusAppPicker(\'bedtime\',true)"' +
+        ' style="background:var(--s2);border-color:var(--border2);color:var(--t3);' +
+        'font-family:var(--ff-m);font-size:10px;cursor:pointer;font-weight:700">' +
+        '+' + (blockedApps.length - 5) + ' more</div>'
       : '';
 
     var settingsOpen = !!S.settings.bedtimeSettingsExpanded;
@@ -1022,7 +1024,7 @@ window.FocusBedtime = (function () {
                 'font-family:var(--ff-m);font-size:11px;font-weight:700;' +
                 'border:1px solid ' + (on ? 'var(--p)' : 'var(--border2)') + ';' +
                 'background:' + (on ? 'var(--p)' : 'var(--bg)') + ';' +
-                'color:' + (on ? '#fff' : 'var(--t3)') + '">' + lbl + dotHtml + '</div>';
+                'color:' + (on ? '#fff' : 'var(--t3)') + '">' + lbl + '</div>';
             }).join('') +
           '</div>' +
         '</div>' +

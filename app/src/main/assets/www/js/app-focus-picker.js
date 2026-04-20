@@ -1,11 +1,6 @@
 'use strict';
 /* ═══════════════════════════════════════════════════════════════
  * APP PICKER MODULE — app-focus-picker.js
- * Phase 2 extract from app-focus.js
- *
- * Owns: Focus schedule templates, shared app-picker panel (block /
- *       intention / bedtime / routine modes), blocked-app chip
- *       management.
  *
  * Depends on globals: FocusTab, FocusRoutine, FocusMindful,
  *   FocusBedtime, ProTier, S, IS_NATIVE, N, CATS_MAP, CAT_ICONS,
@@ -26,28 +21,26 @@
  * ═══════════════════════════════════════════════════════════════ */
 window.FocusPicker = (function () {
 
-  /* ── Picker state ────────────────────────────────────────────── */
+  /* ── State ────────────────────────────────────────────────── */
   var _pickerUsageMap = {};
   var _pickerMaxMins  = 1;
+  var _pickerFilter   = 'all'; // 'all' | 'selected'
 
-  /* ═══════════════════════════════════════════════════════════════
+  /* ═══════════════════════════════════════════════════════════
    * SCHEDULE TEMPLATES
-   * ═══════════════════════════════════════════════════════════════ */
+   * ═══════════════════════════════════════════════════════════ */
   var FOCUS_SCHEDULE_TEMPLATES = [
-    { id:'tpl_morning',  emoji:'🌅', name:'Morning Focus', days:[1,2,3,4,5], startHour:8,  startMin:0, durationMins:60,  difficulty:'firm',  categoryNames:['Social','Entertainment','Social & Communication','Entertainment & Video'] },
-    { id:'tpl_deepwork', emoji:'💼', name:'Deep Work',     days:[1,2,3,4,5], startHour:14, startMin:0, durationMins:90,  difficulty:'deep',  categoryNames:['Social','Gaming','Entertainment','Social & Communication','Entertainment & Video'] },
+    { id:'tpl_morning',  emoji:'🌅', name:'Morning Focus', days:[1,2,3,4,5], startHour:8,  startMin:0, durationMins:60,  difficulty:'firm', categoryNames:['Social','Entertainment','Social & Communication','Entertainment & Video'] },
+    { id:'tpl_deepwork', emoji:'💼', name:'Deep Work',     days:[1,2,3,4,5], startHour:14, startMin:0, durationMins:90,  difficulty:'deep', categoryNames:['Social','Gaming','Entertainment','Social & Communication','Entertainment & Video'] },
     { id:'tpl_winddown', emoji:'🌙', name:'Wind Down',     days:[0,1,2,3,4,5,6], startHour:21, startMin:0, durationMins:60, difficulty:'firm', categoryNames:['Social','Gaming','Social & Communication'] },
-    { id:'tpl_study',    emoji:'🎓', name:'Study Block',   days:[1,2,3,4,5], startHour:16, startMin:0, durationMins:45,  difficulty:'deep',  categoryNames:['Social','Gaming','Entertainment','Social & Communication','Entertainment & Video'] },
+    { id:'tpl_study',    emoji:'🎓', name:'Study Block',   days:[1,2,3,4,5], startHour:16, startMin:0, durationMins:45,  difficulty:'deep', categoryNames:['Social','Gaming','Entertainment','Social & Communication','Entertainment & Video'] },
   ];
 
   function _resolveTemplateApps(tpl) {
     var apps = [], seen = new Set();
     tpl.categoryNames.forEach(function (catName) {
       (CATS_MAP[catName] || []).forEach(function (a) {
-        if (!seen.has(a.packageName)) {
-          seen.add(a.packageName);
-          apps.push({ packageName: a.packageName, name: a.name });
-        }
+        if (!seen.has(a.packageName)) { seen.add(a.packageName); apps.push({ packageName: a.packageName, name: a.name }); }
       });
     });
     return apps;
@@ -58,18 +51,90 @@ window.FocusPicker = (function () {
     if (!tpl) return;
     if (!ProTier.isPro) { ProTier.triggerUpsell('FOCUS_SCHEDULE'); return; }
     var resolvedApps = _resolveTemplateApps(tpl);
-    var prefill = {
-      name: tpl.name, emoji: tpl.emoji, difficulty: tpl.difficulty,
-      days: tpl.days, startHour: tpl.startHour, startMin: tpl.startMin,
-      durationMins: tpl.durationMins, blockedApps: resolvedApps, templateId: tpl.id,
-    };
+    var prefill = { name: tpl.name, emoji: tpl.emoji, difficulty: tpl.difficulty, days: tpl.days, startHour: tpl.startHour, startMin: tpl.startMin, durationMins: tpl.durationMins, blockedApps: resolvedApps, templateId: tpl.id };
     if (typeof FocusRoutine !== 'undefined') FocusRoutine.openRoutinePicker(null, prefill);
     else if (typeof openRoutinePicker === 'function') openRoutinePicker(null, prefill);
   }
 
-  /* ═══════════════════════════════════════════════════════════════
+  /* ═══════════════════════════════════════════════════════════
+   * FILTER PILLS
+   * ═══════════════════════════════════════════════════════════ */
+
+  /* Update the "All / Selected (N)" pill UI and apply the filter */
+  function _setFilter(filter) {
+    _pickerFilter = filter;
+    var pillAll  = document.getElementById('fp-filter-all');
+    var pillSel  = document.getElementById('fp-filter-selected');
+    var sel      = FocusTab.getPickerSelected();
+    var selCount = sel.size;
+
+    if (pillAll) {
+      var on = filter === 'all';
+      pillAll.style.background    = on ? 'var(--p)' : 'transparent';
+      pillAll.style.color         = on ? '#fff'     : 'var(--t3)';
+      pillAll.style.borderColor   = on ? 'var(--p)' : 'var(--border2)';
+    }
+    if (pillSel) {
+      var on2 = filter === 'selected';
+      pillSel.textContent         = 'Selected' + (selCount > 0 ? ' (' + selCount + ')' : '');
+      pillSel.style.background    = on2 ? 'var(--p)' : 'transparent';
+      pillSel.style.color         = on2 ? '#fff'      : 'var(--t3)';
+      pillSel.style.borderColor   = on2 ? 'var(--p)'  : 'var(--border2)';
+    }
+    _applyFilter();
+  }
+
+  /* Show/hide rows based on the active filter */
+  function _applyFilter() {
+    var listEl = document.getElementById('focus-picker-list');
+    if (!listEl) return;
+    var sel    = FocusTab.getPickerSelected();
+    var groups = listEl.querySelectorAll('.cat-pick-group');
+
+    if (_pickerFilter === 'all') {
+      // Restore all rows, collapse categories (search may have opened them)
+      groups.forEach(function (group) {
+        group.style.display = '';
+        group.querySelectorAll('.app-sel-row').forEach(function (row) { row.style.display = ''; });
+      });
+    } else {
+      // Selected filter: show only selected apps, auto-expand their categories
+      groups.forEach(function (group) {
+        var rows    = group.querySelectorAll('.app-sel-row');
+        var anyOn   = false;
+        rows.forEach(function (row) {
+          var pkg    = row.getAttribute('data-pkg');
+          var isOn   = pkg ? sel.has(pkg) : false;
+          row.style.display = isOn ? '' : 'none';
+          if (isOn) anyOn = true;
+        });
+        group.style.display = anyOn ? '' : 'none';
+        if (anyOn) {
+          // Auto-expand this category
+          var catName = group.getAttribute('data-cat') || '';
+          var catId   = 'catpick_' + catName.replace(/[^a-zA-Z0-9]/g, '_');
+          var appsEl  = document.getElementById('catapps_' + catId);
+          var arrowEl = document.getElementById('catarrow_' + catId);
+          if (appsEl) appsEl.style.display = 'block';
+          if (arrowEl) arrowEl.classList.add('open');
+        }
+      });
+    }
+  }
+
+  /* Update the live selected-count badge on pill + Save button */
+  function _updateSelectionUI() {
+    var sel      = FocusTab.getPickerSelected();
+    var selCount = sel.size;
+    var pillSel  = document.getElementById('fp-filter-selected');
+    if (pillSel) pillSel.textContent = 'Selected' + (selCount > 0 ? ' (' + selCount + ')' : '');
+    var saveBtn  = document.getElementById('fp-save-btn');
+    if (saveBtn) saveBtn.textContent = selCount > 0 ? 'Save (' + selCount + ')' : 'Save';
+  }
+
+  /* ═══════════════════════════════════════════════════════════
    * PICKER HTML BUILDERS
-   * ═══════════════════════════════════════════════════════════════ */
+   * ═══════════════════════════════════════════════════════════ */
 
   function buildPickerUsageMap() {
     _pickerUsageMap = {};
@@ -84,11 +149,10 @@ window.FocusPicker = (function () {
 
   function _catPickState(catApps) {
     if (!catApps.length) return 'none';
-    var sel = catApps.filter(function (a) {
-      return FocusTab.getPickerSelected().has(a.packageName);
-    }).length;
-    if (sel === catApps.length) return 'all';
-    return sel > 0 ? 'partial' : 'none';
+    var sel = FocusTab.getPickerSelected();
+    var selCount = catApps.filter(function (a) { return sel.has(a.packageName); }).length;
+    if (selCount === catApps.length) return 'all';
+    return selCount > 0 ? 'partial' : 'none';
   }
 
   function _pickerAppRow(a, idPrefix) {
@@ -96,7 +160,7 @@ window.FocusPicker = (function () {
     var pct    = Math.round((mins / _pickerMaxMins) * 100);
     var isOn   = FocusTab.getPickerSelected().has(a.packageName);
     var safeId = (idPrefix + a.packageName).replace(/[^a-zA-Z0-9_]/g, '_');
-    return '<div class="app-sel-row" data-name="' + escAttr(a.name) + '"' +
+    return '<div class="app-sel-row" data-name="' + escAttr(a.name) + '" data-pkg="' + escAttr(a.packageName) + '"' +
       ' onclick="FocusPicker.togglePick(\'' + escAttr(a.packageName) + '\',\'' + escAttr(a.name) + '\',this)">' +
       '<div class="app-sel-ico">' + appIco(a.packageName, 40, 11) + '</div>' +
       '<div style="flex:1;min-width:0">' +
@@ -105,7 +169,7 @@ window.FocusPicker = (function () {
                 '<div class="app-sel-sub">' + fmtM(mins) + ' today</div>' : '') +
       '</div>' +
       '<div class="app-sel-check' + (isOn ? ' on' : '') + '" id="' + safeId + '"></div>' +
-      '</div>';
+    '</div>';
   }
 
   function buildPickerHTML() {
@@ -121,6 +185,7 @@ window.FocusPicker = (function () {
       var icon   = (typeof CAT_ICONS !== 'undefined' && CAT_ICONS[catName]) || '📱';
       var catMins= catApps.reduce(function (s, a) { return s + (_pickerUsageMap[a.packageName] || 0); }, 0);
       var catId  = 'catpick_' + catName.replace(/[^a-zA-Z0-9]/g, '_');
+      var selInCat = catApps.filter(function(a){ return FocusTab.getPickerSelected().has(a.packageName); }).length;
       html +=
         '<div class="cat-pick-group" data-cat="' + escAttr(catName) + '">' +
           '<div class="cat-pick-hdr" onclick="FocusPicker.toggleCatExpand(\'' + escAttr(catName) + '\')">' +
@@ -130,9 +195,10 @@ window.FocusPicker = (function () {
             '<div style="flex:1;min-width:0">' +
               '<div class="app-sel-name">' + escHtml(catName) + '</div>' +
               '<div class="app-sel-sub">' + catApps.length + ' app' + (catApps.length !== 1 ? 's' : '') +
-              (catMins ? ' \u00b7 ' + fmtM(catMins) + ' today' : '') + '</div>' +
+              (selInCat > 0 ? ' · <span style="color:var(--p)">' + selInCat + ' selected</span>' : '') +
+              (catMins ? ' · ' + fmtM(catMins) + ' today' : '') + '</div>' +
             '</div>' +
-            '<div class="cat-pick-arrow" id="catarrow_' + catId + '">\u25b6</div>' +
+            '<div class="cat-pick-arrow" id="catarrow_' + catId + '">▶</div>' +
           '</div>' +
           '<div class="cat-pick-apps" id="catapps_' + catId + '" style="display:none">' +
             catApps.map(function (a) { return _pickerAppRow(a, 'fpick_'); }).join('') +
@@ -142,23 +208,26 @@ window.FocusPicker = (function () {
     return html;
   }
 
-  /* ═══════════════════════════════════════════════════════════════
-   * PICKER OPEN / INTERACTIONS
-   * ═══════════════════════════════════════════════════════════════ */
+  /* ═══════════════════════════════════════════════════════════
+   * PICKER OPEN
+   * ═══════════════════════════════════════════════════════════ */
 
-  function openPicker(mode) {
+  /**
+   * openPicker(mode, openInSelectedView)
+   *   mode              — 'block' | 'intention' | 'bedtime' | 'routine'
+   *   openInSelectedView — if true, start in Selected filter (used by +X chips)
+   */
+  function openPicker(mode, openInSelectedView) {
     mode = mode || 'block';
+    _pickerFilter = openInSelectedView ? 'selected' : 'all';
     if (typeof FocusTab !== 'undefined') FocusTab.setPickerMode(mode);
 
     var title, currentPkgs;
     if (mode === 'intention') {
-      title       = 'Intention Prompt Apps';
+      title       = 'Mindful Pause Apps';
       currentPkgs = new Set((typeof FocusMindful !== 'undefined' ? FocusMindful.getApps() : []).map(function (a) { return a.packageName; }));
     } else if (mode === 'bedtime') {
-      title = 'Block During Bedtime';
-      // Prefer the live in-memory list (_btBlockedApps) over the persisted cfg so that
-      // unsaved picker selections survive reopening the picker before hitting Save.
-      // Fall back to cfg.blockedApps only on first open when _btBlockedApps is empty.
+      title       = 'Block During Bedtime';
       var _btLive = (window._btBlockedApps && window._btBlockedApps.length)
         ? window._btBlockedApps
         : (typeof FocusBedtime !== 'undefined' ? (FocusBedtime.getCfg().blockedApps || []) : []);
@@ -170,11 +239,9 @@ window.FocusPicker = (function () {
 
     FocusTab.setPickerSelected(currentPkgs);
 
-    // Ensure CATS_MAP is populated
     if (typeof CATS_MAP !== 'undefined' && !Object.keys(CATS_MAP).length && IS_NATIVE) {
       try { buildCatsMap(JSON.parse(N.getCachedApps() || '[]')); } catch (_) {}
     }
-
     buildPickerUsageMap();
 
     var titleEl  = document.getElementById('focus-picker-title');
@@ -183,8 +250,31 @@ window.FocusPicker = (function () {
     if (titleEl)  titleEl.textContent = title;
     if (listEl)   listEl.innerHTML    = buildPickerHTML();
     if (searchEl) { searchEl.value = ''; searchEl.oninput = function () { filterSearch(searchEl.value); }; }
+
+    // Render filter pills
+    var filterRow = document.getElementById('fp-filter-row');
+    if (filterRow) {
+      filterRow.innerHTML =
+        '<button id="fp-filter-all" onclick="FocusPicker.setFilter(\'all\')"' +
+        ' style="padding:5px 14px;border-radius:99px;border:1px solid var(--p);background:var(--p);' +
+        'color:#fff;font-family:var(--ff-m);font-size:11px;font-weight:700;cursor:pointer">All</button>' +
+        '<button id="fp-filter-selected" onclick="FocusPicker.setFilter(\'selected\')"' +
+        ' style="padding:5px 14px;border-radius:99px;border:1px solid var(--border2);background:transparent;' +
+        'color:var(--t3);font-family:var(--ff-m);font-size:11px;font-weight:700;cursor:pointer">Selected</button>';
+    }
+
+    // Apply initial filter (updates pill styles + potentially filters list)
+    _setFilter(_pickerFilter);
+    _updateSelectionUI();
+
     if (typeof openPanel === 'function') openPanel('focus-picker-panel');
   }
+
+  function setFilter(f) { _setFilter(f); }
+
+  /* ═══════════════════════════════════════════════════════════
+   * EXPAND / TOGGLE
+   * ═══════════════════════════════════════════════════════════ */
 
   function toggleCatExpand(catName) {
     var catId  = 'catpick_' + catName.replace(/[^a-zA-Z0-9]/g, '_');
@@ -202,8 +292,7 @@ window.FocusPicker = (function () {
     var selectAll= state !== 'all';
     var sel      = FocusTab.getPickerSelected();
     catApps.forEach(function (a) {
-      if (selectAll) sel.add(a.packageName);
-      else           sel.delete(a.packageName);
+      if (selectAll) sel.add(a.packageName); else sel.delete(a.packageName);
       var safeId = ('fpick_' + a.packageName).replace(/[^a-zA-Z0-9_]/g, '_');
       var chk    = document.getElementById(safeId);
       if (chk) chk.classList.toggle('on', selectAll);
@@ -211,6 +300,21 @@ window.FocusPicker = (function () {
     var catId  = 'catpick_' + catName.replace(/[^a-zA-Z0-9]/g, '_');
     var catChk = document.getElementById('catcheck_' + catId);
     if (catChk) { catChk.classList.toggle('on', selectAll); catChk.classList.remove('partial'); }
+    // Refresh category sub-label
+    var listEl = document.getElementById('focus-picker-list');
+    if (listEl) {
+      var group   = listEl.querySelector('[data-cat="' + catName + '"]');
+      var subEl   = group && group.querySelector('.cat-pick-hdr .app-sel-sub');
+      if (subEl) {
+        var selCount = catApps.filter(function(a){ return sel.has(a.packageName); }).length;
+        var catMins  = catApps.reduce(function(s,a){ return s + (_pickerUsageMap[a.packageName]||0); }, 0);
+        subEl.innerHTML = catApps.length + ' app' + (catApps.length !== 1 ? 's' : '') +
+          (selCount > 0 ? ' · <span style="color:var(--p)">' + selCount + ' selected</span>' : '') +
+          (catMins ? ' · ' + fmtM(catMins) + ' today' : '');
+      }
+    }
+    _updateSelectionUI();
+    if (_pickerFilter === 'selected') _applyFilter();
   }
 
   function togglePick(pkg, name, row) {
@@ -219,6 +323,7 @@ window.FocusPicker = (function () {
     var safeId = ('fpick_' + pkg).replace(/[^a-zA-Z0-9_]/g, '_');
     var chk    = document.getElementById(safeId);
     if (chk) chk.classList.toggle('on', sel.has(pkg));
+    // Update category header state + sub-label
     var catName = Object.keys(CATS_MAP).find(function (k) {
       return CATS_MAP[k].some(function (a) { return a.packageName === pkg; });
     });
@@ -230,20 +335,44 @@ window.FocusPicker = (function () {
         catChk.classList.toggle('on',      st === 'all');
         catChk.classList.toggle('partial', st === 'partial');
       }
+      var listEl = document.getElementById('focus-picker-list');
+      if (listEl) {
+        var group   = listEl.querySelector('[data-cat="' + catName + '"]');
+        var subEl   = group && group.querySelector('.cat-pick-hdr .app-sel-sub');
+        if (subEl) {
+          var catApps  = CATS_MAP[catName] || [];
+          var selCount = catApps.filter(function(a){ return sel.has(a.packageName); }).length;
+          var catMins  = catApps.reduce(function(s,a){ return s + (_pickerUsageMap[a.packageName]||0); }, 0);
+          subEl.innerHTML = catApps.length + ' app' + (catApps.length !== 1 ? 's' : '') +
+            (selCount > 0 ? ' · <span style="color:var(--p)">' + selCount + ' selected</span>' : '') +
+            (catMins ? ' · ' + fmtM(catMins) + ' today' : '');
+        }
+      }
     }
+    _updateSelectionUI();
+    // In selected view, hide a row that was just de-selected
+    if (_pickerFilter === 'selected' && !sel.has(pkg) && row) row.style.display = 'none';
   }
+
+  /* ═══════════════════════════════════════════════════════════
+   * SEARCH — respects active filter
+   * ═══════════════════════════════════════════════════════════ */
 
   function filterSearch(query) {
     var q      = (query || '').toLowerCase().trim();
     var groups = document.querySelectorAll('#focus-picker-list .cat-pick-group');
+    var sel    = FocusTab.getPickerSelected();
     groups.forEach(function (group) {
       var catName  = (group.getAttribute('data-cat') || '').toLowerCase();
       var catMatch = catName.includes(q);
       var appRows  = group.querySelectorAll('.app-sel-row');
       var anyApp   = false;
       appRows.forEach(function (row) {
-        var nm  = (row.getAttribute('data-name') || '').toLowerCase();
-        var show= !q || catMatch || nm.includes(q);
+        var nm      = (row.getAttribute('data-name') || '').toLowerCase();
+        var pkg     = row.getAttribute('data-pkg') || '';
+        var matchQ  = !q || catMatch || nm.includes(q);
+        var matchSel= _pickerFilter !== 'selected' || sel.has(pkg);
+        var show    = matchQ && matchSel;
         row.style.display = show ? '' : 'none';
         if (show) anyApp = true;
       });
@@ -258,20 +387,19 @@ window.FocusPicker = (function () {
     });
   }
 
-  /* ═══════════════════════════════════════════════════════════════
-   * SAVE PICK
-   * ═══════════════════════════════════════════════════════════════ */
+  /* ═══════════════════════════════════════════════════════════
+   * SAVE
+   * ═══════════════════════════════════════════════════════════ */
 
   function savePick() {
     var mode = typeof FocusTab !== 'undefined' ? FocusTab.getPickerMode() : 'block';
+    _pickerFilter = 'all'; // reset for next open
 
-    // Routine mode — delegate to FocusRoutine
     if (FocusTab.getPickerReturnTarget() === 'routine') {
       if (typeof FocusRoutine !== 'undefined') FocusRoutine.handlePickerSave();
       return;
     }
 
-    // Build apps array
     var all = IS_NATIVE
       ? (function () { try { return JSON.parse(N.getAllApps() || '[]'); } catch (_) { return []; } })()
       : Object.values(CATS_MAP).flat();
@@ -281,7 +409,6 @@ window.FocusPicker = (function () {
       return { packageName: pkg, name: (appMap[pkg] && appMap[pkg].name) || pkg.split('.').pop() };
     });
 
-    // Bedtime mode
     if (mode === 'bedtime') {
       FocusTab.setPickerMode('block');
       if (typeof window._btOnBlockPickerSave === 'function') window._btOnBlockPickerSave(apps);
@@ -289,8 +416,6 @@ window.FocusPicker = (function () {
       toast('Apps updated', 'success');
       return;
     }
-
-    // Intention mode
     if (mode === 'intention') {
       if (!ProTier.isPro && apps.length > ProTier.getLimit('MINDFUL_OPENING_UNLIMITED')) {
         if (typeof closePanel === 'function') closePanel('focus-picker-panel');
@@ -303,8 +428,6 @@ window.FocusPicker = (function () {
       toast('Apps updated', 'success');
       return;
     }
-
-    // Block mode (default)
     if (!ProTier.isPro && apps.length > ProTier.getLimit('FOCUS_APPS_UNLIMITED')) {
       if (typeof closePanel === 'function') closePanel('focus-picker-panel');
       ProTier.triggerUpsell('FOCUS_APPS_UNLIMITED');
@@ -314,35 +437,29 @@ window.FocusPicker = (function () {
     FocusTab.saveBlockedApps();
     FocusTab.refreshChips();
     if (typeof closePanel === 'function') closePanel('focus-picker-panel');
-
-    // Update native session if running
     var ss = FocusTab.getSessionState();
     if (ss.active && IS_NATIVE) {
-      try {
-        var newEndTs = Date.now() + (ss.secs * 1000);
-        N.updateFocusSession(JSON.stringify(apps), newEndTs, ss.difficulty);
-      } catch (_) {}
+      try { N.updateFocusSession(JSON.stringify(apps), Date.now() + (ss.secs * 1000), ss.difficulty); } catch (_) {}
     }
     toast('Apps updated', 'success');
   }
 
-  /* ── Global shims ─────────────────────────────────────────────── */
-  function openFocusAppPicker(mode) { FocusPicker.openPicker(mode); }
-  function saveFocusPick()          { FocusPicker.savePick(); }
-  function toggleFocusPick(pkg, name, row) { FocusPicker.togglePick(pkg, name, row); }
-  function toggleFocusPickCategory(cat)    { FocusPicker.toggleCategory(cat); }
-  function togglePickCatExpand(cat)        { FocusPicker.toggleCatExpand(cat); }
-  function filterPickerSearch(q)           { FocusPicker.filterSearch(q); }
-  function activateTemplate(id)            { FocusPicker.activateTemplate(id); }
-  window.openFocusAppPicker     = openFocusAppPicker;
-  window.saveFocusPick          = saveFocusPick;
-  window.toggleFocusPick        = toggleFocusPick;
-  window.toggleFocusPickCategory= toggleFocusPickCategory;
-  window.togglePickCatExpand    = togglePickCatExpand;
-  window.filterPickerSearch     = filterPickerSearch;
-  window.activateTemplate       = activateTemplate;
+  /* ── Global shims ─────────────────────────────────────────── */
+  function openFocusAppPicker(mode, inSelected) { FocusPicker.openPicker(mode, inSelected); }
+  function saveFocusPick()                       { FocusPicker.savePick(); }
+  function toggleFocusPick(pkg, name, row)       { FocusPicker.togglePick(pkg, name, row); }
+  function toggleFocusPickCategory(cat)          { FocusPicker.toggleCategory(cat); }
+  function togglePickCatExpand(cat)              { FocusPicker.toggleCatExpand(cat); }
+  function filterPickerSearch(q)                 { FocusPicker.filterSearch(q); }
+  function activateTemplate(id)                  { FocusPicker.activateTemplate(id); }
+  window.openFocusAppPicker      = openFocusAppPicker;
+  window.saveFocusPick           = saveFocusPick;
+  window.toggleFocusPick         = toggleFocusPick;
+  window.toggleFocusPickCategory = toggleFocusPickCategory;
+  window.togglePickCatExpand     = togglePickCatExpand;
+  window.filterPickerSearch      = filterPickerSearch;
+  window.activateTemplate        = activateTemplate;
 
-  /* ── Public API ──────────────────────────────────────────────── */
   return {
     openPicker:          openPicker,
     savePick:            savePick,
@@ -350,6 +467,7 @@ window.FocusPicker = (function () {
     toggleCategory:      toggleCategory,
     toggleCatExpand:     toggleCatExpand,
     filterSearch:        filterSearch,
+    setFilter:           setFilter,
     activateTemplate:    activateTemplate,
     buildPickerHTML:     buildPickerHTML,
     buildPickerUsageMap: buildPickerUsageMap,

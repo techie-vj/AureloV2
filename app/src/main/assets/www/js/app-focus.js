@@ -304,7 +304,9 @@ window.FocusTab = (function () {
   }
 
   function _makeOverflowChip(count) {
-    return '<div class="focus-app-chip" style="background:var(--s2);border-color:var(--border2);color:var(--t3);font-family:var(--ff-m);font-size:10px;cursor:default">+' + count + '</div>';
+    return '<div class="focus-app-chip" onclick="openFocusAppPicker(\'block\',true)"' +
+      ' style="background:var(--s2);border-color:var(--border2);color:var(--p);' +
+      'font-family:var(--ff-m);font-size:10px;cursor:pointer;font-weight:700">+' + count + ' more</div>';
   }
 
   function _renderSessionIdle() {
