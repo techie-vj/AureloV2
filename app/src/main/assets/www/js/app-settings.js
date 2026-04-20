@@ -11,6 +11,7 @@ var APP_THEMES=[
   {key:'midnight', label:'Midnight',     icon:'🌌', isPro:true},
   {key:'forest',   label:'Forest',       icon:'🌿', isPro:true},
   {key:'rose',     label:'Rose',         icon:'🌸', isPro:true},
+  {key:'aurelo-gold', label:'Aurelo ✨',  icon:'⚜️', isPro:true, desc:'Aurelo signature palette', swatchBg:'linear-gradient(135deg,#0C0900,#FFAA44)'},
 ];
 function applyTheme(t){
   var keys=APP_THEMES.map(function(x){return x.key;});
@@ -59,7 +60,7 @@ function renderAppThemeList(){
   APP_THEMES.forEach(function(t){
     var active=t.key===current;
     var locked=t.isPro&&!isPro;
-    html+='<div data-themekey="'+t.key+'" style="display:flex;align-items:center;gap:12px;padding:11px 15px;background:'+(active?'rgba(108,99,255,.08)':'var(--s1)')+';border:1px solid '+(active?'var(--p)':'var(--border)')+';border-radius:10px;margin:0 0 6px;cursor:pointer;'+(locked?'opacity:.65':'')+'">';
+    html+='<div data-themekey="'+t.key+'" role="option" tabindex="0" aria-selected="'+(active?'true':'false')+'" style="display:flex;align-items:center;gap:12px;padding:13px 15px;min-height:48px;background:'+(active?'rgba(108,99,255,.08)':'var(--s1)')+';border:1.5px solid '+(active?'var(--p)':'var(--border)')+';border-radius:10px;margin:0 0 6px;cursor:pointer;'+(locked?'opacity:.65':'')+'">';
     html+='<div style="font-size:20px">'+t.icon+'</div>';
     html+='<div style="flex:1"><div style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:600;color:var(--t1)">'+t.label+(locked?(typeof proBadge==='function'?proBadge(true):''):'')+'</div></div>';
     html+=active?'<div style="width:8px;height:8px;border-radius:50%;background:var(--p);flex-shrink:0"></div>':'';
@@ -161,7 +162,7 @@ function _ensureGoalModal() {
         'padding:16px 20px 28px;box-shadow:0 -8px 40px rgba(0,0,0,.5)">' +
       '<div class="modal-handle" style="width:36px;height:4px;border-radius:2px;' +
           'background:var(--border,rgba(255,255,255,.15));margin:0 auto 18px"></div>' +
-      '<div style="font-family:var(--ff-d);font-size:18px;font-weight:800;' +
+      '<div style="font-family:var(--ff-d);font-size:18px;font-weight:700;' +
           'color:var(--t1);margin-bottom:6px">Daily Screen Time Goal</div>' +
       '<div style="font-family:var(--ff-m);font-size:11px;color:var(--t3);' +
           'margin-bottom:18px">Choose how much daily screen time you\'re aiming for</div>' +
@@ -169,11 +170,11 @@ function _ensureGoalModal() {
           'gap:8px;margin-bottom:20px">' +
         btnHtml +
       '</div>' +
-      '<button onclick="saveStreakGoal()" style="width:100%;padding:14px;border-radius:14px;' +
+      '<button type="button" onclick="saveStreakGoal()" style="width:100%;padding:14px;border-radius:14px;' +
           'border:none;background:linear-gradient(135deg,var(--p),var(--c));color:#fff;' +
           'font-family:var(--ff-d);font-size:15px;font-weight:700;cursor:pointer">' +
           'Set Goal</button>' +
-      '<button onclick="_closeGoalModal()" style="width:100%;padding:12px;border-radius:14px;' +
+      '<button type="button" onclick="_closeGoalModal()" style="width:100%;padding:12px;border-radius:14px;' +
           'border:1px solid var(--border2,rgba(255,255,255,.12));background:transparent;' +
           'color:var(--t2);font-family:var(--ff-m);font-size:13px;cursor:pointer;' +
           'margin-top:8px">Cancel</button>' +
@@ -484,14 +485,14 @@ window.onBedtimeAppBlocked = function(appName) {
       <div style="width:48px;height:48px;border-radius:50%;
                   background:rgba(108,99,255,.15)"></div>
     </div>
-    <button onclick="_bedtimeSnooze(15);document.getElementById('bedtime-block-overlay')?.remove()"
+    <button type="button" onclick="_bedtimeSnooze(15);document.getElementById('bedtime-block-overlay')?.remove()"
       style="width:100%;max-width:280px;padding:14px;border-radius:14px;
              border:1px solid rgba(108,99,255,.35);background:rgba(108,99,255,.12);
              color:#c4c0ff;font-family:var(--ff-m,sans-serif);
              font-size:13px;font-weight:700;cursor:pointer;margin-bottom:10px">
       Just 15 more minutes
     </button>
-    <button onclick="document.getElementById('bedtime-block-overlay')?.remove()"
+    <button type="button" onclick="document.getElementById('bedtime-block-overlay')?.remove()"
       style="width:100%;max-width:280px;padding:12px;border-radius:14px;
              border:none;background:transparent;color:rgba(255,255,255,.3);
              font-family:var(--ff-m,sans-serif);font-size:12px;cursor:pointer">

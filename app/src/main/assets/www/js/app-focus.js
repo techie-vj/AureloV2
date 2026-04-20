@@ -401,7 +401,7 @@ window.FocusTab = (function () {
       '</div>' +
       (chips ? '<div style="display:flex;flex-wrap:wrap;gap:7px;margin-bottom:10px">' + chips + '</div>' : '') +
       '<div style="display:flex;gap:8px">' +
-        '<button onclick="FocusTab.handleEndSession()" class="focus-end-btn">End session</button>' +
+        '<button type="button" onclick="FocusTab.handleEndSession()" class="focus-end-btn">End session</button>' +
       '</div>';
 
     _updateOrbitDot(_focusSessionSecs, _focusSessionTotalSecs);
@@ -560,16 +560,16 @@ window.FocusTab = (function () {
             'border-top:1px solid var(--border2);border-bottom:1px solid var(--border2);' +
             'border-radius:8px;pointer-events:none"></div>' +
             '<div class="focus-drum-col" id="dur-drum-hours"></div>' +
-            '<div style="font-family:var(--ff-m);font-size:22px;color:var(--t2);font-weight:300;flex-shrink:0">:</div>' +
+            '<div style="font-family:var(--ff-m);font-size:22px;color:var(--t2);font-weight:400;flex-shrink:0">:</div>' +
             '<div class="focus-drum-col" id="dur-drum-mins"></div>' +
           '</div>' +
           '<div style="font-family:var(--ff-m);font-size:9px;color:var(--t3);' +
           'text-align:center;margin-bottom:18px;letter-spacing:.5px">hours : minutes</div>' +
           '<div style="display:flex;gap:10px">' +
-            '<button onclick="FocusTab.closeCustomDurPicker()" style="flex:1;padding:12px;border-radius:12px;' +
+            '<button type="button" onclick="FocusTab.closeCustomDurPicker()" style="flex:1;padding:12px;border-radius:12px;' +
             'border:1px solid var(--border2);background:transparent;color:var(--t2);' +
             'font-family:var(--ff-m);font-size:13px;cursor:pointer">Cancel</button>' +
-            '<button onclick="FocusTab.confirmCustomDur()" style="flex:1;padding:12px;border-radius:12px;' +
+            '<button type="button" onclick="FocusTab.confirmCustomDur()" style="flex:1;padding:12px;border-radius:12px;' +
             'border:none;background:linear-gradient(135deg,var(--p),var(--c));color:#fff;' +
             'font-family:var(--ff-m);font-size:13px;font-weight:600;cursor:pointer">Set Duration</button>' +
           '</div>' +

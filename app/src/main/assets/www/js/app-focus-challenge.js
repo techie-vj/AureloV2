@@ -281,10 +281,10 @@ window.FocusChallenge = (function () {
         (dots ? '<div style="display:flex;align-items:center;gap:10px;margin-bottom:14px"><div style="display:flex;gap:5px;flex:1">' + dots + '</div><div style="font-family:var(--ff-m);font-size:10px;color:var(--t2);white-space:nowrap">' + progressLabel + '</div></div>'
               : '<div style="font-family:var(--ff-m);font-size:11px;color:var(--t2);margin-bottom:14px">' + progressLabel + '</div>') +
         '<div style="display:flex;gap:8px">' +
-          '<button onclick="FocusChallenge.checkProgress(\'' + challenge.id + '\')" style="flex:1;padding:11px;border-radius:12px;border:none;background:linear-gradient(135deg,var(--p),var(--c));color:#fff;font-family:var(--ff-m);font-size:12px;font-weight:700;cursor:pointer">' +
+          '<button type="button" onclick="FocusChallenge.checkProgress(\'' + challenge.id + '\')" style="flex:1;padding:11px;border-radius:12px;border:none;background:linear-gradient(135deg,var(--p),var(--c));color:#fff;font-family:var(--ff-m);font-size:12px;font-weight:700;cursor:pointer">' +
             (isComplete ? '🏆 Completed!' : 'Check Progress →') +
           '</button>' +
-          '<button onclick="FocusChallenge.skipChallenge()" style="padding:11px 14px;border-radius:12px;border:1px solid var(--border);background:transparent;color:var(--t3);font-family:var(--ff-m);font-size:11px;cursor:pointer">Skip</button>' +
+          '<button type="button" onclick="FocusChallenge.skipChallenge()" style="padding:11px 14px;border-radius:12px;border:1px solid var(--border);background:transparent;color:var(--t3);font-family:var(--ff-m);font-size:11px;cursor:pointer">Skip</button>' +
         '</div>' +
         '<div style="display:flex;align-items:center;gap:7px;padding:9px 10px;background:rgba(247,184,35,.07);border:1px solid rgba(247,184,35,.18);border-radius:10px;margin-top:10px">' +
           '<span style="font-size:14px">🏆</span>' +

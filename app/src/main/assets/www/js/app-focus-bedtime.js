@@ -283,7 +283,7 @@ window.FocusBedtime = (function () {
             What would you like to do?
           </div>
 
-          <button onclick="snoozeBedtimePrompt();document.getElementById('bt-nudge-popup')?.remove()"
+          <button type="button" onclick="snoozeBedtimePrompt();document.getElementById('bt-nudge-popup')?.remove()"
             style="width:100%;padding:13px;border-radius:13px;
                    border:1px solid rgba(108,99,255,.35);
                    background:rgba(108,99,255,.12);color:#a09bff;
@@ -292,7 +292,7 @@ window.FocusBedtime = (function () {
             Just 15 more minutes
           </button>
 
-          <button onclick="_bedtimeSnooze(30);document.getElementById('bt-nudge-popup')?.remove()"
+          <button type="button" onclick="_bedtimeSnooze(30);document.getElementById('bt-nudge-popup')?.remove()"
             style="width:100%;padding:12px;border-radius:13px;
                    border:1px solid rgba(255,255,255,.1);
                    background:rgba(255,255,255,.05);color:rgba(238,238,255,.55);
@@ -300,7 +300,7 @@ window.FocusBedtime = (function () {
             30 more minutes
           </button>
 
-          <button onclick="_doDisableBedtime();document.getElementById('bt-nudge-popup')?.remove()"
+          <button type="button" onclick="_doDisableBedtime();document.getElementById('bt-nudge-popup')?.remove()"
             style="width:100%;padding:12px;border-radius:13px;border:none;
                    background:transparent;color:rgba(238,238,255,.3);
                    font-size:12px;cursor:pointer;display:block;margin-bottom:4px">
@@ -1108,7 +1108,7 @@ window.FocusBedtime = (function () {
             'Save Changes' +
           '</button>' +
           (cfg.enabled
-            ? '<button onclick="FocusBedtime.disable()"' +
+            ? '<button type="button" onclick="FocusBedtime.disable()"' +
               ' style="width:100%;padding:10px;border-radius:12px;border:1px solid var(--border2);' +
               'background:transparent;color:var(--t3);font-family:var(--ff-m);font-size:12px;cursor:pointer">' +
               'Turn Off Bedtime Mode</button>'

@@ -1,42 +1,283 @@
-/* ═══ TOKENS ══════════════════════════════════════ */
-:root{
-  --bg:#060610;--s0:#0B0B1C;--s1:#10101F;--s2:#161628;--s3:#1C1C2E;
-  --border:#1C1C34;--border2:#252545;
-  --p:#6C63FF;--p2:#9B95FF;--c:#05C8E8;--g:#12D48A;
-  --a:#F7A623;--r:#F04E7A;--pu:#B06EFF;
-  --t1:#EEEEFF;--t2:#8888BB;
-  /* WCAG AA fix: was #444466 (~1.96:1 contrast) → #7474A8 (~4.9:1) */
-  --t3:#7474A8;
-  --ff-d:'Bodoni Moda',Georgia,serif;
-  --ff-b:'Bricolage Grotesque',sans-serif;
-  --ff-m:'JetBrains Mono',monospace;
-  --rad:16px;
-  /* Theme-aware nav background */
-  --nav-bg:rgba(6,6,16,.95);
+/* ═══════════════════════════════════════════════════════
+   AURELO DESIGN TOKENS  v2.0
+   Single source of truth for every visual decision.
+   Load order: tokens.css must be first.
+   ═══════════════════════════════════════════════════════ */
+
+/* ── 1. DEFAULT (Dark Cosmos) ──────────────────────────── */
+:root {
+  /* Backgrounds */
+  --bg:     #060610;
+  --s0:     #0B0B1C;
+  --s1:     #10101F;
+  --s2:     #161628;
+  --s3:     #1C1C2E;
+  /* Borders */
+  --border:  #1C1C34;
+  --border2: #252545;
+  /* Brand palette */
+  --p:   #6C63FF;
+  --p2:  #9B95FF;
+  --c:   #05C8E8;
+  --g:   #12D48A;
+  --a:   #F7A623;
+  --r:   #F04E7A;
+  --pu:  #B06EFF;
+  /* Text — all WCAG 2.1 AA on --bg (#060610) */
+  --t1: #EEEEFF;   /* primary   ≥15:1 */
+  --t2: #8888BB;   /* secondary ≥5.2:1 */
+  --t3: #7474A8;   /* tertiary  ≥4.53:1 — raised from #444466 */
+  /* Fonts */
+  --ff-d: 'Bodoni Moda', Georgia, serif;
+  --ff-b: 'Bricolage Grotesque', system-ui, sans-serif;
+  --ff-m: 'JetBrains Mono', 'Courier New', monospace;
+  /* Typography scale */
+  --text-2xs:  10px;
+  --text-xs:   11px;
+  --text-sm:   12px;
+  --text-md:   13px;
+  --text-base: 14px;
+  --text-lg:   16px;
+  --text-xl:   18px;
+  --text-2xl:  20px;
+  --text-3xl:  26px;
+  --text-hero: 48px;
+  /* Font weights */
+  --fw-regular:  400;
+  --fw-medium:   500;
+  --fw-semibold: 600;
+  --fw-bold:     700;
+  --fw-mono:     500;
+  /* Border radii */
+  --rad-xs:   8px;
+  --rad-sm:  10px;
+  --rad-md:  13px;
+  --rad-lg:  16px;
+  --rad:     16px;
+  --rad-xl:  20px;
+  --rad-2xl: 24px;
+  --rad-full: 999px;
+  /* Spacing (4-pt grid) */
+  --sp-1:  4px; --sp-2:  8px; --sp-3: 12px;
+  --sp-4: 16px; --sp-5: 20px; --sp-6: 24px;
+  /* Accessibility */
+  --touch-min: 48px;
+  --focus-ring-color: var(--p2);
+  --focus-ring: 0 0 0 2px var(--bg), 0 0 0 4px var(--focus-ring-color);
+  /* Navigation */
+  --nav-bg: rgba(6,6,16,.95);
+  /* Shadows */
+  --shadow-sm: 0 2px 8px rgba(0,0,0,.35);
+  --shadow-md: 0 8px 28px rgba(0,0,0,.55);
+  --shadow-lg: 0 16px 48px rgba(0,0,0,.65);
 }
-:root[data-theme=light]{
-  --bg:#F2F4FA;--s0:#fff;--s1:#fff;--s2:#EAECF5;--s3:#E4E6F0;
-  --border:#DEE1ED;--border2:#CED2E3;--t1:#101223;--t2:#484C6A;
-  /* WCAG AA fix: was #727798 (~3.7:1 on light) → #5A5F80 (~5.4:1) */
-  --t3:#5A5F80;
+
+/* ── 2. LIGHT ─── */
+:root[data-theme=light] {
+  --bg:#F2F4FA; --s0:#fff; --s1:#fff; --s2:#EAECF5; --s3:#E4E6F0;
+  --border:#DEE1ED; --border2:#CED2E3;
+  --t1:#101223; --t2:#484C6A; --t3:#5A5F80;
   --nav-bg:rgba(242,244,250,.97);
+  --focus-ring-color: var(--p);
+  --shadow-sm:0 2px 8px rgba(0,0,0,.10);
+  --shadow-md:0 8px 28px rgba(0,0,0,.15);
 }
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-html,body{height:100%;overflow:hidden;background:var(--bg);-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
-body{font-family:var(--ff-b);color:var(--t1);overscroll-behavior:none;-webkit-tap-highlight-color:transparent}
-button,input{font-family:inherit}
-img{display:block}
-/* Re-enable text selection only inside real input fields */
-input[type=text],input[type=search],input[type=email],textarea{-webkit-user-select:text;user-select:text}
 
-/* ── BUG-002 Typography floor ─────────────────────────────────────────────
-   JetBrains Mono (--ff-m) renders visually thinner than a sans-serif at the
-   same px size. Without explicit weight it defaults to 400 on most Android
-   WebViews, but some OEM fonts substitute a lighter variant.
-   font-weight:500 on all --ff-m usage ensures minimum Medium weight so
-   labels stay legible at small sizes on devices like the Redmi Note 11S.
-   font-weight:300 has been eliminated throughout app.css and component CSS. */
-:root { --fw-mono: 500; }   /* consumed as font-weight:var(--fw-mono) in new rules */
+/* ── 3. AMOLED ─── */
+:root[data-theme=amoled] {
+  --bg:#000; --s0:#0A0A0A; --s1:#111; --s2:#1A1A1A; --s3:#222;
+  --border:#222; --border2:#2A2A2A;
+  --p:#6C63FF; --p2:#9B95FF; --c:#05C8E8; --g:#12D48A;
+  --a:#F7A623; --r:#F04E7A; --pu:#B06EFF;
+  --t1:#fff; --t2:#AAAAAA; --t3:#888888;
+  --nav-bg:rgba(0,0,0,.98);
+  --focus-ring-color: var(--p2);
+}
 
-/* Global weight floor for all elements that carry the mono font inline */
-[style*="font-family:var(--ff-m)"] { font-weight: 500; font-synthesis: weight; }
+/* ── 4. WARM SAND ─── */
+:root[data-theme=warm] {
+  --bg:#FAF7F2; --s0:#fff; --s1:#F5F0E8; --s2:#EDE8DD; --s3:#E5DFCF;
+  --border:#DDD8CC; --border2:#CCC8BC;
+  --p:#8B6914; --p2:#B8922A; --c:#C47D2E; --g:#5A8A3C;
+  --a:#C4882E; --r:#B85450; --pu:#8B6494;
+  --t1:#2C2416; --t2:#6B5E4A; --t3:#7A6B58;
+  --nav-bg:rgba(250,247,242,.97);
+  --focus-ring-color: var(--p);
+}
+
+/* ── 5. MIDNIGHT BLUE ─── */
+:root[data-theme=midnight] {
+  --bg:#080E1E; --s0:#0F1829; --s1:#162033; --s2:#1C2940; --s3:#243350;
+  --border:#233150; --border2:#2C3D60;
+  --p:#4F8EF7; --p2:#7AAEFF; --c:#38C9E8; --g:#34C28A;
+  --a:#F7B623; --r:#F05A7A; --pu:#A07EFF;
+  --t1:#E8EEFF; --t2:#7A8EBB; --t3:#5E6E9A;
+  --nav-bg:rgba(8,14,30,.95);
+  --focus-ring-color: var(--p2);
+}
+
+/* ── 6. FOREST ─── */
+:root[data-theme=forest] {
+  --bg:#0A1210; --s0:#101A17; --s1:#152219; --s2:#1B2D24; --s3:#223A2E;
+  --border:#223A2E; --border2:#2A4A3A;
+  --p:#3DAA7A; --p2:#5EC995; --c:#4ABFA0; --g:#6AC46A;
+  --a:#C4A83D; --r:#D4685A; --pu:#8A84D4;
+  --t1:#E2F0E8; --t2:#7AAA8A; --t3:#5E8A6C;
+  --nav-bg:rgba(10,18,16,.95);
+  --focus-ring-color: var(--p2);
+}
+
+/* ── 7. ROSE ─── */
+:root[data-theme=rose] {
+  --bg:#1A0D12; --s0:#24121A; --s1:#2E1822; --s2:#3A202C; --s3:#462836;
+  --border:#4A2A38; --border2:#5A3448;
+  --p:#E8609A; --p2:#F08AB8; --c:#E870B8; --g:#A8D880;
+  --a:#F0A050; --r:#F04878; --pu:#C884E8;
+  --t1:#FFE8F0; --t2:#CC8AA8; --t3:#B07088;
+  --nav-bg:rgba(26,13,18,.95);
+  --focus-ring-color: var(--p2);
+}
+
+/* ── 8. AURELO GOLD ✦  (brand-native theme) ─── */
+/*
+  Palette sourced directly from the Aurelo arch logo gradient.
+  Deep charred-earth black anchored by pure 22-karat gold.
+  Every accent maps to the logo's own warm spectrum.
+  No other app uses this palette — it is Aurelo's gold standard.
+*/
+:root[data-theme=aurelo-gold] {
+  /* Backgrounds — warm black earth */
+  --bg:     #0C0900;
+  --s0:     #181200;
+  --s1:     #201900;
+  --s2:     #2C2400;
+  --s3:     #382D00;
+  --border:  #3D3200;
+  --border2: #524300;
+  /* Gold palette — mirrors logo gradient exactly */
+  --p:   #FFAA44;   /* Aurelo Gold — primary */
+  --p2:  #FFD080;   /* Light gold */
+  --c:   #FFE082;   /* Warm champagne (cyan role) */
+  --g:   #BFCF38;   /* Amber-lime (success) */
+  --a:   #FF7020;   /* Deep amber (warning/accent) */
+  --r:   #FF5548;   /* Warm red */
+  --pu:  #CC9030;   /* Bronze (purple role) */
+  /* Text — warm ivory tones, all WCAG AA on #0C0900 */
+  --t1:  #FFF8E8;   /* ≥18:1 */
+  --t2:  #C8A870;   /* ≥6.1:1 */
+  --t3:  #C09860;   /* ≥4.71:1 */
+  --nav-bg: rgba(12,9,0,.97);
+  --focus-ring-color: var(--p2);
+  --shadow-sm:  0 2px 8px rgba(255,170,68,.12);
+  --shadow-md:  0 8px 28px rgba(0,0,0,.65);
+  --shadow-lg:  0 16px 48px rgba(0,0,0,.75);
+}
+
+/* ══ GLOBAL RESET ════════════════════════════════════════ */
+*, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+
+html, body {
+  height:100%; overflow:hidden; background:var(--bg);
+  -webkit-touch-callout:none; -webkit-user-select:none; user-select:none;
+}
+
+body {
+  font-family:var(--ff-b); font-size:var(--text-base);
+  font-weight:var(--fw-regular); color:var(--t1);
+  overscroll-behavior:none; -webkit-tap-highlight-color:transparent;
+}
+
+button, input, select, textarea { font-family:inherit; font-size:inherit; }
+img { display:block; }
+
+input[type=text], input[type=search], input[type=email],
+input[type=number], textarea {
+  -webkit-user-select:text; user-select:text;
+}
+
+/* ══ MONO WEIGHT FLOOR ══════════════════════════════════ */
+/* JetBrains Mono renders thin on some OEMs — always ≥500 */
+:root { --fw-mono: 500; }
+
+/* ══ ACCESSIBILITY — FOCUS VISIBLE ══════════════════════
+   Keyboard / switch-access users see a clear focus ring.
+   Mouse clicks do NOT show rings (:focus-visible).
+   ═════════════════════════════════════════════════════= */
+:focus { outline: none; }
+
+:focus-visible {
+  outline: 2px solid var(--focus-ring-color);
+  outline-offset: 2px;
+  box-shadow: none;
+}
+
+/* Inset ring variant for elements that clip overflow */
+.panel-back:focus-visible,
+.sheet-handle:focus-visible,
+.tog:focus-visible,
+.icon-btn:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+/* ══ ACCESSIBILITY — MINIMUM TOUCH TARGETS ══════════════
+   Google Material Design 3: 48×48dp minimum.
+   ═════════════════════════════════════════════════════= */
+.nav-item   { min-height: var(--touch-min); min-width: var(--touch-min); }
+.tog        { min-height: var(--touch-min); }
+.sr         { min-height: var(--touch-min); }
+.app-sel-row { min-height: var(--touch-min); }
+.sdr        { min-height: var(--touch-min); }
+.ta-row     { min-height: var(--touch-min); }
+.ghost-row  { min-height: var(--touch-min); }
+.ob-goal-btn { min-height: var(--touch-min); }
+.dur-btn    { min-height: var(--touch-min); }
+
+/* Small icon buttons: pseudo-element expands tap area */
+.panel-back,
+.dg-close,
+.hib-close,
+.vt-btn {
+  position: relative;
+  min-width: var(--touch-min);
+  min-height: var(--touch-min);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ══ ACCESSIBILITY — SCREEN READER ONLY ════════════════ */
+.sr-only {
+  position:absolute; width:1px; height:1px;
+  padding:0; margin:-1px; overflow:hidden;
+  clip:rect(0,0,0,0); white-space:nowrap; border:0;
+}
+
+/* ══ ACCESSIBILITY — REDUCED MOTION ════════════════════
+   Honour prefers-reduced-motion: reduce.
+   ═════════════════════════════════════════════════════= */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  /* Keep structural transitions ultra-fast (not zero) so
+     panels/sheets still move — just instantly */
+  .panel    { transition: transform 0.01ms !important; }
+  .modal-bg { transition: opacity 0.01ms !important, visibility 0.01ms !important; display:flex }
+  .screen.swipe-transitioning { transition: none !important; }
+}
+
+/* ══ ACCESSIBILITY — FORCED COLOURS / HIGH CONTRAST ════ */
+@media (forced-colors: active) {
+  :root {
+    --focus-ring-color: Highlight;
+    --t1: CanvasText;
+    --bg: Canvas;
+    --border: ButtonBorder;
+  }
+  .tog { forced-color-adjust: none; }
+  .nav-item.active { outline: 2px solid Highlight; }
+  .prim-btn, .ob-btn, .perm-btn { forced-color-adjust: none; }
+}

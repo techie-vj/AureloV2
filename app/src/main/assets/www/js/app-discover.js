@@ -96,7 +96,7 @@ function _buildHabitCard(app,cat,topApp) {
     <div style="width:44px;height:44px;border-radius:13px;background:var(--s2);display:flex;align-items:center;justify-content:center;font-size:24px;margin-bottom:8px">${app.emoji}</div>
     <div style="font-size:13px;font-weight:700;margin-bottom:3px;color:var(--t1)">${app.name}</div>
     <div style="font-family:var(--ff-m);font-size:11px;color:var(--t2);line-height:1.5;margin-bottom:10px">${app.tagline}</div>
-    <button onclick="event.stopPropagation();if(IS_NATIVE)nCall('openPlayStore','${pkg}')" style="width:100%;padding:7px 0;border-radius:9px;border:none;background:rgba(124,111,255,.15);color:var(--p2);font-family:var(--ff-m);font-size:10px;font-weight:600;cursor:pointer">View →</button>
+    <button type="button" onclick="event.stopPropagation();if(IS_NATIVE)nCall('openPlayStore','${pkg}')" style="width:100%;padding:7px 0;border-radius:9px;border:none;background:rgba(124,111,255,.15);color:var(--p2);font-family:var(--ff-m);font-size:10px;font-weight:600;cursor:pointer">View →</button>
   </div>`;
 }
 
@@ -149,7 +149,7 @@ function _openCollection(collId) {
   const coll=(_affiliateData.collections||[]).find(c=>c.id===collId); if(!coll) return;
   const cc=_countryCode();
   const apps=(coll.appIds||[]).map(id=>(_affiliateData.apps||[]).find(a=>a.id===id)).filter(a=>a&&_appAvailable(a,cc));
-  const rows=apps.map(a=>{const pkg=a.playStorePkg||a.pkg||'';return`<div style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--border)"><div style="width:44px;height:44px;border-radius:13px;background:var(--s2);display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0">${a.emoji}</div><div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600;margin-bottom:2px">${a.name}</div><div style="font-family:var(--ff-m);font-size:10px;color:var(--t2)">${a.tagline}</div></div><button onclick="if(IS_NATIVE)nCall('openPlayStore','${pkg}')" style="padding:8px 14px;border-radius:10px;border:none;background:var(--p);color:#fff;font-family:var(--ff-m);font-size:11px;font-weight:700;cursor:pointer;flex-shrink:0">Get →</button></div>`}).join('');
+  const rows=apps.map(a=>{const pkg=a.playStorePkg||a.pkg||'';return`<div style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--border)"><div style="width:44px;height:44px;border-radius:13px;background:var(--s2);display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0">${a.emoji}</div><div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600;margin-bottom:2px">${a.name}</div><div style="font-family:var(--ff-m);font-size:10px;color:var(--t2)">${a.tagline}</div></div><button type="button" onclick="if(IS_NATIVE)nCall('openPlayStore','${pkg}')" style="padding:8px 14px;border-radius:10px;border:none;background:var(--p);color:#fff;font-family:var(--ff-m);font-size:11px;font-weight:700;cursor:pointer;flex-shrink:0">Get →</button></div>`}).join('');
   showConfirm(`${coll.emoji} ${coll.title}`,coll.description,null,'Close',null);
   setTimeout(()=>{
     const body=document.getElementById('cdlg-body');

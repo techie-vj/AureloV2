@@ -737,7 +737,7 @@ function _renderWellnessFallback(){
   slot.innerHTML = `<div style="background:var(--s1);border:2px solid var(--p);border-radius:16px;padding:14px 16px;margin-bottom:10px;position:relative;cursor:pointer" onclick="if(typeof nCall==='function')nCall('openPlayStore','${escAttr(rec.pkg)}')">
     <div style="display:flex;align-items:center;gap:11px;margin-bottom:8px">
       <div style="width:44px;height:44px;border-radius:12px;overflow:hidden;background:var(--s2);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:22px">${appIco(rec.pkg,44,11)}</div>
-      <div style="font-size:14px;font-weight:800;line-height:1.25;color:var(--t1)">${titleText}</div>
+      <div style="font-size:14px;font-weight:700;line-height:1.25;color:var(--t1)">${titleText}</div>
     </div>
     <div style="font-family:var(--ff-m);font-size:11px;color:var(--t2);line-height:1.55;margin-bottom:12px">${bodyText}</div>
     <button style="display:inline-flex;align-items:center;gap:5px;padding:9px 18px;border-radius:999px;background:var(--t1);border:none;font-family:var(--ff-m);font-size:11px;font-weight:700;color:var(--bg);cursor:pointer">${rec.cta} →</button>
@@ -805,7 +805,7 @@ function renderWeeklyBars(container){
     const borderTop = isToday ? `border-top:2px solid ${col}` : '';
     // Time label: inside bar if bar >= 28px, rotated text
     const timeEl = labelH ? (barH >= 28
-      ? `<span style="font-family:var(--ff-m);font-size:8px;font-weight:800;color:#fff;opacity:.95;writing-mode:horizontal-tb;line-height:1;padding:0 1px;white-space:nowrap;text-shadow:0 1px 2px rgba(0,0,0,.4)">${labelH}</span>`
+      ? `<span style="font-family:var(--ff-m);font-size:8px;font-weight:700;color:#fff;opacity:.95;writing-mode:horizontal-tb;line-height:1;padding:0 1px;white-space:nowrap;text-shadow:0 1px 2px rgba(0,0,0,.4)">${labelH}</span>`
       : '') : '';
     return `<div style="flex:1;display:flex;flex-direction:column;align-items:center">
       <div style="height:${BAR_H}px;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;width:100%">
@@ -1127,7 +1127,7 @@ function renderAllAppsPanel(){
       </div>
       <div style="text-align:right;flex-shrink:0;min-width:62px">
         <div style="font-family:var(--ff-m);font-size:11px;color:var(--t2)">${timeLabel}</div>
-        <button onclick="openTimerForApp('${a.packageName}','${a.name.replace(/'/g,"\\'")}',${a.todayMins})"
+        <button type="button" onclick="openTimerForApp('${a.packageName}','${a.name.replace(/'/g,"\\'")}',${a.todayMins})"
           style="margin-top:4px;padding:3px 8px;border-radius:7px;border:1px solid ${hasLim?'rgba(247,166,35,.3)':'var(--border2)'};background:${hasLim?'rgba(247,166,35,.1)':'var(--s2)'};font-family:var(--ff-m);font-size:9px;color:${hasLim?'var(--a)':'var(--t3)'};cursor:pointer">
           ${hasLim?fmtM(limits[a.packageName])+'✓':'Limit'}
         </button>

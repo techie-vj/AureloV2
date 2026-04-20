@@ -1,168 +1,285 @@
-/* ═══ THEMES ═══════════════════════════════════════ */
-/*
- * BUG FIX: The original file had a malformed `:root[data-theme=light]{`
- * opening line with no closing `}`, which caused the browser's CSS parser
- * to treat all subsequent selectors as invalid declarations inside that
- * block. This file is now properly structured: component-specific overrides
- * are standalone `:root[data-theme=X] .selector{}` rules, and the theme
- * token blocks (amoled, warm, midnight, forest, rose) are self-contained.
- *
- * ISSUE 2 FIX: Added --nav-bg tokens, fixed focus-orbit-inner hardcoded
- * dark gradient, and addressed other hardcoded rgba values that fail on
- * light/warm themes.
- *
- * ISSUE 3 FIX: All --t3 values raised to achieve WCAG 2.1 AA ≥4.5:1
- * contrast ratio against their respective --bg.
- */
+/* ═══════════════════════════════════════════════════════
+   AURELO THEMES  v2.0
+   Theme-specific component overrides only.
+   Token definitions live in tokens.css.
+   ═══════════════════════════════════════════════════════ */
 
-/* ── Light theme component overrides ──────────────────────────────────── */
-:root[data-theme=light] .home-goal-card{
-  background:linear-gradient(135deg,rgba(108,99,255,.07),rgba(5,200,232,.04));
-  border-color:rgba(108,99,255,.18);
+/* ══ LIGHT THEME OVERRIDES ═════════════════════════════ */
+:root[data-theme=light] .home-goal-card {
+  background: linear-gradient(135deg,rgba(108,99,255,.07),rgba(5,200,232,.04));
+  border-color: rgba(108,99,255,.18);
 }
 :root[data-theme=light] .cat-exp-card,
 :root[data-theme=light] .cat-col-card,
-:root[data-theme=light] .cat-row{background:#fff;}
-
-/* Light theme: nav-item active state on light bg */
-:root[data-theme=light] .nav-item.active{background:rgba(108,99,255,.10);}
-
-/* Light theme: focus orbit — swap hardcoded dark gradient centre */
-:root[data-theme=light] .focus-orbit-inner{
-  background:radial-gradient(circle,rgba(108,99,255,.28),rgba(242,244,250,.92));
-  border-color:rgba(108,99,255,.35);
+:root[data-theme=light] .cat-row { background: #fff; }
+:root[data-theme=light] .nav-item.active { background: rgba(108,99,255,.10); }
+:root[data-theme=light] .focus-orbit-inner {
+  background: radial-gradient(circle,rgba(108,99,255,.28),rgba(242,244,250,.92));
+  border-color: rgba(108,99,255,.35);
 }
-:root[data-theme=light] .focus-orbit-time{color:var(--t1);}
-:root[data-theme=light] .focus-orbit-lbl{color:var(--p);}
-
-/* Light theme: hover states that assume dark bg */
-:root[data-theme=light] .app-sel-row:hover{background:rgba(0,0,0,.04);}
-:root[data-theme=light] .cat-pick-hdr:active{background:rgba(0,0,0,.04);}
-:root[data-theme=light] .sdr:hover{background:rgba(0,0,0,.04);}
-:root[data-theme=light] .sr:hover{background:var(--s2);}
-
-/* Light theme: search focus */
-:root[data-theme=light] .search-input:focus{
-  border-color:rgba(108,99,255,.5);
-  box-shadow:0 0 0 3px rgba(108,99,255,.08);
+:root[data-theme=light] .focus-orbit-time { color: var(--t1); }
+:root[data-theme=light] .focus-orbit-lbl  { color: var(--p); }
+:root[data-theme=light] .app-sel-row:hover { background: rgba(0,0,0,.04); }
+:root[data-theme=light] .cat-pick-hdr:active { background: rgba(0,0,0,.04); }
+:root[data-theme=light] .sdr:hover { background: rgba(0,0,0,.04); }
+:root[data-theme=light] .sr:hover  { background: var(--s2); }
+:root[data-theme=light] .search-input:focus {
+  border-color: rgba(108,99,255,.5);
+  box-shadow: 0 0 0 3px rgba(108,99,255,.08);
 }
-
-/* ── AMOLED theme ──────────────────────────────────────────────────────── */
-:root[data-theme=amoled]{
-  --bg:#000;--s0:#0A0A0A;--s1:#111;--s2:#1A1A1A;
-  --border:#222;--border2:#2A2A2A;
-  --t1:#FFF;--t2:#AAAAAA;
-  /* WCAG AA fix: was #555 (~3.1:1) → #888 (~6.5:1 on #000) */
-  --t3:#888888;
-  --p:#6C63FF;--p2:#9B95FF;--c:#05C8E8;--g:#12D48A;
-  --a:#F7A623;--r:#F04E7A;--pu:#B06EFF;
-  --nav-bg:rgba(0,0,0,.98);
+:root[data-theme=light] .ob-goal-btn.selected {
+  border-color: var(--p);
+  background: rgba(108,99,255,.06);
+}
+:root[data-theme=light] .panel,
+:root[data-theme=light] .panel { background: var(--bg); }
+:root[data-theme=light] .dg-hdr {
+  background: linear-gradient(180deg,rgba(108,99,255,.08),transparent);
+}
+:root[data-theme=light] .search-dropdown,
+:root[data-theme=light] .search-dropdown { box-shadow: 0 20px 40px rgba(0,0,0,.15); }
+:root[data-theme=light] #ob-screen,
+:root[data-theme=light] #perm-screen { background: var(--bg); }
+/* Light splash tint */
+:root[data-theme=light] #loading-screen {
+  background: linear-gradient(160deg,#F0EFE8 0%,#E8E4D8 100%);
 }
 
-/* ── Warm theme ────────────────────────────────────────────────────────── */
-:root[data-theme=warm]{
-  --bg:#FAF7F2;--s0:#FFF;--s1:#F5F0E8;--s2:#EDE8DD;
-  --border:#DDD8CC;--border2:#CCC8BC;
-  --t1:#2C2416;--t2:#6B5E4A;
-  /* WCAG AA fix: was #9C8E7A (~2.85:1) → #7A6B58 (~4.57:1 on #FAF7F2) */
-  --t3:#7A6B58;
-  --p:#8B6914;--p2:#B8922A;--c:#C47D2E;--g:#5A8A3C;
-  --a:#C4882E;--r:#B85450;--pu:#8B6494;
-  --nav-bg:rgba(250,247,242,.97);
+/* ══ AMOLED THEME OVERRIDES ════════════════════════════ */
+:root[data-theme=amoled] .cat-tile,
+:root[data-theme=amoled] .cat-exp-card,
+:root[data-theme=amoled] .cat-col-card {
+  box-shadow: 0 1px 4px rgba(255,255,255,.03) inset;
 }
-/* Warm theme: components that use hardcoded dark assumptions */
-:root[data-theme=warm] .focus-orbit-inner{
-  background:radial-gradient(circle,rgba(139,105,20,.32),rgba(250,247,242,.92));
-  border-color:rgba(139,105,20,.35);
+
+/* ══ WARM SAND THEME OVERRIDES ══════════════════════════ */
+:root[data-theme=warm] .focus-orbit-inner {
+  background: radial-gradient(circle,rgba(139,105,20,.32),rgba(250,247,242,.92));
+  border-color: rgba(139,105,20,.35);
 }
-:root[data-theme=warm] .focus-orbit-time{color:var(--t1);}
-:root[data-theme=warm] .focus-orbit-lbl{color:var(--p);}
-:root[data-theme=warm] .home-goal-card{
-  background:linear-gradient(135deg,rgba(139,105,20,.08),rgba(196,125,46,.05));
-  border-color:rgba(139,105,20,.2);
+:root[data-theme=warm] .focus-orbit-time { color: var(--t1); }
+:root[data-theme=warm] .focus-orbit-lbl  { color: var(--p); }
+:root[data-theme=warm] .home-goal-card {
+  background: linear-gradient(135deg,rgba(139,105,20,.08),rgba(196,125,46,.05));
+  border-color: rgba(139,105,20,.2);
 }
 :root[data-theme=warm] .cat-exp-card,
 :root[data-theme=warm] .cat-col-card,
-:root[data-theme=warm] .cat-row{background:#FFF;}
-:root[data-theme=warm] .app-sel-row:hover{background:rgba(0,0,0,.04);}
-:root[data-theme=warm] .cat-pick-hdr:active{background:rgba(0,0,0,.04);}
-:root[data-theme=warm] .sdr:hover{background:rgba(0,0,0,.04);}
-:root[data-theme=warm] .nav-item.active{background:rgba(139,105,20,.10);}
-
-/* ── Midnight theme ────────────────────────────────────────────────────── */
-:root[data-theme=midnight]{
-  --bg:#080E1E;--s0:#0F1829;--s1:#162033;--s2:#1C2940;
-  --border:#233150;--border2:#2C3D60;
-  --t1:#E8EEFF;--t2:#7A8EBB;
-  /* WCAG AA fix: was #3D4F77 (~1.8:1) → #5E6E9A (~4.45:1 on #080E1E) */
-  --t3:#5E6E9A;
-  --p:#4F8EF7;--p2:#7AAEFF;--c:#38C9E8;--g:#34C28A;
-  --a:#F7B623;--r:#F05A7A;--pu:#A07EFF;
-  --nav-bg:rgba(8,14,30,.95);
+:root[data-theme=warm] .cat-row { background: #fff; }
+:root[data-theme=warm] .app-sel-row:hover { background: rgba(0,0,0,.04); }
+:root[data-theme=warm] .cat-pick-hdr:active { background: rgba(0,0,0,.04); }
+:root[data-theme=warm] .sdr:hover { background: rgba(0,0,0,.04); }
+:root[data-theme=warm] .nav-item.active { background: rgba(139,105,20,.10); }
+:root[data-theme=warm] .ob-goal-btn.selected {
+  border-color: var(--p);
+  background: rgba(139,105,20,.06);
+}
+:root[data-theme=warm] .panel { background: var(--bg); }
+:root[data-theme=warm] .dg-hdr {
+  background: linear-gradient(180deg,rgba(139,105,20,.08),transparent);
+}
+:root[data-theme=warm] .search-dropdown { box-shadow: 0 20px 40px rgba(0,0,0,.15); }
+:root[data-theme=warm] #ob-screen,
+:root[data-theme=warm] #perm-screen { background: var(--bg); }
+/* Warm splash tint */
+:root[data-theme=warm] #loading-screen {
+  background: linear-gradient(160deg,#F5EDE0 0%,#EAE0CC 100%);
 }
 
-/* ── Forest theme ──────────────────────────────────────────────────────── */
-:root[data-theme=forest]{
-  --bg:#0A1210;--s0:#101A17;--s1:#152219;--s2:#1B2D24;
-  --border:#223A2E;--border2:#2A4A3A;
-  --t1:#E2F0E8;--t2:#7AAA8A;
-  /* WCAG AA fix: was #3D6650 (~1.9:1) → #5E8A6C (~5.56:1 on #0A1210) */
-  --t3:#5E8A6C;
-  --p:#3DAA7A;--p2:#5EC995;--c:#4ABFA0;--g:#6AC46A;
-  --a:#C4A83D;--r:#D4685A;--pu:#8A84D4;
-  --nav-bg:rgba(10,18,16,.95);
+/* ══ MIDNIGHT BLUE THEME OVERRIDES ══════════════════════ */
+:root[data-theme=midnight] .home-goal-card {
+  background: linear-gradient(135deg,rgba(79,142,247,.1),rgba(56,201,232,.05));
+  border-color: rgba(79,142,247,.22);
+}
+:root[data-theme=midnight] .quick-stats {
+  background: linear-gradient(135deg,rgba(79,142,247,.12),rgba(56,201,232,.06));
+  border-color: rgba(79,142,247,.22);
+}
+:root[data-theme=midnight] .focus-orbit-inner {
+  background: radial-gradient(circle,rgba(79,142,247,.22),var(--bg));
+  border-color: rgba(79,142,247,.3);
+}
+:root[data-theme=midnight] .focus-orbit-inner.active {
+  animation: focusPulseMidnight 2s ease-in-out infinite;
+}
+@keyframes focusPulseMidnight {
+  0%,100% { box-shadow:0 0 20px rgba(79,142,247,.2); }
+  50%      { box-shadow:0 0 36px rgba(79,142,247,.42); }
 }
 
-/* ── Rose theme ────────────────────────────────────────────────────────── */
-:root[data-theme=rose]{
-  --bg:#1A0D12;--s0:#24121A;--s1:#2E1822;--s2:#3A202C;
-  --border:#4A2A38;--border2:#5A3448;
-  --t1:#FFE8F0;--t2:#CC8AA8;
-  /* WCAG AA fix: was #8A4A64 (~2.2:1) → #B07088 (~5.32:1 on #1A0D12) */
-  --t3:#B07088;
-  --p:#E8609A;--p2:#F08AB8;--c:#E870B8;--g:#A8D880;
-  --a:#F0A050;--r:#F04878;--pu:#C884E8;
-  --nav-bg:rgba(26,13,18,.95);
+/* ══ FOREST THEME OVERRIDES ════════════════════════════ */
+:root[data-theme=forest] .home-goal-card {
+  background: linear-gradient(135deg,rgba(61,170,122,.10),rgba(74,191,160,.05));
+  border-color: rgba(61,170,122,.22);
+}
+:root[data-theme=forest] .focus-orbit-inner {
+  background: radial-gradient(circle,rgba(61,170,122,.22),var(--bg));
+  border-color: rgba(61,170,122,.3);
 }
 
-/* ── Shared light-background overrides (light + warm) ─────────────────── */
-/* These themes have light bgs so dark-hardcoded hover states need inversion */
-:root[data-theme=light] .ob-goal-btn.selected,
-:root[data-theme=warm] .ob-goal-btn.selected{
-  border-color:var(--p);
-  background:rgba(108,99,255,.06);
+/* ══ ROSE THEME OVERRIDES ══════════════════════════════ */
+:root[data-theme=rose] .home-goal-card {
+  background: linear-gradient(135deg,rgba(232,96,154,.10),rgba(232,112,184,.05));
+  border-color: rgba(232,96,154,.22);
+}
+:root[data-theme=rose] .focus-orbit-inner {
+  background: radial-gradient(circle,rgba(232,96,154,.22),var(--bg));
+  border-color: rgba(232,96,154,.3);
+}
+:root[data-theme=rose] .focus-orbit-inner.active {
+  animation: focusPulseRose 2s ease-in-out infinite;
+}
+@keyframes focusPulseRose {
+  0%,100% { box-shadow:0 0 20px rgba(232,96,154,.18); }
+  50%      { box-shadow:0 0 36px rgba(232,96,154,.38); }
 }
 
-/* Ensure panel and digest backgrounds adapt on every theme */
-:root[data-theme=light] .panel,
-:root[data-theme=warm] .panel{background:var(--bg);}
+/* ══ AURELO GOLD THEME OVERRIDES ✦ ══════════════════════
+   The brand-native theme — every component golden.
+   ═════════════════════════════════════════════════════= */
 
-/* Weekly digest header gradient adapts to non-dark themes */
-:root[data-theme=light] .dg-hdr{
-  background:linear-gradient(180deg,rgba(108,99,255,.08),transparent);
-}
-:root[data-theme=warm] .dg-hdr{
-  background:linear-gradient(180deg,rgba(139,105,20,.08),transparent);
+/* Splash screen — matches the logo exactly */
+:root[data-theme=aurelo-gold] #loading-screen {
+  background: linear-gradient(160deg, #1a1208 0%, #0c0900 100%);
 }
 
-/* Search dropdown shadow adapts on light themes */
-:root[data-theme=light] .search-dropdown,
-:root[data-theme=warm] .search-dropdown{
-  box-shadow:0 20px 40px rgba(0,0,0,.15);
+/* Goal card glows gold */
+:root[data-theme=aurelo-gold] .home-goal-card {
+  background: linear-gradient(135deg,rgba(255,170,68,.10),rgba(255,224,130,.05));
+  border-color: rgba(255,170,68,.28);
+  box-shadow: 0 0 40px rgba(255,170,68,.06);
 }
 
-/* Onboarding screens adapt */
-:root[data-theme=light] #ob-screen,
-:root[data-theme=warm] #ob-screen{background:var(--bg);}
+/* Quick stats — warm amber border */
+:root[data-theme=aurelo-gold] .quick-stats {
+  background: linear-gradient(135deg,rgba(255,170,68,.12),rgba(255,224,130,.06));
+  border-color: rgba(255,170,68,.28);
+}
 
-/* Permission screen */
-:root[data-theme=light] #perm-screen,
-:root[data-theme=warm] #perm-screen{background:var(--bg);}
+/* Focus orbit — gold glow */
+:root[data-theme=aurelo-gold] .focus-orbit {
+  border-color: rgba(255,170,68,.28);
+}
+:root[data-theme=aurelo-gold] .focus-orbit::before {
+  border-color: rgba(255,170,68,.18);
+}
+:root[data-theme=aurelo-gold] .focus-orbit::after {
+  border-color: rgba(255,224,130,.12);
+}
+:root[data-theme=aurelo-gold] .focus-orbit-dot {
+  background: var(--p);
+  box-shadow: 0 0 12px var(--p);
+}
+:root[data-theme=aurelo-gold] .focus-orbit-inner {
+  background: radial-gradient(circle, rgba(255,170,68,.22), var(--bg));
+  border-color: rgba(255,170,68,.35);
+  box-shadow: 0 0 30px rgba(255,170,68,.15),inset 0 0 20px rgba(255,170,68,.05);
+}
+:root[data-theme=aurelo-gold] .focus-orbit-inner.active {
+  animation: focusPulseGold 2s ease-in-out infinite;
+}
+:root[data-theme=aurelo-gold] .focus-orbit-time { color: var(--t1); }
+:root[data-theme=aurelo-gold] .focus-orbit-lbl  { color: var(--p2); }
+@keyframes focusPulseGold {
+  0%,100% { box-shadow:0 0 20px rgba(255,170,68,.15), inset 0 0 20px rgba(255,170,68,.05); }
+  50%      { box-shadow:0 0 40px rgba(255,170,68,.35), inset 0 0 24px rgba(255,170,68,.10); }
+}
 
-/* ── AMOLED / dark variant overrides ──────────────────────────────────── */
-/* AMOLED: deeper shadows on cards */
-:root[data-theme=amoled] .cat-tile,
-:root[data-theme=amoled] .cat-exp-card,
-:root[data-theme=amoled] .cat-col-card{
-  box-shadow:0 1px 4px rgba(255,255,255,.03) inset;
+/* Cards — subtle gold shimmer border */
+:root[data-theme=aurelo-gold] .card,
+:root[data-theme=aurelo-gold] .cat-tile,
+:root[data-theme=aurelo-gold] .stat-box,
+:root[data-theme=aurelo-gold] .chart-inner,
+:root[data-theme=aurelo-gold] .top-apps-list,
+:root[data-theme=aurelo-gold] .tip-card {
+  border-color: var(--border2);
+}
+
+/* Nav active — gold tint */
+:root[data-theme=aurelo-gold] .nav-item.active {
+  background: rgba(255,170,68,.12);
+}
+:root[data-theme=aurelo-gold] .nav-item.active .nav-lbl {
+  color: var(--p2);
+}
+
+/* Selected goal button */
+:root[data-theme=aurelo-gold] .ob-goal-btn.selected {
+  border-color: var(--p);
+  background: rgba(255,170,68,.08);
+}
+
+/* Search focus ring */
+:root[data-theme=aurelo-gold] .search-input:focus {
+  border-color: rgba(255,170,68,.6);
+  box-shadow: 0 0 0 3px rgba(255,170,68,.10);
+}
+
+/* Panels / sheets inherit gold bg */
+:root[data-theme=aurelo-gold] .panel { background: var(--bg); }
+:root[data-theme=aurelo-gold] #ob-screen,
+:root[data-theme=aurelo-gold] #perm-screen { background: var(--bg); }
+
+/* Digest header — warm gold gradient */
+:root[data-theme=aurelo-gold] .dg-hdr {
+  background: linear-gradient(180deg,rgba(255,170,68,.10),transparent);
+}
+
+/* Hover / active states */
+:root[data-theme=aurelo-gold] .app-sel-row:hover { background: rgba(255,255,255,.02); }
+:root[data-theme=aurelo-gold] .sdr:hover          { background: rgba(255,255,255,.02); }
+:root[data-theme=aurelo-gold] .sr:hover            { background: var(--s2); }
+:root[data-theme=aurelo-gold] .cat-pick-hdr:active { background: rgba(255,255,255,.02); }
+
+/* Toast backgrounds — warm tinted */
+:root[data-theme=aurelo-gold] .toast-success {
+  background: rgba(20,22,0,.95);
+  border-color: rgba(191,207,56,.5);
+  color: #D4E040;
+}
+:root[data-theme=aurelo-gold] .toast-info {
+  background: rgba(28,20,0,.95);
+  border-color: rgba(255,170,68,.5);
+  color: #FFD080;
+}
+:root[data-theme=aurelo-gold] .toast-warn {
+  background: rgba(36,20,0,.95);
+  border-color: rgba(255,112,32,.55);
+  color: #FFAA60;
+}
+:root[data-theme=aurelo-gold] .toast-error {
+  background: rgba(36,10,0,.95);
+  border-color: rgba(255,85,72,.55);
+  color: #FF8870;
+}
+
+/* Pro badge — gold foil */
+:root[data-theme=aurelo-gold] .pro-badge {
+  background: linear-gradient(135deg, #FFAA44, #FFD080);
+  color: #0C0900;
+}
+:root[data-theme=aurelo-gold] .pro-nav-chip {
+  color: var(--p);
+  background: rgba(255,170,68,.14);
+  border-color: rgba(255,170,68,.28);
+}
+
+/* Chart active bars */
+:root[data-theme=aurelo-gold] .hc-bar.peak {
+  background: linear-gradient(to top, #FF7020, #FFAA44 50%, #FFE082);
+}
+:root[data-theme=aurelo-gold] .wk-bar.today {
+  background: linear-gradient(to top, #FF7020, #FFAA44 50%, #FFE082);
+}
+
+/* Insight banner — golden glow */
+:root[data-theme=aurelo-gold] .home-insight-banner {
+  border-color: rgba(255,170,68,.35);
+  background: rgba(32,25,0,.8);
+}
+
+/* ══ SHARED LIGHT-BACKGROUND UTILITY ══════════════════== */
+:root[data-theme=light] .quick-stats,
+:root[data-theme=warm]  .quick-stats {
+  background: linear-gradient(135deg,rgba(108,99,255,.06),rgba(5,200,232,.03));
 }

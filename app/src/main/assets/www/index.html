@@ -68,8 +68,11 @@
 </head>
 <body>
 
+<!-- Skip link for keyboard/switch-access navigation -->
+<a href="#screens-root" class="sr-only" id="skip-to-content" style="position:fixed;top:8px;left:8px;z-index:10000;padding:8px 16px;background:var(--p);color:#fff;border-radius:8px;font-family:var(--ff-m);font-size:12px;text-decoration:none;display:block;width:auto;" onfocus="this.style.opacity='1'" onblur="this.style.opacity='0'">Skip to content</a>
+
 <!-- ═══ SPLASH SCREEN ═════════════════════════════════════════════════ -->
-<div id="loading-screen" onclick="splashSkip()">
+<div id="loading-screen" role="img" aria-label="Aurelo loading" onclick="splashSkip()">
     <div class="ls-aura"></div><div class="ls-grid"></div><div class="ls-vignette"></div>
     <div id="ls-logo" class="ls-mark">
         <svg viewBox="0 0 108 108" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -108,8 +111,8 @@
 </div>
 
 <!-- ═══ GLOBAL OVERLAYS ════════════════════════════════════════════════ -->
-<div id="toast-wrap"></div>
-<div id="confirm-dlg">
+<div id="toast-wrap" role="status" aria-live="polite" aria-label="Notifications" aria-atomic="false"></div>
+<div id="confirm-dlg" role="alertdialog" aria-modal="true" aria-labelledby="cdlg-title" aria-describedby="cdlg-body">
     <div class="confirm-box">
         <div class="confirm-title" id="cdlg-title">Are you sure?</div>
         <div class="confirm-body" id="cdlg-body">This cannot be undone.</div>
@@ -121,18 +124,18 @@
 </div>
 
 <!-- ═══ APP ROOT ════════════════════════════════════════════════════════ -->
-<div id="app" style="display:none">
-    <div class="screens" id="screens-root">
+<div id="app" style="display:none" role="application" aria-label="Aurelo">
+    <main class="screens" id="screens-root" aria-label="App content">
         <!-- Populated by TemplateLoader before bootApp() runs -->
-    </div>
-    <div class="bottom-nav" style="position:relative">
+    </main>
+    <nav class="bottom-nav" role="navigation" aria-label="Main navigation" style="position:relative">
         <div id="swipe-indicator" class="swipe-indicator"></div>
-        <div class="nav-item active" id="nav-home"     onclick="activateTab('home')"><div class="nav-icon"><img id="nav-home-icon" src="" style="width:24px;height:24px;border-radius:6px;object-fit:cover" onerror="this.outerHTML='<span style=font-size:20px>🏠</span>'" alt=""/></div><div class="nav-lbl">Home</div></div>
-        <div class="nav-item"        id="nav-wellness" onclick="activateTab('wellness')"><div class="nav-icon">📊</div><div class="nav-lbl">Stats</div></div>
-        <div class="nav-item"        id="nav-focus"    onclick="activateTab('focus')"><div class="nav-icon">🎯</div><div class="nav-lbl">Focus</div></div>
-        <div class="nav-item"        id="nav-discover" onclick="activateTab('discover')" style="display:none"><div class="nav-icon">💡</div><div class="nav-lbl">Discover</div></div>
-        <div class="nav-item"        id="nav-settings" onclick="activateTab('settings')" style="display:none"></div>
-    </div>
+        <button class="nav-item active" id="nav-home" role="tab" aria-selected="true" aria-label="Home" onclick="activateTab('home')"><div class="nav-icon" aria-hidden="true"><img id="nav-home-icon" src="" style="width:24px;height:24px;border-radius:6px;object-fit:cover" onerror="this.outerHTML='<span>🏠</span>'" alt=""/></div><span class="nav-lbl">Home</span></button>
+        <button class="nav-item" id="nav-wellness" role="tab" aria-selected="false" aria-label="Stats" onclick="activateTab('wellness')"><div class="nav-icon" aria-hidden="true">📊</div><span class="nav-lbl">Stats</span></button>
+        <button class="nav-item" id="nav-focus" role="tab" aria-selected="false" aria-label="Focus" onclick="activateTab('focus')"><div class="nav-icon" aria-hidden="true">🎯</div><span class="nav-lbl">Focus</span></button>
+        <button class="nav-item" id="nav-discover" role="tab" aria-selected="false" aria-label="Discover" onclick="activateTab('discover')" style="display:none"><div class="nav-icon" aria-hidden="true">💡</div><span class="nav-lbl">Discover</span></button>
+        <button class="nav-item" id="nav-settings" role="tab" aria-selected="false" aria-label="Settings" onclick="activateTab('settings')" style="display:none"></button>
+    </nav>
 </div>
 
 <!-- ═══ PANELS ROOT (injected by TemplateLoader) ════════════════════════ -->

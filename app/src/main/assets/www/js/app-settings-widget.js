@@ -140,15 +140,15 @@ window.showOemBatteryPrompt = function() {
   modal.id = '_oem-battery-modal';
   modal.style.cssText = 'position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,.7);display:flex;align-items:flex-end;justify-content:center';
   modal.innerHTML = `
-    <div style="background:var(--s1,#16181f);border-radius:24px 24px 0 0;padding:24px 20px 32px;width:100%;max-width:480px;box-shadow:0 -4px 40px rgba(0,0,0,.4)">
+    <div style="background:var(--s0);border-radius:24px 24px 0 0;padding:24px 20px 32px;width:100%;max-width:480px;box-shadow:0 -4px 40px rgba(0,0,0,.4)">
       <div style="width:40px;height:4px;background:var(--border2,#2a2d3a);border-radius:2px;margin:0 auto 20px"></div>
       <div style="font-size:18px;font-weight:700;color:var(--t1,#e8eaf0);margin-bottom:10px">${escHtml(title)}</div>
       <div style="font-size:13px;color:var(--t2,#9da3b4);line-height:1.6;margin-bottom:20px">${escHtml(body)}</div>
-      <button onclick="AppBridge.requestBatteryOptimizationExempt();document.getElementById('_oem-battery-modal').remove()"
+      <button type="button" onclick="AppBridge.requestBatteryOptimizationExempt();document.getElementById('_oem-battery-modal').remove()"
         style="width:100%;padding:14px;border-radius:14px;background:var(--p,#6c63ff);color:#fff;font-size:15px;font-weight:700;border:none;cursor:pointer;margin-bottom:10px">${escHtml(btnLabel)}</button>
-      ${showOemBtn ? `<button onclick="AppBridge.openOemBatterySettings();document.getElementById('_oem-battery-modal').remove()"
+      ${showOemBtn ? `<button type="button" onclick="AppBridge.openOemBatterySettings();document.getElementById('_oem-battery-modal').remove()"
         style="width:100%;padding:14px;border-radius:14px;background:var(--s2,#1e2030);color:var(--t2,#9da3b4);font-size:14px;font-weight:600;border:1px solid var(--border2,#2a2d3a);cursor:pointer;margin-bottom:10px">Open ${escHtml(mfr.includes('xiaomi')?'MIUI':mfr.includes('huawei')||mfr.includes('honor')?'Huawei':'Samsung')} Settings</button>` : ''}
-      <button onclick="document.getElementById('_oem-battery-modal').remove()"
+      <button type="button" onclick="document.getElementById('_oem-battery-modal').remove()"
         style="width:100%;padding:12px;border-radius:14px;background:transparent;color:var(--t3,#5c6070);font-size:13px;border:none;cursor:pointer">Not now</button>
     </div>`;
   document.body.appendChild(modal);
@@ -169,15 +169,15 @@ window.showExactAlarmPermissionDialog = function() {
   modal.id = '_exact-alarm-modal';
   modal.style.cssText = 'position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,.7);display:flex;align-items:center;justify-content:center;padding:20px';
   modal.innerHTML = `
-    <div style="background:var(--s1,#16181f);border-radius:20px;padding:24px 20px;width:100%;max-width:340px;box-shadow:0 8px 40px rgba(0,0,0,.5)">
+    <div style="background:var(--s0);border-radius:20px;padding:24px 20px;width:100%;max-width:340px;box-shadow:0 8px 40px rgba(0,0,0,.5)">
       <div style="font-size:32px;text-align:center;margin-bottom:14px">⏰</div>
       <div style="font-size:17px;font-weight:700;color:var(--t1,#e8eaf0);text-align:center;margin-bottom:10px">Enable Precise Scheduling</div>
       <div style="font-size:13px;color:var(--t2,#9da3b4);line-height:1.6;text-align:center;margin-bottom:20px">
         Android requires permission to schedule Focus routines and Bedtime alarms at exact times. Without it, your routines may not fire on time.
       </div>
-      <button onclick="AppBridge.openExactAlarmSettings();document.getElementById('_exact-alarm-modal').remove()"
+      <button type="button" onclick="AppBridge.openExactAlarmSettings();document.getElementById('_exact-alarm-modal').remove()"
         style="width:100%;padding:14px;border-radius:14px;background:var(--p,#6c63ff);color:#fff;font-size:15px;font-weight:700;border:none;cursor:pointer;margin-bottom:10px">Grant Permission</button>
-      <button onclick="document.getElementById('_exact-alarm-modal').remove()"
+      <button type="button" onclick="document.getElementById('_exact-alarm-modal').remove()"
         style="width:100%;padding:12px;border-radius:14px;background:transparent;color:var(--t3,#5c6070);font-size:13px;border:none;cursor:pointer">Not now</button>
     </div>`;
   document.body.appendChild(modal);

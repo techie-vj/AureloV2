@@ -383,7 +383,7 @@
       .pg-pro-badge {
         display: inline-flex; align-items: center; gap: 4px; padding: 4px 12px; border-radius: 40px;
         background: linear-gradient(135deg,#7c6ff7,#9b6fff);
-        color: #fff; font-size: 10px; font-weight: 800; letter-spacing: 0.06em; font-family: monospace;
+        color: #fff; font-size: 10px; font-weight: 700; letter-spacing: 0.06em; font-family: monospace;
       }
       .pg-pro-chip {
         display: inline-flex; align-items: center; gap: 3px; padding: 2px 8px; border-radius: 40px;
@@ -405,7 +405,7 @@
       .pg-ceiling-star { font-size: 10px; opacity: 0.75; }
       .pg-teaser-row {
         display: flex; align-items: center; gap: 12px; padding: 13px 16px; border-radius: 14px;
-        background: #16181f; border: 1px solid #2a2d3a;
+        background: var(--s0); border: 1px solid #2a2d3a;
         cursor: pointer; opacity: 0.65; transition: opacity 0.2s, border-color 0.2s;
       }
       .pg-teaser-row:hover { opacity: 0.85; border-color: rgba(247,201,72,0.25); }

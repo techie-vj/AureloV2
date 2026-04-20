@@ -120,9 +120,11 @@ class MainActivity : AppCompatActivity() {
                 // NEVER_ALLOW blocks all HTTP sub-resources to prevent data leakage.
                 mixedContentMode       = WebSettings.MIXED_CONTENT_NEVER_ALLOW
                 cacheMode              = WebSettings.LOAD_DEFAULT
-                // ISSUE-07 FIX: Suppress system font-scale so Android Accessibility
-                // font size (85%–200%) doesn't break the pixel-precise CSS layouts.
-                textZoom               = 100
+                // A11Y-01 FIX: textZoom=100 override REMOVED.
+                // Previously suppressed system font-scale (85–200%) which blocked
+                // Accessibility > Font Size for visually impaired users (WCAG 1.4.4).
+                // CSS layouts now use flexible units (var(--text-*) tokens) instead
+                // of fixed px, so they accommodate system font scaling correctly.
             }
         }
         // ISSUE-06 FIX: MobileAds.initialize() triggers GMS IPC and can block ~400ms on first

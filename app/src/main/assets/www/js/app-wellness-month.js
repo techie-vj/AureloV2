@@ -445,7 +445,7 @@ function renderAppDNA() {
           <div style="display:flex;align-items:baseline;gap:4px;margin:4px 0 2px;overflow:hidden">
             <span style="font-size:13px;font-weight:700;color:var(--t3);opacity:.7;white-space:nowrap">${hasLastWeek ? fmtM(lastWeekAvg) : '–'}</span>
             <span style="font-size:10px;color:var(--t3);flex-shrink:0">→</span>
-            <span style="font-size:14px;font-weight:800;color:var(--t1);white-space:nowrap">${fmtM(thisWeekAvg)}</span>
+            <span style="font-size:14px;font-weight:700;color:var(--t1);white-space:nowrap">${fmtM(thisWeekAvg)}</span>
             <span style="font-size:11px;color:var(--t3);opacity:.6;flex-shrink:0">/day</span>
           </div>
           <div class="dna-cell-delta" style="color:${hasLastWeek ? trendClr : 'var(--t3)'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
@@ -544,7 +544,7 @@ function renderAppDNA() {
   card.innerHTML = `
     <div class="dna-pro-hdr" style="display:flex;align-items:center;justify-content:space-between">
       <div class="dna-pro-title">${monthName} ${year} · Patterns</div>
-      <button onclick="shareCard('appdna')" style="background:rgba(108,99,255,.10);border:1px solid rgba(108,99,255,.25);color:var(--p2);font-family:var(--ff-m);font-size:11px;font-weight:600;padding:5px 11px;border-radius:8px;cursor:pointer;white-space:nowrap;flex-shrink:0">📤 Share</button>
+      <button type="button" onclick="shareCard('appdna')" style="background:rgba(108,99,255,.10);border:1px solid rgba(108,99,255,.25);color:var(--p2);font-family:var(--ff-m);font-size:11px;font-weight:600;padding:5px 11px;border-radius:8px;cursor:pointer;white-space:nowrap;flex-shrink:0">📤 Share</button>
     </div>
     <div class="dna-period">${isMonthly ? dataPoints.length + ' days tracked' : 'This week · monthly data loading…'}</div>
     ${trendHtml}

@@ -246,7 +246,7 @@ function openRoutineDetail(){
           ${typeof proBadge==='function' ? proBadge() : ''}
           <div style="font-family:var(--ff-m);font-size:12px;color:var(--t1);font-weight:600">Unlock Smart Routine</div>
           <div style="font-family:var(--ff-m);font-size:11px;color:var(--t2);text-align:center;max-width:220px;line-height:1.5">See which apps you actually use at each time of day, learned from your real habits.</div>
-          <button onclick="event.stopPropagation();ProTier.triggerUpsell('WIDGET_STATS_INSIGHT')" style="margin-top:4px;padding:10px 24px;border-radius:12px;border:none;background:linear-gradient(135deg,var(--p),var(--c));color:#fff;font-family:var(--ff-m);font-size:12px;font-weight:700;cursor:pointer">Upgrade to Pro →</button>
+          <button type="button" onclick="event.stopPropagation();ProTier.triggerUpsell('WIDGET_STATS_INSIGHT')" style="margin-top:4px;padding:10px 24px;border-radius:12px;border:none;background:linear-gradient(135deg,var(--p),var(--c));color:#fff;font-family:var(--ff-m);font-size:12px;font-weight:700;cursor:pointer">Upgrade to Pro →</button>
         </div>
       </div>`;
     showModal('Smart Routine', blurBody);
@@ -368,7 +368,7 @@ function showModal(title, bodyHtml){
   overlay.innerHTML=`<div style="background:var(--s1);border-radius:20px 20px 0 0;width:100%;max-width:480px;max-height:75vh;overflow-y:auto;padding:20px 18px 32px">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
       <div style="font-size:16px;font-weight:700">${title}</div>
-      <button onclick="document.getElementById('_routineModal').remove()" style="background:rgba(255,255,255,.08);border:none;border-radius:99px;width:28px;height:28px;font-size:16px;color:var(--t2);cursor:pointer">×</button>
+      <button type="button" onclick="document.getElementById('_routineModal').remove()" style="background:rgba(255,255,255,.08);border:none;border-radius:99px;width:28px;height:28px;font-size:16px;color:var(--t2);cursor:pointer">×</button>
     </div>
     ${bodyHtml}
   </div>`;

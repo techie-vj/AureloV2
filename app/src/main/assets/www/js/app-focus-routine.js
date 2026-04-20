@@ -655,7 +655,7 @@ window.FocusRoutine = (function () {
             (typeof FOCUS_DIFF !== 'undefined' && FOCUS_DIFF[rp.difficulty] ? FOCUS_DIFF[rp.difficulty].desc : '') +
           '</div>' +
         '</div>' +
-        '<button onclick="FocusRoutine.saveRoutine()" style="width:100%;padding:15px;border-radius:16px;border:none;background:#fff;color:#000;font-family:var(--ff-d);font-size:15px;font-weight:700;cursor:pointer;letter-spacing:.2px">' +
+        '<button type="button" onclick="FocusRoutine.saveRoutine()" style="width:100%;padding:15px;border-radius:16px;border:none;background:#fff;color:#000;font-family:var(--ff-d);font-size:15px;font-weight:700;cursor:pointer;letter-spacing:.2px">' +
           (editId ? 'Save Changes' : 'Start Schedule') + ' →' +
         '</button>' +
       '</div>' +
@@ -930,8 +930,8 @@ window.FocusRoutine = (function () {
       '<div style="width:36px;height:4px;border-radius:2px;background:var(--border2);margin:0 auto 18px"></div>' +
       '<div style="font-size:16px;font-weight:700;color:var(--t1);margin-bottom:8px;text-align:center">Delete this schedule?</div>' +
       '<div style="font-family:var(--ff-m);font-size:12px;color:var(--t3);text-align:center;margin-bottom:24px">This recurring schedule will be removed.</div>' +
-      '<button onclick="FocusRoutine._rpConfirmDelete(\'' + id + '\')" style="width:100%;padding:15px;border-radius:14px;border:none;background:var(--r);color:#fff;font-family:var(--ff-m);font-size:14px;font-weight:700;cursor:pointer;margin-bottom:10px">Delete</button>' +
-      '<button onclick="document.getElementById(\'rp-delete-confirm\')?.remove()" style="width:100%;padding:13px;border-radius:14px;border:1px solid var(--border2);background:transparent;color:var(--t2);font-family:var(--ff-m);font-size:13px;cursor:pointer">Cancel</button>' +
+      '<button type="button" onclick="FocusRoutine._rpConfirmDelete(\'' + id + '\')" style="width:100%;padding:15px;border-radius:14px;border:none;background:var(--r);color:#fff;font-family:var(--ff-m);font-size:14px;font-weight:700;cursor:pointer;margin-bottom:10px">Delete</button>' +
+      '<button type="button" onclick="document.getElementById(\'rp-delete-confirm\')?.remove()" style="width:100%;padding:13px;border-radius:14px;border:1px solid var(--border2);background:transparent;color:var(--t2);font-family:var(--ff-m);font-size:13px;cursor:pointer">Cancel</button>' +
     '</div>';
     el.addEventListener('click', function (e) { if(e.target===el)el.remove(); });
     document.body.appendChild(el);

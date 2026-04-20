@@ -19,7 +19,7 @@ function _renderWeekShareButton() {
     insights.insertAdjacentElement('afterend', row);
   }
   row.innerHTML = `
-    <button onclick="shareCard('weekly')"
+    <button type="button" onclick="shareCard('weekly')"
       style="display:inline-flex;align-items:center;gap:7px;padding:10px 22px;border-radius:999px;
              border:1px solid rgba(108,99,255,.35);background:rgba(108,99,255,.1);
              font-family:var(--ff-m);font-size:12px;font-weight:700;color:var(--p2);cursor:pointer">
@@ -113,7 +113,7 @@ function _renderWeekPickupsChart(area) {
     const dC     = d.isToday ? (isOver?'#F04E7A':'#6C63FF') : (isOver?'rgba(240,78,122,.7)':'var(--t3)');
     // Real number for today, "~N" for estimates so users know the difference
     const label  = d.v > 0 && bH >= 28
-      ? '<span style="font-family:var(--ff-m);font-size:8px;font-weight:800;color:#fff;opacity:.9;text-shadow:0 1px 2px rgba(0,0,0,.4)">'
+      ? '<span style="font-family:var(--ff-m);font-size:8px;font-weight:700;color:#fff;opacity:.9;text-shadow:0 1px 2px rgba(0,0,0,.4)">'
         + (d.real ? d.v : '~'+d.v) + '</span>'
       : '';
     return '<div style="flex:1;display:flex;flex-direction:column;align-items:center">'
@@ -188,7 +188,7 @@ function renderWeeklyBarsInto(container) {
     const isUnder  = d.minutes<=goalMins && d.minutes>0;
     const barColor = isUnder&&!isToday?'rgba(18,212,138,0.35)':(isToday?col:col+'99');
     const labelH   = d.minutes>=60?Math.floor(d.minutes/60)+'h'+(d.minutes%60>0?d.minutes%60+'m':''):d.minutes>0?d.minutes+'m':'';
-    const timeEl   = labelH&&barH>=28?'<span style="font-family:var(--ff-m);font-size:8px;font-weight:800;color:#fff;opacity:.95;text-shadow:0 1px 2px rgba(0,0,0,.4)">'+labelH+'</span>':'';
+    const timeEl   = labelH&&barH>=28?'<span style="font-family:var(--ff-m);font-size:8px;font-weight:700;color:#fff;opacity:.95;text-shadow:0 1px 2px rgba(0,0,0,.4)">'+labelH+'</span>':'';
     return '<div style="flex:1;display:flex;flex-direction:column;align-items:center">'
       +'<div style="height:'+BAR_H+'px;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;width:100%">'
       +'<div style="width:88%;height:'+barH+'px;background:'+barColor+';border-radius:5px 5px 0 0;'+(isToday?'border-top:2px solid '+col+';':'')+';display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:height .5s cubic-bezier(.34,1.56,.64,1)">'+timeEl+'</div>'

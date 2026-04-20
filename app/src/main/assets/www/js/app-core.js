@@ -27,9 +27,9 @@ function escAttr(str) {
 /* ═══ APP CONFIG ═════════════════════════════════════ */
 // ── Update version here to change it everywhere in the app ──
 const APP_CONFIG = {
-  version:  'v1.0.0',
+  version:  'v1.2.0',
   name:     'Aurelo',
-  buildDate: '2026-02-28',
+  buildDate: '2026-04-20',
 };
 
 /* ═══ PRO TIER — BILLING-BACKED GATE SYSTEM ═════════
@@ -877,7 +877,7 @@ function initPullToRefresh(){
       const dy=e.touches[0].clientY-startY;
       if(dy>8&&!indicator){
         indicator=document.createElement('div');
-        indicator.style.cssText='position:sticky;top:0;left:0;right:0;z-index:50;display:flex;align-items:center;justify-content:center;padding:10px;gap:8px;font-family:var(--ff-m);font-size:11px;color:var(--t3);background:var(--bg)';
+        indicator.style.cssText='position:sticky;top:0;left:0;right:0;z-index:50;display:flex;align-items:center;justify-content:center;padding:10px;gap:8px;font-family:var(--ff-m);font-size:11px;color:var(--t3);background:var(--bg)';indicator.setAttribute('role','status');indicator.setAttribute('aria-label','Pull to refresh');
         indicator.innerHTML='<div style="width:20px;height:20px;border-radius:50%;border:2px solid var(--border2);border-top-color:var(--p);animation:spin .8s linear infinite;flex-shrink:0"></div>Pull to refresh';
         screen.prepend(indicator);
       }
