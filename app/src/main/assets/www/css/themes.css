@@ -1,3 +1,38 @@
+/* ══ PRO HEADER TINT — theme-aware ════════════════════════
+   Applied via JS class toggle (.app-top-bar--pro) instead of
+   inline style so every theme can override it.
+   ═════════════════════════════════════════════════════════ */
+/* Dark themes: subtle violet-to-bg tint */
+.app-top-bar--pro {
+  background: linear-gradient(135deg,
+    rgba(26,23,48,0.97) 0%,
+    rgba(14,15,19,0.97) 100%) !important;
+}
+/* Light theme: very light indigo tint */
+:root[data-theme=light] .app-top-bar--pro {
+  background: linear-gradient(135deg,
+    rgba(108,99,255,0.06) 0%,
+    rgba(242,244,250,0.97) 100%) !important;
+}
+/* Warm theme: warm parchment tint */
+:root[data-theme=warm] .app-top-bar--pro {
+  background: linear-gradient(135deg,
+    rgba(139,105,20,0.07) 0%,
+    rgba(250,247,242,0.97) 100%) !important;
+}
+/* Aurelo Gold theme: subtle gold top-edge */
+:root[data-theme=aurelo-gold] .app-top-bar--pro {
+  background: linear-gradient(135deg,
+    rgba(255,170,68,0.10) 0%,
+    rgba(12,9,0,0.97) 100%) !important;
+}
+/* Midnight theme: deep blue tint */
+:root[data-theme=midnight] .app-top-bar--pro {
+  background: linear-gradient(135deg,
+    rgba(15,24,41,0.97) 0%,
+    rgba(8,14,30,0.97) 100%) !important;
+}
+
 /* ═══════════════════════════════════════════════════════
    AURELO THEMES  v2.0
    Theme-specific component overrides only.
@@ -42,7 +77,14 @@
 :root[data-theme=light] #perm-screen { background: var(--bg); }
 /* Light splash tint */
 :root[data-theme=light] #loading-screen {
-  background: linear-gradient(160deg,#F0EFE8 0%,#E8E4D8 100%);
+  background: linear-gradient(160deg,#F5F5FA 0%,#EAEAF5 100%);
+}
+:root[data-theme=light] .ls-grid {
+  background-image: linear-gradient(rgba(108,99,255,.06) 1px, transparent 1px),
+                    linear-gradient(90deg, rgba(108,99,255,.06) 1px, transparent 1px) !important;
+}
+:root[data-theme=light] .ls-aura {
+  background: radial-gradient(circle, rgba(108,99,255,.10) 0%, transparent 68%) !important;
 }
 
 /* ══ AMOLED THEME OVERRIDES ════════════════════════════ */
@@ -83,7 +125,14 @@
 :root[data-theme=warm] #perm-screen { background: var(--bg); }
 /* Warm splash tint */
 :root[data-theme=warm] #loading-screen {
-  background: linear-gradient(160deg,#F5EDE0 0%,#EAE0CC 100%);
+  background: linear-gradient(160deg,#F8F3EC 0%,#EEE4D2 100%);
+}
+:root[data-theme=warm] .ls-grid {
+  background-image: linear-gradient(rgba(139,105,20,.06) 1px, transparent 1px),
+                    linear-gradient(90deg, rgba(139,105,20,.06) 1px, transparent 1px) !important;
+}
+:root[data-theme=warm] .ls-aura {
+  background: radial-gradient(circle, rgba(196,125,46,.12) 0%, transparent 68%) !important;
 }
 
 /* ══ MIDNIGHT BLUE THEME OVERRIDES ══════════════════════ */

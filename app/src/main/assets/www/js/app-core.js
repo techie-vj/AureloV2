@@ -423,10 +423,11 @@ function _updateProUI() {
     if (upgradeRow)   upgradeRow.style.display   = isPro ? 'none' : 'flex';
     if (proStatusRow) proStatusRow.style.display = isPro ? 'flex' : 'none';
     // Pro header tint
+    // A11Y: Never set a hardcoded dark gradient — it breaks light/warm/aurelo-gold themes.
+    // Instead toggle a CSS class that themes.css overrides per-theme.
     document.querySelectorAll('.app-top-bar').forEach(function(bar) {
-        bar.style.background = isPro
-            ? 'linear-gradient(135deg,rgba(26,23,48,0.95) 0%,rgba(14,15,19,0.95) 100%)'
-            : '';
+        if (isPro) bar.classList.add('app-top-bar--pro');
+        else        bar.classList.remove('app-top-bar--pro');
     });
 }
 
@@ -860,7 +861,17 @@ function initPullToRefresh(){
     let startY=0, pulling=false, indicator=null;
 
     function cleanup(){
-      if(indicator){ indicator.remove(); indicator=null; }
+      if(indicator){
+        // Smooth fade-out to avoid abrupt flicker when pull is released without triggering
+        var ind = indicator;
+        indicator = null; // null immediately so no re-entry
+        if (ind.parentNode) {
+          ind.style.transition = 'opacity .18s ease, transform .18s ease';
+          ind.style.opacity = '0';
+          ind.style.transform = 'translateY(-12px)';
+          setTimeout(function(){ if(ind.parentNode) ind.remove(); }, 200);
+        }
+      }
       startY=0; pulling=false;
     }
 
@@ -875,7 +886,7 @@ function initPullToRefresh(){
     screen.addEventListener('touchmove',e=>{
       if(!startY || pickedApp || _tdrag || window._cpPickDragging) return;
       const dy=e.touches[0].clientY-startY;
-      if(dy>8&&!indicator){
+      if(dy>20&&!indicator){
         indicator=document.createElement('div');
         indicator.style.cssText='position:sticky;top:0;left:0;right:0;z-index:50;display:flex;align-items:center;justify-content:center;padding:10px;gap:8px;font-family:var(--ff-m);font-size:11px;color:var(--t3);background:var(--bg)';indicator.setAttribute('role','status');indicator.setAttribute('aria-label','Pull to refresh');
         indicator.innerHTML='<div style="width:20px;height:20px;border-radius:50%;border:2px solid var(--border2);border-top-color:var(--p);animation:spin .8s linear infinite;flex-shrink:0"></div>Pull to refresh';

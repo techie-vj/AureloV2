@@ -557,6 +557,10 @@
 
 /* ══ TOGGLE SWITCH ════════════════════════════════════ */
 /* role="switch" + aria-checked set in HTML */
+/* Override the global 48px min-height touch-target rule.
+   .tog lives inside .sr rows which already provide 48dp.
+   The toggle itself is 44×26px — compact by design. */
+.tog { min-height: unset !important; }
 .tog {
   width: 44px; height: 26px; border-radius: var(--rad-full);
   cursor: pointer; position: relative; transition: background .2s;
@@ -685,7 +689,10 @@
 }
 
 /* ══ PERFORMANCE ══════════════════════════════════════ */
-.cat-card, .nrec-card, .dplay-card, .dtrend-card, .dhero-card { contain: content; }
+/* FLICKER FIX: only card-level contain (layout+paint, not full content) */
+.cat-card, .nrec-card, .dplay-card, .dtrend-card, .dhero-card { contain: layout paint; }
+/* Panels and modal sheets are fine with will-change because they ARE
+   full-screen stacking contexts — fixed children are expected inside them */
 .modal-sheet { will-change: transform; }
 .panel { will-change: transform; }
 #cat-grid-view, #cat-list-view { contain: layout; }

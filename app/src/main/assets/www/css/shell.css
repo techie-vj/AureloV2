@@ -34,9 +34,16 @@
   /* Extra bottom padding = nav (68px) + safe area + 20px breathing room */
   padding-bottom: calc(88px + env(safe-area-inset-bottom, 0px));
   -webkit-overflow-scrolling: touch;
-  transform: translateZ(0);
-  /* Contain layout/paint for each screen tab */
-  contain: content;
+  /* FLICKER FIX: Do NOT use contain:content or will-change:transform here.
+     Both create a new stacking context, meaning position:fixed children
+     (score sheets, dialogs) get positioned relative to this element instead
+     of the viewport. When the screen scrolls slightly (e.g. aborted pull-to-
+     refresh), those "fixed" sheets jump = visible flicker.
+     contain:layout is safe — it does NOT create a stacking context. */
+  contain: layout;
+}
+/* Only promote during actual swipe navigation */
+.screen.swipe-transitioning {
   will-change: transform;
 }
 .screen::-webkit-scrollbar { display: none; }

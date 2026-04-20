@@ -45,6 +45,13 @@
         #home-aurelo-score [onclick]:active{opacity:0.7;transform:scale(0.97);transition:transform 0.1s,opacity 0.1s;}
     </style>
     <style id="splash-styles">
+        /* Theme-aware splash adaptations */
+        /* Light & Warm theme splash adaptations */
+        :root[data-theme=light] #loading-screen .ls-aura { background:radial-gradient(circle,rgba(108,99,255,.08) 0%,transparent 68%)!important; }
+        :root[data-theme=light] .ls-wordmark-text { background:linear-gradient(135deg,var(--p,#6C63FF) 30%,var(--c,#05C8E8) 70%)!important;-webkit-background-clip:text!important;background-clip:text!important;-webkit-text-fill-color:transparent!important; }
+        :root[data-theme=light] .ls-arch { stroke:url(#lsArchGold)!important; }
+        :root[data-theme=warm]  .ls-wordmark-text { background:linear-gradient(135deg,var(--p,#8B6914) 30%,var(--c,#C47D2E) 70%)!important;-webkit-background-clip:text!important;background-clip:text!important;-webkit-text-fill-color:transparent!important; }
+
         #loading-screen{position:fixed;inset:0;z-index:9999;background:linear-gradient(160deg,#1a1208 0%,#0e0a04 100%);display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden;cursor:pointer;}
         #loading-screen.hidden{opacity:0;transform:scale(1.04) translateY(-6px);pointer-events:none;transition:opacity .55s cubic-bezier(.4,0,.2,1),transform .55s cubic-bezier(.4,0,.2,1);}
         .ls-aura{position:absolute;width:560px;height:560px;background:radial-gradient(circle,rgba(255,160,50,.11) 0%,transparent 68%);filter:blur(72px);top:50%;left:50%;transform:translate(-50%,-52%);pointer-events:none;z-index:0;animation:lsAura 9s ease-in-out infinite alternate;}
@@ -61,7 +68,7 @@
         @keyframes lsStrokeDraw{from{stroke-dashoffset:420;}to{stroke-dashoffset:0;}}
         @keyframes lsDotPop{0%{opacity:0;transform:scale(0);}60%{opacity:1;transform:scale(1.35);}100%{opacity:1;transform:scale(1);}}
         .ls-wordmark{display:flex!important;align-items:flex-end!important;gap:1px!important;justify-content:center!important;margin-bottom:5px!important;opacity:0!important;transform:translateY(10px)!important;transition:opacity .6s ease .3s,transform .6s ease .3s!important;}
-        .ls-wordmark-text{font-family:'Bodoni Moda','Didot',Georgia,serif!important;font-size:clamp(22px,5vw,28px)!important;font-weight:300!important;letter-spacing:3px!important;background:linear-gradient(135deg,#FFE082 30%,#FFAA44 70%)!important;-webkit-background-clip:text!important;background-clip:text!important;-webkit-text-fill-color:transparent!important;color:transparent!important;line-height:1!important;padding-bottom:3px!important;}
+        .ls-wordmark-text{font-family:'Bodoni Moda','Didot',Georgia,serif!important;font-size:clamp(22px,5vw,28px)!important;font-weight:400!important;letter-spacing:3px!important;background:linear-gradient(135deg,#FFE082 30%,#FFAA44 70%)!important;-webkit-background-clip:text!important;background-clip:text!important;-webkit-text-fill-color:transparent!important;color:transparent!important;line-height:1!important;padding-bottom:3px!important;}
         .ls-bar-wrap{width:128px!important;height:2px!important;border-radius:999px!important;background:rgba(255,255,255,.06)!important;overflow:hidden!important;animation:none!important;opacity:1!important;}
         .ls-bar{height:100%!important;width:0!important;background:linear-gradient(90deg,#FF7020,#FFAA44 50%,#FFE082)!important;border-radius:999px!important;box-shadow:0 0 14px rgba(255,170,68,.45)!important;animation:none!important;transition:width .12s ease!important;}
     </style>
@@ -72,7 +79,7 @@
 <a href="#screens-root" class="sr-only" id="skip-to-content" style="position:fixed;top:8px;left:8px;z-index:10000;padding:8px 16px;background:var(--p);color:#fff;border-radius:8px;font-family:var(--ff-m);font-size:12px;text-decoration:none;display:block;width:auto;" onfocus="this.style.opacity='1'" onblur="this.style.opacity='0'">Skip to content</a>
 
 <!-- ═══ SPLASH SCREEN ═════════════════════════════════════════════════ -->
-<div id="loading-screen" onclick="splashSkip()">
+<div id="loading-screen" role="img" aria-label="Aurelo loading" onclick="splashSkip()">
     <div class="ls-aura"></div><div class="ls-grid"></div><div class="ls-vignette"></div>
     <div id="ls-logo" class="ls-mark">
         <svg viewBox="0 0 108 108" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -102,9 +109,9 @@
             </svg>
             <span class="ls-wordmark-text">URELO</span>
         </div>
-        <div id="ls-sub" style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:2.2px;text-transform:uppercase;color:rgba(255,190,100,.5);-webkit-text-fill-color:rgba(255,190,100,.5);margin-bottom:18px;opacity:0;transform:translateY(8px);transition:opacity .6s ease .18s,transform .6s ease .18s;">Screen Time · Focus · Habits</div>
-        <div id="ls-status" style="font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:1.8px;text-transform:uppercase;color:rgba(255,170,68,.45);-webkit-text-fill-color:rgba(255,170,68,.45);min-height:13px;margin-bottom:14px;opacity:0;transition:opacity .4s ease .35s;">Preparing your day…</div>
-        <div id="ls-bar-wrap" style="width:128px;height:2px;border-radius:999px;background:rgba(255,255,255,.06);overflow:hidden;opacity:0;transition:opacity .4s ease .4s;">
+        <div id="ls-sub" style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:2.2px;text-transform:uppercase;color:var(--t3,rgba(255,190,100,.5));-webkit-text-fill-color:unset;margin-bottom:18px;opacity:0;transform:translateY(8px);transition:opacity .6s ease .18s,transform .6s ease .18s;">Screen Time · Focus · Habits</div>
+        <div id="ls-status" style="font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:1.8px;text-transform:uppercase;color:var(--t3,rgba(255,170,68,.45));-webkit-text-fill-color:unset;min-height:13px;margin-bottom:14px;opacity:0;transition:opacity .4s ease .35s;">Preparing your day…</div>
+        <div id="ls-bar-wrap" style="width:128px;height:2px;border-radius:999px;background:var(--border,rgba(255,255,255,.06));overflow:hidden;opacity:0;transition:opacity .4s ease .4s;">
             <div id="ls-bar" style="height:100%;width:0;border-radius:999px;background:linear-gradient(90deg,#FF7020,#FFAA44 50%,#FFE082);box-shadow:0 0 14px rgba(255,170,68,.45);transition:width .12s ease;"></div>
         </div>
     </div>

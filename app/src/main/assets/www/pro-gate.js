@@ -25,7 +25,7 @@
   const FEATURES = {
     // Screen Time
     TODAY_TOP_APPS_UNLIMITED:  { tier:'pro', gate:'blur',    upsell:'unlimited_apps_list' },
-    HOME_INSIGHT:              { tier:'pro', gate:'blur',    upsell:'home_insight' },
+    HOME_INSIGHT:              { tier:'free', gate:'blur',    upsell:'home_insight' },
     MONTHLY_CALENDAR:          { tier:'pro', gate:'lock',    upsell:'monthly_depth' },
     MONTHLY_APP_DNA:           { tier:'pro', gate:'blur',    upsell:'monthly_depth' },
     MONTHLY_STREAK_GRID:       { tier:'pro', gate:'lock',    upsell:'monthly_depth' },
@@ -108,13 +108,8 @@
       if (window.ProUpsell) window.ProUpsell.onBillingError(message);
     };
 
-    window.onRestoreStarted = function() {
-      if (window.ProUpsell) window.ProUpsell.showRestoring();
-    };
-
-    window.onRestoreNoPurchase = function() {
-      if (window.ProUpsell) window.ProUpsell.showRestoreNotFound();
-    };
+    // NOTE: onRestoreStarted and onRestoreNoPurchase are owned by pro-upsell.js
+    // which manages _restoreInProgress and _clearRestoreTimeout internally.
 
     _updateHeader();
     _updateSettingsRows(_isPro);

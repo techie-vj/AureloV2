@@ -538,11 +538,16 @@
   let _injected      = false;
   let _restoreInProgress = false;
   let _restoreTimer      = null;   // safety-net timeout handle
-  let _pendingRestoreWelcome = false; // set when restore fires before home is visible
+  let _pendingRestoreWelcome  = false; // set when restore fires before home is visible
+  let _restoreWelcomeShown    = false; // set when welcome success state is rendered
 
   // ── INIT ──────────────────────────────────────────────────────
   function _inject() {
     if (_injected) return;
+    // Bail out if the body isn't in the DOM yet (script loaded in <head>).
+    // show() calls _inject() at the top, so the retry happens automatically
+    // the first time a user triggers the sheet — by which point body exists.
+    if (!document.body) return;
     _injected = true;
 
     const style = document.createElement('style');
@@ -653,10 +658,10 @@
       }
 
       return '<div class="pu-plan' + (selected ? ' pu-plan-selected' : '') + '"'
-        + ' id="pu-plan-' + p.key + '"'
-        + ' role="radio" tabindex="0" onclick="window._puSelectPlan(\'' + p.key + '\')"
-        onkeydown="if(event.key==='Enter'||event.key===' ')window._puSelectPlan(\'' + p.key + '\')">'
-        + (p.badge ? '<div class="pu-plan-badge">' + _esc(p.badge) + '</div>' : '')
+       + ' id="pu-plan-' + p.key + '"'
+       + ' role="radio" tabindex="0" onclick="window._puSelectPlan(\'' + p.key + '\')"'
+       + ' onkeydown="if(event.key===\'Enter\'||event.key===\' \')window._puSelectPlan(\'' + p.key + '\')">'
+       + (p.badge ? '<div class="pu-plan-badge">' + _esc(p.badge) + '</div>' : '')
         + '<div class="pu-plan-name">'  + _esc(p.label) + '</div>'
         + '<div class="pu-plan-price">' + priceDisplay  + '</div>'
         + perLine
@@ -710,6 +715,10 @@
 
   // ── PUBLIC API ────────────────────────────────────────────────
   function show(upsellKey, context) {
+      // Ensure the sheet DOM exists — _inject() may have bailed on first call
+      // if the script loaded before document.body was available.
+      _inject();
+      if (!_backdrop) return; // still no body (shouldn't happen in practice)
 
       if (window.ProTier && window.ProTier.isPro) return;
 

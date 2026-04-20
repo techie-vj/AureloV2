@@ -440,9 +440,13 @@ window.FocusScore = (function () {
   function _openScoreSheet(html) {
     document.getElementById('score-sheet-backdrop')&&document.getElementById('score-sheet-backdrop').remove();
     document.body.insertAdjacentHTML('beforeend', html);
+    // Double-rAF for reliable paint before animation start (see app-home-score.js comment)
     requestAnimationFrame(function(){
-      var backdrop=document.getElementById('score-sheet-backdrop'), sheet=document.getElementById('score-sheet');
-      if(backdrop){backdrop.style.opacity='1';backdrop.style.pointerEvents='all';} if(sheet) sheet.style.transform='translateY(0)';
+      requestAnimationFrame(function(){
+        var backdrop=document.getElementById('score-sheet-backdrop'), sheet=document.getElementById('score-sheet');
+        if(backdrop){backdrop.style.opacity='1';backdrop.style.pointerEvents='all';}
+        if(sheet) sheet.style.transform='translateY(0)';
+      });
     });
   }
 

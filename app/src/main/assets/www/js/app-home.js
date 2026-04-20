@@ -238,10 +238,9 @@ function dismissInsightBanner(){
  * For Pro users: renders content cleanly.
  * The badge and overlay text are NEVER blurred.
  */
-function renderContextualInsight() {
-  const el = document.getElementById('home-insight-card');
-  if (!el) return;
-  const isPro = ProTier.isPro;
+ function renderContextualInsight() {
+   const el = document.getElementById('home-insight-card');
+   if (!el) return;
 
    // Ensure streak is fresh before computing insight priorities
   if (IS_NATIVE) {
@@ -250,41 +249,33 @@ function renderContextualInsight() {
   const insight = _computeInsightBanner();
   if (!insight) { el.style.display = 'none'; return; }
 
-  el.style.display = '';
-  el.style.border = `1px solid ${insight.color}`;
-  el.style.background = 'var(--s2)';
-  el.className = `insight-card ${isPro ? '' : 'insight-locked'}`;
-  el.onclick = isPro ? null : () => ProTier.triggerUpsell('HOME_INSIGHT');
+   // 1. Render the base content first (Pro version)
+   el.style.display = 'flex';
+   el.style.border = `1px solid ${insight.color}`;
+   el.style.background = 'var(--s2)';
+   el.style.marginBottom = '16px';
+   el.style.marginTop = '16px';
 
-  el.innerHTML = `
-    <div class="insight-content">
-      <div style="display:flex;align-items:flex-start;gap:10px;padding:10px 14px">
-        <div style="font-size:18px;flex-shrink:0">${insight.icon}</div>
-        <div style="flex:1;min-width:0">
-          <div style="font-size:13px;font-weight:700;color:var(--t1);margin-bottom:2px">${insight.title}</div>
-          <div style="font-family:var(--ff-m);font-size:11px;color:var(--t2);line-height:1.6">${insight.body}</div>
-        </div>
-        ${isPro && insight.cta ? `
-          <div id="home-insight-cta"
-            style="flex-shrink:0;padding:5px 10px;border-radius:99px;
-              background:${insight.color}18;border:1px solid ${insight.color}44;
-              font-family:var(--ff-m);font-size:11px;font-weight:700;
-              color:${insight.color};cursor:pointer;white-space:nowrap;align-self:center">
-            ${insight.cta} →
-          </div>` : ''}
-      </div>
-    </div>
-    ${!isPro ? `<div class="insight-lock-overlay">
-      ${typeof proBadge === 'function' ? proBadge() : ''}
-      <div style="font-size:11px;color:rgba(255,255,255,.7);margin-top:2px">Pro Insight — tap to unlock</div>
-    </div>` : ''}`;
+   el.innerHTML = `
+     <div style="display:flex;align-items:flex-start;gap:10px;padding:10px 14px;width:100%">
+       <div style="font-size:18px;flex-shrink:0">${insight.icon}</div>
+       <div style="flex:1;min-width:0">
+         <div style="font-size:13px;font-weight:700;color:var(--t1);margin-bottom:2px">${insight.title}</div>
+         <div style="font-family:var(--ff-m);font-size:11px;color:var(--t2);line-height:1.6">${insight.body}</div>
+       </div>
+       ${insight.cta ? `<div id="home-insight-cta">...</div>` : ''}
+     </div>`;
 
-  // Wire CTA after innerHTML — can't serialize function reference into onclick string
-  if (isPro && insight.cta && insight.action) {
-    const ctaEl = el.querySelector('#home-insight-cta');
-    if (ctaEl) ctaEl.onclick = (e) => { e.stopPropagation(); insight.action(); };
-  }
-}
+   // 2. Apply the Pro Gate.
+   // This will check ProTier.isPro internally and apply the blur/overlay if needed.
+   ProTier.applyBlur(el, 'HOME_INSIGHT', 'Pro Insight — tap to unlock');
+
+   // 3. Wire CTA (only if pro and cta exists)
+   if (ProTier.isPro && insight.cta && insight.action) {
+     const ctaEl = el.querySelector('#home-insight-cta');
+     if (ctaEl) ctaEl.onclick = (e) => { e.stopPropagation(); insight.action(); };
+   }
+ }
 
 /* ─── Phase 5: Streak share button ─────────────────── */
 /**
