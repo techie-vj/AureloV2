@@ -369,12 +369,12 @@ function renderStatsScreenScoreRow() {
 
   el.innerHTML =
     '<div onclick="renderScreenScoreSheet()"'
-    + ' style="background:#111120;border:0.5px solid rgba(108,99,255,0.2);border-radius:14px;'
+    + ' style="background:var(--s2);border:0.5px solid var(--border2);border-radius:14px;'
     + 'padding:10px 14px;display:flex;align-items:center;gap:10px;cursor:pointer">'
-    + '<div style="font-size:11px;color:#6666aa;flex-shrink:0">SCREEN SCORE</div>'
-    + '<div style="font-size:16px;font-weight:600;color:#9b95ff;flex-shrink:0">' + res.score + '</div>'
-    + '<div style="flex:1;height:3px;background:rgba(255,255,255,0.07);border-radius:99px;overflow:hidden">'
-    + '<div style="height:100%;width:' + res.score + '%;background:linear-gradient(90deg,#6c63ff,#05c8e8);border-radius:99px"></div>'
+    + '<div style="font-size:11px;color:var(--t3);flex-shrink:0">SCREEN SCORE</div>'
+    + '<div style="font-size:16px;font-weight:600;color:var(--p2);flex-shrink:0">' + res.score + '</div>'
+    + '<div style="flex:1;height:3px;background:var(--border2);border-radius:99px;overflow:hidden">'
+    + '<div style="height:100%;width:' + res.score + '%;background:linear-gradient(90deg,var(--p),var(--c));border-radius:99px"></div>'
     + '</div>'
     + '<div style="font-size:11px;font-weight:500;color:' + grade.color + ';flex-shrink:0">' + grade.label + '</div>'
     + deltaHtml

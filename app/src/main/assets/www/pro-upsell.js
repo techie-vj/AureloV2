@@ -443,7 +443,7 @@
     }
     .pu-restore-link {
       display: block; text-align: center; margin-top: 6px;
-      font-size: 11px; color: var(--t3); cursor: pointer;
+      font-size: 13px; color: var(--t3); cursor: pointer;
       text-decoration: underline; font-family: var(--ff-m);
       padding: 8px 0; /* minimum tap target */
     }

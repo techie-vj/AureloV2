@@ -671,13 +671,13 @@ window.FocusBedtime = (function () {
       return h + 'h' + (m ? ' ' + m + 'm' : '');
     }
     function hxy(d) { var a = toAngle(d); return { x: CX + R * Math.cos(a), y: CY + R * Math.sin(a) }; }
-    function dark() { return window.matchMedia && window.matchMedia('(prefers-color-scheme:dark)').matches; }
+    function dark() { var t = document.documentElement.getAttribute('data-theme'); if (t) return t !== 'light' && t !== 'warm'; return window.matchMedia && window.matchMedia('(prefers-color-scheme:dark)').matches; }
 
     function draw() {
       var dk     = dark();
       var trackC = dk ? '#2a2a3a' : '#eae8f0', arcC = dk ? '#8b84ff' : '#6c63ff';
       var arcF   = dk ? 'rgba(108,99,255,.2)' : 'rgba(108,99,255,.1)';
-      var textP  = dk ? '#e8e6ff' : '#1a1a2e', textM = dk ? '#666' : '#aaa';
+      var textP  = dk ? '#e8e6ff' : '#1a1a2e', textM = dk ? '#666' : '#888';
       var bedC   = dk ? '#ff6b8a' : '#f04e7a', wakeC = dk ? '#1ef0a0' : '#12d48a';
       var hBg    = dk ? '#1c1c2e' : '#fff';
       var tickMj = dk ? '#3a3a50' : '#ddd', tickMn = dk ? '#252535' : '#f0f0f0';

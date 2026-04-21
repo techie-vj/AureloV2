@@ -76,15 +76,27 @@
 :root[data-theme=light] #ob-screen,
 :root[data-theme=light] #perm-screen { background: var(--bg); }
 /* Light splash tint */
+/* Light theme splash — all rules now live in index.html splash-styles for specificity.
+   These fallbacks cover the case where themes.css loads after splash-styles is cleared. */
 :root[data-theme=light] #loading-screen {
-  background: linear-gradient(160deg,#F5F5FA 0%,#EAEAF5 100%);
-}
-:root[data-theme=light] .ls-grid {
-  background-image: linear-gradient(rgba(108,99,255,.06) 1px, transparent 1px),
-                    linear-gradient(90deg, rgba(108,99,255,.06) 1px, transparent 1px) !important;
+  background: linear-gradient(160deg,#F0F0FA 0%,#E8E8F5 100%);
 }
 :root[data-theme=light] .ls-aura {
-  background: radial-gradient(circle, rgba(108,99,255,.10) 0%, transparent 68%) !important;
+  background: radial-gradient(circle,rgba(108,99,255,.06) 0%,transparent 60%) !important;
+  filter: blur(56px) !important;
+  opacity: .7 !important;
+}
+/* ls-grid: hide on light bg — it was a dark-mode-only decorative element */
+:root[data-theme=light] .ls-grid { opacity: 0 !important; }
+:root[data-theme=warm]  .ls-grid { opacity: 0 !important; }
+:root[data-theme=light] .ls-vignette {
+  background: radial-gradient(circle at 50% 46%,transparent 0 30%,rgba(200,200,220,.25) 60%,rgba(180,180,210,.55) 100%) !important;
+}
+:root[data-theme=light] .ls-bar-wrap {
+  background: rgba(108,99,255,.12) !important;
+}
+:root[data-theme=light] .ls-bar {
+  box-shadow: none !important;
 }
 
 /* ══ AMOLED THEME OVERRIDES ════════════════════════════ */
@@ -331,148 +343,4 @@
 :root[data-theme=light] .quick-stats,
 :root[data-theme=warm]  .quick-stats {
   background: linear-gradient(135deg,rgba(108,99,255,.06),rgba(5,200,232,.03));
-}
-
-/* ══════════════════════════════════════════════════════════
-   LIGHT & WARM THEME — VISIBILITY FIXES  v2.2
-   Addresses: splash title/sub, header logo, donut chart
-   text, focus orbit inner, score card texts.
-   ══════════════════════════════════════════════════════════ */
-
-/* ── Splash screen: golden text is invisible on near-white bg ── */
-:root[data-theme=light] .ls-title,
-:root[data-theme=warm]  .ls-title {
-  background: linear-gradient(135deg, var(--p) 10%, var(--c) 90%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-:root[data-theme=light] .ls-sub,
-:root[data-theme=warm]  .ls-sub {
-  color: var(--t2);
-}
-/* Splash loading bar tint — use brand colours */
-:root[data-theme=light] .ls-bar,
-:root[data-theme=warm]  .ls-bar {
-  background: linear-gradient(90deg, var(--p), var(--c));
-}
-:root[data-theme=light] .ls-dot,
-:root[data-theme=warm]  .ls-dot {
-  background: var(--p);
-}
-
-/* ── Header logo: "URELO" golden gradient invisible on light ── */
-/* Target the logo text span with the class we add in templates */
-:root[data-theme=light] .aurelo-logo-txt,
-:root[data-theme=warm]  .aurelo-logo-txt {
-  background: linear-gradient(135deg, var(--p) 20%, var(--c) 80%) !important;
-  -webkit-background-clip: text !important;
-  -webkit-text-fill-color: transparent !important;
-  background-clip: text !important;
-}
-
-/* ── Focus orbit: hardcoded dark inner bg invisible on light ── */
-:root[data-theme=light] .focus-orbit-inner,
-:root[data-theme=warm]  .focus-orbit-inner {
-  background: radial-gradient(circle, rgba(108,99,255,.20), var(--bg)) !important;
-  border-color: rgba(108,99,255,.35) !important;
-}
-:root[data-theme=light] .focus-orbit-time,
-:root[data-theme=warm]  .focus-orbit-time {
-  color: var(--t1) !important;
-}
-:root[data-theme=light] .focus-orbit-lbl,
-:root[data-theme=warm]  .focus-orbit-lbl {
-  color: var(--p) !important;
-}
-:root[data-theme=light] .focus-orbit-dot,
-:root[data-theme=warm]  .focus-orbit-dot {
-  background: var(--p);
-  box-shadow: 0 0 10px rgba(108,99,255,.5);
-}
-:root[data-theme=light] .focus-orbit::before,
-:root[data-theme=warm]  .focus-orbit::before {
-  border-color: rgba(108,99,255,.25);
-}
-:root[data-theme=light] .focus-orbit::after,
-:root[data-theme=warm]  .focus-orbit::after {
-  border-color: rgba(5,200,232,.20);
-}
-
-/* ── Goal arc hero value: gradient clip needs light-friendly colours ── */
-:root[data-theme=light] .home-arc-val,
-:root[data-theme=warm]  .home-arc-val {
-  background: linear-gradient(135deg, var(--t1) 10%, var(--p));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-/* ── Goal progress bar track on light (white bg = invisible track) ── */
-:root[data-theme=light] .home-goal-bar-wrap,
-:root[data-theme=warm]  .home-goal-bar-wrap {
-  background: var(--s2);
-}
-:root[data-theme=light] .cat-exp-bar-track,
-:root[data-theme=warm]  .cat-exp-bar-track {
-  background: var(--s2);
-}
-:root[data-theme=light] .cat-col-bar-track,
-:root[data-theme=warm]  .cat-col-bar-track {
-  background: var(--s2);
-}
-
-/* ── Score bars inside score sheet modal ── */
-:root[data-theme=light] .focus-timer-bar-wrap,
-:root[data-theme=warm]  .focus-timer-bar-wrap {
-  background: var(--s2);
-}
-
-/* ── Nav bar on light: border and label visibility ── */
-:root[data-theme=light] .bottom-nav,
-:root[data-theme=warm]  .bottom-nav {
-  background: var(--nav-bg);
-  border-top-color: var(--border);
-}
-:root[data-theme=light] .nav-lbl,
-:root[data-theme=warm]  .nav-lbl {
-  color: var(--t3);
-}
-
-/* ── Score badge on home: keep readable on light ── */
-:root[data-theme=light] .perm-badge.ok,
-:root[data-theme=warm]  .perm-badge.ok {
-  background: rgba(18,212,138,.12);
-  color: #2E7D32;
-}
-:root[data-theme=light] .perm-badge.no,
-:root[data-theme=warm]  .perm-badge.no {
-  background: rgba(240,78,122,.10);
-  color: #C62828;
-}
-
-/* ── Section label uppercase mono on light ── */
-:root[data-theme=light] .section-label,
-:root[data-theme=warm]  .section-label {
-  color: var(--t3);
-}
-
-/* ── Ghost/scan rows need visible text ── */
-:root[data-theme=light] .scan-row,
-:root[data-theme=warm]  .scan-row {
-  background: var(--s1);
-  border-color: var(--border);
-}
-
-/* ── Warm theme: Use warm colours for orbit matching brand ── */
-:root[data-theme=warm] .focus-orbit-inner {
-  background: radial-gradient(circle, rgba(139,105,20,.24), var(--bg)) !important;
-  border-color: rgba(139,105,20,.38) !important;
-}
-:root[data-theme=warm] .focus-orbit-dot {
-  background: var(--p);
-  box-shadow: 0 0 10px rgba(139,105,20,.45);
-}
-:root[data-theme=warm] .focus-orbit-lbl {
-  color: var(--p) !important;
 }
