@@ -25,17 +25,15 @@
 
     <div id="settings-pro-slot"></div>
 
-    <!-- ① Goals & Limits -->
-    <div class="sg">
-        <div class="sg-lbl">Goals & Limits</div>
+    <!-- top spacing -->
+    <div style="height:16px"></div>
+
+    <!-- ① Usage Controls -->
+    <div class="sg" style="margin-bottom:24px">
+        <div class="sg-lbl">Usage Controls</div>
         <div class="sr" onclick="openStreakGoalPicker()">
             <div class="sr-ico" style="background:rgba(247,166,35,.15)">🎯</div>
             <div style="flex:1"><div class="sr-lbl">Daily Screen Time Goal</div><div class="sr-sub" id="streak-goal-sub">4h per day</div></div>
-            <span class="sr-chev">›</span>
-        </div>
-        <div class="sr" onclick="openPanel('timer-panel')">
-            <div class="sr-ico" style="background:rgba(247,166,35,.15)">⏱️</div>
-            <div style="flex:1"><div class="sr-lbl">App Timers</div><div class="sr-sub" id="timers-sub">Daily time limits</div></div>
             <span class="sr-chev">›</span>
         </div>
         <div class="sr" onclick="openPanel('lock-panel')">
@@ -43,11 +41,6 @@
             <div style="flex:1"><div class="sr-lbl">Locked Apps</div><div class="sr-sub" id="locked-sub">Tap to configure</div></div>
             <span class="sr-chev">›</span>
         </div>
-    </div>
-
-    <!-- ② Focus & Wellbeing -->
-    <div class="sg">
-        <div class="sg-lbl">Focus & Wellbeing</div>
         <div class="sr">
             <div class="sr-ico" style="background:rgba(5,200,232,.12)">🔔</div>
             <div style="flex:1"><div class="sr-lbl">Smart Alerts</div><div class="sr-sub" id="perm-notif-sub">Usage-based notifications</div></div>
@@ -60,14 +53,9 @@
         </div>
     </div>
 
-    <!-- ③ Organisation -->
-    <div class="sg">
+    <!-- ② Organisation -->
+    <div class="sg" style="margin-bottom:24px">
         <div class="sg-lbl">Organisation</div>
-        <div class="sr" onclick="openPanel('manage-cats-panel')">
-            <div class="sr-ico" style="background:rgba(108,99,255,.15)">📂</div>
-            <div style="flex:1"><div class="sr-lbl">Manage Categories</div><div class="sr-sub" id="cats-sub">Loading…</div></div>
-            <span class="sr-chev">›</span>
-        </div>
         <div class="sr" onclick="openPanel('hide-panel')">
             <div class="sr-ico" style="background:rgba(176,110,255,.15)">🙈</div>
             <div style="flex:1"><div class="sr-lbl">Hidden Apps</div><div class="sr-sub" id="hidden-sub">Hide from categories</div></div>
@@ -80,10 +68,19 @@
         </div>
     </div>
 
-    <!-- ④ Widget -->
-    <div class="sg" id="section-widget">
-        <div class="sg-lbl">Widget</div>
-        <div class="sr" onclick="toggleWidgetSection()" style="user-select:none">
+    <!-- ③ Appearance -->
+    <div class="sg" style="margin-bottom:24px">
+        <div class="sg-lbl">Appearance</div>
+        <div class="sr" onclick="toggleAppThemes()">
+            <div class="sr-ico" style="background:rgba(108,99,255,.15)">🎨</div>
+            <div style="flex:1">
+                <div class="sr-lbl">App Theme</div>
+                <div class="sr-sub" id="appThemeSub">🌙 Dark</div>
+            </div>
+            <span id="appThemeChevron" style="font-size:16px;color:var(--t3);transition:transform .2s">›</span>
+        </div>
+        <div id="appThemeList" style="display:none;padding:4px 0 2px"></div>
+        <div class="sr" id="section-widget" onclick="toggleWidgetSection()" style="user-select:none">
             <div class="sr-ico" style="background:rgba(108,99,255,.15)">🍱</div>
             <div style="flex:1">
                 <div class="sr-lbl">Widget</div>
@@ -140,29 +137,15 @@
                 </div>
             </div>
         </div>
-    </div>
-
-    <!-- ⑤ Appearance & Privacy -->
-    <div class="sg">
-        <div class="sg-lbl">Appearance & Privacy</div>
-        <div class="sr" onclick="toggleAppThemes()">
-            <div class="sr-ico" style="background:rgba(108,99,255,.15)">🎨</div>
-            <div style="flex:1">
-                <div class="sr-lbl">App Theme</div>
-                <div class="sr-sub" id="appThemeSub">🌙 Dark</div>
-            </div>
-            <span id="appThemeChevron" style="font-size:16px;color:var(--t3);transition:transform .2s">›</span>
-        </div>
-        <div id="appThemeList" style="display:none;padding:4px 0 2px"></div>
         <div class="sr" onclick="openPrivacyDetail()">
             <div class="sr-ico" style="background:rgba(18,212,138,.12)">🛡️</div>
-            <div style="flex:1"><div class="sr-lbl">Data & Privacy</div><div class="sr-sub">Local only · No ads · Permissions</div></div>
+            <div style="flex:1"><div class="sr-lbl">Data &amp; Privacy</div><div class="sr-sub">Local only · No ads · Permissions</div></div>
             <span class="sr-chev">›</span>
         </div>
     </div>
 
-    <!-- ⑥ About -->
-    <div class="sg">
+    <!-- ④ About -->
+    <div class="sg" style="margin-bottom:24px">
         <div class="sg-lbl">About</div>
         <div class="sr" onclick="referFriend()">
             <div class="sr-ico" style="background:rgba(18,212,138,.15)">🎁</div>
@@ -177,16 +160,6 @@
         <div class="sr" onclick="sendFeedback()">
             <div class="sr-ico" style="background:rgba(108,99,255,.15)">💬</div>
             <div style="flex:1"><div class="sr-lbl">Send Feedback</div><div class="sr-sub">Report a bug or suggest a feature</div></div>
-            <span class="sr-chev">›</span>
-        </div>
-        <div class="sr" onclick="AppBridge.openUrl('https://sites.google.com/view/tidyapp-privacy-policy')">
-            <div class="sr-ico" style="background:rgba(18,212,138,.12)">🔒</div>
-            <div style="flex:1"><div class="sr-lbl">Privacy Policy</div><div class="sr-sub">How we handle your data</div></div>
-            <span class="sr-chev">›</span>
-        </div>
-        <div class="sr" onclick="AppBridge.openUrl('https://sites.google.com/view/tidyapp-terms-and-conditions')">
-            <div class="sr-ico" style="background:rgba(108,99,255,.12)">📜</div>
-            <div style="flex:1"><div class="sr-lbl">Terms & Conditions</div><div class="sr-sub">Terms governing your use of Aurelo</div></div>
             <span class="sr-chev">›</span>
         </div>
         <div class="sr" style="cursor:default">

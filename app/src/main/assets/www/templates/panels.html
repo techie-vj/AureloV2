@@ -52,7 +52,7 @@
             <div style="font-family:var(--ff-d);font-size:18px;font-weight:700;color:var(--g);margin-bottom:8px">Zero servers. Zero accounts. Zero data shared.</div>
             <div style="font-size:13px;color:var(--t2);line-height:1.7">Aurelo has no backend. Your screen time is computed on this device and never transmitted anywhere.</div>
         </div>
-        <div style="font-family:var(--ff-m);font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--t3);margin-bottom:8px">Permissions</div>
+        <div style="font-family:var(--ff-m);font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--t3);margin-bottom:8px">PERMISSIONS</div>
         <div class="sr" onclick="tapPerm('usage')" style="margin-bottom:6px">
             <div class="sr-ico" style="background:rgba(108,99,255,.15)">📊</div>
             <div style="flex:1"><div class="sr-lbl">Usage Access</div><div class="sr-sub">Required for screen time tracking</div></div>
@@ -73,10 +73,21 @@
             <div style="flex:1"><div class="sr-lbl">Display Over Other Apps</div><div class="sr-sub" id="perm-overlay-sub">Required for Focus Mode, timers &amp; Mindful prompts</div></div>
             <div class="perm-badge no" id="perm-overlay">Check</div><span class="sr-chev">›</span>
         </div>
-        <div style="font-family:var(--ff-m);font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--t3);margin-bottom:8px">Data</div>
+        <div style="font-family:var(--ff-m);font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--t3);margin-bottom:8px">DATA</div>
         <div class="sr" onclick="confirmClearData()">
             <div class="sr-ico" style="background:rgba(240,78,122,.12)">🗑️</div>
             <div style="flex:1"><div class="sr-lbl">Clear All Data</div><div class="sr-sub">Reset categories, limits, and history</div></div>
+            <span class="sr-chev">›</span>
+        </div>
+        <div style="font-family:var(--ff-m);font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--t3);margin-bottom:8px;margin-top:16px">LEGAL</div>
+        <div class="sr" onclick="AppBridge.openUrl('https://sites.google.com/view/tidyapp-privacy-policy')">
+            <div class="sr-ico" style="background:rgba(18,212,138,.12)">🔒</div>
+            <div style="flex:1"><div class="sr-lbl">Privacy Policy</div><div class="sr-sub">How we handle your data</div></div>
+            <span class="sr-chev">›</span>
+        </div>
+        <div class="sr" onclick="AppBridge.openUrl('https://sites.google.com/view/tidyapp-terms-and-conditions')">
+            <div class="sr-ico" style="background:rgba(108,99,255,.12)">📜</div>
+            <div style="flex:1"><div class="sr-lbl">Terms & Conditions</div><div class="sr-sub">Terms governing your use of Aurelo</div></div>
             <span class="sr-chev">›</span>
         </div>
     </div>
