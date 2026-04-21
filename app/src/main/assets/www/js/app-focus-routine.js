@@ -1117,6 +1117,7 @@ window.FocusRoutine = (function () {
     _rpOpenAppPicker,
     _rpSaveInlinePicker,
     _rpFilterInlinePicker,
+     _rpSetFilter,
     _rpDelete,
     _rpConfirmDelete,
     _rpOpenTimePicker,
