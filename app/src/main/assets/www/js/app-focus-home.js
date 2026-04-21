@@ -485,9 +485,20 @@ window.FocusHome = (function () {
     if (!el) return;
     var cfg     = typeof FocusBedtime !== 'undefined' ? FocusBedtime.getCfg() : {};
     var nowH    = new Date().getHours() + new Date().getMinutes() / 60;
-    var bedH    = (cfg.bedHour || 22) + (cfg.bedMinute || 0) / 60;
-    var wakeH   = (cfg.wakeHour || 7)  + (cfg.wakeMinute || 0) / 60;
-    var inWindow= cfg.enabled ? (bedH > wakeH ? (nowH >= bedH || nowH < wakeH) : (nowH >= bedH && nowH < wakeH)) : false;
+    var bedH    = (cfg.bedHour != null ? cfg.bedHour : 22) + (cfg.bedMinute || 0) / 60;
+    var wakeH   = (cfg.wakeHour != null ? cfg.wakeHour : 7) + (cfg.wakeMinute || 0) / 60;
+    // FIX-1: Use native bridge as source of truth (matches what the bedtime
+    // section shows). JS math is kept only as a fallback for non-native / demo.
+    var inWindow = false;
+    if (cfg.enabled) {
+      if (IS_NATIVE && typeof N.isInBedtimeWindow === 'function') {
+        try { inWindow = !!N.isInBedtimeWindow(); } catch (_) {
+          inWindow = bedH > wakeH ? (nowH >= bedH || nowH < wakeH) : (nowH >= bedH && nowH < wakeH);
+        }
+      } else {
+        inWindow = bedH > wakeH ? (nowH >= bedH || nowH < wakeH) : (nowH >= bedH && nowH < wakeH);
+      }
+    }
     var now     = Date.now();
     var sk      = typeof FocusTab !== 'undefined' ? FocusTab.getStreakState() : {};
 
