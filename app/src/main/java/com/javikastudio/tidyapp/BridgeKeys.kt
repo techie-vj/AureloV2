@@ -68,15 +68,27 @@ const val KEY_FOCUS_LAST_ELAPSED     = "focus_last_elapsed"
 const val KEY_FOCUS_LAST_TOTAL       = "focus_last_total_mins"
 
 // ── Intention prompt ──────────────────────────────────────────────────────
-// IMPORTANT: these values must match the literal strings used in IntentionEngine.kt
-// ("focus_intention_apps" / "focus_intention_enabled"). A mismatch means the
-// bridge writes to different prefs keys than the engine reads → overlay never fires.
+// IMPORTANT: ALL key values here must match the literal strings used in
+// IntentionEngine.kt exactly.  A mismatch means the bridge reads from a
+// different prefs entry than the engine writes → counts always read as 0.
+//
+// BUG FIX: pause/resist date+count keys were missing the "focus_" prefix,
+// so IntentionPromptBridge.getIntentionPauseCount() / getIntentionResistCount()
+// always returned 0 even after real pauses were recorded.
 const val KEY_INTENTION_APPS         = "focus_intention_apps"
 const val KEY_INTENTION_ENABLED      = "focus_intention_enabled"
-const val KEY_INTENTION_PAUSE_DATE   = "intention_pause_date"
-const val KEY_INTENTION_PAUSE_COUNT  = "intention_pause_count"
-const val KEY_INTENTION_RESIST_DATE  = "intention_resist_date"
-const val KEY_INTENTION_RESIST_COUNT = "intention_resist_count"
+const val KEY_INTENTION_PAUSE_DATE   = "focus_intention_pause_date"   // was "intention_pause_date"
+const val KEY_INTENTION_PAUSE_COUNT  = "focus_intention_pause_count"  // was "intention_pause_count"
+const val KEY_INTENTION_RESIST_DATE  = "focus_intention_resist_date"  // was "intention_resist_date"
+const val KEY_INTENTION_RESIST_COUNT = "focus_intention_resist_count" // was "intention_resist_count"
+
+// Per-app pause/resist counts — stored by IntentionEngine alongside the aggregates.
+// Pattern: "focus_intention_pause_count_{packageName}" / "focus_intention_resist_count_{packageName}"
+// Date guards follow the same pattern: "focus_intention_pause_date_{packageName}"
+const val KEY_INTENTION_APP_PAUSE_COUNT_PREFIX  = "focus_intention_pause_count_"
+const val KEY_INTENTION_APP_RESIST_COUNT_PREFIX = "focus_intention_resist_count_"
+const val KEY_INTENTION_APP_PAUSE_DATE_PREFIX   = "focus_intention_pause_date_"
+const val KEY_INTENTION_APP_RESIST_DATE_PREFIX  = "focus_intention_resist_date_"
 
 // ── Bedtime ───────────────────────────────────────────────────────────────
 const val BEDTIME_SETTINGS_V1         = "bedtime_settings_v1"

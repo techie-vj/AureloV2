@@ -299,14 +299,14 @@ window.FocusTab = (function () {
     return '<div class="focus-app-chip blocked">' +
       '<div class="focus-chip-ico">' + appIco(a.packageName, 20, 5) + '</div>' +
       '<span>' + a.name.split(' ')[0] + '</span>' +
-      '<span onclick="event.stopPropagation();FocusTab.removeFocusBlockedApp(\'' + escAttr(a.packageName) + '\')" style="opacity:.45;font-size:12px;margin-left:2px;cursor:pointer">\u00d7</span>' +
+      '<span onclick="event.stopPropagation();FocusTab.removeFocusBlockedApp(\'' + escAttr(a.packageName) + '\')" style="opacity:.45;font-size:var(--text-xs);margin-left:2px;cursor:pointer">\u00d7</span>' +
       '</div>';
   }
 
   function _makeOverflowChip(count) {
     return '<div class="focus-app-chip" onclick="openFocusAppPicker(\'block\',true)"' +
       ' style="background:var(--s2);border-color:var(--border2);color:var(--p);' +
-      'font-family:var(--ff-m);font-size:10px;cursor:pointer;font-weight:700">+' + count + ' more</div>';
+      'font-family:var(--ff-m);font-size:var(--text-2xs);cursor:pointer;font-weight:700">+' + count + ' more</div>';
   }
 
   function _renderSessionIdle() {
@@ -551,29 +551,18 @@ window.FocusTab = (function () {
       panel.style.cssText = 'display:none;position:fixed;inset:0;z-index:2000;' +
         'background:rgba(6,6,16,.92);align-items:center;justify-content:center;';
       panel.innerHTML =
-        '<div style="background:var(--s1);border:1px solid var(--border2);border-radius:22px;' +
-        'padding:24px 20px;width:280px;box-sizing:border-box">' +
-          '<div style="font-family:var(--ff-m);font-size:11px;letter-spacing:2px;' +
-          'text-transform:uppercase;color:var(--t3);text-align:center;margin-bottom:18px">Custom Duration</div>' +
-          '<div style="display:flex;align-items:center;justify-content:center;gap:16px;' +
-          'margin-bottom:4px;position:relative">' +
-            // Selection highlight bar behind the centre row
-            '<div style="position:absolute;left:0;right:0;height:44px;top:50%;transform:translateY(-50%);' +
-            'border-top:1px solid var(--border2);border-bottom:1px solid var(--border2);' +
-            'border-radius:8px;pointer-events:none"></div>' +
+        '<div class="fdp-card">' +
+          '<div class="fdp-title">Set Duration</div>' +
+          '<div class="fdp-drum-row">' +
+            '<div class="fdp-highlight"></div>' +
             '<div class="focus-drum-col" id="dur-drum-hours"></div>' +
-            '<div style="font-family:var(--ff-m);font-size:22px;color:var(--t2);font-weight:400;flex-shrink:0">:</div>' +
+            '<div class="fdp-sep">:</div>' +
             '<div class="focus-drum-col" id="dur-drum-mins"></div>' +
           '</div>' +
-          '<div style="font-family:var(--ff-m);font-size:9px;color:var(--t3);' +
-          'text-align:center;margin-bottom:18px;letter-spacing:.5px">hours : minutes</div>' +
-          '<div style="display:flex;gap:10px">' +
-            '<button type="button" onclick="FocusTab.closeCustomDurPicker()" style="flex:1;padding:12px;border-radius:12px;' +
-            'border:1px solid var(--border2);background:transparent;color:var(--t2);' +
-            'font-family:var(--ff-m);font-size:13px;cursor:pointer">Cancel</button>' +
-            '<button type="button" onclick="FocusTab.confirmCustomDur()" style="flex:1;padding:12px;border-radius:12px;' +
-            'border:none;background:linear-gradient(135deg,var(--p),var(--c));color:#fff;' +
-            'font-family:var(--ff-m);font-size:13px;font-weight:600;cursor:pointer">Set Duration</button>' +
+          '<div class="fdp-hint">hours&nbsp;&nbsp;:&nbsp;&nbsp;minutes</div>' +
+          '<div class="fdp-actions">' +
+            '<button type="button" class="fdp-cancel" onclick="FocusTab.closeCustomDurPicker()">Cancel</button>' +
+            '<button type="button" class="fdp-confirm" onclick="FocusTab.confirmCustomDur()">Set Duration</button>' +
           '</div>' +
         '</div>';
       document.body.appendChild(panel);
@@ -682,7 +671,7 @@ window.FocusTab = (function () {
       notice.id = noticeId;
       notice.style.cssText = 'position:fixed;bottom:90px;left:50%;transform:translateX(-50%);' +
         'background:#1a1a2e;border:1px solid #F7A623;border-radius:14px;padding:14px 20px;' +
-        'font-family:var(--ff-m);font-size:13px;color:#F7A623;z-index:9999;text-align:center;' +
+        'font-family:var(--ff-m);font-size:var(--text-sm);color:#F7A623;z-index:9999;text-align:center;' +
         'min-width:240px;box-shadow:0 4px 24px rgba(0,0,0,.5)';
       notice.textContent = '🔥 Firm mode — unlocking in ' + secs + 's…';
       document.body.appendChild(notice);
@@ -798,7 +787,7 @@ window.FocusTab = (function () {
     var msg = completed ? '\uD83C\uDF89 Session complete! ' + durationMins + ' min focused.' : '\u23F8 Session ended early.';
     var card = document.createElement('div');
     card.id = 'post-session-card';
-    card.style.cssText = 'position:fixed;bottom:88px;left:50%;transform:translateX(-50%);z-index:3000;background:var(--s2);border:1px solid var(--border2);border-radius:16px;padding:14px 20px;box-shadow:0 8px 32px rgba(0,0,0,.25);font-family:var(--ff-m);font-size:13px;color:var(--t1);white-space:nowrap;animation:fade-in-up .3s ease';
+    card.style.cssText = 'position:fixed;bottom:88px;left:50%;transform:translateX(-50%);z-index:3000;background:var(--s2);border:1px solid var(--border2);border-radius:16px;padding:14px 20px;box-shadow:0 8px 32px rgba(0,0,0,.25);font-family:var(--ff-m);font-size:var(--text-sm);color:var(--t1);white-space:nowrap;animation:fade-in-up .3s ease';
     card.textContent = msg;
     document.body.appendChild(card);
     setTimeout(function () { card.style.opacity = '0'; card.style.transition = 'opacity .4s'; setTimeout(function () { card.remove(); }, 400); }, 3500);

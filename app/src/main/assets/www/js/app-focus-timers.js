@@ -26,15 +26,15 @@ window.FocusTimers = (function () {
     var timeColor = pct >= 100 ? 'var(--r)' : pct >= 80 ? 'var(--a)' : 'var(--t2)';
 
     var statusTag = isOver
-      ? '<span style="font-family:var(--ff-m);font-size:10px;background:rgba(240,78,122,.15);' +
+      ? '<span style="font-family:var(--ff-m);font-size:var(--text-2xs);background:rgba(240,78,122,.15);' +
         'color:var(--r);border-radius:4px;padding:1px 5px;margin-left:5px">OVER</span>'
       : pct >= 80
-        ? '<span style="font-family:var(--ff-m);font-size:10px;background:rgba(247,166,35,.12);' +
+        ? '<span style="font-family:var(--ff-m);font-size:var(--text-2xs);background:rgba(247,166,35,.12);' +
           'color:var(--a);border-radius:4px;padding:1px 5px;margin-left:5px">80%</span>'
         : '';
 
     var ignLabel = weekIgn > 0
-      ? '<span style="font-family:var(--ff-m);font-size:11px;color:var(--t3)">· ignored ' + weekIgn + '× this week</span>'
+      ? '<span class="ftr-ignored">· ignored ' + weekIgn + '× this week</span>'
       : '';
 
     return '<div onclick="openTimerForApp(\'' + safePkg + '\',\'' + safeAppName + '\',' + usedMins + ')"' +
@@ -44,9 +44,9 @@ window.FocusTimers = (function () {
       'flex-shrink:0;display:flex;align-items:center;justify-content:center">' +
         appIco(pkg, 34, 9) +
       '</div>' +
-      '<div style="flex:1;min-width:0">' +
-        '<div style="display:flex;align-items:center;flex-wrap:wrap;gap:0;margin-bottom:4px">' +
-          '<span style="font-size:12px;font-weight:600;color:var(--t1)">' + appName + '</span>' +
+      '<div class="ftr-body">' +
+        '<div class="ftr-name">' +
+          '<span class="ftr-name-text">' + appName + '</span>' +
           statusTag + ignLabel +
         '</div>' +
         '<div style="height:3px;background:var(--border);border-radius:2px;overflow:hidden">' +
@@ -55,10 +55,10 @@ window.FocusTimers = (function () {
         '</div>' +
       '</div>' +
       '<div style="text-align:right;flex-shrink:0">' +
-        '<div style="font-family:var(--ff-m);font-size:11px;font-weight:700;color:' + timeColor + '">' +
+        '<div style="font-family:var(--ff-m);font-size:var(--text-2xs);font-weight:700;color:' + timeColor + '">' +
           fmtM(usedMins) +
         '</div>' +
-        '<div style="font-family:var(--ff-m);font-size:11px;color:var(--t3)">' + fmtM(limitMins) + '</div>' +
+        '<div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3)">' + fmtM(limitMins) + '</div>' +
       '</div>' +
     '</div>';
   }
@@ -83,8 +83,8 @@ window.FocusTimers = (function () {
         '<div style="display:flex;align-items:center;justify-content:space-between;padding:18px 18px 14px;' +
         'border-bottom:1px solid var(--border);flex-shrink:0">' +
           '<div>' +
-            '<div style="font-size:15px;font-weight:700;color:var(--t1)">All App Timers</div>' +
-            '<div style="font-family:var(--ff-m);font-size:11px;color:var(--t3);margin-top:2px">' +
+            '<div style="font-size:var(--text-base);font-weight:700;color:var(--t1)">All App Timers</div>' +
+            '<div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);margin-top:2px">' +
               pkgs.length + ' timer' + (pkgs.length !== 1 ? 's' : '') +
               (overCount > 0 ? ' · <span style="color:var(--r)">' + overCount + ' over</span>' : '') +
             '</div>' +
@@ -97,7 +97,7 @@ window.FocusTimers = (function () {
         '<div style="padding:14px 18px 0;flex-shrink:0">' +
           '<div onclick="document.getElementById(\'_timers-all-modal\').remove();openPanel(\'timer-panel\')"' +
           ' style="width:100%;padding:12px;border-radius:13px;background:rgba(108,99,255,.12);' +
-          'border:1px solid rgba(108,99,255,.25);font-family:var(--ff-m);font-size:13px;font-weight:700;' +
+          'border:1px solid rgba(108,99,255,.25);font-family:var(--ff-m);font-size:var(--text-sm);font-weight:700;' +
           'color:var(--p);cursor:pointer;text-align:center">Set timer →</div>' +
         '</div>' +
       '</div>';
@@ -116,15 +116,15 @@ window.FocusTimers = (function () {
       wrap.innerHTML =
         '<div style="padding:14px 0 4px;display:flex;align-items:center;justify-content:space-between">' +
           '<div>' +
-            '<div style="font-size:13px;font-weight:600;color:var(--t2)">Daily App Timers</div>' +
-            '<div style="font-family:var(--ff-m);font-size:10px;color:var(--t3);margin-top:2px">' +
+            '<div style="font-size:var(--text-sm);font-weight:600;color:var(--t2)">Daily App Timers</div>' +
+            '<div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);margin-top:2px">' +
               'Set a limit and Aurelo shows a soft-block when you hit it' +
             '</div>' +
           '</div>' +
           '<div onclick="openPanel(\'timer-panel\')"' +
              ' style="padding:8px 14px;border-radius:99px;flex-shrink:0;' +
              'background:rgba(108,99,255,.12);border:1px solid rgba(108,99,255,.25);' +
-             'font-family:var(--ff-m);font-size:11px;font-weight:700;' +
+             'font-family:var(--ff-m);font-size:var(--text-2xs);font-weight:700;' +
              'color:var(--p);cursor:pointer;white-space:nowrap">Set timer →' +
           '</div>' +
         '</div>';
@@ -151,7 +151,7 @@ window.FocusTimers = (function () {
 
     var showMoreHtml = hiddenCount > 0
       ? '<div onclick="FocusTimers._showMore()" style="text-align:center;padding:8px 0 0;' +
-        'font-family:var(--ff-m);font-size:11px;color:var(--p);cursor:pointer">' +
+        'font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--p);cursor:pointer">' +
         '+ ' + hiddenCount + ' more app' + (hiddenCount !== 1 ? 's' : '') + ' · tap to see all</div>'
       : '';
 
@@ -166,13 +166,13 @@ window.FocusTimers = (function () {
     wrap.innerHTML =
       '<div style="display:flex;align-items:center;justify-content:space-between;padding:0 0 6px">' +
         '<div>' +
-          '<div style="font-size:13px;font-weight:600;color:var(--t1)">Daily Timers</div>' +
-          '<div style="font-family:var(--ff-m);font-size:10px;margin-top:1px">' +
+          '<div style="font-size:var(--text-sm);font-weight:600;color:var(--t1)">Daily Timers</div>' +
+          '<div style="font-family:var(--ff-m);font-size:var(--text-2xs);margin-top:1px">' +
             footerStats + ignFooter +
           '</div>' +
         '</div>' +
         '<div onclick="openPanel(\'timer-panel\')"' +
-          ' style="font-family:var(--ff-m);font-size:10px;color:var(--p);cursor:pointer">Manage →</div>' +
+          ' style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--p);cursor:pointer">Manage →</div>' +
       '</div>' +
       rows + showMoreHtml;
 

@@ -1,6 +1,7 @@
 /* ═══════════════════════════════════════════════════════
-   AURELO DESIGN TOKENS  v2.1
-   FIX: Font scale bumped up for readability.
+   AURELO DESIGN TOKENS  v2.2
+   ACCESSIBILITY FIX: Font scale raised to WCAG 2.1 AA
+   minimums — 16 px body, 12 px minimum for any label.
    ═══════════════════════════════════════════════════════ */
 
 :root {
@@ -13,17 +14,20 @@
   --ff-b:'Bricolage Grotesque',system-ui,sans-serif;
   --ff-m:'JetBrains Mono','Courier New',monospace;
 
-  /* ── Typography scale — bumped +1-2px for readability ── */
-  --text-2xs:  11px;   /* was 10 — labels, badges */
-  --text-xs:   12px;   /* was 11 — secondary labels, mono caps */
-  --text-sm:   13px;   /* was 12 — body small */
-  --text-md:   14px;   /* was 13 — body, list items */
-  --text-base: 15px;   /* was 14 — body default */
-  --text-lg:   17px;   /* was 16 — CTA labels */
-  --text-xl:   19px;   /* was 18 — sheet titles */
-  --text-2xl:  21px;   /* was 20 — panel titles */
-  --text-3xl:  27px;   /* was 26 — screen headers */
-  --text-hero: 50px;   /* was 48 — hero score */
+  /* ── Typography scale — WCAG 2.1 AA compliant ──────────
+     Minimum body: 16 px. Minimum label/caption: 12 px.
+     All interactive labels ≥ 13 px.
+     ─────────────────────────────────────────────────── */
+  --text-2xs:  12px;   /* captions, badges, mono caps  (was 11) */
+  --text-xs:   13px;   /* secondary labels, mono caps  (was 12) */
+  --text-sm:   14px;   /* body small, list sub-text    (was 13) */
+  --text-md:   15px;   /* body, list items             (was 14) */
+  --text-base: 16px;   /* body default — WCAG minimum  (was 15) */
+  --text-lg:   18px;   /* CTA labels                  (was 17) */
+  --text-xl:   20px;   /* sheet titles                (was 19) */
+  --text-2xl:  22px;   /* panel titles                (was 21) */
+  --text-3xl:  28px;   /* screen headers              (was 27) */
+  --text-hero: 52px;   /* hero score                  (was 50) */
 
   --fw-regular:  400;
   --fw-medium:   500;
@@ -119,7 +123,16 @@
 /* ══ GLOBAL RESET ════════════════════════════════════════ */
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
 html,body{height:100%;overflow:hidden;background:var(--bg);-webkit-touch-callout:none;-webkit-user-select:none;user-select:none;}
-body{font-family:var(--ff-b);font-size:var(--text-base);font-weight:var(--fw-regular);color:var(--t1);overscroll-behavior:none;-webkit-tap-highlight-color:transparent;}
+body{
+  font-family:var(--ff-b);
+  font-size:var(--text-base); /* 16px — WCAG 2.1 AA minimum */
+  font-weight:var(--fw-regular);
+  color:var(--t1);
+  overscroll-behavior:none;
+  -webkit-tap-highlight-color:transparent;
+  /* Prevent text from being too small on mobile zoom */
+  -webkit-text-size-adjust:100%;
+}
 button,input,select,textarea{font-family:inherit;font-size:inherit;}
 img{display:block;}
 input[type=text],input[type=search],input[type=email],input[type=number],textarea{-webkit-user-select:text;user-select:text;}

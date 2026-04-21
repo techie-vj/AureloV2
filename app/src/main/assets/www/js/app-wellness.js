@@ -40,7 +40,7 @@ function renderDonutChart(){
     const hasPermission = IS_NATIVE && N.hasUsagePermission && N.hasUsagePermission();
     wrap.innerHTML=`<div style="padding:32px;text-align:center;font-family:var(--ff-m);font-size:12px;color:var(--t3)">
       ${hasPermission ? '📭 No app usage recorded yet today' : 'Grant Usage Access to see real screen time'}</div>
-      <div id="arc-goal" style="font-size:12px;color:var(--t3);margin-top:4px">–</div>`;
+      <div id="arc-goal" style="font-size:13px;color:var(--t3);margin-top:4px">–</div>`;
     return;
   }
   const topUse=use.slice(0,MAX_SEGS);
@@ -88,19 +88,19 @@ function renderDonutChart(){
   const legendHtml = legendItems.slice(0,5).map(li=>`
     <div style="display:flex;align-items:center;gap:5px;white-space:nowrap;overflow:hidden">
       <div style="width:8px;height:8px;border-radius:2px;flex-shrink:0;background:${li.color}"></div>
-      <span style="font-size:10px;color:var(--t2);overflow:hidden;text-overflow:ellipsis;max-width:70px">${li.name}</span>
-      <span style="font-family:var(--ff-m);font-size:9px;color:var(--t3);flex-shrink:0">${fmtM(li.mins)}</span>
+      <span style="font-size:12px;color:var(--t2);overflow:hidden;text-overflow:ellipsis;max-width:80px">${li.name}</span>
+      <span style="font-family:var(--ff-m);font-size:11px;color:var(--t3);flex-shrink:0">${fmtM(li.mins)}</span>
     </div>`).join('');
 
   wrap.innerHTML=`
     <svg viewBox="0 0 ${W} ${W}" width="100%" style="max-width:${W}px;display:block">
       ${paths.join('')}
-      <text id="donut-center-today" x="${CX}" y="${CY-16}" text-anchor="middle" fill="rgba(255,255,255,0.5)" font-size="12" font-family="system-ui">Today</text>
-      <text x="${CX}" y="${CY+14}" text-anchor="middle" fill="#fff" font-size="26" font-weight="800" font-family="system-ui,-apple-system">${totalStr}</text>
-      <text id="donut-center-name" x="${CX}" y="${CY-12}" text-anchor="middle" fill="#fff" font-size="13" font-weight="700" font-family="system-ui" style="display:none"></text>
-      <text id="donut-center-time" x="${CX}" y="${CY+10}" text-anchor="middle" fill="rgba(255,255,255,.7)" font-size="11" font-family="system-ui" style="display:none"></text>
+      <text id="donut-center-today" x="${CX}" y="${CY-16}" text-anchor="middle" fill="var(--t3)" font-size="13" font-family="system-ui">Today</text>
+      <text x="${CX}" y="${CY+14}" text-anchor="middle" fill="var(--t1)" font-size="28" font-weight="800" font-family="system-ui,-apple-system">${totalStr}</text>
+      <text id="donut-center-name" x="${CX}" y="${CY-12}" text-anchor="middle" fill="var(--t1)" font-size="14" font-weight="700" font-family="system-ui" style="display:none"></text>
+      <text id="donut-center-time" x="${CX}" y="${CY+10}" text-anchor="middle" fill="var(--t2)" font-size="12" font-family="system-ui" style="display:none"></text>
     </svg>
-    <div id="arc-goal" style="font-size:12px;color:${goalColor};margin-top:-6px;font-family:var(--ff-m);margin-bottom:10px">${goaldiff>=0?'✓':'⚠'} ${goalStr}</div>
+    <div id="arc-goal" style="font-size:13px;color:${goalColor};margin-top:-6px;font-family:var(--ff-m);margin-bottom:10px">${goaldiff>=0?'✓':'⚠'} ${goalStr}</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px 12px;padding:0 16px 4px;width:100%;max-width:${W}px">${legendHtml}</div>`;
 }
 

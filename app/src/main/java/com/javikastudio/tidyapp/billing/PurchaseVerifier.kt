@@ -2,6 +2,7 @@ package com.javikastudio.tidyapp.billing
 
 import android.util.Base64
 import android.util.Log
+import com.javikastudio.tidyapp.BuildConfig
 import java.security.KeyFactory
 import java.security.PublicKey
 import java.security.Signature
@@ -30,8 +31,8 @@ object PurchaseVerifier {
 
     // ── REPLACE THIS with your actual key from Play Console ───────
     // Play Console → Monetise → Monetisation setup → Licensing
-    private const val BASE64_PUBLIC_KEY =
-        "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAn2wljIdA3qMKWMiu/LbRn1WDP25+GOtUddNaeSl6+9SmLo1vHzspnwXbwvA47+l/bMEGaACn5iNasUubxIFwVRMZk18if6quNtqfmInSf43tTpGVJSzXfPMfqVd7lqrp36noUjQqyMpdYF+nXlfXL1xNTN7FZWEmUMvi/5fFqlyjOtWTTt2ALANmoDXC5L/U1ejZdv6bqL/dw6+nKrNHY/hIf3v6htBkOVM0EaAjErzJffBsuWNIZvzXv07GfkjUt8slWA7yRHUZSb8AABwzVbEowqmYNCRzqzDIH6SwyLUKHLsLwUtKO/wizdmKVBaqJX+2gLmzzueEv9+pkJv5/wIDAQAB"
+    private const val BASE64_PUBLIC_KEY = BuildConfig.RSA_KEY
+
     // ─────────────────────────────────────────────────────────────
 
     /**

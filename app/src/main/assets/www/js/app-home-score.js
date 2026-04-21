@@ -141,8 +141,8 @@ function renderAureloScore() {
     const col  = p.score >= 0 ? p.color : 'var(--t3)';
     return `<div onclick="event.stopPropagation();${p.tap}"
       role="button" tabindex="0" style="flex:1;background:rgba(255,255,255,.04);border-radius:8px;padding:8px 7px;cursor:pointer;min-height:44px;display:flex;flex-direction:column;justify-content:center;">
-      <div style="font-family:var(--ff-m);font-size:9px;color:var(--t3);letter-spacing:.5px;margin-bottom:2px">${p.label}</div>
-      <div style="font-family:var(--ff-m);font-size:11px;font-weight:600;color:${col}">${disp}</div>
+      <div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);letter-spacing:.5px;margin-bottom:2px">${p.label}</div>
+      <div style="font-family:var(--ff-m);font-size:var(--text-2xs);font-weight:600;color:${col}">${disp}</div>
     </div>`;
   }).join('');
 
@@ -152,12 +152,12 @@ function renderAureloScore() {
       <div onclick="event.stopPropagation();_onAureloScoreRowTap()"
            role="button" tabindex="0"
            style="display:flex;align-items:center;gap:10px;cursor:pointer;min-height:44px">
-        <span style="font-family:var(--ff-m);font-size:10px;color:var(--p2);letter-spacing:.5px;flex-shrink:0">AURELO SCORE</span>
+        <span style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--p2);letter-spacing:.5px;flex-shrink:0">AURELO SCORE</span>
         <span style="font-family:var(--ff-d);font-size:18px;font-weight:600;color:var(--t1);flex-shrink:0;line-height:1">${score}</span>
         <div style="flex:1;height:4px;background:rgba(255,255,255,.08);border-radius:99px;overflow:hidden">
           <div style="height:100%;width:${score}%;background:linear-gradient(90deg,var(--p),var(--c));border-radius:99px"></div>
         </div>
-        <span style="font-family:var(--ff-m);font-size:10px;font-weight:600;color:${gradeCol};flex-shrink:0">${grade}</span>
+        <span style="font-family:var(--ff-m);font-size:var(--text-2xs);font-weight:600;color:${gradeCol};flex-shrink:0">${grade}</span>
       </div>
       <div style="display:flex;gap:5px;margin-top:7px">${pillarsHtml}</div>
     </div>`;
@@ -266,12 +266,12 @@ function _showAureloScoreSheet(focusPillar) {
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
         <span style="font-size:16px">${p.icon}</span>
         <div style="flex:1">
-          <div style="font-size:13px;font-weight:700;color:var(--t1)">${p.label}</div>
-          <div style="font-family:var(--ff-m);font-size:10px;color:var(--t3);margin-top:1px">${p.desc}</div>
+          <div style="font-size:var(--text-sm);font-weight:700;color:var(--t1)">${p.label}</div>
+          <div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);margin-top:1px">${p.desc}</div>
         </div>
         <div style="text-align:right;flex-shrink:0">
-          <div style="font-family:var(--ff-d);font-size:22px;font-weight:700;color:${col};line-height:1">${p.score >= 0 ? p.score : '–'}</div>
-          <div style="font-family:var(--ff-m);font-size:9px;color:var(--t3);margin-top:1px">weight ${p.weight}</div>
+          <div style="font-family:var(--ff-d);font-size:var(--text-2xl);font-weight:700;color:${col};line-height:1">${p.score >= 0 ? p.score : '–'}</div>
+          <div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);margin-top:1px">weight ${p.weight}</div>
         </div>
       </div>
       ${p.score >= 0 ? `<div style="height:4px;background:var(--border);border-radius:2px;overflow:hidden">
@@ -283,11 +283,11 @@ function _showAureloScoreSheet(focusPillar) {
   const tipsHtml = tips.length ? `
     <div style="background:rgba(247,166,35,.07);border:1px solid rgba(247,166,35,.2);
                 border-radius:14px;padding:12px 14px;margin-bottom:16px">
-      <div style="font-family:var(--ff-m);font-size:10px;color:var(--a);letter-spacing:.5px;margin-bottom:8px">💡 TIPS TO IMPROVE</div>
+      <div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--a);letter-spacing:.5px;margin-bottom:8px">💡 TIPS TO IMPROVE</div>
       ${tips.map(t => `
         <div style="display:flex;gap:8px;margin-bottom:6px">
           <span style="color:var(--t3);flex-shrink:0">·</span>
-          <div style="font-family:var(--ff-m);font-size:12px;color:var(--t2);line-height:1.5">${t}</div>
+          <div style="font-family:var(--ff-m);font-size:var(--text-xs);color:var(--t2);line-height:1.5">${t}</div>
         </div>`).join('')}
     </div>` : '';
 
@@ -309,12 +309,12 @@ function _showAureloScoreSheet(focusPillar) {
         <div style="width:40px;height:4px;background:var(--border2);border-radius:2px;margin:0 auto 18px"></div>
         <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">
           <div style="flex:1">
-            <div style="font-family:var(--ff-d);font-size:20px;font-weight:700;color:var(--t1);letter-spacing:-.3px">Aurelo Score</div>
-            <div style="font-family:var(--ff-m);font-size:11px;color:var(--t3);margin-top:2px">Screen · Focus · Sleep</div>
+            <div style="font-family:var(--ff-d);font-size:var(--text-xl);font-weight:700;color:var(--t1);letter-spacing:-.3px">Aurelo Score</div>
+            <div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);margin-top:2px">Screen · Focus · Sleep</div>
           </div>
           <div style="text-align:right">
-            <div style="font-family:var(--ff-d);font-size:36px;font-weight:700;color:${gradeColor};line-height:1">${score}</div>
-            <div style="font-family:var(--ff-m);font-size:11px;color:${gradeColor};margin-top:1px">${grade}</div>
+            <div style="font-family:var(--ff-d);font-size:var(--text-3xl);font-weight:700;color:${gradeColor};line-height:1">${score}</div>
+            <div style="font-family:var(--ff-m);font-size:var(--text-xs);color:${gradeColor};margin-top:1px">${grade}</div>
           </div>
         </div>
         ${pillarsHtml}
@@ -323,26 +323,29 @@ function _showAureloScoreSheet(focusPillar) {
           <button type="button" onclick="shareCard('aurelo');_closeAureloScoreSheet()"
                   type="button" style="flex:1;padding:14px;border-radius:14px;background:rgba(108,99,255,.12);
                          border:1px solid rgba(108,99,255,.30);color:var(--p2);
-                         font-family:var(--ff-m);font-size:13px;font-weight:600;cursor:pointer">📤 Share</button>
+                         font-family:var(--ff-m);font-size:var(--text-sm);font-weight:600;cursor:pointer">📤 Share</button>
           <button type="button" onclick="_closeAureloScoreSheet()"
                   type="button" style="flex:1;padding:14px;border-radius:14px;background:var(--s2);
                          border:1px solid var(--border2);color:var(--t2);
-                         font-family:var(--ff-m);font-size:13px;font-weight:600;cursor:pointer">Close</button>
+                         font-family:var(--ff-m);font-size:var(--text-sm);font-weight:600;cursor:pointer">Close</button>
         </div>
       </div>
     </div>`;
 
   document.body.insertAdjacentHTML('beforeend', html);
-  // Double-rAF: first frame inserts DOM, second frame guarantees paint before
-  // starting transition. Single rAF fires before browser paint on Android WebView,
-  // causing the sheet to appear at translateY(0) without a slide-up animation.
-  requestAnimationFrame(() => {
-    requestAnimationFrame(() => {
-      const backdrop = document.getElementById('aurelo-score-sheet-backdrop');
-      const sheet    = document.getElementById('aurelo-score-sheet');
-      if (backdrop) { backdrop.style.opacity = '1'; backdrop.style.pointerEvents = 'all'; }
-      if (sheet)    sheet.style.transform = 'translateY(0)';
-    });
+  // FIX: Force a layout reflow before starting the slide-up transition.
+  // Reading offsetHeight flushes pending style calculations synchronously,
+  // guaranteeing the browser has committed the initial translateY(100%)
+  // state before we set translateY(0).  This prevents the "flash at final
+  // position" flicker seen on Android WebView with double-rAF.
+  requestAnimationFrame(function () {
+    var backdrop = document.getElementById('aurelo-score-sheet-backdrop');
+    var sheet    = document.getElementById('aurelo-score-sheet');
+    if (!backdrop) return;
+    void backdrop.offsetHeight; // force layout flush
+    backdrop.style.opacity       = '1';
+    backdrop.style.pointerEvents = 'all';
+    if (sheet) sheet.style.transform = 'translateY(0)';
   });
 }
 

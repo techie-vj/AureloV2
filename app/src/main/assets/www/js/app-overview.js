@@ -172,13 +172,13 @@ window.AppOverview = (function () {
       modal.innerHTML =
         '<div style="background:var(--s1);border-radius:22px 22px 0 0;padding:28px 20px 40px;width:100%;max-width:480px;text-align:center">' +
           '<div style="font-size:36px;margin-bottom:12px">📱</div>' +
-          '<div style="font-size:16px;font-weight:700;color:var(--t1);margin-bottom:8px">No apps configured yet</div>' +
-          '<div style="font-family:var(--ff-m);font-size:12px;color:var(--t3);line-height:1.6;margin-bottom:20px">' +
+          '<div style="font-size:var(--text-base);font-weight:700;color:var(--t1);margin-bottom:8px">No apps configured yet</div>' +
+          '<div style="font-family:var(--ff-m);font-size:var(--text-xs);color:var(--t3);line-height:1.6;margin-bottom:20px">' +
             'Add apps to Focus Mode, App Timers, Mindful Pause, Bedtime, App Lock, or Hidden to see them here.' +
           '</div>' +
           '<div onclick="document.getElementById(\'_app-overview-modal\').remove()"' +
           ' style="padding:12px;border-radius:13px;background:var(--s2);border:1px solid var(--border2);' +
-          'font-family:var(--ff-m);font-size:13px;color:var(--t2);cursor:pointer">Close</div>' +
+          'font-family:var(--ff-m);font-size:var(--text-sm);color:var(--t2);cursor:pointer">Close</div>' +
         '</div>';
       modal.addEventListener('click', function(e){ if(e.target === modal) modal.remove(); });
       document.body.appendChild(modal);
@@ -195,21 +195,22 @@ window.AppOverview = (function () {
             appIco(a.packageName, 34, 9) +
           '</div>' +
           '<div style="flex:1;min-width:0">' +
-            '<div style="font-size:12px;font-weight:600;color:var(--t1)">' + escHtml(a.name || a.packageName.split('.').pop()) + '</div>' +
-            (a.sub ? '<div style="font-family:var(--ff-m);font-size:10px;color:' + (a.subColor || 'var(--t3)') + ';margin-top:1px">' + escHtml(a.sub) + '</div>' : '') +
+            '<div style="font-size:var(--text-sm);font-weight:600;color:var(--t1)">' + escHtml(a.name || a.packageName.split('.').pop()) + '</div>' +
+            (a.sub ? '<div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:' + (a.subColor || 'var(--t3)') + ';margin-top:1px">' + escHtml(a.sub) + '</div>' : '') +
           '</div>' +
         '</div>';
       }).join('');
 
       var more = f.apps.length > MAX_CHIPS
-        ? '<div style="font-family:var(--ff-m);font-size:11px;color:var(--t3);padding:6px 0 2px">+' +
+        ? '<div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);padding:6px 0 2px">+' +
           (f.apps.length - MAX_CHIPS) + ' more</div>'
         : '';
 
       var editBtn = f.action
-        ? '<div onclick="document.getElementById(\'_app-overview-modal\').remove();' + f.action + '"' +
-          ' style="font-family:var(--ff-m);font-size:11px;color:' + f.textColor + ';cursor:pointer;' +
-          'padding:4px 10px;border-radius:8px;border:1px solid ' + f.borderColor + ';background:' + f.color + '">' +
+        ? '<div onclick="(function(){try{document.getElementById(\'_app-overview-modal\').remove();' + f.action.replace(/'/g, "\'") + '}catch(e){console.warn(\'[Overview edit]\'+(e&&e.message||e));}})()"' +
+          ' style="font-family:var(--ff-m);font-size:var(--text-2xs);color:' + f.textColor + ';cursor:pointer;' +
+          'padding:6px 12px;min-height:32px;display:flex;align-items:center;border-radius:8px;' +
+          'border:1px solid ' + f.borderColor + ';background:' + f.color + '">' +
           'Edit →</div>'
         : '';
 
@@ -225,10 +226,10 @@ window.AppOverview = (function () {
         '})()" style="display:flex;align-items:center;justify-content:space-between;' +
           'padding:11px 14px;background:' + f.color + ';cursor:pointer;user-select:none">' +
           '<div style="display:flex;align-items:center;gap:7px">' +
-            '<span id="' + safeId + '-arrow" style="font-size:12px;color:' + f.textColor + ';transition:transform .2s">›</span>' +
+            '<span id="' + safeId + '-arrow" style="font-size:var(--text-xs);color:' + f.textColor + ';transition:transform .2s">›</span>' +
             '<span style="font-size:15px">' + f.icon + '</span>' +
-            '<span style="font-size:12px;font-weight:700;color:' + f.textColor + '">' + f.label + '</span>' +
-            '<span style="font-family:var(--ff-m);font-size:10px;color:' + f.textColor + ';opacity:.7">' +
+            '<span style="font-size:var(--text-sm);font-weight:700;color:' + f.textColor + '">' + f.label + '</span>' +
+            '<span style="font-family:var(--ff-m);font-size:var(--text-2xs);color:' + f.textColor + ';opacity:.7">' +
               f.apps.length + ' app' + (f.apps.length !== 1 ? 's' : '') +
             '</span>' +
           '</div>' +
@@ -251,8 +252,8 @@ window.AppOverview = (function () {
         // Header
         '<div style="display:flex;align-items:center;justify-content:space-between;padding:16px 18px 12px;border-bottom:1px solid var(--border);flex-shrink:0">' +
           '<div>' +
-            '<div style="font-size:16px;font-weight:700;color:var(--t1)">App Configuration</div>' +
-            '<div style="font-family:var(--ff-m);font-size:11px;color:var(--t3);margin-top:2px">' +
+            '<div style="font-size:var(--text-base);font-weight:700;color:var(--t1)">App Configuration</div>' +
+            '<div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);margin-top:2px">' +
               totalConfigured + ' app' + (totalConfigured !== 1 ? 's' : '') + ' across ' +
               features.length + ' feature' + (features.length !== 1 ? 's' : '') +
             '</div>' +

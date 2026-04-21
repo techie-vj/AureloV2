@@ -121,7 +121,7 @@ class IntentionEngine(
 
         lastEventMap[currentFgPkg] = now
         val appName = intentionNames[currentFgPkg] ?: currentFgPkg.split(".").last()
-        recordPause()
+        recordPause(currentFgPkg)
         showPromptOverlay(currentFgPkg, appName)
     }
 
@@ -271,7 +271,7 @@ class IntentionEngine(
                 // Remove only this pkg's timestamp so the prompt fires again if user returns to the app.
                 // Don't touch other entries in lastEventMap.
                 lastEventMap.remove(pkg)
-                recordResist()
+                recordResist(pkg)
                 runCatching {
                     h.startActivity(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME)
                         .apply { flags = Intent.FLAG_ACTIVITY_NEW_TASK })
@@ -374,22 +374,40 @@ class IntentionEngine(
             .setPriority(NotificationCompat.PRIORITY_HIGH).setAutoCancel(true).build())
     }
 
-    private fun recordPause() {
+    private fun recordPause(pkg: String) {
         val t   = today()
+        // ── Aggregate count ─────────────────────────────────────────────────
         val cur = if (prefs.getString("focus_intention_pause_date", "") == t)
             prefs.getInt("focus_intention_pause_count", 0) else 0
-        prefs.edit().putString("focus_intention_pause_date", t)
-            .putInt("focus_intention_pause_count", cur + 1).apply()
-        h.notifyJs("if(typeof window.onIntentionPause==='function') window.onIntentionPause()")
+        prefs.edit()
+            .putString("focus_intention_pause_date",  t)
+            .putInt(   "focus_intention_pause_count", cur + 1)
+            // ── Per-app count (Bug 4 fix: store per-pkg so JS can show individual stats) ──
+            .putString("focus_intention_pause_date_$pkg",  t)
+            .putInt(   "focus_intention_pause_count_$pkg",
+                if (prefs.getString("focus_intention_pause_date_$pkg", "") == t)
+                    prefs.getInt("focus_intention_pause_count_$pkg", 0) + 1 else 1)
+            .apply()
+        // Bug 2 fix: pass pkg as argument so JS onIntentionPause(pkg) can track per-app counts
+        h.notifyJs("if(typeof window.onIntentionPause==='function') window.onIntentionPause('${pkg.replace("'", "\\'")}')")
     }
 
-    private fun recordResist() {
+    private fun recordResist(pkg: String) {
         val t   = today()
+        // ── Aggregate count ─────────────────────────────────────────────────
         val cur = if (prefs.getString("focus_intention_resist_date", "") == t)
             prefs.getInt("focus_intention_resist_count", 0) else 0
-        prefs.edit().putString("focus_intention_resist_date", t)
-            .putInt("focus_intention_resist_count", cur + 1).apply()
-        h.notifyJs("if(typeof window.onIntentionResist==='function') window.onIntentionResist()")
+        prefs.edit()
+            .putString("focus_intention_resist_date",  t)
+            .putInt(   "focus_intention_resist_count", cur + 1)
+            // ── Per-app count ────────────────────────────────────────────────
+            .putString("focus_intention_resist_date_$pkg",  t)
+            .putInt(   "focus_intention_resist_count_$pkg",
+                if (prefs.getString("focus_intention_resist_date_$pkg", "") == t)
+                    prefs.getInt("focus_intention_resist_count_$pkg", 0) + 1 else 1)
+            .apply()
+        // Bug 2 fix: pass pkg as argument
+        h.notifyJs("if(typeof window.onIntentionResist==='function') window.onIntentionResist('${pkg.replace("'", "\\'")}')")
     }
 
     private fun today(): String =
