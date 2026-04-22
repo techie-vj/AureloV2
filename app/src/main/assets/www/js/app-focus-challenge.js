@@ -204,6 +204,9 @@ window.FocusChallenge = (function () {
     if (newDone >= c.target && IS_NATIVE && typeof N.checkAndTriggerRateApp === 'function') {
       try { N.checkAndTriggerRateApp('challenge_complete'); } catch (_) {}
     }
+    // Immediately refresh home strips so challenge tier (at-risk / milestone) updates
+    // without requiring a tab-switch or waiting for the next 30-s poll.
+    if (typeof FocusHome !== 'undefined') FocusHome._refreshStrips();
     var old = document.getElementById('challenge-card');
     if (old) { var tmp = document.createElement('div'); tmp.innerHTML = _buildChallengeSection(); var newCard = tmp.querySelector('#challenge-card'); if (newCard) old.replaceWith(newCard); }
   }
@@ -221,6 +224,9 @@ window.FocusChallenge = (function () {
         else localStorage.setItem(CHALLENGE_KEY, json);
       } catch (_) {}
       toast('Challenge skipped', 'info', 1500);
+      // Refresh home strips so the "challenge at risk" and "milestone" tiers
+      // disappear immediately — without needing a tab-switch or 30-s poll.
+      if (typeof FocusHome !== 'undefined') FocusHome._refreshStrips();
       var card = document.getElementById('challenge-card');
       if (card) {
         var wrap2 = card.closest('#focus-challenge-wrap');

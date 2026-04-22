@@ -181,10 +181,11 @@ window.FocusBedtime = (function () {
         try { N.markBedtimeDay(); } catch (_) {}
       }
       window._btDirty = false;
-      if (typeof FocusTab !== 'undefined') FocusTab.invalidateStripCache();
       render();
       if (typeof FocusScore !== 'undefined') FocusScore.renderHabitsDynamicRow();
-      if (typeof renderHomeHabitsDynamicRow === 'function') renderHomeHabitsDynamicRow();
+      // Bust strip cache and refresh all three home strips immediately so the
+      // bedtime state appears on the home tab without needing a tab-switch.
+      if (typeof FocusHome !== 'undefined') FocusHome._refreshStrips();
       // BUG-1b FIX: show a confirmation toast on enable, mirroring the
       // 'Bedtime mode off' toast shown on disable. Include the scheduled
       // window so the user sees what time was set.
@@ -200,12 +201,9 @@ window.FocusBedtime = (function () {
         toast('Bedtime mode on \u00b7 ' + bedStr + ' \u2013 ' + wakeStr, 'success');
       })();
     } else {
-      // Disable
+      // Disable — _doDisableBedtime handles strip refresh internally
       window._btDirty = false;
       _disableBedtime();
-      if (typeof FocusTab !== 'undefined') FocusTab.invalidateStripCache();
-      if (typeof FocusScore !== 'undefined') FocusScore.renderHabitsDynamicRow();
-      if (typeof renderHomeHabitsDynamicRow === 'function') renderHomeHabitsDynamicRow();
     }
   }
 
@@ -344,9 +342,10 @@ window.FocusBedtime = (function () {
     if (typeof _updateFocusSubheader === 'function') _updateFocusSubheader();
 
     render();
-      if (typeof FocusTab !== 'undefined') FocusTab.invalidateStripCache();
-      if (typeof FocusScore !== 'undefined') FocusScore.renderHabitsDynamicRow();
-      if (typeof renderHomeHabitsDynamicRow === 'function') renderHomeHabitsDynamicRow();
+    if (typeof FocusScore !== 'undefined') FocusScore.renderHabitsDynamicRow();
+    // Bust strip cache and refresh all home strips so bedtime-off state is
+    // immediately visible without requiring a tab-switch or 30-s poll.
+    if (typeof FocusHome !== 'undefined') FocusHome._refreshStrips();
     toast('Bedtime mode off', 'info');
   }
 
@@ -434,12 +433,14 @@ window.FocusBedtime = (function () {
     _applyBedtimeConfig(newCfg);
     _bedtimeCfgCacheTs = 0; // bust so next tab-visit re-reads from bridge
 
-    if (typeof FocusTab !== 'undefined') FocusTab.invalidateStripCache();
+    if (typeof FocusTab !== 'undefined') FocusTab.invalidateStripCache(); // kept for _applyBedtimeConfig internal reads
 
     window._btDirty      = false;
     window._btClockSeeded = true;  // consume again after _applyBedtimeConfig's internal render
     if (typeof FocusScore !== 'undefined') FocusScore.renderHabitsDynamicRow();
-    if (typeof renderHomeHabitsDynamicRow === 'function') renderHomeHabitsDynamicRow();
+    // Bust strip cache and refresh all home strips so saved bedtime times and
+    // blocked apps are visible on the home tab immediately after saving.
+    if (typeof FocusHome !== 'undefined') FocusHome._refreshStrips();
     render();
     toast('Bedtime settings saved', 'success');
   }
@@ -809,10 +810,9 @@ window.FocusBedtime = (function () {
     N.snoozeBedtime(15);
     toast('Bedtime snoozed 15 min', 'info');
 
-    // Re-render rows so snooze button reflects active state
-    if (typeof FocusTab !== 'undefined') FocusTab.invalidateStripCache();
+    // Re-render all home strips so snooze button reflects active state immediately.
     if (typeof FocusScore !== 'undefined') FocusScore.renderHabitsDynamicRow();
-    if (typeof renderHomeHabitsDynamicRow === 'function') renderHomeHabitsDynamicRow();
+    if (typeof FocusHome !== 'undefined') FocusHome._refreshStrips();
   }
 
   /* ═══════════════════════════════════════════════════════════════

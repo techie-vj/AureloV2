@@ -538,10 +538,9 @@ window.FocusRoutine = (function () {
     r.enabled = !r.enabled;
     _saveRoutines();
     render();
-    // Refresh the focus-subtab dynamic strip immediately (routine message strip)
-    if (typeof FocusTab !== 'undefined') FocusTab.invalidateStripCache();
-    if (typeof renderFocusDynamicRow  === 'function') renderFocusDynamicRow();
-    if (typeof renderFocusStrip       === 'function') renderFocusStrip();
+    // Refresh home strips immediately so "Focus session starting soon" tier
+    // appears/disappears without needing a tab-switch or 30-s poll.
+    if (typeof FocusHome !== 'undefined') FocusHome._refreshStrips();
     toast(r.enabled ? '✓ Schedule enabled' : 'Schedule paused', 'info');
   }
 
@@ -1078,6 +1077,8 @@ window.FocusRoutine = (function () {
     if(IS_NATIVE && typeof N.cancelRoutineAlarm==='function'){try{N.cancelRoutineAlarm(id);}catch(_){}}
     _routines=_routines.filter(function (r){return r.id!==id;});
     _saveRoutines(); closeRoutinePicker(); render();
+    // Refresh home strips so a deleted routine no longer shows "starting soon".
+    if (typeof FocusHome !== 'undefined') FocusHome._refreshStrips();
     toast('Schedule deleted','info');
   }
 
@@ -1106,11 +1107,10 @@ window.FocusRoutine = (function () {
       if(_routineEditId){var idx=_routines.findIndex(function(r){return r.id===_routineEditId;});if(idx>=0)_routines[idx]=routine;else _routines.push(routine);}
       else _routines.push(routine);
       _saveRoutines(); closeRoutinePicker(); render();
-      // Refresh the focus-subtab dynamic strip immediately (schedule routine message)
-      if (typeof FocusTab !== 'undefined') FocusTab.invalidateStripCache();
-      if (typeof renderFocusDynamicRow === 'function') renderFocusDynamicRow();
-      if (typeof renderFocusStrip      === 'function') renderFocusStrip();
       if(typeof FocusTab !== 'undefined') FocusTab.renderSessionIdle();
+      // Refresh home strips so the "Focus session starting soon" tier appears
+      // immediately for a newly saved or edited routine.
+      if (typeof FocusHome !== 'undefined') FocusHome._refreshStrips();
       toast((routine.emoji)+' '+(routine.name)+' scheduled \u2713','success');
     }
     if(rp.difficulty==='deep'){

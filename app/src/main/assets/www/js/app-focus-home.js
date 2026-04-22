@@ -750,6 +750,28 @@ window.FocusHome = (function () {
 
 
   /* ═══════════════════════════════════════════════════════════════
+   * _refreshStrips — SINGLE ENTRY POINT FOR ALL ACTION-TRIGGERED RENDERS
+   *
+   * Always call this (instead of individual render functions) after any
+   * state-changing user action: session start/end, timer save/remove,
+   * bedtime toggle/save, challenge check/skip, routine save/delete/toggle.
+   *
+   * Guarantees:
+   *   1. Strip data cache is busted BEFORE any renderer reads it.
+   *   2. All three home strip elements update atomically in one call.
+   *
+   * External modules call: FocusHome._refreshStrips()
+   * Global shim:           refreshFocusStrips()
+   * ═══════════════════════════════════════════════════════════════ */
+  function _refreshStrips() {
+    invalidateStripCache();          // bust 2-s cache first — must come before all renders
+    renderFocusStrip();              // #home-focus-strip (Focus & Mindful dual panel)
+    renderHomeFocusDynamicRow();     // #home-focus-dynamic (session active / timer / routine)
+    renderHomeHabitsDynamicRow();    // #home-habits-dynamic (bedtime / challenge / morning)
+  }
+  window.refreshFocusStrips = function () { FocusHome._refreshStrips(); };
+
+  /* ═══════════════════════════════════════════════════════════════
    * SLEEP CARD  (#home-sleep-card)
    * Content consolidated into renderHomeHabitsDynamicRow.
    * This stub hides the legacy element so no duplicate strip appears.
@@ -801,5 +823,6 @@ window.FocusHome = (function () {
     buildStripRow:               buildStripRow,
     buildStripRowMuted:          buildStripRowMuted,
     fmtStripTimer:               _fmtStripTimer,
+    _refreshStrips:              _refreshStrips,
   };
 })();

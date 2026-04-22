@@ -370,11 +370,14 @@ function _doApplyTimer(){
   // FIX Bug-1a: close the modal FIRST so a render error cannot block dismissal.
   closeModal('timer-modal');
   updateTimersSub(); renderTimerList(); renderTopApps();
-  // FIX #2: update the top strip and focus subheader so timer count reflects immediately.
-  if(typeof renderFocusStrip      === 'function') renderFocusStrip();
+  // Refresh all three home strips so timer count and limit status reflect immediately.
+  // _refreshStrips() busts the cache before rendering — must come before renderFocusStrip.
+  if (typeof FocusHome !== 'undefined') {
+    FocusHome._refreshStrips();
+  } else {
+    if(typeof renderFocusStrip      === 'function') renderFocusStrip();
+  }
   if(typeof _updateFocusSubheader === 'function') _updateFocusSubheader();
-  // Immediately refresh the focus-subtab dynamic strip (was only updating on next tab click)
-  if(typeof renderFocusDynamicRow === 'function') renderFocusDynamicRow();
   // Pull fresh usage so bar fill + "X of Y" time are current, not stale cache.
   if(IS_NATIVE && N.hasUsagePermission && N.hasUsagePermission()){
     try{
@@ -511,11 +514,13 @@ function removeTimerFromModal(){
   // FIX Bug-1a: close the modal FIRST so a render error cannot block dismissal.
   closeModal('timer-modal');
   updateTimersSub(); renderTimerList(); renderTopApps();
-  // FIX #2: keep strip and subheader in sync after removal.
-  if(typeof renderFocusStrip      === 'function') renderFocusStrip();
+  // Refresh all three home strips so the removed timer is no longer counted.
+  if (typeof FocusHome !== 'undefined') {
+    FocusHome._refreshStrips();
+  } else {
+    if(typeof renderFocusStrip      === 'function') renderFocusStrip();
+  }
   if(typeof _updateFocusSubheader === 'function') _updateFocusSubheader();
-  // Immediately refresh the focus-subtab dynamic strip (was only updating on next tab click)
-  if(typeof renderFocusDynamicRow === 'function') renderFocusDynamicRow();
   if (typeof FocusTimers !== 'undefined') {
     FocusTimers.render(document.getElementById('focus-timers-wrap'));
   }

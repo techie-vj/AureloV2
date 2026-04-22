@@ -672,10 +672,12 @@ window.FocusTab = (function () {
     }
     S.settings.focusTotalSecs = _focusSessionTotalSecs; saveS();
     _renderSessionActive({});
-    renderFocusStrip();
+    // Bust strip cache BEFORE all renders so every reader sees live session state.
     _invalidateStripCache();
+    renderFocusStrip();
     renderHomeFocusDynamicRow();
     renderFocusDynamicRow(); // BUG-3: update focus-subtab dynamic strip immediately on session start
+    if (typeof FocusHome !== 'undefined') FocusHome._refreshStrips();
     if (typeof FocusRoutine !== 'undefined') FocusRoutine.render();
     _updateFocusSubheader();
   }
@@ -749,7 +751,10 @@ window.FocusTab = (function () {
       _focusLastState = 'interrupted'; _focusLastStateTs = Date.now();
       _focusLastElapsedMins = elapsed; _focusLastTotalMins = total;
       _renderSessionIdle();
-      _invalidateStripCache(); renderFocusStrip(); renderFocusDynamicRow(); renderHomeFocusDynamicRow(); renderHomeHabitsDynamicRow();
+      // Bust cache first, then refresh all three home strips in one shot.
+      _invalidateStripCache();
+      if (typeof FocusHome !== 'undefined') FocusHome._refreshStrips();
+      else { renderFocusStrip(); renderHomeFocusDynamicRow(); renderHomeHabitsDynamicRow(); }
     }
     if (typeof FocusRoutine !== 'undefined') FocusRoutine.render();
     _activeRoutineId = ''; _updateFocusSubheader();
@@ -776,7 +781,9 @@ window.FocusTab = (function () {
       _focusLastState = 'interrupted'; _focusLastStateTs = Date.now();
       _focusLastElapsedMins = elapsed; _focusLastTotalMins = total;
       _renderSessionIdle();
-      _invalidateStripCache(); renderFocusStrip(); renderFocusDynamicRow(); renderHomeFocusDynamicRow(); renderHomeHabitsDynamicRow();
+      _invalidateStripCache();
+      if (typeof FocusHome !== 'undefined') FocusHome._refreshStrips();
+      else { renderFocusStrip(); renderHomeFocusDynamicRow(); renderHomeHabitsDynamicRow(); }
     }
     if (typeof FocusRoutine !== 'undefined') FocusRoutine.render();
     _updateFocusSubheader();
@@ -792,10 +799,12 @@ window.FocusTab = (function () {
     _launchConfetti();
     _showPostSessionCard(true, durationMins); // BUG-4: show completion card immediately
     setTimeout(function () {
-      _invalidateStripCache(); _focusLastState = 'completed'; _focusLastStateTs = Date.now();
+      _focusLastState = 'completed'; _focusLastStateTs = Date.now();
       _renderSessionIdle();
-      renderFocusStrip(); renderFocusDynamicRow(); checkStreakIncrements();
-      renderHomeFocusDynamicRow(); renderHomeHabitsDynamicRow();
+      renderFocusDynamicRow(); checkStreakIncrements();
+      // Bust cache and refresh all three home strips atomically.
+      if (typeof FocusHome !== 'undefined') FocusHome._refreshStrips();
+      else { _invalidateStripCache(); renderFocusStrip(); renderHomeFocusDynamicRow(); renderHomeHabitsDynamicRow(); }
     }, 3500);
   }
 
@@ -1062,20 +1071,25 @@ function removeFocusBlockedApp(pkg)   { FocusTab.removeFocusBlockedApp(pkg); }
 function removeIntentionApp(pkg)      { if (typeof FocusMindful !== 'undefined') FocusMindful.removeApp(pkg); }
 function stopFocusSession()           { FocusTab.stopFocusSession(); }
 function _switchFocusSubTab(tab)      { FocusTab._switchFocusSubTab(tab); }
+// AFTER
 function removeTimer(pkg) {
-  // FocusTimers module has no removeTimer method; do the work here instead.
   if (!pkg || !S || !S.limits) return;
-  var removedName = pkg; // fallback label
+  var removedName = pkg;
   try { removedName = (DAILY_USE.find(function(a){ return a.packageName===pkg; })||{}).name || pkg; } catch(_){}
   delete S.limits[pkg]; saveS();
   nCall('removeAppLimit', pkg);
   if (typeof updateTimersSub === 'function') updateTimersSub();
   if (typeof renderTimerList === 'function') renderTimerList();
-  if (typeof renderFocusStrip === 'function') renderFocusStrip();
   if (typeof FocusTimers !== 'undefined') FocusTimers.render(document.getElementById('focus-timers-wrap'));
-  // Immediately refresh the focus-subtab dynamic strip and subheader
+  // Refresh all three home strips so the removed timer clears the "limit hit" tier immediately.
+  if (typeof FocusHome !== 'undefined') {
+    FocusHome._refreshStrips();
+  } else {
+    if (typeof renderFocusStrip === 'function') renderFocusStrip();
+  }
+  // Immediately refresh the focus-subtab dynamic strip so it reflects the removed timer
   if (typeof renderFocusDynamicRow === 'function') renderFocusDynamicRow();
-  if (typeof _updateFocusSubheader === 'function') _updateFocusSubheader();
+  if (typeof FocusTab !== 'undefined') FocusTab._updateFocusSubheader ? FocusTab._updateFocusSubheader() : null;
   if (typeof toast === 'function') toast('Timer removed for ' + removedName, 'info');
 }
 function saveTimer(pkg) {
