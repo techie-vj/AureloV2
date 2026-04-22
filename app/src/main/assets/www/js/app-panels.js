@@ -373,6 +373,8 @@ function _doApplyTimer(){
   // FIX #2: update the top strip and focus subheader so timer count reflects immediately.
   if(typeof renderFocusStrip      === 'function') renderFocusStrip();
   if(typeof _updateFocusSubheader === 'function') _updateFocusSubheader();
+  // Immediately refresh the focus-subtab dynamic strip (was only updating on next tab click)
+  if(typeof renderFocusDynamicRow === 'function') renderFocusDynamicRow();
   // Pull fresh usage so bar fill + "X of Y" time are current, not stale cache.
   if(IS_NATIVE && N.hasUsagePermission && N.hasUsagePermission()){
     try{
@@ -512,6 +514,8 @@ function removeTimerFromModal(){
   // FIX #2: keep strip and subheader in sync after removal.
   if(typeof renderFocusStrip      === 'function') renderFocusStrip();
   if(typeof _updateFocusSubheader === 'function') _updateFocusSubheader();
+  // Immediately refresh the focus-subtab dynamic strip (was only updating on next tab click)
+  if(typeof renderFocusDynamicRow === 'function') renderFocusDynamicRow();
   if (typeof FocusTimers !== 'undefined') {
     FocusTimers.render(document.getElementById('focus-timers-wrap'));
   }

@@ -496,8 +496,8 @@
   // Any key can be null/absent — that plan will be hidden from the picker.
   const PRICING_FALLBACK = {
     monthly:  { price: '$2.99',  perMonth: '$2.99', trialDays: 7 },
-    annual:   { price: '$17.99', perMonth: '$1.49', trialDays: 7 },
-    lifetime: { price: '$39.99', perMonth: null,    trialDays: 0 },
+    annual:   { price: '$19.99', perMonth: '$1.66', trialDays: 7 },
+    lifetime: { price: '$29.99', perMonth: null,    trialDays: 0 },
   };
   // ── PRICING ─────────────────────────────────────────────────────
   let _pricingCache = null;

@@ -538,6 +538,10 @@ window.FocusRoutine = (function () {
     r.enabled = !r.enabled;
     _saveRoutines();
     render();
+    // Refresh the focus-subtab dynamic strip immediately (routine message strip)
+    if (typeof FocusTab !== 'undefined') FocusTab.invalidateStripCache();
+    if (typeof renderFocusDynamicRow  === 'function') renderFocusDynamicRow();
+    if (typeof renderFocusStrip       === 'function') renderFocusStrip();
     toast(r.enabled ? '✓ Schedule enabled' : 'Schedule paused', 'info');
   }
 
@@ -1102,6 +1106,10 @@ window.FocusRoutine = (function () {
       if(_routineEditId){var idx=_routines.findIndex(function(r){return r.id===_routineEditId;});if(idx>=0)_routines[idx]=routine;else _routines.push(routine);}
       else _routines.push(routine);
       _saveRoutines(); closeRoutinePicker(); render();
+      // Refresh the focus-subtab dynamic strip immediately (schedule routine message)
+      if (typeof FocusTab !== 'undefined') FocusTab.invalidateStripCache();
+      if (typeof renderFocusDynamicRow === 'function') renderFocusDynamicRow();
+      if (typeof renderFocusStrip      === 'function') renderFocusStrip();
       if(typeof FocusTab !== 'undefined') FocusTab.renderSessionIdle();
       toast((routine.emoji)+' '+(routine.name)+' scheduled \u2713','success');
     }

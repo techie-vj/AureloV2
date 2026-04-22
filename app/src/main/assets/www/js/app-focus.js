@@ -749,7 +749,7 @@ window.FocusTab = (function () {
       _focusLastState = 'interrupted'; _focusLastStateTs = Date.now();
       _focusLastElapsedMins = elapsed; _focusLastTotalMins = total;
       _renderSessionIdle();
-      _invalidateStripCache(); renderFocusStrip(); renderHomeFocusDynamicRow(); renderHomeHabitsDynamicRow();
+      _invalidateStripCache(); renderFocusStrip(); renderFocusDynamicRow(); renderHomeFocusDynamicRow(); renderHomeHabitsDynamicRow();
     }
     if (typeof FocusRoutine !== 'undefined') FocusRoutine.render();
     _activeRoutineId = ''; _updateFocusSubheader();
@@ -776,7 +776,7 @@ window.FocusTab = (function () {
       _focusLastState = 'interrupted'; _focusLastStateTs = Date.now();
       _focusLastElapsedMins = elapsed; _focusLastTotalMins = total;
       _renderSessionIdle();
-      _invalidateStripCache(); renderFocusStrip(); renderHomeFocusDynamicRow(); renderHomeHabitsDynamicRow();
+      _invalidateStripCache(); renderFocusStrip(); renderFocusDynamicRow(); renderHomeFocusDynamicRow(); renderHomeHabitsDynamicRow();
     }
     if (typeof FocusRoutine !== 'undefined') FocusRoutine.render();
     _updateFocusSubheader();
@@ -1030,6 +1030,7 @@ window.FocusTab = (function () {
 
     /* Misc */
     shareCard: typeof shareCard !== 'undefined' ? shareCard : function () {},
+    updateFocusSubheader: _updateFocusSubheader,
   };
 })();
 
@@ -1061,10 +1062,10 @@ function removeFocusBlockedApp(pkg)   { FocusTab.removeFocusBlockedApp(pkg); }
 function removeIntentionApp(pkg)      { if (typeof FocusMindful !== 'undefined') FocusMindful.removeApp(pkg); }
 function stopFocusSession()           { FocusTab.stopFocusSession(); }
 function _switchFocusSubTab(tab)      { FocusTab._switchFocusSubTab(tab); }
-// AFTER
 function removeTimer(pkg) {
+  // FocusTimers module has no removeTimer method; do the work here instead.
   if (!pkg || !S || !S.limits) return;
-  var removedName = pkg;
+  var removedName = pkg; // fallback label
   try { removedName = (DAILY_USE.find(function(a){ return a.packageName===pkg; })||{}).name || pkg; } catch(_){}
   delete S.limits[pkg]; saveS();
   nCall('removeAppLimit', pkg);
@@ -1072,15 +1073,18 @@ function removeTimer(pkg) {
   if (typeof renderTimerList === 'function') renderTimerList();
   if (typeof renderFocusStrip === 'function') renderFocusStrip();
   if (typeof FocusTimers !== 'undefined') FocusTimers.render(document.getElementById('focus-timers-wrap'));
-  // Immediately refresh the focus-subtab dynamic strip so it reflects the removed timer
+  // Immediately refresh the focus-subtab dynamic strip and subheader
   if (typeof renderFocusDynamicRow === 'function') renderFocusDynamicRow();
-  if (typeof FocusTab !== 'undefined') FocusTab._updateFocusSubheader ? FocusTab._updateFocusSubheader() : null;
+  if (typeof _updateFocusSubheader === 'function') _updateFocusSubheader();
   if (typeof toast === 'function') toast('Timer removed for ' + removedName, 'info');
 }
 function saveTimer(pkg) {
   // FocusTimers module has no saveTimer method — this shim is a no-op stub.
   // Timer saves are driven by _doApplyTimer() in app-panels.js.
 }
+// Global shim so app-panels.js and app-focus-bedtime.js can call _updateFocusSubheader()
+// directly — it was previously private inside FocusTab's IIFE and silently did nothing.
+function _updateFocusSubheader() { if (typeof FocusTab !== 'undefined' && typeof FocusTab.updateFocusSubheader === 'function') FocusTab.updateFocusSubheader(); }
 function openBedtimePicker()          { if (typeof FocusBedtime !== 'undefined') FocusBedtime.openPicker(); }
 function saveBedtime()                { if (typeof FocusBedtime !== 'undefined') FocusBedtime.save(); }
 function openRoutinePicker(id, p)     { if (typeof FocusRoutine !== 'undefined') FocusRoutine.openRoutinePicker(id, p); }
