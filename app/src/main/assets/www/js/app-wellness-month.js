@@ -10,6 +10,10 @@
 /* ═══ MONTH VIEW ══════════════════════════════════════════════════════════ */
 
 function renderMonthView() {
+  // FIX-2: Mark container so skeleton isn't re-injected on repeat renders
+  var _wc = document.getElementById('wellness-content');
+  if (_wc) _wc.dataset.wvLoaded = 'month';
+
   if (MONTHLY_DATA.length) {
     // Cache hit — render everything instantly, no placeholders
     _updateMonthStats();

@@ -47,7 +47,9 @@ class AppManagementBridge(
     @JavascriptInterface fun getAllApps(): String {
         val appCatMap = safeJson(prefs.getString(APP_CAT_MAP_V1, "{}"))
         val result = JSONArray()
-        pm.getInstalledApplications(PackageManager.GET_META_DATA)
+        pm.getInstalledApplications(0 /* PERF-01 FIX: was GET_META_DATA — only getApplicationLabel() is
+                   called on the result, so loading full manifest metadata is
+                   unnecessary and adds significant latency on devices with 80+ apps */)
             .filter { it.packageName != context.packageName && isUserApp(it) }
             .sortedBy { pm.getApplicationLabel(it).toString().lowercase() }
             .forEach { info ->
@@ -71,7 +73,9 @@ class AppManagementBridge(
         val overrides = safeJson(prefs.getString(CAT_OVERRIDES_V4, "{}"))
         val appCatMap = safeJson(prefs.getString(APP_CAT_MAP_V1, "{}"))
         val hidden = hiddenSet(); val result = JSONArray()
-        pm.getInstalledApplications(PackageManager.GET_META_DATA)
+        pm.getInstalledApplications(0 /* PERF-01 FIX: was GET_META_DATA — only getApplicationLabel() is
+                   called on the result, so loading full manifest metadata is
+                   unnecessary and adds significant latency on devices with 80+ apps */)
             .filter { it.packageName != context.packageName && !hidden.contains(it.packageName) && isUserApp(it) }
             .sortedBy { pm.getApplicationLabel(it).toString().lowercase() }
             .forEach { info ->
@@ -100,7 +104,9 @@ class AppManagementBridge(
     // ── Play Store sync ───────────────────────────────────────────────────────
     @JavascriptInterface fun startPlaySync() {
         bridgeScope.launch(Dispatchers.IO) {
-            val allPkgs = pm.getInstalledApplications(PackageManager.GET_META_DATA)
+            val allPkgs = pm.getInstalledApplications(0 /* PERF-01 FIX: was GET_META_DATA — only getApplicationLabel() is
+                   called on the result, so loading full manifest metadata is
+                   unnecessary and adds significant latency on devices with 80+ apps */)
                 .filter { it.packageName != context.packageName && isUserApp(it) }
             val needsPlay = allPkgs.filter { info ->
                 val pkg = info.packageName; val pkgL = pkg.lowercase()

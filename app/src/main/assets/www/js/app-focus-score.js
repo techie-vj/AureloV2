@@ -226,7 +226,6 @@ window.FocusScore = (function () {
         (chips?'<div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:8px">'+chips+'</div>':'')+
         '<div style="height:4px;background:var(--border);border-radius:2px;overflow:hidden">'+
         '<div class="fs-live-bar" style="height:100%;background:linear-gradient(90deg,var(--p),var(--c));border-radius:2px"></div></div>'+
-        '<div style="text-align:right;margin-top:6px"><span onclick="stopFocusSession()" style="font-family:var(--ff-m);font-size:10px;color:var(--r);cursor:pointer;padding:3px 8px;border-radius:6px;background:rgba(240,78,122,.1);border:1px solid rgba(240,78,122,.2)">Stop session</span></div>'+
         '</div>'
       });
     }
@@ -294,8 +293,20 @@ window.FocusScore = (function () {
   function _collectHabitsEvents() {
     var events=[], now=new Date(), nowH=now.getHours()+now.getMinutes()/60;
     var cfg=typeof FocusBedtime!=='undefined'?FocusBedtime.getCfg():{};
-    var bedH=(cfg.bedHour||22)+(cfg.bedMinute||0)/60, wakeH=(cfg.wakeHour||7)+(cfg.wakeMinute||0)/60;
-    var inWindow=bedH>wakeH?(nowH>=bedH||nowH<wakeH):(nowH>=bedH&&nowH<wakeH);
+    var bedH=(cfg.bedHour!=null?cfg.bedHour:22)+(cfg.bedMinute||0)/60, wakeH=(cfg.wakeHour!=null?cfg.wakeHour:7)+(cfg.wakeMinute||0)/60;
+    // FIX-1: Use native bridge as source of truth so this strip stays in sync
+    // with the bedtime section (which also calls isInBedtimeWindow). JS math
+    // is fallback only (demo / non-native).
+    var inWindow = false;
+    if (cfg.enabled) {
+      if (IS_NATIVE && typeof N.isInBedtimeWindow === 'function') {
+        try { inWindow = !!N.isInBedtimeWindow(); } catch (_) {
+          inWindow = bedH > wakeH ? (nowH >= bedH || nowH < wakeH) : (nowH >= bedH && nowH < wakeH);
+        }
+      } else {
+        inWindow = bedH > wakeH ? (nowH >= bedH || nowH < wakeH) : (nowH >= bedH && nowH < wakeH);
+      }
+    }
 
     // Tier 1: bedtime window active
     if (cfg.enabled&&inWindow) {

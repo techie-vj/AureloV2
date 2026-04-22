@@ -55,7 +55,15 @@ function _saveShown(id) {
 function _renderDiscover() {
   const feed=document.getElementById('disc-ad-feed');
   if(!feed) return;
-  feed.innerHTML=_buildHabitsSection()+_buildCollectionsSection();
+  // OTH-02 FIX: surface affiliate disclosure from the JSON so it is always
+  // visible to users whenever affiliate links are present on screen.
+  const disclosureText = (_affiliateData && _affiliateData.disclosure) || '';
+  const disclosureHtml = disclosureText
+    ? `<div style="padding:12px 20px 20px;font-family:var(--ff-m);font-size:10px;` +
+      `color:var(--t3);line-height:1.6;text-align:center;opacity:.7">` +
+      `ℹ️ ${disclosureText}</div>`
+    : '';
+  feed.innerHTML=_buildHabitsSection()+_buildCollectionsSection()+disclosureHtml;
 }
 
 // ═══ SECTION 1 — BASED ON YOUR HABITS ═══════════════════════════════

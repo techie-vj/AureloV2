@@ -32,9 +32,25 @@ function switchWellnessView(view, btn) {
   const scr = document.getElementById('screen-wellness');
   if(scr) scr.scrollTop = 0;
 
-  // Defer heavy render one frame so the button state and view swap paint immediately.
-  // Without this, the bridge call inside renderMonthView/renderWellness blocks the
-  // renderer and the tab appears frozen until data loads.
+  // FIX-2: Paint a shimmer skeleton into the chart sub-container SYNCHRONOUSLY
+  // so something visible appears before any bridge calls run. We target the
+  // specific empty sub-containers (not the whole view) so named child IDs
+  // used by the render functions are never wiped.
+  var _skeletonBars =
+    '<div style="padding:16px 0 8px;display:flex;flex-direction:column;gap:12px;pointer-events:none">' +
+      '<div style="display:flex;align-items:flex-end;gap:6px;height:120px;padding:0 8px">' +
+        [1,0.65,0.85,0.45,0.95,0.7,0.55].map(function(h,i){
+          return '<div style="flex:1;border-radius:6px 6px 0 0;background:var(--s3);height:'+Math.round(h*100)+'%;animation:skeleton-pulse 1.4s ease-in-out infinite '+( i*0.08).toFixed(2)+'s"></div>';
+        }).join('') +
+      '</div>' +
+      '<div style="height:3px;background:var(--border);margin:0 8px;border-radius:2px"></div>' +
+    '</div>';
+
+  if ((view === 'week' && !_weekRendered) || view === 'month') {
+    var _chartArea = document.getElementById(view === 'week' ? 'ww-chart-area' : 'wm-chart-area');
+    if (_chartArea) _chartArea.innerHTML = _skeletonBars;
+  }
+
   requestAnimationFrame(() => {
     if(view === 'today') {
       renderWellness();
@@ -44,9 +60,12 @@ function switchWellnessView(view, btn) {
       _catMinsCache = null;
       if(!_weekRendered) { renderWeekView(); _weekRendered = true; }
       else {
+        // Re-visit: restore correct chart tab highlight and re-render chart
+        // (also overwrites any skeleton that was painted synchronously above)
         document.querySelectorAll('#w-view-week .ctab').forEach(b=>b.classList.remove('on'));
         const _wb=document.getElementById('ww-ctab-'+_weekChartMode);
         if(_wb) _wb.classList.add('on');
+        renderWeekChart(_weekChartMode);
       }
       _loadMonthlyData(false); // prefetch in background so month tab is instant
     } else if(view === 'month') {

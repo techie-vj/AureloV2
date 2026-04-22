@@ -2,6 +2,7 @@
   "version": 1,
   "updated": "2026-03-20",
   "notes": "All links via Impact.com. Update affiliateUrl when campaign IDs change. AppLovin MAX is fallback only - never shown when a matching affiliate link exists.",
+  "disclosure": "Some app recommendations use affiliate links. Aurelo may earn a commission if you subscribe through them. This never influences which apps are recommended — suggestions are based entirely on your usage patterns.",
 
   "apps": [
 

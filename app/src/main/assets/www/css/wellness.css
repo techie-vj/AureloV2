@@ -280,3 +280,8 @@
    - Tab bar has a bottom divider line
    Ref: m3.material.io/components/tabs/specs
    ═════════════════════════════════════════════════════════ */
+/* FIX-2: Skeleton shimmer for week/month loading state */
+@keyframes skeleton-pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.45; }
+}

@@ -123,6 +123,17 @@
 # Without this rule the release build silently drops background notifications.
 -keep class com.javikastudio.tidyapp.SmartNotificationWorker { *; }
 
+# ── 13. New v1.2.0 engine classes  [OTH-01 FIX] ──────────────────────────────
+# These four classes are instantiated by AppMonitorService at runtime via
+# direct constructor calls that R8 cannot trace from Kotlin/Java call-sites
+# (the service holds them as interface references). Without these rules the
+# release build strips the concrete implementations and the service crashes
+# silently on first use.
+-keep class com.javikastudio.tidyapp.BedtimeBlockingEngine { *; }
+-keep class com.javikastudio.tidyapp.FocusBlockingEngine   { *; }
+-keep class com.javikastudio.tidyapp.IntentionEngine       { *; }
+-keep class com.javikastudio.tidyapp.TimerBlockingEngine   { *; }
+
 # AppWidgetProvider base class — keep so the system can call onUpdate etc.
 -keep class android.appwidget.AppWidgetProvider { *; }
 
