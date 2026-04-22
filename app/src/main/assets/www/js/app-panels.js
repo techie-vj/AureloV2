@@ -248,11 +248,13 @@ function updateHiddenSub(){
 
 // ── App Timers ────────────────────────────────────────
 function renderTimerList(){
+  const listEl = document.getElementById('timer-list');
+  if (!listEl) return; // timer-panel may not be open (e.g. modal opened from Focus tab)
   const all=Object.values(CATS_MAP).flat();
   const limits=S.limits;
   const isPro = ProTier.isPro;
   const activeTimerCount = Object.keys(limits).length;
-  document.getElementById('timer-list').innerHTML = _buildPanelCatHTML('timer-list', all, (a, usageMap) => {
+  listEl.innerHTML = _buildPanelCatHTML('timer-list', all, (a, usageMap) => {
     const hasLimit = !!limits[a.packageName];
     const atLimit  = !isPro && !hasLimit && activeTimerCount >= ProTier.getLimit('TIMER_APPS_UNLIMITED');
     const onclick  = atLimit
@@ -299,8 +301,10 @@ function renderTimerList(){
   }
 }
 function updateTimersSub(){
-  const count=Object.keys(S.limits).length;
-  document.getElementById('timers-sub').textContent=count?`${count} active limit${count!==1?'s':''}`:' Daily time limits';
+  const el = document.getElementById('timers-sub');
+  if (!el) return; // timer-panel may not be open (e.g. modal opened from Focus tab)
+  const count = Object.keys(S.limits).length;
+  el.textContent = count ? `${count} active limit${count!==1?'s':''}` : ' Daily time limits';
 }
 
 // Timer picker modal
@@ -363,11 +367,12 @@ function _doApplyTimer(){
   S.limits[timerPkg]=timerDur;
   saveS();
   nCall('setAppLimit',timerPkg,timerDur);
+  // FIX Bug-1a: close the modal FIRST so a render error cannot block dismissal.
+  closeModal('timer-modal');
   updateTimersSub(); renderTimerList(); renderTopApps();
   // FIX #2: update the top strip and focus subheader so timer count reflects immediately.
   if(typeof renderFocusStrip      === 'function') renderFocusStrip();
   if(typeof _updateFocusSubheader === 'function') _updateFocusSubheader();
-  closeModal('timer-modal');
   // Pull fresh usage so bar fill + "X of Y" time are current, not stale cache.
   if(IS_NATIVE && N.hasUsagePermission && N.hasUsagePermission()){
     try{
@@ -376,9 +381,10 @@ function _doApplyTimer(){
       if(snap.totalMins!=null) TODAY_MINS = snap.totalMins;
     }catch(_){}
   }
-  if(typeof FocusTimers !== 'undefined') FocusTimers.render(document.getElementById('focus-timers-wrap'));
-  toast(`⏱ ${timerName} limited to ${fmtM(timerDur)}/day`,'success');
-  // Contextual notification ask: user just set a limit → offer alerts for when it fires
+  if (typeof FocusTimers !== 'undefined') {
+    FocusTimers.render(document.getElementById('focus-timers-wrap'));
+  }
+  toast('⏱ ' + timerName + ' limited to ' + fmtM(timerDur) + '/day', 'success');
   _maybeAskNotifPerm('limit');
 }
 
@@ -500,14 +506,16 @@ function _showWidgetManualGuide(){
 function removeTimerFromModal(){
   delete S.limits[timerPkg]; saveS();
   nCall('removeAppLimit',timerPkg);
+  // FIX Bug-1a: close the modal FIRST so a render error cannot block dismissal.
+  closeModal('timer-modal');
   updateTimersSub(); renderTimerList(); renderTopApps();
   // FIX #2: keep strip and subheader in sync after removal.
   if(typeof renderFocusStrip      === 'function') renderFocusStrip();
   if(typeof _updateFocusSubheader === 'function') _updateFocusSubheader();
-  closeModal('timer-modal');
-  // FIX #7 & #8: immediately remove row from Focus tab.
-  if(typeof FocusTimers !== 'undefined') FocusTimers.render(document.getElementById('focus-timers-wrap'));
-  toast(`Timer removed for ${timerName}`,'info');
+  if (typeof FocusTimers !== 'undefined') {
+    FocusTimers.render(document.getElementById('focus-timers-wrap'));
+  }
+  toast('Timer removed for ' + timerName, 'info');
 }
 
 /* ═══ LAUNCH APP ══════════════════════════════════════ */
