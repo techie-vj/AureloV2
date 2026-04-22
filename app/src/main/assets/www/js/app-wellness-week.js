@@ -43,10 +43,11 @@ function renderWeekView() {
   if(wwAvg)    wwAvg.textContent    = avg > 0 ? fmtM(avg) : '–';
   if(wwStreak) wwStreak.textContent = tracked > 0 ? daysUnder+'/'+tracked : '–';
 
+  // Chart uses WEEKLY (already in memory) — fast, no bridge call
   renderWeekChart(_weekChartMode);
-  renderWeekTopApps();
-  renderWeekInsights();
   _renderWeekShareButton();
+  // renderWeekTopApps + renderWeekInsights are deferred by the caller
+  // (switchWellnessView RAF) via setTimeout so the chart paints first
 }
 
 function setWeekChart(mode, btn) {

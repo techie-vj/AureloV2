@@ -46,8 +46,20 @@ function switchWellnessView(view, btn) {
       '<div style="height:3px;background:var(--border);margin:0 8px;border-radius:2px"></div>' +
     '</div>';
 
-  if ((view === 'week' && !_weekRendered) || view === 'month') {
-    var _chartArea = document.getElementById(view === 'week' ? 'ww-chart-area' : 'wm-chart-area');
+  if (view === 'week' && !_weekRendered) {
+    var _chartArea = document.getElementById('ww-chart-area');
+    if (_chartArea) _chartArea.innerHTML = _skeletonBars;
+    // Also show a loading state in top apps so there's no blank gap
+    var _topList = document.getElementById('ww-top-apps-list');
+    if (_topList) _topList.innerHTML =
+      '<div style="padding:14px 16px;font-family:var(--ff-m);font-size:11px;color:var(--t3);' +
+      'display:flex;align-items:center;gap:8px">' +
+      '<div style="width:14px;height:14px;border-radius:50%;border:2px solid var(--border2);' +
+      'border-top-color:var(--p);animation:spin .8s linear infinite;flex-shrink:0"></div>' +
+      'Loading top apps…</div>';
+  }
+  if (view === 'month') {
+    var _chartArea = document.getElementById('wm-chart-area');
     if (_chartArea) _chartArea.innerHTML = _skeletonBars;
   }
 
@@ -58,8 +70,15 @@ function switchWellnessView(view, btn) {
     } else if(view === 'week') {
       _invalidateWeeklyAppsCache();
       _catMinsCache = null;
-      if(!_weekRendered) { renderWeekView(); _weekRendered = true; }
-      else {
+      if(!_weekRendered) {
+        renderWeekView(); // fast: stats + chart from WEEKLY (in memory)
+        _weekRendered = true;
+        // Defer the slow N.getWeeklyAppUsage() bridge call so chart paints first
+        setTimeout(function() {
+          renderWeekTopApps();
+          renderWeekInsights();
+        }, 0);
+      } else {
         // Re-visit: restore correct chart tab highlight and re-render chart
         // (also overwrites any skeleton that was painted synchronously above)
         document.querySelectorAll('#w-view-week .ctab').forEach(b=>b.classList.remove('on'));
