@@ -315,8 +315,16 @@ window.FocusHome = (function () {
       } catch (_) {}
     }
     var titleStr = schedName || 'Focus Mode Active';
+    // Build app chips (first 3 blocked apps + "+N more" overflow) — mirrors home dynamic strip
+    var blockedApps = ss.blockedApps || [];
+    var chips = blockedApps.slice(0, 3).map(function (a) {
+      return '<span style="background:' + diff.color + '1a;border:1px solid ' + diff.color + '38;border-radius:6px;padding:2px 8px;font-family:var(--ff-m);font-size:10px;color:' + diff.color + '">' + a.name.split(' ')[0] + '</span>';
+    }).join('');
+    if (blockedApps.length > 3) {
+      chips += '<span style="background:' + diff.color + '1a;border:1px solid ' + diff.color + '38;border-radius:6px;padding:2px 8px;font-family:var(--ff-m);font-size:10px;color:' + diff.color + '">+' + (blockedApps.length - 3) + '</span>';
+    }
     return '<div onclick="activateTab(\'focus\')" style="background:var(--s2);border:1px solid ' + diff.color + ';border-radius:16px;padding:12px 14px;cursor:pointer;transition:opacity .15s" ontouchstart="this.style.opacity=\'.75\'" ontouchend="this.style.opacity=\'1\'">' +
-      '<div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">' +
+      '<div style="display:flex;align-items:center;gap:12px;margin-bottom:' + (chips ? '8px' : '10px') + '">' +
         '<div style="width:36px;height:36px;border-radius:10px;background:' + diff.color + '1a;display:flex;align-items:center;justify-content:center;flex-shrink:0">' +
           '<div style="width:9px;height:9px;border-radius:50%;background:' + diff.color + ';animation:fs-pulse 2s ease-in-out infinite"></div>' +
         '</div>' +
@@ -326,6 +334,7 @@ window.FocusHome = (function () {
         '</div>' +
         '<div style="font-family:var(--ff-m);font-size:22px;font-weight:700;color:' + diff.color + ';letter-spacing:-1px;line-height:1;flex-shrink:0" class="fs-live-timer">' + timerStr + '</div>' +
       '</div>' +
+      (chips ? '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">' + chips + '</div>' : '') +
       '<div style="height:4px;background:var(--border2);border-radius:999px;overflow:hidden">' +
         '<div class="fs-live-bar" style="height:100%;width:' + pct + '%;background:linear-gradient(90deg,' + diff.color + '88,' + diff.color + ');border-radius:999px;transition:width .5s linear"></div>' +
       '</div></div>';
