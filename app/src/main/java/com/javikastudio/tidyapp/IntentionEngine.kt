@@ -375,38 +375,26 @@ class IntentionEngine(
     }
 
     private fun recordPause(pkg: String) {
-        val t   = today()
-        // ── Aggregate count ─────────────────────────────────────────────────
-        val cur = if (prefs.getString("focus_intention_pause_date", "") == t)
+        val t = today()
+        val aggCount = if (prefs.getString("focus_intention_pause_date", "") == t)
             prefs.getInt("focus_intention_pause_count", 0) else 0
         prefs.edit()
-            .putString("focus_intention_pause_date",  t)
-            .putInt(   "focus_intention_pause_count", cur + 1)
-            // ── Per-app count (Bug 4 fix: store per-pkg so JS can show individual stats) ──
-            .putString("focus_intention_pause_date_$pkg",  t)
-            .putInt(   "focus_intention_pause_count_$pkg",
-                if (prefs.getString("focus_intention_pause_date_$pkg", "") == t)
-                    prefs.getInt("focus_intention_pause_count_$pkg", 0) + 1 else 1)
+            .putString("focus_intention_pause_date", t)
+            .putInt(   "focus_intention_pause_count", aggCount + 1)
+            // Per-app writes REMOVED — now owned by IntentionPromptBridge
             .apply()
-        // Bug 2 fix: pass pkg as argument so JS onIntentionPause(pkg) can track per-app counts
         h.notifyJs("if(typeof window.onIntentionPause==='function') window.onIntentionPause('${pkg.replace("'", "\\'")}')")
     }
 
     private fun recordResist(pkg: String) {
-        val t   = today()
-        // ── Aggregate count ─────────────────────────────────────────────────
-        val cur = if (prefs.getString("focus_intention_resist_date", "") == t)
+        val t = today()
+        val aggCount = if (prefs.getString("focus_intention_resist_date", "") == t)
             prefs.getInt("focus_intention_resist_count", 0) else 0
         prefs.edit()
-            .putString("focus_intention_resist_date",  t)
-            .putInt(   "focus_intention_resist_count", cur + 1)
-            // ── Per-app count ────────────────────────────────────────────────
-            .putString("focus_intention_resist_date_$pkg",  t)
-            .putInt(   "focus_intention_resist_count_$pkg",
-                if (prefs.getString("focus_intention_resist_date_$pkg", "") == t)
-                    prefs.getInt("focus_intention_resist_count_$pkg", 0) + 1 else 1)
+            .putString("focus_intention_resist_date", t)
+            .putInt(   "focus_intention_resist_count", aggCount + 1)
+            // Per-app writes REMOVED — now owned by IntentionPromptBridge
             .apply()
-        // Bug 2 fix: pass pkg as argument
         h.notifyJs("if(typeof window.onIntentionResist==='function') window.onIntentionResist('${pkg.replace("'", "\\'")}')")
     }
 

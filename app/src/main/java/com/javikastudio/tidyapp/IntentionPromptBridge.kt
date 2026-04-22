@@ -132,6 +132,7 @@ class IntentionPromptBridge(
         val today = todayDateString()
         val apps  = runCatching { JSONArray(prefs.getString(KEY_INTENTION_APPS, "[]") ?: "[]") }
             .getOrElse { JSONArray() }
+        android.util.Log.d("AureloBridge", "getIntentionAppStats: apps=${apps.length()}, file=${(prefs as? android.content.SharedPreferences)}")
         val result = JSONArray()
         for (i in 0 until apps.length()) {
             val pkg = apps.optJSONObject(i)?.optString("packageName")?.takeIf { it.isNotBlank() }
@@ -147,6 +148,7 @@ class IntentionPromptBridge(
                 put("pauses",  pauses)
                 put("resists", resists)
             })
+            android.util.Log.d("AureloBridge", "pkg=$pkg pauses=$pauses resists=$resists dateMatch=${prefs.getString(pauseDateKey,"")}, today=$today")
         }
         return result.toString()
     }
@@ -183,6 +185,32 @@ class IntentionPromptBridge(
                 "if(typeof window.onIntentionResist==='function') window.onIntentionResist()", null
             )
         }
+    }
+
+    /** Called from JS onIntentionPause(pkg) — writes per-app pause count to bridge prefs */
+    @JavascriptInterface fun recordIntentionAppPause(packageName: String) {
+        if (packageName.isBlank()) return
+        val today    = todayDateString()
+        val dateKey  = KEY_INTENTION_APP_PAUSE_DATE_PREFIX  + packageName
+        val countKey = KEY_INTENTION_APP_PAUSE_COUNT_PREFIX + packageName
+        val count = if (prefs.getString(dateKey, "") == today) prefs.getInt(countKey, 0) else 0
+        prefs.edit()
+            .putString(dateKey,  today)
+            .putInt(   countKey, count + 1)
+            .apply()
+    }
+
+    /** Called from JS onIntentionResist(pkg) — writes per-app resist count to bridge prefs */
+    @JavascriptInterface fun recordIntentionAppResist(packageName: String) {
+        if (packageName.isBlank()) return
+        val today    = todayDateString()
+        val dateKey  = KEY_INTENTION_APP_RESIST_DATE_PREFIX  + packageName
+        val countKey = KEY_INTENTION_APP_RESIST_COUNT_PREFIX + packageName
+        val count = if (prefs.getString(dateKey, "") == today) prefs.getInt(countKey, 0) else 0
+        prefs.edit()
+            .putString(dateKey,  today)
+            .putInt(   countKey, count + 1)
+            .apply()
     }
 
     private fun todayDateString(): String =

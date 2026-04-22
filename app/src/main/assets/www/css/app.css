@@ -881,7 +881,7 @@
 
 /* ── Intention prompt ───────────────────────────────── */
 .intention-badge{
-  font-family:var(--ff-m);font-size:11px;color:var(--g);letter-spacing:1.2px;
+  font-family:var(--ff-m);font-size:--text-xs;color:var(--g);letter-spacing:1.2px;
   padding:3px 8px;border-radius:999px;text-transform:uppercase;
   background:rgba(18,212,138,.12);border:1px solid rgba(18,212,138,.25);
 }

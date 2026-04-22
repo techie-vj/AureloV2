@@ -104,24 +104,29 @@ window.FocusMindful = (function () {
   }
 
   /* ── Read per-app counts ─────────────────────────────────────────────────
-   * Mirrors _getPauseCounts(): seeds from JS localStorage first (populated by
-   * onIntentionPause/Resist callbacks), then merges native bridge data taking
-   * the max of both sources.
+   * Strategy mirrors _getPauseCounts(): collect from every available source
+   * and take Math.max so whichever source has the real data wins.
    *
-   * WHY: two failure modes exist in isolation —
-   *   • Native per-app prefs may be 0 if the bridge prefs instance differs from
-   *     IntentionEngine's, or if apply() hasn't flushed yet.
-   *   • localStorage per-app counters stay at 0 when onIntentionPause(pkg) fires
-   *     while the WebView is inactive (user is in another app at pause time).
-   * Taking Math.max of both sources (as _getPauseCounts does for the aggregate)
-   * makes per-app counts resilient to either failure mode.
+   * Three failure modes this guards against:
+   *  1. localStorage 0 — onIntentionPause(pkg) fired while WebView was inactive
+   *     (user was in another app), so _incAppCount was never called.
+   *  2. Native per-app 0 — bridge returns all-zero (e.g. apply() not yet
+   *     flushed, or per-app write not yet deployed).  Previously the function
+   *     returned immediately when native responded with zeros, skipping
+   *     localStorage entirely.
+   *  3. Bridge method absent — neither getIntentionAppStats nor
+   *     getIntentionAppPauseCount exist in the installed APK yet.
+   *
+   * Fix: always seed from localStorage first, then overlay each native source
+   * with Math.max.  Never return early just because one source returned zeros.
    */
   function _getAppStats() {
-    var apps = _getIntentionApps();
+    var today = _today();
+    var apps  = _getIntentionApps();
 
-    // Step 1 — seed from JS localStorage (what onIntentionPause/Resist(pkg) populates)
+    // Step 1 — seed from JS localStorage (populated by onIntentionPause/Resist(pkg))
     var map = {};
-    apps.forEach(function(a) {
+    apps.forEach(function (a) {
       map[a.packageName] = {
         pauses:  _getAppCount(_PFX_APP_PAUSE,  a.packageName),
         resists: _getAppCount(_PFX_APP_RESIST, a.packageName),
@@ -130,27 +135,34 @@ window.FocusMindful = (function () {
 
     if (!IS_NATIVE) return map;
 
-    // Step 2a — merge with native bulk stats (preferred: single bridge call)
+    // Step 2a — overlay with native bulk stats (preferred: one bridge call)
+    // Only treat bulk stats as authoritative if the call succeeds AND returns
+    // a non-empty array.  An empty array means the bridge method exists but
+    // no apps are configured there — fall through to individual calls.
     if (typeof N.getIntentionAppStats === 'function') {
       try {
         var raw = N.getIntentionAppStats();
         if (raw) {
-          JSON.parse(raw).forEach(function(item) {
-            var pkg      = item.packageName;
-            var existing = map[pkg] || { pauses: 0, resists: 0 };
-            map[pkg] = {
-              pauses:  Math.max(existing.pauses,  item.pauses  || 0),
-              resists: Math.max(existing.resists, item.resists || 0),
-            };
-          });
+          var arr = JSON.parse(raw);
+          if (arr.length > 0) {
+            arr.forEach(function (item) {
+              var pkg      = item.packageName;
+              var existing = map[pkg] || { pauses: 0, resists: 0 };
+              map[pkg] = {
+                pauses:  Math.max(existing.pauses,  item.pauses  || 0),
+                resists: Math.max(existing.resists, item.resists || 0),
+              };
+            });
+            return map; // bulk stats merged — we're done
+          }
         }
       } catch (_) {}
-      return map;
+      // getIntentionAppStats exists but returned empty/threw — fall through
     }
 
     // Step 2b — fallback: individual bridge calls, still merged with localStorage
     if (typeof N.getIntentionAppPauseCount === 'function') {
-      apps.forEach(function(a) {
+      apps.forEach(function (a) {
         try {
           var p        = N.getIntentionAppPauseCount(a.packageName)  || 0;
           var r        = N.getIntentionAppResistCount(a.packageName) || 0;
@@ -457,17 +469,28 @@ window.FocusMindful = (function () {
    * pause screen.  The optional `pkg` argument (package name)
    * enables per-app tracking — passed if native code supports it.
    * ─────────────────────────────────────────────────────────── */
-  window.onIntentionPause = function (pkg) {
-    _incCount(_KEY_PAUSE);
-    if (pkg) _incAppCount(_PFX_APP_PAUSE, pkg);
-    if (typeof _activeTab !== 'undefined' && _activeTab === 'focus') render();
-  };
+ window.onIntentionPause = function (pkg) {
+     _incCount(_KEY_PAUSE);
+     if (pkg) {
+         _incAppCount(_PFX_APP_PAUSE, pkg);
+         // Write to bridge prefs directly — this is now the authoritative per-app store
+         if (IS_NATIVE && typeof N.recordIntentionAppPause === 'function') {
+             try { N.recordIntentionAppPause(pkg); } catch (_) {}
+         }
+     }
+     render(); // always — no _activeTab guard; no-ops if element absent
+ };
 
-  window.onIntentionResist = function (pkg) {
-    _incCount(_KEY_RESIST);
-    if (pkg) _incAppCount(_PFX_APP_RESIST, pkg);
-    if (typeof _activeTab !== 'undefined' && _activeTab === 'focus') render();
-  };
+ window.onIntentionResist = function (pkg) {
+     _incCount(_KEY_RESIST);
+     if (pkg) {
+         _incAppCount(_PFX_APP_RESIST, pkg);
+         if (IS_NATIVE && typeof N.recordIntentionAppResist === 'function') {
+             try { N.recordIntentionAppResist(pkg); } catch (_) {}
+         }
+     }
+     render(); // always
+ };
 
   return {
     render      : render,

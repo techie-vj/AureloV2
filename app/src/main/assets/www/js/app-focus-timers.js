@@ -10,6 +10,32 @@ window.FocusTimers = (function () {
 
   var MAX_VISIBLE = 5; // max apps before "show more" link
 
+  /* ── Deferred-render state ────────────────────────────────────────
+   * When render() is called before focus-timers-wrap exists in the DOM
+   * (e.g. timer set from another tab), we set _dirty and start polling
+   * at ~80 ms. The instant the element appears we render and stop.    */
+  var _dirty       = false;
+  var _retryHandle = null;
+
+  function _scheduleRetry() {
+    if (_retryHandle) return;                    // already polling
+    var attempts = 0;
+    _retryHandle = setInterval(function () {
+      attempts++;
+      var w = document.getElementById('focus-timers-wrap');
+      if (w) {
+        clearInterval(_retryHandle);
+        _retryHandle = null;
+        render(w);                               // element is live — render now
+        return;
+      }
+      if (attempts >= 100) {                     // ~8 s safety cut-off
+        clearInterval(_retryHandle);
+        _retryHandle = null;
+      }
+    }, 80);
+  }
+
   /* ── Build a single timer row HTML string ─────────────────────── */
   function _timerRow(pkg, limitMins, usedMins, ignoreCache) {
     var pct      = Math.min(100, Math.round((usedMins / limitMins) * 100));
@@ -37,7 +63,9 @@ window.FocusTimers = (function () {
       ? '<span class="ftr-ignored">· ignored ' + weekIgn + '× this week</span>'
       : '';
 
-    return '<div onclick="openTimerForApp(\'' + safePkg + '\',\'' + safeAppName + '\',' + usedMins + ')"' +
+    // FIX Bug-2: use _openTimerFromSheet so the all-timers modal is always
+    // dismissed before the picker opens, preventing the z-index overlap.
+    return '<div onclick="FocusTimers._openTimerFromSheet(\'' + safePkg + '\',\'' + safeAppName + '\',' + usedMins + ')"' +
       ' style="display:flex;align-items:center;gap:10px;padding:8px 0;' +
       'border-bottom:1px solid var(--border);cursor:pointer">' +
       '<div style="width:34px;height:34px;border-radius:10px;overflow:hidden;background:var(--s2);' +
@@ -108,7 +136,15 @@ window.FocusTimers = (function () {
 
   /* ── Main render ─────────────────────────────────────────────── */
   function render(wrap) {
-    if (!wrap) return;
+    if (!wrap) {
+      // focus-timers-wrap not in DOM yet — mark dirty and poll until it is.
+      _dirty = true;
+      _scheduleRetry();
+      return;
+    }
+    // We have a live element: cancel any pending retry and render now.
+    _dirty = false;
+    if (_retryHandle) { clearInterval(_retryHandle); _retryHandle = null; }
     var limits = S.limits || {};
     var pkgs   = Object.keys(limits);
 
@@ -190,6 +226,23 @@ window.FocusTimers = (function () {
     showAllTimers(state.pkgs, state.limits, state.usageMap, state.ignoreCache);
   }
 
+  /* FIX Bug-2 / flicker: Called from every timer row click.
+   * Opens the picker FIRST (lifting its z-index above the sheet) so
+   * there is never a blank frame, then removes the sheet on the next
+   * animation frame once the picker is already painted.               */
+  function _openTimerFromSheet(pkg, name, usedMins) {
+    var timerEl = document.getElementById('timer-modal');
+    // Temporarily sit above the all-timers sheet (z-index 9000).
+    if (timerEl) timerEl.style.zIndex = '9100';
+    // Paint the picker before removing the sheet → zero blank frames.
+    openTimerForApp(pkg, name, usedMins);
+    // Tear down the sheet on the next frame — picker is already visible.
+    var sheet = document.getElementById('_timers-all-modal');
+    if (sheet) requestAnimationFrame(function () { sheet.remove(); });
+    // Reset the elevated z-index after any CSS transition completes.
+    setTimeout(function () { if (timerEl) timerEl.style.zIndex = ''; }, 400);
+  }
+
   window.onTimerGraceGranted = function (pkg) {
     if (typeof FocusTab !== 'undefined') {
       if (typeof FocusTab.loadTimerIgnoreStats === 'function') FocusTab.loadTimerIgnoreStats();
@@ -199,5 +252,5 @@ window.FocusTimers = (function () {
     if (wrap) render(wrap);
   };
 
-  return { render, _showMore };
+  return { render, _showMore, _openTimerFromSheet };
 })();
