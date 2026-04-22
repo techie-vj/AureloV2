@@ -378,10 +378,13 @@ class IntentionEngine(
         val t = today()
         val aggCount = if (prefs.getString("focus_intention_pause_date", "") == t)
             prefs.getInt("focus_intention_pause_count", 0) else 0
+        val appCount = if (prefs.getString("focus_intention_pause_date_$pkg", "") == t)
+            prefs.getInt("focus_intention_pause_count_$pkg", 0) else 0
         prefs.edit()
-            .putString("focus_intention_pause_date", t)
-            .putInt(   "focus_intention_pause_count", aggCount + 1)
-            // Per-app writes REMOVED — now owned by IntentionPromptBridge
+            .putString("focus_intention_pause_date",       t)
+            .putInt(   "focus_intention_pause_count",      aggCount + 1)
+            .putString("focus_intention_pause_date_$pkg",  t)
+            .putInt(   "focus_intention_pause_count_$pkg", appCount + 1)
             .apply()
         h.notifyJs("if(typeof window.onIntentionPause==='function') window.onIntentionPause('${pkg.replace("'", "\\'")}')")
     }
@@ -390,10 +393,13 @@ class IntentionEngine(
         val t = today()
         val aggCount = if (prefs.getString("focus_intention_resist_date", "") == t)
             prefs.getInt("focus_intention_resist_count", 0) else 0
+        val appCount = if (prefs.getString("focus_intention_resist_date_$pkg", "") == t)
+            prefs.getInt("focus_intention_resist_count_$pkg", 0) else 0
         prefs.edit()
-            .putString("focus_intention_resist_date", t)
-            .putInt(   "focus_intention_resist_count", aggCount + 1)
-            // Per-app writes REMOVED — now owned by IntentionPromptBridge
+            .putString("focus_intention_resist_date",       t)
+            .putInt(   "focus_intention_resist_count",      aggCount + 1)
+            .putString("focus_intention_resist_date_$pkg",  t)
+            .putInt(   "focus_intention_resist_count_$pkg", appCount + 1)
             .apply()
         h.notifyJs("if(typeof window.onIntentionResist==='function') window.onIntentionResist('${pkg.replace("'", "\\'")}')")
     }

@@ -243,6 +243,11 @@ class AppBridge(private val context: Context, private val webView: WebView) {
     @JavascriptInterface fun getIntentionResistCount()         = intention.getIntentionResistCount()
     @JavascriptInterface fun recordIntentionPause()            = intention.recordIntentionPause()
     @JavascriptInterface fun recordIntentionResist()           = intention.recordIntentionResist()
+    @JavascriptInterface fun recordIntentionAppPause(pkg: String)  = intention.recordIntentionAppPause(pkg)
+    @JavascriptInterface fun recordIntentionAppResist(pkg: String) = intention.recordIntentionAppResist(pkg)
+    @JavascriptInterface fun getIntentionAppStats()                = intention.getIntentionAppStats()
+    @JavascriptInterface fun getIntentionAppPauseCount(pkg:String) = intention.getIntentionAppPauseCount(pkg)
+    @JavascriptInterface fun getIntentionAppResistCount(pkg:String)= intention.getIntentionAppResistCount(pkg)
 
     // ── Bedtime ────────────────────────────────────────────────────────────
     @JavascriptInterface fun getBedtimeSettings()              = bedtime.getBedtimeSettings()
