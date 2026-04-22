@@ -549,20 +549,31 @@ window.FocusTab = (function () {
       panel = document.createElement('div');
       panel.id = 'focus-dur-picker';
       panel.style.cssText = 'display:none;position:fixed;inset:0;z-index:2000;' +
-        'background:rgba(6,6,16,.92);align-items:center;justify-content:center;';
+        'background:rgba(0,0,0,.45);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);align-items:center;justify-content:center;';
       panel.innerHTML =
-        '<div class="fdp-card">' +
-          '<div class="fdp-title">Set Duration</div>' +
-          '<div class="fdp-drum-row">' +
-            '<div class="fdp-highlight"></div>' +
+        '<div style="background:var(--s1);border:1px solid var(--border2);border-radius:22px;' +
+        'padding:24px 20px;width:280px;box-sizing:border-box">' +
+          '<div style="font-family:var(--ff-m);font-size:10px;letter-spacing:2.5px;' +
+          'text-transform:uppercase;color:var(--t3);text-align:center;margin-bottom:20px">Set Duration</div>' +
+          '<div style="display:flex;align-items:center;justify-content:center;gap:16px;' +
+          'margin-bottom:6px;position:relative">' +
+            // Selection highlight — uses accent tint so it reads in both dark & light
+            '<div style="position:absolute;left:4px;right:4px;height:44px;top:50%;transform:translateY(-50%);' +
+            'background:rgba(108,99,255,.1);border:1px solid rgba(108,99,255,.22);' +
+            'border-radius:10px;pointer-events:none"></div>' +
             '<div class="focus-drum-col" id="dur-drum-hours"></div>' +
-            '<div class="fdp-sep">:</div>' +
+            '<div style="font-family:var(--ff-m);font-size:20px;color:var(--t3);font-weight:400;flex-shrink:0;margin-bottom:2px">:</div>' +
             '<div class="focus-drum-col" id="dur-drum-mins"></div>' +
           '</div>' +
-          '<div class="fdp-hint">hours&nbsp;&nbsp;:&nbsp;&nbsp;minutes</div>' +
-          '<div class="fdp-actions">' +
-            '<button type="button" class="fdp-cancel" onclick="FocusTab.closeCustomDurPicker()">Cancel</button>' +
-            '<button type="button" class="fdp-confirm" onclick="FocusTab.confirmCustomDur()">Set Duration</button>' +
+          '<div style="font-family:var(--ff-m);font-size:9px;color:var(--t3);' +
+          'text-align:center;margin-bottom:20px;letter-spacing:.5px;opacity:.6">hours · minutes</div>' +
+          '<div style="display:flex;gap:10px">' +
+            '<button type="button" onclick="FocusTab.closeCustomDurPicker()" style="flex:1;padding:13px;border-radius:12px;' +
+            'border:1px solid var(--border2);background:var(--s2);color:var(--t2);' +
+            'font-family:var(--ff-m);font-size:13px;cursor:pointer;white-space:nowrap">Cancel</button>' +
+            '<button type="button" onclick="FocusTab.confirmCustomDur()" style="flex:1;padding:13px;border-radius:12px;' +
+            'border:none;background:linear-gradient(135deg,var(--p),var(--c));color:#fff;' +
+            'font-family:var(--ff-m);font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap">Confirm</button>' +
           '</div>' +
         '</div>';
       document.body.appendChild(panel);

@@ -190,130 +190,194 @@ window.FocusHome = (function () {
   }
 
   /* ═══════════════════════════════════════════════════════════════
-   * STRIP ROW BUILDERS
+   * DESIGN-SYSTEM HELPERS
+   * All home strips share these atoms for a consistent look:
+   *   _card   — outer container
+   *   _icon   — 36×36 leading icon box
+   *   _title  — primary label
+   *   _sub    — secondary label
+   *   _pill   — trailing badge
+   *   _chev   — trailing chevron
+   *   _dot    — 6px status dot
+   *   _divider— hairline between rows
+   * ═══════════════════════════════════════════════════════════════ */
+
+  // Accent palettes — each strip type gets a named palette so every
+  // variant (active / warning / success) stays visually coherent.
+  var _PALETTE = {
+    purple: { bg: 'rgba(108,99,255,.09)', border: 'rgba(108,99,255,.28)', icon: 'rgba(108,99,255,.16)', text: 'var(--p2)', dot: 'var(--p)' },
+    indigo: { bg: 'rgba(80,100,255,.09)', border: 'rgba(100,120,255,.25)', icon: 'rgba(80,100,255,.16)', text: '#7a80ff', dot: '#7a80ff' },
+    green:  { bg: 'rgba(18,212,138,.08)', border: 'rgba(18,212,138,.28)', icon: 'rgba(18,212,138,.15)', text: 'var(--g)', dot: 'var(--g)' },
+    red:    { bg: 'rgba(240,78,122,.08)', border: 'rgba(240,78,122,.28)', icon: 'rgba(240,78,122,.15)', text: 'var(--r)', dot: 'var(--r)' },
+    amber:  { bg: 'rgba(247,166,35,.08)', border: 'rgba(247,166,35,.25)', icon: 'rgba(247,166,35,.15)', text: 'var(--a)', dot: 'var(--a)' },
+    gold:   { bg: 'rgba(247,201,72,.08)', border: 'rgba(247,201,72,.22)', icon: 'rgba(247,201,72,.15)', text: '#c4982e', dot: '#f7c948' },
+    neutral:{ bg: 'var(--s2)',            border: 'var(--border2)',        icon: 'var(--s3)',            text: 'var(--t2)', dot: 'var(--t3)' },
+  };
+
+  function _card(p, onClick, content) {
+    var clickAttr = onClick ? 'onclick="' + onClick + '"' : '';
+    var cursor    = onClick ? 'cursor:pointer;' : '';
+    return '<div ' + clickAttr + ' style="background:' + p.bg + ';border:1px solid ' + p.border + ';border-radius:16px;' +
+      'padding:12px 14px;display:flex;align-items:center;gap:12px;' + cursor + 'transition:opacity .15s" ' +
+      (onClick ? 'ontouchstart="this.style.opacity=\'.75\'" ontouchend="this.style.opacity=\'1\'"' : '') + '>' +
+      content + '</div>';
+  }
+
+  function _icon(emoji, p) {
+    return '<div style="width:36px;height:36px;border-radius:10px;background:' + p.icon + ';' +
+      'display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">' + emoji + '</div>';
+  }
+
+  function _content(titleHtml, subHtml) {
+    return '<div style="flex:1;min-width:0">' +
+      '<div style="font-size:var(--text-sm);font-weight:600;color:var(--t1);line-height:1.25;margin-bottom:2px">' + titleHtml + '</div>' +
+      (subHtml ? '<div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);line-height:1.4">' + subHtml + '</div>' : '') +
+      '</div>';
+  }
+
+  function _pill(text, p) {
+    return '<div style="font-family:var(--ff-m);font-size:10px;font-weight:600;color:' + p.text + ';' +
+      'background:' + p.icon + ';border-radius:99px;padding:3px 9px;flex-shrink:0;white-space:nowrap">' + text + '</div>';
+  }
+
+  function _chev(p) {
+    return '<div style="font-size:18px;color:' + p.text + ';opacity:.6;flex-shrink:0;line-height:1">›</div>';
+  }
+
+  function _dot(p) {
+    return '<div style="width:7px;height:7px;border-radius:50%;background:' + p.dot + ';flex-shrink:0"></div>';
+  }
+
+  function _divider() {
+    return '<div style="height:1px;background:var(--border);margin:0 14px"></div>';
+  }
+
+  // A compact single-line strip (no icon box) — for simple status messages
+  function _inlineCard(p, onClick, dotHtml, bodyHtml, trailHtml) {
+    var clickAttr = onClick ? 'onclick="' + onClick + '"' : '';
+    var cursor    = onClick ? 'cursor:pointer;' : '';
+    return '<div ' + clickAttr + ' style="background:' + p.bg + ';border:1px solid ' + p.border + ';border-radius:16px;' +
+      'padding:11px 14px;display:flex;align-items:center;gap:10px;' + cursor + 'transition:opacity .15s" ' +
+      (onClick ? 'ontouchstart="this.style.opacity=\'.75\'" ontouchend="this.style.opacity=\'1\'"' : '') + '>' +
+      dotHtml +
+      '<div style="flex:1;font-family:var(--ff-m);font-size:var(--text-2xs);color:' + p.text + ';line-height:1.45">' + bodyHtml + '</div>' +
+      (trailHtml || '') +
+      '</div>';
+  }
+
+  /* ═══════════════════════════════════════════════════════════════
+   * STRIP ROW BUILDERS  (used by Focus/Limits sub-tab strips)
+   * ═══════════════════════════════════════════════════════════════ */
+
+  /* ═══════════════════════════════════════════════════════════════
+   * STRIP ROW BUILDERS  (used by Focus/Limits sub-tab strips)
    * ═══════════════════════════════════════════════════════════════ */
 
   function buildStripRow(icon, label, sub, rightEl) {
-    return '<div style="display:flex;align-items:center;gap:10px;padding:9px 14px">' +
-      '<span style="font-size:13px;flex-shrink:0">' + icon + '</span>' +
+    return '<div style="display:flex;align-items:center;gap:12px;padding:11px 14px">' +
+      '<div style="width:32px;height:32px;border-radius:9px;background:var(--s3);' +
+      'display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">' + icon + '</div>' +
       '<div style="flex:1;min-width:0">' +
-        '<div style="font-size:11px;font-weight:600;color:var(--t1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + label + '</div>' +
-        (sub ? '<div style="font-family:var(--ff-m);font-size:11px;color:var(--t3);margin-top:1px">' + sub + '</div>' : '') +
+        '<div style="font-size:var(--text-sm);font-weight:600;color:var(--t1);margin-bottom:1px">' + label + '</div>' +
+        (sub ? '<div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3)">' + sub + '</div>' : '') +
       '</div>' +
       '<div style="flex-shrink:0">' + rightEl + '</div>' +
       '</div>';
   }
 
   function buildStripRowMuted(icon, label, sub) {
-    return '<div style="display:flex;align-items:center;gap:10px;padding:9px 14px;opacity:.45">' +
-      '<span style="font-size:13px;flex-shrink:0">' + icon + '</span>' +
+    return '<div style="display:flex;align-items:center;gap:12px;padding:11px 14px;opacity:.4">' +
+      '<div style="width:32px;height:32px;border-radius:9px;background:var(--s3);' +
+      'display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">' + icon + '</div>' +
       '<div style="flex:1">' +
-        '<div style="font-size:11px;font-weight:600;color:var(--t3)">' + label + '</div>' +
-        '<div style="font-family:var(--ff-m);font-size:11px;color:var(--t3);margin-top:1px">' + sub + '</div>' +
+        '<div style="font-size:var(--text-sm);font-weight:600;color:var(--t2)">' + label + '</div>' +
+        '<div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);margin-top:1px">' + sub + '</div>' +
       '</div></div>';
   }
 
   /* ── Session state strip builders ──────────────────────────────── */
 
   function buildLiveSessionStripHtml(d) {
-    var ss       = typeof FocusTab !== 'undefined' ? FocusTab.getSessionState() : {};
-    var secsLeft = Math.max(0, ss.secs || 0);
-    var totalSecs= ss.totalSecs || 1;
-    var elapsed  = totalSecs - secsLeft;
-    var elapsedM = Math.floor(elapsed / 60), totalM = Math.floor(totalSecs / 60);
-    var pct      = Math.round((elapsed / totalSecs) * 100);
-    var diff     = (typeof FOCUS_DIFF !== 'undefined' && FOCUS_DIFF[ss.difficulty]) || FOCUS_DIFF.gentle;
-    var timerStr = _fmtStripTimer(secsLeft);
-    return '<div onclick="activateTab(\'focus\')" style="' +
-      'background:var(--s2);border:1px solid rgba(108,99,255,.4);border-radius:14px;' +
-      'padding:10px 14px 12px;cursor:pointer;overflow:hidden">' +
-      '<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">' +
-        '<div style="width:8px;height:8px;border-radius:50%;background:' + diff.color + ';' +
-        'box-shadow:0 0 0 3px ' + diff.color + '33;flex-shrink:0;animation:fs-pulse 2s ease-in-out infinite"></div>' +
-        '<div style="flex:1">' +
-          '<div style="font-size:12px;font-weight:700;color:var(--t1)">Focus Mode Active</div>' +
-          '<div class="fs-live-sub" style="font-family:var(--ff-m);font-size:11px;color:var(--t2);margin-top:1px">' +
-          elapsedM + ' of ' + totalM + ' min elapsed</div>' +
+    var ss        = typeof FocusTab !== 'undefined' ? FocusTab.getSessionState() : {};
+    var secsLeft  = Math.max(0, ss.secs || 0);
+    var totalSecs = ss.totalSecs || 1;
+    var elapsed   = totalSecs - secsLeft;
+    var pct       = Math.round((elapsed / totalSecs) * 100);
+    var diff      = (typeof FOCUS_DIFF !== 'undefined' && FOCUS_DIFF[ss.difficulty]) || FOCUS_DIFF.gentle;
+    var timerStr  = _fmtStripTimer(secsLeft);
+    var elapsedM  = Math.floor(elapsed / 60), totalM = Math.floor(totalSecs / 60);
+    return '<div onclick="activateTab(\'focus\')" style="background:var(--s2);border:1px solid ' + diff.color + ';border-radius:16px;padding:12px 14px;cursor:pointer;transition:opacity .15s" ontouchstart="this.style.opacity=\'.75\'" ontouchend="this.style.opacity=\'1\'">' +
+      '<div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">' +
+        '<div style="width:36px;height:36px;border-radius:10px;background:' + diff.color + '1a;display:flex;align-items:center;justify-content:center;flex-shrink:0">' +
+          '<div style="width:9px;height:9px;border-radius:50%;background:' + diff.color + ';animation:fs-pulse 2s ease-in-out infinite"></div>' +
         '</div>' +
-        '<div style="text-align:right;flex-shrink:0">' +
-          '<div class="fs-live-timer" style="font-family:var(--ff-m);font-size:20px;font-weight:700;' +
-          'color:' + diff.color + ';letter-spacing:-1px;line-height:1">' + timerStr + '</div>' +
-          '<div style="font-family:var(--ff-m);font-size:11px;color:var(--t3);margin-top:1px">' + diff.label + '</div>' +
-        '</div></div>' +
-      '<div style="height:4px;background:var(--border);border-radius:2px;overflow:hidden">' +
-        '<div class="fs-live-bar" style="height:100%;width:' + pct + '%;' +
-        'background:linear-gradient(90deg,var(--p),var(--c));border-radius:2px;transition:width .5s linear"></div>' +
+        '<div style="flex:1;min-width:0">' +
+          '<div style="font-size:var(--text-sm);font-weight:600;color:var(--t1);margin-bottom:2px">Focus Mode Active</div>' +
+          '<div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3)">' + elapsedM + ' of ' + totalM + ' min elapsed · ' + diff.label + '</div>' +
+        '</div>' +
+        '<div style="font-family:var(--ff-m);font-size:22px;font-weight:700;color:' + diff.color + ';letter-spacing:-1px;line-height:1;flex-shrink:0" class="fs-live-timer">' + timerStr + '</div>' +
+      '</div>' +
+      '<div style="height:4px;background:var(--border2);border-radius:999px;overflow:hidden">' +
+        '<div class="fs-live-bar" style="height:100%;width:' + pct + '%;background:linear-gradient(90deg,' + diff.color + '88,' + diff.color + ');border-radius:999px;transition:width .5s linear"></div>' +
       '</div></div>';
   }
 
   function buildCompletedStripHtml(d) {
     var ls = typeof FocusTab !== 'undefined' ? FocusTab.getLastState() : {};
-    return '<div onclick="activateTab(\'focus\')" style="' +
-      'background:var(--s2);border:1px solid rgba(18,212,138,.3);border-radius:14px;' +
-      'padding:10px 14px;cursor:pointer;animation:fade-in-up .4s ease">' +
-      '<div style="display:flex;align-items:center;gap:10px">' +
-        '<div style="font-size:22px;flex-shrink:0">&#x1F525;</div>' +
-        '<div style="flex:1">' +
-          '<div style="font-size:12px;font-weight:700;color:var(--g)">Session complete!</div>' +
-          '<div style="font-family:var(--ff-m);font-size:11px;color:var(--t2);margin-top:1px">' +
-          (ls.totalMins || 0) + ' min &middot; ' + (d.completed || 0) + ' done this week</div>' +
-        '</div>' +
-        '<div style="font-family:var(--ff-m);font-size:11px;font-weight:700;color:var(--g);' +
-        'background:rgba(18,212,138,.12);border:1px solid rgba(18,212,138,.25);' +
-        'border-radius:8px;padding:4px 10px;white-space:nowrap;flex-shrink:0">' +
-        (d.completed || 0) + ' done &#x2713;</div>' +
-      '</div></div>';
+    var p  = _PALETTE.green;
+    return _card(p, "activateTab('focus')",
+      _icon('✅', p) +
+      _content('Session complete! · ' + (ls.totalMins || 0) + ' min',
+               (d.completed || 0) + ' sessions done this week') +
+      _pill('✓ Done', p));
   }
 
   function buildInterruptedStripHtml(d) {
     var ls = typeof FocusTab !== 'undefined' ? FocusTab.getLastState() : {};
-    return '<div onclick="activateTab(\'focus\')" style="' +
-      'background:var(--s2);border:1px solid rgba(247,166,35,.25);border-radius:14px;' +
-      'padding:10px 14px;cursor:pointer;animation:fade-in-up .4s ease">' +
-      '<div style="display:flex;align-items:center;gap:10px">' +
-        '<div style="font-size:18px;flex-shrink:0">&#x23F8;</div>' +
-        '<div style="flex:1">' +
-          '<div style="font-size:12px;font-weight:700;color:var(--a)">Session ended early</div>' +
-          '<div style="font-family:var(--ff-m);font-size:11px;color:var(--t2);margin-top:1px">' +
-          (ls.elapsedMins || 0) + ' of ' + (ls.totalMins || 0) + ' min &middot; ' +
-          (d.completed || 0) + '/' + (d.total || 0) + ' complete this week</div>' +
-        '</div>' +
-        '<div style="font-family:var(--ff-m);font-size:11px;color:var(--p2);' +
-        'background:rgba(108,99,255,.1);border:1px solid rgba(108,99,255,.2);' +
-        'border-radius:6px;padding:3px 8px;white-space:nowrap;flex-shrink:0">Try again &#x2192;</div>' +
-      '</div></div>';
+    var p  = _PALETTE.amber;
+    return _card(p, "activateTab('focus')",
+      _icon('⏸', p) +
+      _content('Session ended early',
+               (ls.elapsedMins || 0) + ' of ' + (ls.totalMins || 0) + ' min · ' +
+               (d.completed || 0) + '/' + (d.total || 0) + ' complete this week') +
+      _pill('Try again →', p));
   }
 
   /* ═══════════════════════════════════════════════════════════════
-   * HOME FOCUS STRIP CARD (renders into #home-focus-strip)
+   * HOME FOCUS STRIP CARD  (#home-focus-strip)
    * ═══════════════════════════════════════════════════════════════ */
 
   function buildHomeFocusStripHtml() {
     var d  = loadStripData();
     var ss = typeof FocusTab !== 'undefined' ? FocusTab.getSessionState() : {};
     var ls = typeof FocusTab !== 'undefined' ? FocusTab.getLastState()   : {};
-    if (ss.active)                      return buildLiveSessionStripHtml(d);
-    if (ls.state === 'completed')       return buildCompletedStripHtml(d);
-    if (ls.state === 'interrupted')     return buildInterruptedStripHtml(d);
+    if (ss.active)                  return buildLiveSessionStripHtml(d);
+    if (ls.state === 'completed')   return buildCompletedStripHtml(d);
+    if (ls.state === 'interrupted') return buildInterruptedStripHtml(d);
 
-    var focusVal = d.total > 0 ? d.completed + ' session' + (d.completed !== 1 ? 's' : '') : '\u2013';
-    var focusSub = d.total > 0 ? d.totalMins + ' min today' : 'No sessions yet';
-    var mindfulVal = d.pauseCount > 0 ? d.pauseCount + ' pause' + (d.pauseCount !== 1 ? 's' : '') : '\u2013';
-    var mindfulSub = d.pauseCount > 0 ? (d.resistCount > 0 ? d.resistCount + ' resisted' : 'none resisted') : 'Not triggered';
-    return '<div onclick="activateTab(\'focus\')" style="background:var(--s2);border:1px solid var(--border2);border-radius:14px;padding:11px 13px;cursor:pointer;display:flex;align-items:stretch">' +
-      '<div style="flex:1;min-width:0">' +
-        '<div style="font-family:var(--ff-m);font-size:11px;color:var(--t3);letter-spacing:.8px;margin-bottom:4px">FOCUS</div>' +
-        '<div style="font-size:13px;font-weight:600;color:var(--t1);margin-bottom:2px;line-height:1.2">' + focusVal + '</div>' +
-        '<div style="font-family:var(--ff-m);font-size:10px;color:var(--t3)">' + focusSub + '</div>' +
-      '</div>' +
-      '<div style="width:1px;background:rgba(255,255,255,.07);margin:0 12px;align-self:stretch"></div>' +
-      '<div style="flex:1;min-width:0">' +
-        '<div style="font-family:var(--ff-m);font-size:11px;color:var(--t3);letter-spacing:.8px;margin-bottom:4px">MINDFUL</div>' +
-        '<div style="font-size:13px;font-weight:600;color:var(--t1);margin-bottom:2px;line-height:1.2">' + mindfulVal + '</div>' +
-        '<div style="font-family:var(--ff-m);font-size:10px;color:var(--t3)">' + mindfulSub + '</div>' +
-      '</div>' +
+    var focusVal  = d.total > 0 ? d.completed + ' session' + (d.completed !== 1 ? 's' : '') : '–';
+    var focusSub  = d.total > 0 ? d.totalMins + ' min today' : 'No sessions yet';
+    var mindVal   = d.pauseCount > 0 ? d.pauseCount + ' pause' + (d.pauseCount !== 1 ? 's' : '') : '–';
+    var mindSub   = d.pauseCount > 0 ? (d.resistCount > 0 ? d.resistCount + ' resisted' : 'none resisted') : 'Not triggered';
+    var p = _PALETTE.neutral;
+    return '<div onclick="activateTab(\'focus\')" style="background:' + p.bg + ';border:1px solid ' + p.border + ';border-radius:16px;padding:12px 14px;cursor:pointer;display:flex;align-items:center;gap:0;transition:opacity .15s" ontouchstart="this.style.opacity=\'.75\'" ontouchend="this.style.opacity=\'1\'">' +
+      '<div style="flex:1;min-width:0;display:flex;align-items:center;gap:10px">' +
+        '<div style="width:32px;height:32px;border-radius:9px;background:rgba(108,99,255,.12);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">🎯</div>' +
+        '<div style="flex:1;min-width:0">' +
+          '<div style="font-size:var(--text-sm);font-weight:600;color:var(--t1);margin-bottom:2px">' + focusVal + '</div>' +
+          '<div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3)">' + focusSub + '</div>' +
+        '</div></div>' +
+      '<div style="width:1px;background:var(--border2);margin:0 14px;align-self:stretch"></div>' +
+      '<div style="flex:1;min-width:0;display:flex;align-items:center;gap:10px">' +
+        '<div style="width:32px;height:32px;border-radius:9px;background:rgba(176,110,255,.12);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">🧘</div>' +
+        '<div style="flex:1;min-width:0">' +
+          '<div style="font-size:var(--text-sm);font-weight:600;color:var(--t1);margin-bottom:2px">' + mindVal + '</div>' +
+          '<div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3)">' + mindSub + '</div>' +
+        '</div></div>' +
+      '<div style="font-size:18px;color:var(--t3);opacity:.5;flex-shrink:0;margin-left:10px;line-height:1">›</div>' +
       '</div>';
   }
+
 
   function renderFocusStrip() {
     var el = document.getElementById('home-focus-strip');
@@ -405,45 +469,60 @@ window.FocusHome = (function () {
     var ss = typeof FocusTab !== 'undefined' ? FocusTab.getSessionState() : {};
     var ls = typeof FocusTab !== 'undefined' ? FocusTab.getLastState() : {};
     var sk = typeof FocusTab !== 'undefined' ? FocusTab.getStreakState() : {};
+    var nav = "FocusTab._switchFocusSubTab('focus');activateTab('focus')";
 
     // Tier 1a: session active
     if (ss.active) {
       var diff    = (typeof FOCUS_DIFF !== 'undefined' && FOCUS_DIFF[ss.difficulty]) || FOCUS_DIFF.gentle;
       var secsLeft= Math.max(0, ss.secs || 0);
       var chips   = (ss.blockedApps || []).slice(0, 3).map(function (a) {
-        return '<span style="background:rgba(108,99,255,.15);border:1px solid rgba(108,99,255,.25);border-radius:6px;padding:2px 7px;font-family:var(--ff-m);font-size:11px;color:var(--p2)">' + a.name.split(' ')[0] + '</span>';
+        return '<span style="background:rgba(108,99,255,.12);border:1px solid rgba(108,99,255,.22);border-radius:6px;padding:2px 8px;font-family:var(--ff-m);font-size:10px;color:var(--p2)">' + a.name.split(' ')[0] + '</span>';
       }).join('');
-      el.innerHTML = '<div onclick="FocusTab._switchFocusSubTab(\'focus\');activateTab(\'focus\')" style="background:var(--s2);border:1px solid ' + diff.color + ';border-radius:14px;padding:11px 13px">' +
-        '<div style="display:flex;align-items:center;gap:10px;margin-bottom:' + (chips ? '8' : '0') + 'px">' +
-          '<div style="width:7px;height:7px;border-radius:50%;background:' + diff.color + ';box-shadow:0 0 0 3px ' + diff.color + '22;flex-shrink:0;animation:fs-pulse 2s ease-in-out infinite"></div>' +
-          '<div style="flex:1"><div style="font-size:12px;font-weight:700;color:var(--t1)">Focus Mode Active</div><div style="font-family:var(--ff-m);font-size:11px;color:var(--t2);margin-top:1px">' + diff.label + '</div></div>' +
-          '<div id="home-focus-dyn-timer" style="font-family:var(--ff-m);font-size:18px;font-weight:700;color:' + diff.color + ';letter-spacing:-1px;flex-shrink:0">' + _fmtStripTimer(secsLeft) + '</div>' +
-        '</div>' + (chips ? '<div style="display:flex;gap:5px;flex-wrap:wrap">' + chips + '</div>' : '') + '</div>';
+      el.innerHTML = '<div onclick="' + nav + '" style="background:var(--s2);border:1px solid ' + diff.color + ';border-radius:16px;padding:12px 14px;cursor:pointer;transition:opacity .15s" ontouchstart="this.style.opacity=\'.75\'" ontouchend="this.style.opacity=\'1\'">' +
+        '<div style="display:flex;align-items:center;gap:12px' + (chips ? ';margin-bottom:10px' : '') + '">' +
+          '<div style="width:36px;height:36px;border-radius:10px;background:' + diff.color + '1a;display:flex;align-items:center;justify-content:center;flex-shrink:0">' +
+            '<div style="width:9px;height:9px;border-radius:50%;background:' + diff.color + ';animation:fs-pulse 2s ease-in-out infinite"></div>' +
+          '</div>' +
+          '<div style="flex:1;min-width:0">' +
+            '<div style="font-size:var(--text-sm);font-weight:600;color:var(--t1);margin-bottom:2px">Focus Mode Active</div>' +
+            '<div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3)">' + diff.label + '</div>' +
+          '</div>' +
+          '<div id="home-focus-dyn-timer" style="font-family:var(--ff-m);font-size:22px;font-weight:700;color:' + diff.color + ';letter-spacing:-1px;flex-shrink:0;line-height:1">' + _fmtStripTimer(secsLeft) + '</div>' +
+        '</div>' +
+        (chips ? '<div style="display:flex;gap:6px;flex-wrap:wrap">' + chips + '</div>' : '') +
+        '</div>';
       return;
     }
 
-    // Tier 1b: timer over limit — collect all, show worst + "+N more", navigate to limits subtab
+    // Tier 1b: timer over limit
     var allOverPkgs = Object.keys(limits).filter(function (pkg) { return (usageMap[pkg] || 0) > limits[pkg]; });
     if (allOverPkgs.length) {
-      // sort worst-first (most over by minutes)
       allOverPkgs.sort(function (a, b) { return ((usageMap[b]||0) - limits[b]) - ((usageMap[a]||0) - limits[a]); });
       var overPkg  = allOverPkgs[0];
       var overName = (typeof DAILY_USE !== 'undefined' && (DAILY_USE.find(function (u) { return u.packageName === overPkg; }) || {}).name) || overPkg.split('.').pop();
-      var overExtra = allOverPkgs.length > 1 ? '<span style="color:var(--t3);margin-left:4px">+'   + (allOverPkgs.length - 1) + ' more</span>' : '';
-      var overOver  = fmtM((usageMap[overPkg] || 0) - limits[overPkg]);
-      el.innerHTML = '<div onclick="FocusTab._switchFocusSubTab(\'focus\');activateTab(\'focus\')" style="background:rgba(240,78,122,.07);border:0.5px solid rgba(240,78,122,.3);border-radius:14px;padding:9px 12px;display:flex;align-items:center;gap:9px;cursor:pointer"><div style="width:6px;height:6px;border-radius:50%;background:var(--r);flex-shrink:0"></div><div style="flex:1;font-family:var(--ff-m);font-size:11px;color:var(--r)">' + overName + ' limit reached today' + '\u00b7 +' + overOver  + overExtra + '</div><div style="font-family:var(--ff-m);font-size:10px;color:var(--r);opacity:.7;flex-shrink:0"></div></div>';
+      var overOver = fmtM((usageMap[overPkg] || 0) - limits[overPkg]);
+      var more     = allOverPkgs.length > 1 ? ' <span style="color:var(--t3)">+' + (allOverPkgs.length - 1) + ' more</span>' : '';
+      var p        = _PALETTE.red;
+      el.innerHTML = _inlineCard(p, nav,
+        _dot(p),
+        '<span style="font-weight:600">' + overName + '</span> limit reached · +' + overOver + more,
+        _chev(p));
       return;
     }
 
-    // Tier 2a: timer approaching 80–99% — collect all, show worst + "+N more", navigate to limits subtab
-    var allWarnPkgs = Object.keys(limits).filter(function (pkg) { var u=usageMap[pkg]||0,l=limits[pkg],p=l>0?u/l:0; return p>=0.8&&p<1; });
+    // Tier 2a: timer approaching 80–99%
+    var allWarnPkgs = Object.keys(limits).filter(function (pkg) { var u=usageMap[pkg]||0,l=limits[pkg],pct=l>0?u/l:0; return pct>=0.8&&pct<1; });
     if (allWarnPkgs.length) {
-      allWarnPkgs.sort(function (a, b) { var pa=(usageMap[b]||0)/limits[b], pb=(usageMap[a]||0)/limits[a]; return pa - pb; });
+      allWarnPkgs.sort(function (a, b) { return (usageMap[b]||0)/limits[b] - (usageMap[a]||0)/limits[a]; });
       var warnPkg  = allWarnPkgs[0];
       var warnName = (typeof DAILY_USE !== 'undefined' && (DAILY_USE.find(function (u) { return u.packageName === warnPkg; }) || {}).name) || warnPkg.split('.').pop();
-      var warnExtra = allWarnPkgs.length > 1 ? '<span style="color:var(--t3);margin-left:4px">+' + (allWarnPkgs.length - 1) + ' more</span>' : '';
-      var left = fmtM(Math.max(0, limits[warnPkg] - (usageMap[warnPkg] || 0)));
-      el.innerHTML = '<div onclick="FocusTab._switchFocusSubTab(\'focus\');activateTab(\'focus\')" style="background:rgba(247,166,35,.07);border:0.5px solid rgba(247,166,35,.25);border-radius:14px;padding:9px 12px;display:flex;align-items:center;gap:9px;cursor:pointer"><div style="width:6px;height:6px;border-radius:50%;background:var(--a);flex-shrink:0"></div><div style="flex:1;font-family:var(--ff-m);font-size:11px;color:var(--a)">' + warnName + ' approaching daily limit' +'\u00b7 ' + left + ' left today' + warnExtra + '</div><div style="font-family:var(--ff-m);font-size:10px;color:var(--a);opacity:.7;flex-shrink:0"></div></div>';
+      var left     = fmtM(Math.max(0, limits[warnPkg] - (usageMap[warnPkg] || 0)));
+      var more2    = allWarnPkgs.length > 1 ? ' <span style="color:var(--t3)">+' + (allWarnPkgs.length - 1) + ' more</span>' : '';
+      var p        = _PALETTE.amber;
+      el.innerHTML = _inlineCard(p, nav,
+        _dot(p),
+        '<span style="font-weight:600">' + warnName + '</span> · ' + left + ' remaining today' + more2,
+        _chev(p));
       return;
     }
 
@@ -458,77 +537,90 @@ window.FocusHome = (function () {
     });
     if (soon) {
       var rH = soon.startHour || soon.hour || 0, rM = soon.startMin || soon.minute || 0;
-      el.innerHTML = '<div onclick="FocusTab._switchFocusSubTab(\'focus\');activateTab(\'focus\')" style="background:rgba(108,99,255,.07);border:0.5px solid rgba(108,99,255,.25);border-radius:14px;padding:9px 12px;display:flex;align-items:center;gap:9px;cursor:pointer"><div style="width:6px;height:6px;border-radius:50%;background:var(--p);flex-shrink:0"></div><div style="flex:1;font-family:var(--ff-m);font-size:11px;color:var(--p2)">Your ' + _fmt12h(rH, rM) + ' focus session starts soon</div><div style="font-family:var(--ff-m);font-size:10px;color:var(--p2)">Start early \u2192</div></div>';
+      var p  = _PALETTE.purple;
+      el.innerHTML = _inlineCard(p, nav,
+        _icon('📅', p),
+        '<span style="font-weight:600">Focus session</span> at ' + _fmt12h(rH, rM) + ' starting soon',
+        _pill('Start early →', p));
       return;
     }
 
     // Tier 3a: session ended within last 10 min
     if (ls.state && ls.ts && (now - ls.ts) < 600000) {
-      var isComplete  = ls.state === 'completed';
-      var scoreDelta  = '';
-      try { var sfr = (typeof FocusScore !== 'undefined') ? FocusScore.calculateFocus(loadStripData()) : null; if (sfr && sfr.score >= 0) scoreDelta = '+' + Math.round(sfr.score * 0.4 / 10); } catch (_) {}
-      el.innerHTML = '<div onclick="FocusTab._switchFocusSubTab(\'focus\');activateTab(\'focus\')" style="background:rgba(110,201,122,0.07);border:0.5px solid rgba(110,201,122,0.2);border-radius:14px;padding:9px 12px;display:flex;align-items:center;gap:9px"><div style="width:6px;height:6px;border-radius:50%;background:#6ec97a;flex-shrink:0"></div><div style="flex:1;font-family:var(--ff-m);font-size:11px;color:#448855">' + (isComplete ? 'Session completed' : 'Session ended early') + ' \u00b7 ' + fmtM(ls.totalMins) + (scoreDelta ? ' \u00b7 Score ' + scoreDelta + ' pts' : '') + '</div></div>';
+      var isComplete = ls.state === 'completed';
+      var p = isComplete ? _PALETTE.green : _PALETTE.amber;
+      var scoreDelta = '';
+      try { var sfr = (typeof FocusScore !== 'undefined') ? FocusScore.calculateFocus(loadStripData()) : null; if (sfr && sfr.score >= 0) scoreDelta = ' · ＋' + Math.round(sfr.score * 0.4 / 10) + ' pts'; } catch (_) {}
+      el.innerHTML = _inlineCard(p, nav,
+        _dot(p),
+        (isComplete ? 'Session completed' : 'Session ended early') + ' · ' + fmtM(ls.totalMins || 0) + scoreDelta,
+        '');
       return;
     }
 
     // Tier 3b: streak celebration
     if (sk.focusStreakCelebUntil && now < sk.focusStreakCelebUntil) {
-      var fsN = sk.prevFocusStreak || 0, fsPrev = fsN > 0 ? fsN - 1 : 0;
-      el.innerHTML = '<div onclick="FocusTab._switchFocusSubTab(\'focus\');activateTab(\'focus\')" style="background:rgba(108,99,255,0.08);border:0.5px solid rgba(108,99,255,0.22);border-radius:14px;padding:9px 12px;display:flex;align-items:center;gap:9px"><div style="width:22px;height:22px;border-radius:7px;background:rgba(108,99,255,0.15);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:12px">🎯</div><div style="flex:1"><div style="font-family:var(--ff-m);font-size:11px;font-weight:600;color:#9b95ff;margin-bottom:2px">Focus streak \u00b7 ' + fsN + ' days</div><div style="font-family:var(--ff-m);font-size:10px;color:#6666aa">Complete a session, respect timers, or resist a pause</div></div><div style="font-family:var(--ff-m);font-size:10px;color:#9b95ff;background:rgba(108,99,255,0.15);border-radius:99px;padding:3px 8px;flex-shrink:0">\u2191 ' + fsPrev + '\u2192' + fsN + '</div></div>';
+      var fsN = sk.prevFocusStreak || 0, p = _PALETTE.purple;
+      el.innerHTML = _card(p, nav,
+        _icon('🎯', p) +
+        _content('Focus streak · ' + fsN + ' days',
+                 'Complete a session, respect timers, or resist a pause') +
+        _pill('↑ ' + (fsN > 0 ? fsN - 1 : 0) + ' → ' + fsN, p));
       return;
     }
+
     el.innerHTML = '';
   }
+
 
   function renderHomeHabitsDynamicRow() {
     var el = document.getElementById('home-habits-dynamic');
     if (!el) return;
-    var cfg     = typeof FocusBedtime !== 'undefined' ? FocusBedtime.getCfg() : {};
-    var nowH    = new Date().getHours() + new Date().getMinutes() / 60;
-    var bedH    = (cfg.bedHour != null ? cfg.bedHour : 22) + (cfg.bedMinute || 0) / 60;
-    var wakeH   = (cfg.wakeHour != null ? cfg.wakeHour : 7) + (cfg.wakeMinute || 0) / 60;
-    // FIX-1: Use native bridge as source of truth (matches what the bedtime
-    // section shows). JS math is kept only as a fallback for non-native / demo.
-    var inWindow = false;
-    if (cfg.enabled) {
-      if (IS_NATIVE && typeof N.isInBedtimeWindow === 'function') {
-        try { inWindow = !!N.isInBedtimeWindow(); } catch (_) {
-          inWindow = bedH > wakeH ? (nowH >= bedH || nowH < wakeH) : (nowH >= bedH && nowH < wakeH);
-        }
-      } else {
-        inWindow = bedH > wakeH ? (nowH >= bedH || nowH < wakeH) : (nowH >= bedH && nowH < wakeH);
-      }
-    }
-    var now     = Date.now();
-    var sk      = typeof FocusTab !== 'undefined' ? FocusTab.getStreakState() : {};
+    var cfg      = typeof FocusBedtime !== 'undefined' ? FocusBedtime.getCfg() : {};
+    var nowH     = new Date().getHours() + new Date().getMinutes() / 60;
+    var bedH     = (cfg.bedHour || 22) + (cfg.bedMinute || 0) / 60;
+    var wakeH    = (cfg.wakeHour || 7)  + (cfg.wakeMinute || 0) / 60;
+    var inWindow = cfg.enabled ? (bedH > wakeH ? (nowH >= bedH || nowH < wakeH) : (nowH >= bedH && nowH < wakeH)) : false;
+    var now      = Date.now();
+    var sk       = typeof FocusTab !== 'undefined' ? FocusTab.getStreakState() : {};
+    var nav      = "FocusTab._switchFocusSubTab('habits');activateTab('focus')";
 
-    // Tier 1: bedtime active — click navigates to habits subtab
+    // Tier 1: bedtime active
     if (inWindow) {
       var blockedCount = Array.isArray(cfg.blockedApps) ? cfg.blockedApps.length : 0;
       var wakeStr      = _fmt12((cfg.wakeHour || 7) + (cfg.wakeMinute || 0) / 60);
-      var bedStreakNow  = 0;
+      var bedStreakNow = 0;
       try { if (IS_NATIVE && typeof N.getBedtimeStreak === 'function') bedStreakNow = (JSON.parse(N.getBedtimeStreak() || '{}') || {}).streak || 0; } catch (_) {}
       var snoozeEndsAt = 0;
       try { if (IS_NATIVE && typeof N.getBedtimeSnoozeEndsAt === 'function') snoozeEndsAt = N.getBedtimeSnoozeEndsAt() || 0; } catch (_) {}
       var snoozeActive = snoozeEndsAt > now, minsLeft = snoozeActive ? Math.ceil((snoozeEndsAt - now) / 60000) : 0;
-      var streakPill   = bedStreakNow > 1
-        ? '<div style="font-family:var(--ff-m);font-size:10px;font-weight:600;color:#7a80ff;background:rgba(80,100,255,.15);border-radius:99px;padding:3px 8px;flex-shrink:0">\uD83D\uDD25 ' + bedStreakNow + '</div>'
-        : '';
-      var snoozeBtn = '<div onclick="event.stopPropagation();' + (snoozeActive ? '' : 'snoozeBedtimePrompt()') + '" style="font-family:var(--ff-m);font-size:10px;' + (snoozeActive ? 'color:var(--t3);background:var(--s3);cursor:default;opacity:.5;' : 'color:#7a80ff;background:rgba(80,100,255,0.15);cursor:pointer;') + 'border-radius:99px;padding:3px 8px;flex-shrink:0">' + (snoozeActive ? minsLeft + 'm' : 'Snooze') + '</div>';
-      el.innerHTML = '<div onclick="FocusTab._switchFocusSubTab(\'habits\');activateTab(\'focus\')" style="background:rgba(80,100,255,0.1);border:0.5px solid rgba(100,120,255,0.28);border-radius:14px;padding:9px 12px;display:flex;align-items:center;gap:9px;cursor:pointer"><div style="width:22px;height:22px;border-radius:7px;background:rgba(80,100,255,0.15);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:12px">\uD83C\uDF19</div><div style="flex:1"><div style="font-family:var(--ff-m);font-size:11px;font-weight:600;color:#7a80ff;margin-bottom:2px">Bedtime mode on \u00b7 ' + blockedCount + ' app' + (blockedCount !== 1 ? 's' : '') + ' blocked</div><div style="font-family:var(--ff-m);font-size:10px;color:#445588">Ends at ' + wakeStr + '</div></div>' + streakPill + snoozeBtn + '</div>';
+      var p = _PALETTE.indigo;
+      var streakBadge = bedStreakNow > 1 ? _pill('🔥 ' + bedStreakNow, p) : '';
+      var snoozeBtn   = '<div onclick="event.stopPropagation();' + (snoozeActive ? '' : 'snoozeBedtimePrompt()') + '" style="font-family:var(--ff-m);font-size:10px;font-weight:600;' +
+        (snoozeActive ? 'color:var(--t3);background:var(--s3);cursor:default;opacity:.55' : 'color:' + p.text + ';background:' + p.icon + ';cursor:pointer') +
+        ';border-radius:99px;padding:4px 10px;flex-shrink:0;white-space:nowrap">' + (snoozeActive ? minsLeft + 'm' : 'Snooze') + '</div>';
+      el.innerHTML = _card(p, nav,
+        _icon('🌙', p) +
+        _content('Bedtime mode on · ' + blockedCount + ' app' + (blockedCount !== 1 ? 's' : '') + ' blocked',
+                 'Wake up at ' + wakeStr) +
+        streakBadge + snoozeBtn);
       return;
     }
 
-    // Tier 2a: wind-down — extended to 120 min before bedtime (was 60), click navigates to habits subtab
+    // Tier 2a: wind-down — 120 min before bedtime
     if (cfg.enabled) {
       var minsUntil = (bedH - nowH) * 60; if (minsUntil < 0) minsUntil += 1440;
       if (minsUntil <= 120 && minsUntil > 0) {
-        var bedStr2    = _fmt12((cfg.bedHour || 22) + (cfg.bedMinute || 0) / 60);
-        var btStreak2  = 0;
+        var bedStr2   = _fmt12((cfg.bedHour || 22) + (cfg.bedMinute || 0) / 60);
+        var btStreak2 = 0;
         try { if (IS_NATIVE && typeof N.getBedtimeStreak === 'function') btStreak2 = (JSON.parse(N.getBedtimeStreak() || '{}') || {}).streak || 0; } catch (_) {}
-        var streakNote = btStreak2 > 0 ? ' \u00b7 \uD83D\uDD25 ' + btStreak2 + '-night streak' : '';
-        var urgency    = minsUntil <= 30 ? 'Wind down now' : 'Wind down soon';
-        el.innerHTML = '<div onclick="FocusTab._switchFocusSubTab(\'habits\');activateTab(\'focus\')" style="background:rgba(80,100,255,0.08);border:0.5px solid rgba(100,120,255,0.2);border-radius:14px;padding:9px 12px;display:flex;align-items:center;gap:9px;cursor:pointer"><div style="width:6px;height:6px;border-radius:50%;background:#7a80ff;flex-shrink:0"></div><div style="flex:1;font-family:var(--ff-m);font-size:11px;color:#6666aa">' + urgency + ' \u00b7 Bedtime at ' + bedStr2 + ' in ' + Math.round(minsUntil) + ' min' + streakNote + '</div><div style="font-family:var(--ff-m);font-size:10px;color:#7a80ff;opacity:.7;flex-shrink:0">\u2192</div></div>';
+        var urgency   = minsUntil <= 30 ? 'Wind down now' : 'Wind down soon';
+        var streakNote = btStreak2 > 0 ? ' · 🔥 ' + btStreak2 + '-night streak' : '';
+        var p = _PALETTE.indigo;
+        el.innerHTML = _inlineCard(p, nav,
+          _dot(p),
+          '<span style="font-weight:600">' + urgency + '</span> · Bedtime at ' + bedStr2 + ' in ' + Math.round(minsUntil) + ' min' + streakNote,
+          _chev(p));
         return;
       }
     }
@@ -538,15 +630,18 @@ window.FocusHome = (function () {
     if (d.challengeLabel && d.challengeDone !== undefined) {
       var remaining = d.challengeTarget - d.challengeDone, daysLeft = 7 - new Date().getDay();
       if (remaining > 0 && remaining >= daysLeft) {
-        el.innerHTML = '<div onclick="FocusTab._switchFocusSubTab(\'habits\');activateTab(\'focus\')" style="background:rgba(247,201,72,0.07);border:0.5px solid rgba(247,201,72,0.2);border-radius:14px;padding:9px 12px;display:flex;align-items:center;gap:9px"><div style="width:6px;height:6px;border-radius:50%;background:#f7c948;flex-shrink:0"></div><div style="flex:1;font-family:var(--ff-m);font-size:11px;color:#998844">Challenge at risk \u00b7 ' + daysLeft + ' day' + (daysLeft !== 1 ? 's' : '') + ' left to complete</div></div>';
+        var p = _PALETTE.gold;
+        el.innerHTML = _inlineCard(p, nav,
+          _dot(p),
+          '<span style="font-weight:600">Challenge at risk</span> · ' + daysLeft + ' day' + (daysLeft !== 1 ? 's' : '') + ' left to complete',
+          _chev(p));
         return;
       }
     }
 
-    // Tier 3a: morning summary (6–11 am) — native stats primary, FocusScore fallback
+    // Tier 3a: morning summary (6–11 am)
     var h = new Date().getHours();
     if (h >= 6 && h < 11 && !_getMorningSummaryDismissed()) {
-      // Try native bridge first (richer data), fall back to FocusScore.calculateSleep()
       var ln = null;
       if (IS_NATIVE && typeof N.getBedtimeLastNightStats === 'function') {
         try { var _raw = JSON.parse(N.getBedtimeLastNightStats() || 'null'); if (_raw && _raw.hasData) ln = _raw; } catch (_) {}
@@ -554,41 +649,54 @@ window.FocusHome = (function () {
       if (!ln) {
         var sleepRes = typeof FocusScore !== 'undefined' ? FocusScore.calculateSleep() : null;
         ln = sleepRes && sleepRes.lastNight;
-        var sleepStrN = (sleepRes && sleepRes.bedStreak) || 0;
       }
-      if (!sleepStrN) {
-        try { if (IS_NATIVE && typeof N.getBedtimeStreak === 'function') sleepStrN = (JSON.parse(N.getBedtimeStreak() || '{}') || {}).streak || 0; } catch (_) {}
-      }
+      var sleepStrN = 0;
+      try { if (IS_NATIVE && typeof N.getBedtimeStreak === 'function') sleepStrN = (JSON.parse(N.getBedtimeStreak() || '{}') || {}).streak || 0; } catch (_) {}
       if (ln && ln.hasData) {
-        var keptTxt    = ln.bedtimeKept ? 'Bedtime kept \u2713' : 'Bedtime missed';
-        var keptColor  = ln.bedtimeKept ? '#6ec97a' : '#ff6b8a';
-        var parts      = [];
-        if ((ln.appAttemptsTotal || 0) > 0) parts.push((ln.appAttemptsTotal) + ' app attempt' + (ln.appAttemptsTotal !== 1 ? 's' : ''));
+        var keptColor = ln.bedtimeKept ? 'var(--g)' : 'var(--r)';
+        var keptTxt   = ln.bedtimeKept ? 'Bedtime kept ✓' : 'Bedtime missed';
+        var parts     = [];
+        if ((ln.appAttemptsTotal || 0) > 0) parts.push(ln.appAttemptsTotal + ' app attempt' + (ln.appAttemptsTotal !== 1 ? 's' : ''));
         else if (ln.bedtimeKept)            parts.push('0 app attempts');
         if ((ln.snoozeCount || 0) > 0)      parts.push(ln.snoozeCount + ' snooze' + (ln.snoozeCount !== 1 ? 's' : ''));
-        var subTxt     = parts.length ? parts.join(' \u00b7 ') : 'Clean night';
-        var streakPillM = sleepStrN > 0
-          ? '<div style="font-family:var(--ff-m);font-size:10px;font-weight:600;color:#7a80ff;background:rgba(80,100,255,.15);border-radius:99px;padding:3px 8px;flex-shrink:0">\uD83D\uDD25 ' + sleepStrN + '</div>'
-          : '';
-        el.innerHTML = '<div onclick="FocusTab._switchFocusSubTab(\'habits\');activateTab(\'focus\')" style="background:rgba(80,100,255,0.08);border:0.5px solid rgba(100,120,255,0.2);border-radius:14px;padding:9px 12px;display:flex;align-items:center;gap:9px;cursor:pointer"><div style="width:22px;height:22px;border-radius:7px;background:rgba(80,100,255,0.15);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:12px">\uD83C\uDF19</div><div style="flex:1"><div style="font-family:var(--ff-m);font-size:11px;font-weight:600;color:' + keptColor + ';margin-bottom:2px">Last night \u00b7 ' + keptTxt + '</div><div style="font-family:var(--ff-m);font-size:10px;color:#445588">' + subTxt + '</div></div>' + streakPillM + '<div onclick="event.stopPropagation();FocusHome.dismissMorningSummary()" style="font-family:var(--ff-m);font-size:14px;color:#445588;cursor:pointer;padding:0 4px;flex-shrink:0">\u00d7</div></div>';
+        var subTxt    = parts.length ? parts.join(' · ') : 'Clean night ✨';
+        var p         = _PALETTE.indigo;
+        var streakBadgeM = sleepStrN > 0 ? _pill('🔥 ' + sleepStrN, p) : '';
+        var dismissBtn   = '<div onclick="event.stopPropagation();FocusHome.dismissMorningSummary()" style="font-size:18px;color:var(--t3);cursor:pointer;padding:0 2px;flex-shrink:0;line-height:1">×</div>';
+        el.innerHTML = _card(p, nav,
+          _icon('🌅', p) +
+          '<div style="flex:1;min-width:0">' +
+            '<div style="font-size:var(--text-sm);font-weight:600;color:' + keptColor + ';margin-bottom:2px">Last night · ' + keptTxt + '</div>' +
+            '<div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3)">' + subTxt + '</div>' +
+          '</div>' +
+          streakBadgeM + dismissBtn);
         return;
       }
     }
 
     // Tier 3b: sleep streak celebration
     if (sk.sleepStreakCelebUntil && now < sk.sleepStreakCelebUntil) {
-      var ssN = sk.prevSleepStreak || 0, ssPrev = ssN > 0 ? ssN - 1 : 0;
-      el.innerHTML = '<div onclick="FocusTab._switchFocusSubTab(\'habits\');activateTab(\'focus\')" style="background:rgba(80,100,255,0.08);border:0.5px solid rgba(100,120,255,0.22);border-radius:14px;padding:9px 12px;display:flex;align-items:center;gap:9px"><div style="width:22px;height:22px;border-radius:7px;background:rgba(80,100,255,0.15);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:12px">🌙</div><div style="flex:1"><div style="font-family:var(--ff-m);font-size:11px;font-weight:600;color:#7a80ff;margin-bottom:2px">Sleep streak \u00b7 ' + ssN + ' days</div><div style="font-family:var(--ff-m);font-size:10px;color:#445588">Bedtime respected last night</div></div><div style="font-family:var(--ff-m);font-size:10px;color:#7a80ff;background:rgba(80,100,255,0.15);border-radius:99px;padding:3px 8px;flex-shrink:0">\u2191 ' + ssPrev + '\u2192' + ssN + '</div></div>';
+      var ssN = sk.prevSleepStreak || 0, p = _PALETTE.indigo;
+      el.innerHTML = _card(p, nav,
+        _icon('🌙', p) +
+        _content('Sleep streak · ' + ssN + ' days', 'Bedtime respected last night') +
+        _pill('↑ ' + (ssN > 0 ? ssN - 1 : 0) + ' → ' + ssN, p));
       return;
     }
 
     // Tier 3c: challenge milestone
     if (d.challengeDone > 0 && d.challengeTarget > 0 && d.challengeDone < d.challengeTarget) {
-      el.innerHTML = '<div onclick="FocusTab._switchFocusSubTab(\'habits\');activateTab(\'focus\')" style="background:rgba(247,201,72,0.07);border:0.5px solid rgba(247,201,72,0.2);border-radius:14px;padding:9px 12px;display:flex;align-items:center;gap:9px"><div style="width:6px;height:6px;border-radius:50%;background:#f7c948;flex-shrink:0"></div><div style="flex:1;font-family:var(--ff-m);font-size:11px;color:#998844">' + d.challengeDone + ' of 7 days done \u00b7 On track to complete this week</div></div>';
+      var p = _PALETTE.gold;
+      el.innerHTML = _inlineCard(p, nav,
+        _dot(p),
+        d.challengeDone + ' of ' + d.challengeTarget + ' days done · On track this week',
+        _chev(p));
       return;
     }
+
     el.innerHTML = '';
   }
+
 
   /* ═══════════════════════════════════════════════════════════════
    * SLEEP CARD  (#home-sleep-card)
