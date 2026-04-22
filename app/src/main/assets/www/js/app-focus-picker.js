@@ -15,6 +15,32 @@ window.FocusPicker = (function () {
   var _pickerUsageMap = {};
   var _pickerMaxMins  = 1;
   var _pickerFilter   = 'all'; // 'all' | 'selected'
+  var _pickerPrevPkgs = new Set(); // snapshot of selected pkgs when picker opened
+
+  /* ── Smart save toast ─────────────────────────────────────────
+   * Shows a specific message based on what actually changed:
+   *   single add   → "YouTube added to Mindful Pause"
+   *   multi add    → "3 apps added to Mindful Pause"
+   *   single remove→ "1 app removed"
+   *   multi remove → "3 apps removed"
+   *   mixed        → "Apps updated"
+   *   no change    → "Apps updated"
+   * ─────────────────────────────────────────────────────────── */
+  function _buildSaveToast(label, newApps, prevPkgs) {
+    var newPkgSet  = new Set(newApps.map(function (a) { return a.packageName; }));
+    var added      = newApps.filter(function (a) { return !prevPkgs.has(a.packageName); });
+    var removedCt  = Array.from(prevPkgs).filter(function (p) { return !newPkgSet.has(p); }).length;
+    if (added.length > 0 && removedCt === 0) {
+      var msg = added.length === 1
+        ? added[0].name + ' added to ' + label
+        : added.length + ' apps added to ' + label;
+      toast(msg, 'success');
+    } else if (removedCt > 0 && added.length === 0) {
+      toast(removedCt === 1 ? '1 app removed from ' + label : removedCt + ' apps removed from ' + label, 'info');
+    } else {
+      toast('Apps updated', 'success'); // mixed or no change
+    }
+  }
 
   /* ═══════════════════════════════════════════════════════════
    * SCHEDULE TEMPLATES
@@ -228,6 +254,7 @@ window.FocusPicker = (function () {
     }
 
     FocusTab.setPickerSelected(currentPkgs);
+    _pickerPrevPkgs = new Set(currentPkgs); // snapshot for delta toast at save time
 
     if (typeof CATS_MAP !== 'undefined' && !Object.keys(CATS_MAP).length && IS_NATIVE) {
       try { buildCatsMap(JSON.parse(N.getCachedApps() || '[]')); } catch (_) {}
@@ -411,7 +438,7 @@ window.FocusPicker = (function () {
       FocusTab.setPickerMode('block');
       if (typeof window._btOnBlockPickerSave === 'function') window._btOnBlockPickerSave(apps);
       if (typeof closePanel === 'function') closePanel('focus-picker-panel');
-      toast('Apps updated', 'success');
+      _buildSaveToast('Bedtime', apps, _pickerPrevPkgs);
       return;
     }
     if (mode === 'intention') {
@@ -423,7 +450,7 @@ window.FocusPicker = (function () {
       if (IS_NATIVE) { try { N.saveIntentionPromptApps(JSON.stringify(apps)); } catch (_) {} }
       if (typeof closePanel === 'function') closePanel('focus-picker-panel');
       if (typeof FocusMindful !== 'undefined') FocusMindful.render();
-      toast('Apps updated', 'success');
+      _buildSaveToast('Mindful Pause', apps, _pickerPrevPkgs);
       return;
     }
     if (!ProTier.isPro && apps.length > ProTier.getLimit('FOCUS_APPS_UNLIMITED')) {
@@ -439,7 +466,7 @@ window.FocusPicker = (function () {
     if (ss.active && IS_NATIVE) {
       try { N.updateFocusSession(JSON.stringify(apps), Date.now() + (ss.secs * 1000), ss.difficulty); } catch (_) {}
     }
-    toast('Apps updated', 'success');
+    _buildSaveToast('Focus Session', apps, _pickerPrevPkgs);
   }
 
   /* ── Global shims ─────────────────────────────────────────── */

@@ -459,9 +459,15 @@ window.FocusMindful = (function () {
   }
 
   function removeApp(pkg) {
+    var appName = pkg; // fallback to package name
+    try {
+      var found = _getIntentionApps().find(function (a) { return a.packageName === pkg; });
+      if (found) appName = found.name;
+    } catch (_) {}
     var apps = _getIntentionApps().filter(function (a) { return a.packageName !== pkg; });
     if (IS_NATIVE) { try { N.saveIntentionPromptApps(JSON.stringify(apps)); } catch (_) {} }
     render();
+    toast(appName + ' removed from Mindful Pause', 'info');
   }
 
   /* ── Native callbacks ─────────────────────────────────────────

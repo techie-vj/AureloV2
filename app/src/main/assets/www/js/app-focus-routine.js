@@ -1014,10 +1014,22 @@ window.FocusRoutine = (function () {
     var map = {};
     all.forEach(function (a) { map[a.packageName] = a; });
     var sel = FocusTab.getPickerSelected ? FocusTab.getPickerSelected() : new Set();
+    // Snapshot previous blocked apps before overwriting — used for delta toast
+    var prevPkgs = new Set((window._rp.blockedApps || []).map(function (a) { return a.packageName; }));
     window._rp.blockedApps = [...sel].map(function (pkg) { return { packageName: pkg, name: map[pkg]?.name || pkg.split('.').pop() }; });
     closePanel('focus-picker-panel');
     _rpRefreshAppChips();
-    toast('Apps updated', 'success');
+    // Smart delta toast
+    var newApps   = window._rp.blockedApps;
+    var added     = newApps.filter(function (a) { return !prevPkgs.has(a.packageName); });
+    var removedCt = Array.from(prevPkgs).filter(function (p) { return !sel.has(p); }).length;
+    if (added.length > 0 && removedCt === 0) {
+      toast(added.length === 1 ? added[0].name + ' added to Schedule' : added.length + ' apps added to Schedule', 'success');
+    } else if (removedCt > 0 && added.length === 0) {
+      toast(removedCt === 1 ? '1 app removed from Schedule' : removedCt + ' apps removed from Schedule', 'info');
+    } else {
+      toast('Apps updated', 'success');
+    }
   }
 
   /* ── Delete ──────────────────────────────────────────────────── */
