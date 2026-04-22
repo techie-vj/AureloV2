@@ -607,10 +607,10 @@ window.FocusHome = (function () {
       return;
     }
 
-    // Tier 2a: wind-down — 120 min before bedtime
+    // Tier 2a: wind-down — 60 min before bedtime
     if (cfg.enabled) {
       var minsUntil = (bedH - nowH) * 60; if (minsUntil < 0) minsUntil += 1440;
-      if (minsUntil <= 120 && minsUntil > 0) {
+      if (minsUntil <= 60 && minsUntil > 0) {
         var bedStr2   = _fmt12((cfg.bedHour || 22) + (cfg.bedMinute || 0) / 60);
         var btStreak2 = 0;
         try { if (IS_NATIVE && typeof N.getBedtimeStreak === 'function') btStreak2 = (JSON.parse(N.getBedtimeStreak() || '{}') || {}).streak || 0; } catch (_) {}

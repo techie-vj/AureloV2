@@ -135,7 +135,7 @@ function _ensureGoalModal() {
 
   var presets = [
     { mins: 60,  label: '1h' },
-    { mins: 90,  label: '1h 30m' },
+
     { mins: 120, label: '2h' },
     { mins: 180, label: '3h' },
     { mins: 240, label: '4h' },
