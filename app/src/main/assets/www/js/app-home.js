@@ -190,8 +190,6 @@ function _computeInsightBanner(){
 function renderInsightBanner(){
   const banner = document.getElementById('home-insight-banner');
   if(!banner) return;
-  // Pro users get renderContextualInsight() (the full card) — never show the free banner
-  if (typeof ProTier !== 'undefined' && ProTier.isPro) { banner.style.display = 'none'; return; }
 
   // Respect daily dismiss
   const today = new Date().toISOString().slice(0,10);
