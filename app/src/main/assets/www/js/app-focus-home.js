@@ -306,13 +306,22 @@ window.FocusHome = (function () {
     var diff      = (typeof FOCUS_DIFF !== 'undefined' && FOCUS_DIFF[ss.difficulty]) || FOCUS_DIFF.gentle;
     var timerStr  = _fmtStripTimer(secsLeft);
     var elapsedM  = Math.floor(elapsed / 60), totalM = Math.floor(totalSecs / 60);
+    // FIX-1c: Show schedule name as title when session was triggered by a routine
+    var schedName = '';
+    if (ss.activeRoutineId && typeof FocusRoutine !== 'undefined') {
+      try {
+        var _rt = FocusRoutine.getRoutines().find(function (r) { return r.id === ss.activeRoutineId; });
+        if (_rt) schedName = (_rt.emoji || '') + ' ' + _rt.name;
+      } catch (_) {}
+    }
+    var titleStr = schedName || 'Focus Mode Active';
     return '<div onclick="activateTab(\'focus\')" style="background:var(--s2);border:1px solid ' + diff.color + ';border-radius:16px;padding:12px 14px;cursor:pointer;transition:opacity .15s" ontouchstart="this.style.opacity=\'.75\'" ontouchend="this.style.opacity=\'1\'">' +
       '<div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">' +
         '<div style="width:36px;height:36px;border-radius:10px;background:' + diff.color + '1a;display:flex;align-items:center;justify-content:center;flex-shrink:0">' +
           '<div style="width:9px;height:9px;border-radius:50%;background:' + diff.color + ';animation:fs-pulse 2s ease-in-out infinite"></div>' +
         '</div>' +
         '<div style="flex:1;min-width:0">' +
-          '<div style="font-size:var(--text-sm);font-weight:600;color:var(--t1);margin-bottom:2px">Focus Mode Active</div>' +
+          '<div style="font-size:var(--text-sm);font-weight:600;color:var(--t1);margin-bottom:2px">' + titleStr + '</div>' +
           '<div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3)">' + elapsedM + ' of ' + totalM + ' min elapsed · ' + diff.label + '</div>' +
         '</div>' +
         '<div style="font-family:var(--ff-m);font-size:22px;font-weight:700;color:' + diff.color + ';letter-spacing:-1px;line-height:1;flex-shrink:0" class="fs-live-timer">' + timerStr + '</div>' +
@@ -513,11 +522,25 @@ window.FocusHome = (function () {
 
     // Tier 1a: session active
     if (ss.active) {
-      var diff    = (typeof FOCUS_DIFF !== 'undefined' && FOCUS_DIFF[ss.difficulty]) || FOCUS_DIFF.gentle;
-      var secsLeft= Math.max(0, ss.secs || 0);
-      var chips   = (ss.blockedApps || []).slice(0, 3).map(function (a) {
+      var diff        = (typeof FOCUS_DIFF !== 'undefined' && FOCUS_DIFF[ss.difficulty]) || FOCUS_DIFF.gentle;
+      var secsLeft    = Math.max(0, ss.secs || 0);
+      var blockedApps = ss.blockedApps || [];
+      // FIX-1a: show 3 app chips + "+x more" overflow badge
+      var chips = blockedApps.slice(0, 3).map(function (a) {
         return '<span style="background:rgba(108,99,255,.12);border:1px solid rgba(108,99,255,.22);border-radius:6px;padding:2px 8px;font-family:var(--ff-m);font-size:10px;color:var(--p2)">' + a.name.split(' ')[0] + '</span>';
       }).join('');
+      if (blockedApps.length > 3) {
+        chips += '<span style="background:rgba(108,99,255,.12);border:1px solid rgba(108,99,255,.22);border-radius:6px;padding:2px 8px;font-family:var(--ff-m);font-size:10px;color:var(--p2)">+' + (blockedApps.length - 3) + '</span>';
+      }
+      // FIX-1a: show schedule name in subtitle when session was triggered by a routine
+      var schedName = '';
+      if (ss.activeRoutineId && typeof FocusRoutine !== 'undefined') {
+        try {
+          var _rt = FocusRoutine.getRoutines().find(function (r) { return r.id === ss.activeRoutineId; });
+          if (_rt) schedName = (_rt.emoji || '') + ' ' + _rt.name;
+        } catch (_) {}
+      }
+      var subLine = schedName ? schedName + ' · ' + diff.label : diff.label;
       el.innerHTML = '<div onclick="' + nav + '" style="background:var(--s2);border:1px solid ' + diff.color + ';border-radius:16px;padding:12px 14px;cursor:pointer;transition:opacity .15s" ontouchstart="this.style.opacity=\'.75\'" ontouchend="this.style.opacity=\'1\'">' +
         '<div style="display:flex;align-items:center;gap:12px' + (chips ? ';margin-bottom:10px' : '') + '">' +
           '<div style="width:36px;height:36px;border-radius:10px;background:' + diff.color + '1a;display:flex;align-items:center;justify-content:center;flex-shrink:0">' +
@@ -525,7 +548,7 @@ window.FocusHome = (function () {
           '</div>' +
           '<div style="flex:1;min-width:0">' +
             '<div style="font-size:var(--text-sm);font-weight:600;color:var(--t1);margin-bottom:2px">Focus Mode Active</div>' +
-            '<div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3)">' + diff.label + '</div>' +
+            '<div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3)">' + subLine + '</div>' +
           '</div>' +
           '<div id="home-focus-dyn-timer" style="font-family:var(--ff-m);font-size:22px;font-weight:700;color:' + diff.color + ';letter-spacing:-1px;flex-shrink:0;line-height:1">' + _fmtStripTimer(secsLeft) + '</div>' +
         '</div>' +
@@ -578,9 +601,13 @@ window.FocusHome = (function () {
     if (soon) {
       var rH = soon.startHour || soon.hour || 0, rM = soon.startMin || soon.minute || 0;
       var p  = _PALETTE.purple;
+      // FIX-1b: show schedule name + app count instead of generic "Focus session"
+      var appsCount = (soon.blockedApps || []).length;
+      var appsBit   = appsCount > 0 ? ' · ' + appsCount + ' app' + (appsCount !== 1 ? 's' : '') : '';
       el.innerHTML = _inlineCard(p, nav,
         _icon('📅', p),
-        '<span style="font-weight:600">Focus session</span> at ' + _fmt12h(rH, rM) + ' starting soon');
+        '<span style="font-weight:600">' + (soon.name || 'Focus session') + '</span> at ' + _fmt12h(rH, rM) + ' starting soon' + appsBit,
+        _chev(p));
       return;
     }
 
@@ -592,7 +619,7 @@ window.FocusHome = (function () {
       try { var sfr = (typeof FocusScore !== 'undefined') ? FocusScore.calculateFocus(loadStripData()) : null; if (sfr && sfr.score >= 0) scoreDelta = ' · ＋' + Math.round(sfr.score * 0.4 / 10) + ' pts'; } catch (_) {}
       el.innerHTML = _inlineCard(p, nav,
         _dot(p),
-        (isComplete ? 'Session completed' : 'Session ended early') + ' · ' + fmtM(ls.totalMins || 0) + scoreDelta,
+        (isComplete ? 'Session completed' : 'Session ended early') + ' · ' + fmtM(ls.elapsedMins || 0) + ' of ' + fmtM(ls.totalMins || 0),
         '');
       return;
     }

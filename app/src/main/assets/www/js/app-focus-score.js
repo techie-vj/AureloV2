@@ -220,6 +220,15 @@ window.FocusScore = (function () {
           'border-radius:6px;padding:2px 8px;font-family:var(--ff-m);font-size:10px;font-weight:600;color:'+diff.color+'">'+
           a.name.split(' ')[0]+'</span>';
       }).join('');
+      if (blockedApps.length>3) {
+        chips+='<span style="background:'+diff.color+'1a;border:1px solid '+diff.color+'44;'+
+          'border-radius:6px;padding:2px 8px;font-family:var(--ff-m);font-size:10px;font-weight:600;color:'+diff.color+'">+'+(blockedApps.length-3)+'</span>';
+      }
+      var schedName='';
+      if (ss.activeRoutineId&&typeof FocusRoutine!=='undefined') {
+        try { var _rt=FocusRoutine.getRoutines().find(function(r){return r.id===ss.activeRoutineId;}); if(_rt) schedName=(_rt.emoji||'')+' '+_rt.name; } catch(_){}
+      }
+      var subLine=schedName?schedName+' · '+diff.label:diff.label;
       events.push({tier:1,id:'session',html:
         '<div onclick="'+nav+'" style="background:var(--s2);border:1px solid '+diff.color+';border-radius:16px;padding:12px 14px;cursor:pointer;transition:opacity .15s" ontouchstart="this.style.opacity=\'.75\'" ontouchend="this.style.opacity=\'1\'">'+
         '<div style="display:flex;align-items:center;gap:12px;'+(chips?'margin-bottom:10px':'')+'">'+
@@ -228,7 +237,7 @@ window.FocusScore = (function () {
         '</div>'+
         '<div style="flex:1;min-width:0">'+
           '<div style="font-size:var(--text-sm);font-weight:600;color:var(--t1);margin-bottom:2px">Focus Mode Active</div>'+
-          '<div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3)">'+diff.label+'</div>'+
+          '<div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3)">'+subLine+'</div>'+
         '</div>'+
         '<div class="fs-live-timer" style="font-family:var(--ff-m);font-size:22px;font-weight:700;color:'+diff.color+';letter-spacing:-1px;flex-shrink:0;line-height:1">'+_fmtStripTimer(secsLeft)+'</div>'+
         '</div>'+
@@ -290,14 +299,17 @@ window.FocusScore = (function () {
         var rH=r.startHour||r.hour||0, rM=r.startMin||r.minute||0;
         var sMins=rH*60+rM, diff2=sMins-nowMins;
         if(diff2>0&&diff2<=60){
+          var appsCount=(r.blockedApps||[]).length;
+          var appsBit=appsCount>0?' · '+appsCount+' app'+(appsCount!==1?'s':''):'';
           events.push({tier:2,id:'routine_soon_'+r.id,html:
             '<div onclick="'+nav+'" style="background:rgba(108,99,255,.09);border:1px solid rgba(108,99,255,.28);border-radius:16px;'+
             'padding:12px 14px;display:flex;align-items:center;gap:12px;cursor:pointer;transition:opacity .15s" ontouchstart="this.style.opacity=\'.75\'" ontouchend="this.style.opacity=\'1\'">'+
             '<div style="width:36px;height:36px;border-radius:10px;background:rgba(108,99,255,.16);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">📅</div>'+
             '<div style="flex:1;min-width:0">'+
-              '<div style="font-size:var(--text-sm);font-weight:600;color:var(--t1);margin-bottom:2px">Focus session at '+_fmt12h(rH,rM)+'</div>'+
-              '<div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3)">Starting soon</div>'+
+              '<div style="font-size:var(--text-sm);font-weight:600;color:var(--t1);margin-bottom:2px">'+(r.name||'Focus session')+' at '+_fmt12h(rH,rM)+'</div>'+
+              '<div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3)">Starting soon'+appsBit+'</div>'+
             '</div>'+
+            '<div style="font-size:18px;color:rgba(108,99,255,.6);flex-shrink:0;line-height:1">›</div>'+
             '</div>'
           });
         }
@@ -313,7 +325,7 @@ window.FocusScore = (function () {
       var pCol=isComplete?'rgba(18,212,138,.28)':'rgba(247,166,35,.25)';
       var pBg2=isComplete?'rgba(18,212,138,.08)':'rgba(247,166,35,.08)';
       var pDot=isComplete?'var(--g)':'var(--a)';
-      var txt3=isComplete?'Session complete · '+fmtM(lt.totalMins||0)+' focused':'Ended early · '+fmtM(lt.elapsedMins||0)+' of '+fmtM(lt.totalMins||0);
+      var txt3=isComplete?'Session complete · '+fmtM(lt.totalMins||0)+' focused':'Session ended early · '+fmtM(lt.elapsedMins||0)+' of '+fmtM(lt.totalMins||0);
       events.push({tier:3,id:'post_session',html:
         '<div style="background:'+pBg2+';border:1px solid '+pCol+';border-radius:16px;padding:11px 14px;display:flex;align-items:center;gap:10px">'+
         '<div style="width:7px;height:7px;border-radius:50%;background:'+pDot+';flex-shrink:0"></div>'+

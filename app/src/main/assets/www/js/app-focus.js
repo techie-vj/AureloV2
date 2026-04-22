@@ -286,8 +286,14 @@ window.FocusTab = (function () {
     var removed = _focusBlockedApps.find(function (a) { return a.packageName === pkg; });
     _focusBlockedApps = _focusBlockedApps.filter(function (a) { return a.packageName !== pkg; });
     _saveFocusBlockedApps();
-    _refreshFocusChips();
-    if (removed) toast(removed.name + ' removed from Focus Session', 'info');
+    // FIX-3: when a session is active, the idle #focus-app-chips div doesn't exist —
+    // target #focus-active-app-chips instead so the removal is actually reflected in the DOM
+    if (_focusSessionActive) {
+      _refreshActiveSessionChips();
+    } else {
+      _refreshFocusChips();
+    }
+    if (removed) toast(removed.name + ' removed', 'info');
     if (_focusSessionActive && IS_NATIVE) {
       try { N.updateFocusSession(JSON.stringify(_focusBlockedApps), Date.now() + _focusSessionSecs * 1000, _focusDifficulty); } catch (_) {}
     }
@@ -304,6 +310,16 @@ window.FocusTab = (function () {
       : '<div class="focus-chip-add" onclick="openFocusAppPicker(\'block\')">＋ Add app</div>';
     wrap.innerHTML = chips + overflow + addSlot;
     ProTier.applyCeiling(_focusBlockedApps.length, 'FOCUS_APPS_UNLIMITED', wrap, null);
+  }
+
+  // FIX-3: refresh only the app chips row inside an active session without re-rendering everything
+  function _refreshActiveSessionChips() {
+    var wrap = document.getElementById('focus-active-app-chips');
+    if (!wrap) return;
+    var chips    = _focusBlockedApps.slice(0, 5).map(_makeBlockedChip).join('');
+    var overflow = _focusBlockedApps.length > 5 ? _makeOverflowChip(_focusBlockedApps.length - 5) : '';
+    wrap.innerHTML = chips + overflow;
+    if (!chips && !overflow) wrap.style.display = 'none';
   }
 
   /* ═══════════════════════════════════════════════════════════════
@@ -410,7 +426,8 @@ window.FocusTab = (function () {
     var secsLeft = Math.max(0, _focusSessionSecs);
     var elapsed  = _focusSessionTotalSecs - _focusSessionSecs;
     var pct      = _focusSessionTotalSecs > 0 ? Math.round((elapsed / _focusSessionTotalSecs) * 100) : 0;
-    var chips    = _focusBlockedApps.slice(0, 4).map(_makeBlockedChip).join('');
+    var chips    = _focusBlockedApps.slice(0, 5).map(_makeBlockedChip).join('');
+    var overflow = _focusBlockedApps.length > 5 ? _makeOverflowChip(_focusBlockedApps.length - 5) : '';
 
     // Canvas sized to match orbit + outer ring (136px orbit + 10px inset = 156px)
     wrap.innerHTML =
@@ -426,7 +443,7 @@ window.FocusTab = (function () {
       '<div style="height:5px;background:var(--border);border-radius:3px;overflow:hidden;margin:12px 0 8px">' +
         '<div id="focus-progress-bar" style="height:100%;width:' + pct + '%;background:linear-gradient(90deg,' + diff.color + ',var(--c));border-radius:3px;transition:width 1s linear"></div>' +
       '</div>' +
-      (chips ? '<div style="display:flex;flex-wrap:wrap;gap:7px;margin-bottom:10px">' + chips + '</div>' : '') +
+      (chips || overflow ? '<div id="focus-active-app-chips" style="display:flex;flex-wrap:wrap;gap:7px;margin-bottom:10px">' + chips + overflow + '</div>' : '') +
       '<div style="display:flex;gap:8px">' +
         '<button type="button" onclick="FocusTab.handleEndSession()" class="focus-end-btn">End session</button>' +
       '</div>';
