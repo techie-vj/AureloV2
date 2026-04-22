@@ -140,11 +140,31 @@ window.FocusTab = (function () {
           clearInterval(_focusSessionTimer); _focusSessionTimer = null;
           clearInterval(_firmCountdown);     _firmCountdown     = null;
           _focusSessionActive = false; _activeRoutineId = '';
-          var wrap = document.getElementById('focus-session-wrap');
-          if (wrap && wrap.querySelector('.focus-orbit.active')) {
-            _renderSessionIdle();
-            if (typeof FocusRoutine !== 'undefined') FocusRoutine.render();
-            _updateFocusSubheader();
+          // BUG-4: Check whether the background-ended session was completed or interrupted
+          // and show the appropriate card/celebration rather than silently going idle.
+          var _bgOutcome = {};
+          try {
+            if (typeof N.getAndClearLastFocusOutcome === 'function') {
+              _bgOutcome = JSON.parse(N.getAndClearLastFocusOutcome() || '{}');
+            }
+          } catch (_) {}
+          if (_bgOutcome.outcome === 'completed') {
+            _celebrateCompletion(_bgOutcome.totalMins || Math.floor(_focusSessionTotalSecs / 60));
+          } else {
+            var _bgElapsed = _bgOutcome.elapsedMins || Math.floor((_focusSessionTotalSecs - Math.max(0, _focusSessionSecs)) / 60);
+            var _bgTotal   = _bgOutcome.totalMins   || Math.floor(_focusSessionTotalSecs / 60);
+            _focusLastState = 'interrupted'; _focusLastStateTs = Date.now();
+            _focusLastElapsedMins = _bgElapsed; _focusLastTotalMins = _bgTotal;
+            _showPostSessionCard(false, _bgElapsed);
+            var wrap = document.getElementById('focus-session-wrap');
+            if (wrap) {
+              _renderSessionIdle();
+              if (typeof FocusRoutine !== 'undefined') FocusRoutine.render();
+              _updateFocusSubheader();
+            }
+            _invalidateStripCache();
+            renderFocusStrip(); renderFocusDynamicRow();
+            renderHomeFocusDynamicRow(); renderHomeHabitsDynamicRow();
           }
         } else { _focusSessionActive = false; _activeRoutineId = ''; }
       }
@@ -160,6 +180,9 @@ window.FocusTab = (function () {
         if (r.outcome === 'completed' || r.outcome === 'interrupted') {
           _focusLastState = r.outcome; _focusLastStateTs = Date.now();
           _focusLastElapsedMins = r.elapsedMins || 0; _focusLastTotalMins = r.totalMins || 0;
+          // BUG-4: Show the post-session card so users who reopen the app after a
+          // completed/interrupted session see the outcome message immediately.
+          _showPostSessionCard(r.outcome === 'completed', r.totalMins || r.elapsedMins || 0);
         }
       } catch (_) {}
     }
@@ -652,6 +675,7 @@ window.FocusTab = (function () {
     renderFocusStrip();
     _invalidateStripCache();
     renderHomeFocusDynamicRow();
+    renderFocusDynamicRow(); // BUG-3: update focus-subtab dynamic strip immediately on session start
     if (typeof FocusRoutine !== 'undefined') FocusRoutine.render();
     _updateFocusSubheader();
   }
@@ -766,6 +790,7 @@ window.FocusTab = (function () {
     }
     _focusLastTotalMins = durationMins; _focusLastElapsedMins = durationMins;
     _launchConfetti();
+    _showPostSessionCard(true, durationMins); // BUG-4: show completion card immediately
     setTimeout(function () {
       _invalidateStripCache(); _focusLastState = 'completed'; _focusLastStateTs = Date.now();
       _renderSessionIdle();
@@ -830,13 +855,19 @@ window.FocusTab = (function () {
     var _prev = window.onProStatusChanged;
     window.onProStatusChanged = function (isPro) {
       if (typeof _prev === 'function') _prev(isPro);
-      if (!_focusLoaded) { _focusLoaded = false; return; }
-      if (typeof FocusChallenge !== 'undefined') FocusChallenge.render();
-      _renderFocusSession();
-      if (typeof FocusBedtime !== 'undefined') FocusBedtime.render();
-      if (typeof FocusRoutine !== 'undefined') FocusRoutine.render();
-      renderFocusStaticRow();
-      renderHabitsStaticRow();
+      // BUG-1/2: If focus tab hasn't loaded yet there is nothing to update — skip silently.
+      // (Removed the erroneous `_focusLoaded = false` assignment that was a no-op dead-write.)
+      if (!_focusLoaded) { return; }
+      // BUG-1/2: Defer one tick so every ProTier.isPro read inside the render functions
+      // sees the fully-committed value, regardless of chain-handler order.
+      setTimeout(function () {
+        if (typeof FocusChallenge !== 'undefined') FocusChallenge.render();
+        _renderFocusSession();
+        if (typeof FocusBedtime  !== 'undefined') FocusBedtime.render();
+        if (typeof FocusRoutine  !== 'undefined') FocusRoutine.render();
+        renderFocusStaticRow();  renderHabitsStaticRow();
+        renderFocusDynamicRow(); renderHabitsDynamicRow();
+      }, 0);
     };
   })();
 
@@ -847,6 +878,10 @@ window.FocusTab = (function () {
     var _orig = window.onAppResume;
     window.onAppResume = function () {
       if (typeof _orig === 'function') _orig();
+      // BUG-4: Sync native session state on every resume so a session that completed
+      // or was interrupted while the app was backgrounded is detected here, not only
+      // on cold boot via _syncFocusStateOnBoot.
+      _syncSessionState();
       if (window._pendingFocusStart) { window._pendingFocusStart = false; _doStartFocusSession(); }
       if (window._pendingIntentionEnable) {
         window._pendingIntentionEnable = false;
@@ -1026,10 +1061,10 @@ function removeFocusBlockedApp(pkg)   { FocusTab.removeFocusBlockedApp(pkg); }
 function removeIntentionApp(pkg)      { if (typeof FocusMindful !== 'undefined') FocusMindful.removeApp(pkg); }
 function stopFocusSession()           { FocusTab.stopFocusSession(); }
 function _switchFocusSubTab(tab)      { FocusTab._switchFocusSubTab(tab); }
+// AFTER
 function removeTimer(pkg) {
-  // FocusTimers module has no removeTimer method; do the work here instead.
   if (!pkg || !S || !S.limits) return;
-  var removedName = pkg; // fallback label
+  var removedName = pkg;
   try { removedName = (DAILY_USE.find(function(a){ return a.packageName===pkg; })||{}).name || pkg; } catch(_){}
   delete S.limits[pkg]; saveS();
   nCall('removeAppLimit', pkg);
@@ -1037,6 +1072,9 @@ function removeTimer(pkg) {
   if (typeof renderTimerList === 'function') renderTimerList();
   if (typeof renderFocusStrip === 'function') renderFocusStrip();
   if (typeof FocusTimers !== 'undefined') FocusTimers.render(document.getElementById('focus-timers-wrap'));
+  // Immediately refresh the focus-subtab dynamic strip so it reflects the removed timer
+  if (typeof renderFocusDynamicRow === 'function') renderFocusDynamicRow();
+  if (typeof FocusTab !== 'undefined') FocusTab._updateFocusSubheader ? FocusTab._updateFocusSubheader() : null;
   if (typeof toast === 'function') toast('Timer removed for ' + removedName, 'info');
 }
 function saveTimer(pkg) {
