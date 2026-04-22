@@ -355,26 +355,66 @@ window.FocusHome = (function () {
     if (ls.state === 'completed')   return buildCompletedStripHtml(d);
     if (ls.state === 'interrupted') return buildInterruptedStripHtml(d);
 
-    var focusVal  = d.total > 0 ? d.completed + ' session' + (d.completed !== 1 ? 's' : '') : '–';
-    var focusSub  = d.total > 0 ? d.totalMins + ' min today' : 'No sessions yet';
-    var mindVal   = d.pauseCount > 0 ? d.pauseCount + ' pause' + (d.pauseCount !== 1 ? 's' : '') : '–';
-    var mindSub   = d.pauseCount > 0 ? (d.resistCount > 0 ? d.resistCount + ' resisted' : 'none resisted') : 'Not triggered';
-    var p = _PALETTE.neutral;
-    return '<div onclick="activateTab(\'focus\')" style="background:' + p.bg + ';border:1px solid ' + p.border + ';border-radius:16px;padding:12px 14px;cursor:pointer;display:flex;align-items:center;gap:0;transition:opacity .15s" ontouchstart="this.style.opacity=\'.75\'" ontouchend="this.style.opacity=\'1\'">' +
+    // State-aware palette — tinted when data exists, muted when idle
+    var hasFocus  = d.total > 0;
+    var hasMind   = d.pauseCount > 0;
+    var pBorder   = hasFocus ? 'rgba(108,99,255,.22)' : 'var(--border2)';
+    var pBg       = hasFocus ? 'rgba(108,99,255,.05)' : 'var(--s2)';
+
+    // Focus panel
+    var focusTitle = hasFocus ? d.completed + ' session' + (d.completed !== 1 ? 's' : '') : 'No sessions';
+    var focusSub   = hasFocus ? d.totalMins + ' min · ' + d.rate + '% done' : 'Tap to start';
+    var focusIconBg= hasFocus ? 'rgba(108,99,255,.18)' : 'var(--s3)';
+    // Override sub with timer status when timers are active
+    if (d.timerTotal > 0) {
+      var _timerBit = d.timerOverCount > 0
+        ? '<span style="color:var(--r)">' + d.timerOverCount + ' limit' + (d.timerOverCount !== 1 ? 's' : '') + ' hit</span>'
+        : '<span style="color:var(--g)">timers clear ✓</span>';
+      focusSub = (hasFocus ? d.totalMins + ' min · ' : '') + _timerBit;
+    }
+
+    // Mindful panel
+    var mindTitle  = hasMind ? d.pauseCount + ' pause' + (d.pauseCount !== 1 ? 's' : '') : 'Mindful';
+    var resistPct  = hasMind ? Math.round((d.resistCount / d.pauseCount) * 100) : -1;
+    var mindSub    = hasMind
+      ? d.resistCount + ' resisted' + (resistPct >= 0 ? ' <span style="font-weight:700;color:' + (resistPct >= 60 ? 'var(--g)' : 'var(--a)') + '">(' + resistPct + '%)</span>' : '')
+      : 'Not triggered';
+    var mindIconBg = hasMind ? 'rgba(80,100,255,.18)' : 'var(--s3)';
+
+    // Optional score pill (shown when focus score is computable)
+    var scoreHtml = '';
+    try {
+      var _sfr = (typeof FocusScore !== 'undefined') ? FocusScore.calculateFocus(d) : null;
+      if (_sfr && _sfr.score >= 0) {
+        var _sCol = _sfr.score >= 70 ? 'var(--g)' : _sfr.score >= 50 ? 'var(--a)' : 'var(--r)';
+        var _sBg  = _sfr.score >= 70 ? 'rgba(18,212,138,.12)' : _sfr.score >= 50 ? 'rgba(247,166,35,.12)' : 'rgba(240,78,122,.12)';
+        scoreHtml = '<div style="font-family:var(--ff-m);font-size:10px;font-weight:700;color:' + _sCol + ';' +
+          'background:' + _sBg + ';border-radius:99px;padding:3px 8px;flex-shrink:0;white-space:nowrap;line-height:1.4">' + _sfr.score + '</div>';
+      }
+    } catch (_) {}
+
+    return '<div onclick="activateTab(\'focus\')" style="background:' + pBg + ';border:1px solid ' + pBorder + ';border-radius:16px;padding:12px 14px;cursor:pointer;display:flex;align-items:center;gap:0;transition:opacity .15s" ontouchstart="this.style.opacity=\'.75\'" ontouchend="this.style.opacity=\'1\'">' +
+      // Focus panel
       '<div style="flex:1;min-width:0;display:flex;align-items:center;gap:10px">' +
-        '<div style="width:32px;height:32px;border-radius:9px;background:rgba(108,99,255,.12);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">🎯</div>' +
+        '<div style="width:34px;height:34px;border-radius:10px;background:' + focusIconBg + ';display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0">🎯</div>' +
         '<div style="flex:1;min-width:0">' +
-          '<div style="font-size:var(--text-sm);font-weight:600;color:var(--t1);margin-bottom:2px">' + focusVal + '</div>' +
-          '<div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3)">' + focusSub + '</div>' +
-        '</div></div>' +
-      '<div style="width:1px;background:var(--border2);margin:0 14px;align-self:stretch"></div>' +
+          '<div style="font-size:var(--text-sm);font-weight:600;color:' + (hasFocus ? 'var(--t1)' : 'var(--t3)') + ';margin-bottom:2px">' + focusTitle + '</div>' +
+          '<div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);line-height:1.3">' + focusSub + '</div>' +
+        '</div>' +
+      '</div>' +
+      // Divider
+      '<div style="width:1px;background:' + pBorder + ';margin:0 12px;align-self:stretch;opacity:.7"></div>' +
+      // Mindful panel
       '<div style="flex:1;min-width:0;display:flex;align-items:center;gap:10px">' +
-        '<div style="width:32px;height:32px;border-radius:9px;background:rgba(176,110,255,.12);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">🧘</div>' +
+        '<div style="width:34px;height:34px;border-radius:10px;background:' + mindIconBg + ';display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0">🧘</div>' +
         '<div style="flex:1;min-width:0">' +
-          '<div style="font-size:var(--text-sm);font-weight:600;color:var(--t1);margin-bottom:2px">' + mindVal + '</div>' +
-          '<div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3)">' + mindSub + '</div>' +
-        '</div></div>' +
-      '<div style="font-size:18px;color:var(--t3);opacity:.5;flex-shrink:0;margin-left:10px;line-height:1">›</div>' +
+          '<div style="font-size:var(--text-sm);font-weight:600;color:' + (hasMind ? 'var(--t1)' : 'var(--t3)') + ';margin-bottom:2px">' + mindTitle + '</div>' +
+          '<div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);line-height:1.3">' + mindSub + '</div>' +
+        '</div>' +
+      '</div>' +
+      // Trailing: score pill + chevron
+      (scoreHtml ? '<div style="margin-left:10px;flex-shrink:0">' + scoreHtml + '</div>' : '') +
+      '<div style="font-size:18px;color:' + (hasFocus ? 'var(--p2)' : 'var(--t3)') + ';opacity:' + (hasFocus ? '.7' : '.4') + ';flex-shrink:0;margin-left:' + (scoreHtml ? '8' : '10') + 'px;line-height:1">›</div>' +
       '</div>';
   }
 
@@ -540,8 +580,7 @@ window.FocusHome = (function () {
       var p  = _PALETTE.purple;
       el.innerHTML = _inlineCard(p, nav,
         _icon('📅', p),
-        '<span style="font-weight:600">Focus session</span> at ' + _fmt12h(rH, rM) + ' starting soon',
-        _pill('Start early →', p));
+        '<span style="font-weight:600">Focus session</span> at ' + _fmt12h(rH, rM) + ' starting soon');
       return;
     }
 
@@ -580,7 +619,19 @@ window.FocusHome = (function () {
     var nowH     = new Date().getHours() + new Date().getMinutes() / 60;
     var bedH     = (cfg.bedHour || 22) + (cfg.bedMinute || 0) / 60;
     var wakeH    = (cfg.wakeHour || 7)  + (cfg.wakeMinute || 0) / 60;
-    var inWindow = cfg.enabled ? (bedH > wakeH ? (nowH >= bedH || nowH < wakeH) : (nowH >= bedH && nowH < wakeH)) : false;
+    // Use native bridge as the single source of truth so the home row stays in
+    // sync with the Focus-tab habits row (which also calls isInBedtimeWindow).
+    // Pure JS time math is a fallback for demo / non-native only.
+    var inWindow = false;
+    if (cfg.enabled) {
+      if (IS_NATIVE && typeof N.isInBedtimeWindow === 'function') {
+        try { inWindow = !!N.isInBedtimeWindow(); } catch (_) {
+          inWindow = bedH > wakeH ? (nowH >= bedH || nowH < wakeH) : (nowH >= bedH && nowH < wakeH);
+        }
+      } else {
+        inWindow = bedH > wakeH ? (nowH >= bedH || nowH < wakeH) : (nowH >= bedH && nowH < wakeH);
+      }
+    }
     var now      = Date.now();
     var sk       = typeof FocusTab !== 'undefined' ? FocusTab.getStreakState() : {};
     var nav      = "FocusTab._switchFocusSubTab('habits');activateTab('focus')";

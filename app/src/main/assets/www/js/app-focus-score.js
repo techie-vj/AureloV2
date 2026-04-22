@@ -206,53 +206,98 @@ window.FocusScore = (function () {
     var events=[], d=typeof FocusTab!=='undefined'?FocusTab.loadStripData():{};
     var now=new Date();
     var ss=typeof FocusTab!=='undefined'?FocusTab.getSessionState():{};
+    var nav="FocusTab._switchFocusSubTab('focus');activateTab('focus')";
+
+    // ── Tier 1a: live session ────────────────────────────────────────────
     if (ss.active) {
       var secsLeft=Math.max(0,ss.secs||0);
+      var totalSecs=ss.totalSecs||1;
+      var pct=Math.round(((totalSecs-secsLeft)/totalSecs)*100);
       var diff=typeof FOCUS_DIFF!=='undefined'?(FOCUS_DIFF[ss.difficulty]||FOCUS_DIFF.gentle):{color:'var(--p)',label:'🌿 Gentle'};
       var blockedApps=ss.blockedApps||[];
       var chips=blockedApps.slice(0,3).map(function(a){
-        return '<span style="background:rgba(108,99,255,.15);border:1px solid rgba(108,99,255,.25);'+
-          'border-radius:6px;padding:2px 7px;font-family:var(--ff-m);font-size:9px;color:var(--p2)">'+
+        return '<span style="background:'+diff.color+'1a;border:1px solid '+diff.color+'44;'+
+          'border-radius:6px;padding:2px 8px;font-family:var(--ff-m);font-size:10px;font-weight:600;color:'+diff.color+'">'+
           a.name.split(' ')[0]+'</span>';
       }).join('');
       events.push({tier:1,id:'session',html:
-        '<div style="background:var(--s2);border:1px solid '+diff.color+';border-radius:14px;padding:11px 13px">'+
-        '<div style="display:flex;align-items:center;gap:10px;margin-bottom:'+(chips?'8':'0')+'px">'+
-        '<div style="width:8px;height:8px;border-radius:50%;background:'+diff.color+';animation:fs-pulse 2s ease-in-out infinite;flex-shrink:0"></div>'+
-        '<div style="flex:1"><div style="font-size:12px;font-weight:700;color:var(--t1)">Focus Mode Active</div>'+
-        '<div style="font-family:var(--ff-m);font-size:9px;color:var(--t2);margin-top:1px">'+diff.label+'</div></div>'+
-        '<div class="fs-live-timer" style="font-family:var(--ff-m);font-size:20px;font-weight:700;color:'+diff.color+';letter-spacing:-1px">'+_fmtStripTimer(secsLeft)+'</div>'+
+        '<div onclick="'+nav+'" style="background:var(--s2);border:1px solid '+diff.color+';border-radius:16px;padding:12px 14px;cursor:pointer;transition:opacity .15s" ontouchstart="this.style.opacity=\'.75\'" ontouchend="this.style.opacity=\'1\'">'+
+        '<div style="display:flex;align-items:center;gap:12px;'+(chips?'margin-bottom:10px':'')+'">'+
+        '<div style="width:36px;height:36px;border-radius:10px;background:'+diff.color+'1a;display:flex;align-items:center;justify-content:center;flex-shrink:0">'+
+          '<div style="width:9px;height:9px;border-radius:50%;background:'+diff.color+';animation:fs-pulse 2s ease-in-out infinite"></div>'+
         '</div>'+
-        (chips?'<div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:8px">'+chips+'</div>':'')+
-        '<div style="height:4px;background:var(--border);border-radius:2px;overflow:hidden">'+
-        '<div class="fs-live-bar" style="height:100%;background:linear-gradient(90deg,var(--p),var(--c));border-radius:2px"></div></div>'+
+        '<div style="flex:1;min-width:0">'+
+          '<div style="font-size:var(--text-sm);font-weight:600;color:var(--t1);margin-bottom:2px">Focus Mode Active</div>'+
+          '<div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3)">'+diff.label+'</div>'+
+        '</div>'+
+        '<div class="fs-live-timer" style="font-family:var(--ff-m);font-size:22px;font-weight:700;color:'+diff.color+';letter-spacing:-1px;flex-shrink:0;line-height:1">'+_fmtStripTimer(secsLeft)+'</div>'+
+        '</div>'+
+        (chips?'<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">'+chips+'</div>':'')+
+        '<div style="height:4px;background:var(--border2);border-radius:999px;overflow:hidden">'+
+        '<div class="fs-live-bar" style="height:100%;width:'+pct+'%;background:linear-gradient(90deg,'+diff.color+'88,'+diff.color+');border-radius:999px;transition:width .5s linear"></div></div>'+
         '</div>'
       });
     }
+
+    // ── Tier 1b: timer over limit ────────────────────────────────────────
     var limits=S.limits||{}, usageMap={};
     if (typeof DAILY_USE!=='undefined') DAILY_USE.forEach(function(u){usageMap[u.packageName]=u.totalMinutes||0;});
-    Object.keys(limits).forEach(function(pkg){
-      if ((usageMap[pkg]||0)>=limits[pkg]) {
-        var name=(DAILY_USE&&DAILY_USE.find(function(u){return u.packageName===pkg;})||{}).name||pkg.split('.').pop();
-        events.push({tier:1,id:'timer_over_'+pkg,html:'<div style="background:rgba(240,78,122,.07);border:1px solid rgba(240,78,122,.3);border-radius:14px;padding:10px 13px;display:flex;align-items:center;gap:9px"><div style="width:7px;height:7px;border-radius:50%;background:var(--r);flex-shrink:0"></div><div style="flex:1;font-size:12px;font-weight:600;color:var(--t1)">'+name+' limit reached today</div><div style="font-family:var(--ff-m);font-size:10px;font-weight:700;color:var(--r)">+'+fmtM((usageMap[pkg]||0)-limits[pkg])+'</div></div>'});
-      }
+    var overPkgs=Object.keys(limits).filter(function(pkg){return (usageMap[pkg]||0)>=limits[pkg];});
+    overPkgs.sort(function(a,b){return ((usageMap[b]||0)-limits[b])-((usageMap[a]||0)-limits[a]);});
+    overPkgs.forEach(function(pkg){
+      var name=(typeof DAILY_USE!=='undefined'&&(DAILY_USE.find(function(u){return u.packageName===pkg;})||{}).name)||pkg.split('.').pop();
+      var over=fmtM((usageMap[pkg]||0)-limits[pkg]);
+      var more='';
+      if (overPkgs.length>1&&overPkgs[0]===pkg) more=' <span style="color:var(--t3)">+' + (overPkgs.length-1) + ' more</span>';
+      events.push({tier:1,id:'timer_over_'+pkg,html:
+        '<div onclick="'+nav+'" style="background:rgba(240,78,122,.08);border:1px solid rgba(240,78,122,.28);border-radius:16px;'+
+        'padding:11px 14px;display:flex;align-items:center;gap:10px;cursor:pointer;transition:opacity .15s" ontouchstart="this.style.opacity=\'.75\'" ontouchend="this.style.opacity=\'1\'">'+
+        '<div style="width:7px;height:7px;border-radius:50%;background:var(--r);flex-shrink:0"></div>'+
+        '<div style="flex:1;font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--r);line-height:1.45">'+
+          '<span style="font-weight:600">'+name+'</span> limit reached · +'+over+more+'</div>'+
+        '</div>'
+      });
     });
-    if (events.some(function(e){return e.tier===1;})) return events;
-    Object.keys(limits).forEach(function(pkg){ var used=usageMap[pkg]||0,lim=limits[pkg],pct=lim>0?used/lim:0; if(pct>=0.8&&pct<1){var name=(DAILY_USE&&DAILY_USE.find(function(u){return u.packageName===pkg;})||{}).name||pkg.split('.').pop(); events.push({tier:2,id:'timer_warn_'+pkg,html:'<div style="background:rgba(247,166,35,.07);border:1px solid rgba(247,166,35,.25);border-radius:14px;padding:10px 13px;display:flex;align-items:center;gap:9px"><div style="width:7px;height:7px;border-radius:50%;background:var(--a);flex-shrink:0"></div><div style="flex:1;font-size:12px;font-weight:600;color:var(--t1)">'+name+' approaching daily limit</div><div style="font-family:var(--ff-m);font-size:10px;font-weight:700;color:var(--a)">'+fmtM(lim-used)+' left today</div></div>'}); }});
 
-    // Tier 2: scheduled routine starting within 60 min
+    if (events.some(function(e){return e.tier===1;})) return events;
+
+    // ── Tier 2a: timer approaching 80–99% ───────────────────────────────
+    var warnPkgs=Object.keys(limits).filter(function(pkg){
+      var u=usageMap[pkg]||0,l=limits[pkg],p2=l>0?u/l:0; return p2>=0.8&&p2<1;
+    });
+    warnPkgs.sort(function(a,b){return (usageMap[b]||0)/limits[b]-(usageMap[a]||0)/limits[a];});
+    if (warnPkgs.length) {
+      var wp=warnPkgs[0];
+      var wname=(typeof DAILY_USE!=='undefined'&&(DAILY_USE.find(function(u){return u.packageName===wp;})||{}).name)||wp.split('.').pop();
+      var wleft=fmtM(Math.max(0,limits[wp]-(usageMap[wp]||0)));
+      var wmore=warnPkgs.length>1?' <span style="color:var(--t3)">+' + (warnPkgs.length-1) + ' more</span>':'';
+      events.push({tier:2,id:'timer_warn_'+wp,html:
+        '<div onclick="'+nav+'" style="background:rgba(247,166,35,.08);border:1px solid rgba(247,166,35,.25);border-radius:16px;'+
+        'padding:11px 14px;display:flex;align-items:center;gap:10px;cursor:pointer;transition:opacity .15s" ontouchstart="this.style.opacity=\'.75\'" ontouchend="this.style.opacity=\'1\'">'+
+        '<div style="width:7px;height:7px;border-radius:50%;background:var(--a);flex-shrink:0"></div>'+
+        '<div style="flex:1;font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--a);line-height:1.45">'+
+          '<span style="font-weight:600">'+wname+'</span> · '+wleft+' remaining today'+wmore+'</div>'+
+        '</div>'
+      });
+    }
+
+    // ── Tier 2b: scheduled routine starting within 60 min ───────────────
     if (!events.some(function(e){return e.tier===2;})) {
       var routines=typeof FocusRoutine!=='undefined'?FocusRoutine.getRoutines():[];
       var nowMins=now.getHours()*60+now.getMinutes();
       routines.forEach(function(r){
         if(!r.enabled) return;
-        var sMins=(r.hour||0)*60+(r.minute||0), diff2=sMins-nowMins;
+        var rH=r.startHour||r.hour||0, rM=r.startMin||r.minute||0;
+        var sMins=rH*60+rM, diff2=sMins-nowMins;
         if(diff2>0&&diff2<=60){
           events.push({tier:2,id:'routine_soon_'+r.id,html:
-            '<div style="background:rgba(108,99,255,.07);border:1px solid rgba(108,99,255,.25);border-radius:14px;padding:10px 13px;display:flex;align-items:center;gap:9px;cursor:pointer" onclick="activateTab(\'focus\')">'+
-            '<div style="width:7px;height:7px;border-radius:50%;background:var(--p);flex-shrink:0"></div>'+
-            '<div style="flex:1;font-size:12px;font-weight:600;color:var(--t1)">Your '+_fmt12h(r.hour||0,r.minute||0)+' focus session starts soon</div>'+
-            '<div style="font-family:var(--ff-m);font-size:10px;color:var(--p2)">Start early \u2192</div>'+
+            '<div onclick="'+nav+'" style="background:rgba(108,99,255,.09);border:1px solid rgba(108,99,255,.28);border-radius:16px;'+
+            'padding:12px 14px;display:flex;align-items:center;gap:12px;cursor:pointer;transition:opacity .15s" ontouchstart="this.style.opacity=\'.75\'" ontouchend="this.style.opacity=\'1\'">'+
+            '<div style="width:36px;height:36px;border-radius:10px;background:rgba(108,99,255,.16);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">📅</div>'+
+            '<div style="flex:1;min-width:0">'+
+              '<div style="font-size:var(--text-sm);font-weight:600;color:var(--t1);margin-bottom:2px">Focus session at '+_fmt12h(rH,rM)+'</div>'+
+              '<div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3)">Starting soon</div>'+
+            '</div>'+
             '</div>'
           });
         }
@@ -261,27 +306,32 @@ window.FocusScore = (function () {
 
     if (events.some(function(e){return e.tier===2;})) return events;
 
-    // Tier 3: post-session summary (10 min window)
+    // ── Tier 3a: post-session summary (10 min window) ────────────────────
     var lt=typeof FocusTab!=='undefined'?FocusTab.getLastState():{};
     if (lt.state&&lt.ts&&(Date.now()-lt.ts)<600000) {
-      var color3=lt.state==='completed'?'var(--g)':'var(--a)',icon3=lt.state==='completed'?'🔥':'⏸';
-      var txt3=lt.state==='completed'?'Session complete! '+fmtM(lt.totalMins)+' focused':'Ended early \u00b7 '+fmtM(lt.elapsedMins)+' of '+fmtM(lt.totalMins);
+      var isComplete=lt.state==='completed';
+      var pCol=isComplete?'rgba(18,212,138,.28)':'rgba(247,166,35,.25)';
+      var pBg2=isComplete?'rgba(18,212,138,.08)':'rgba(247,166,35,.08)';
+      var pDot=isComplete?'var(--g)':'var(--a)';
+      var txt3=isComplete?'Session complete · '+fmtM(lt.totalMins||0)+' focused':'Ended early · '+fmtM(lt.elapsedMins||0)+' of '+fmtM(lt.totalMins||0);
       events.push({tier:3,id:'post_session',html:
-        '<div style="background:rgba(18,212,138,.06);border:1px solid '+color3+'44;border-radius:14px;padding:10px 13px;display:flex;align-items:center;gap:9px">'+
-        '<div style="font-size:18px">'+icon3+'</div>'+
-        '<div style="flex:1;font-size:12px;font-weight:600;color:var(--t1)">'+txt3+'</div>'+
+        '<div style="background:'+pBg2+';border:1px solid '+pCol+';border-radius:16px;padding:11px 14px;display:flex;align-items:center;gap:10px">'+
+        '<div style="width:7px;height:7px;border-radius:50%;background:'+pDot+';flex-shrink:0"></div>'+
+        '<div style="flex:1;font-family:var(--ff-m);font-size:var(--text-2xs);color:'+(isComplete?'var(--g)':'var(--a)')+';line-height:1.45;font-weight:600">'+txt3+'</div>'+
         '</div>'
       });
     }
 
-    // Tier 3: weekly challenge almost done
+    // ── Tier 3b: weekly challenge almost done ────────────────────────────
     if (d.challengeLabel&&d.challengeDone!==undefined) {
       var remaining=(d.challengeTarget-d.challengeDone);
       if(remaining<=1&&remaining>0) {
         events.push({tier:3,id:'challenge_close',html:
-          '<div style="background:rgba(247,201,72,.07);border:1px solid rgba(247,201,72,.25);border-radius:14px;padding:10px 13px;display:flex;align-items:center;gap:9px">'+
-          '<div style="font-size:14px">🏆</div>'+
-          '<div style="flex:1;font-family:var(--ff-m);font-size:11px;color:var(--t1)">'+d.challengeDone+'/'+d.challengeTarget+' \u2014 '+remaining+' more to complete this week\'s challenge</div>'+
+          '<div onclick="'+nav+'" style="background:rgba(247,201,72,.08);border:1px solid rgba(247,201,72,.22);border-radius:16px;'+
+          'padding:11px 14px;display:flex;align-items:center;gap:10px;cursor:pointer;transition:opacity .15s" ontouchstart="this.style.opacity=\'.75\'" ontouchend="this.style.opacity=\'1\'">'+
+          '<div style="width:7px;height:7px;border-radius:50%;background:#f7c948;flex-shrink:0"></div>'+
+          '<div style="flex:1;font-family:var(--ff-m);font-size:var(--text-2xs);color:#c4982e;line-height:1.45">'+
+            '<span style="font-weight:600">'+d.challengeDone+'/'+d.challengeTarget+'</span> — '+remaining+' more to complete this week\'s challenge</div>'+
           '</div>'
         });
       }
@@ -294,9 +344,10 @@ window.FocusScore = (function () {
     var events=[], now=new Date(), nowH=now.getHours()+now.getMinutes()/60;
     var cfg=typeof FocusBedtime!=='undefined'?FocusBedtime.getCfg():{};
     var bedH=(cfg.bedHour!=null?cfg.bedHour:22)+(cfg.bedMinute||0)/60, wakeH=(cfg.wakeHour!=null?cfg.wakeHour:7)+(cfg.wakeMinute||0)/60;
-    // FIX-1: Use native bridge as source of truth so this strip stays in sync
-    // with the bedtime section (which also calls isInBedtimeWindow). JS math
-    // is fallback only (demo / non-native).
+    var nav="FocusTab._switchFocusSubTab('habits');activateTab('focus')";
+    var fmt12=function(dec){var h24=Math.floor(dec%24),mm=Math.round((dec%1)*60),h12=h24%12||12;return h12+':'+(mm<10?'0':'')+mm+' '+(h24<12?'AM':'PM');};
+
+    // Use native bridge as source of truth — matches the home tab's renderHomeHabitsDynamicRow
     var inWindow = false;
     if (cfg.enabled) {
       if (IS_NATIVE && typeof N.isInBedtimeWindow === 'function') {
@@ -308,51 +359,64 @@ window.FocusScore = (function () {
       }
     }
 
-    // Tier 1: bedtime window active
+    // ── Tier 1: bedtime window active ───────────────────────────────────
     if (cfg.enabled&&inWindow) {
       var blockedCount=Array.isArray(cfg.blockedApps)?cfg.blockedApps.length:0;
-      // Snooze state
       var snoozeEndsAt=0;
       try { if(IS_NATIVE&&typeof N.getBedtimeSnoozeEndsAt==='function') snoozeEndsAt=N.getBedtimeSnoozeEndsAt()||0; } catch(_){}
       var snoozeActive=snoozeEndsAt>Date.now(), snoozeMins=snoozeActive?Math.ceil((snoozeEndsAt-Date.now())/60000):0;
+      var bedStreakN=0;
+      try { if(IS_NATIVE&&typeof N.getBedtimeStreak==='function') bedStreakN=(JSON.parse(N.getBedtimeStreak()||'{}')||{}).streak||0; } catch(_){}
+      var streakPill=bedStreakN>1
+        ? '<div style="font-family:var(--ff-m);font-size:10px;font-weight:600;color:#7a80ff;background:rgba(80,100,255,.16);border-radius:99px;padding:3px 9px;flex-shrink:0;white-space:nowrap">🔥 '+bedStreakN+'</div>'
+        : '';
       var snoozeBtn=snoozeActive
-        ? '<span style="font-family:var(--ff-m);font-size:10px;color:var(--t3);padding:3px 9px;border-radius:6px;background:var(--s3);pointer-events:none;opacity:.6">\u23f1 '+snoozeMins+'m left</span>'
-        : '<span onclick="snoozeBedtimePrompt()" style="font-family:var(--ff-m);font-size:10px;color:var(--p2);cursor:pointer;padding:3px 9px;border-radius:6px;background:rgba(108,99,255,.12);border:1px solid rgba(108,99,255,.2)">Snooze</span>';
-      var fmt12=function(dec){var h24=Math.floor(dec%24),mm=Math.round((dec%1)*60),h12=h24%12||12;return h12+':'+(mm<10?'0':'')+mm+' '+(h24<12?'AM':'PM');};
+        ? '<div style="font-family:var(--ff-m);font-size:10px;font-weight:600;color:var(--t3);background:var(--s3);border-radius:99px;padding:4px 10px;flex-shrink:0;white-space:nowrap;cursor:default;opacity:.55">⏱ '+snoozeMins+'m</div>'
+        : '<div onclick="event.stopPropagation();snoozeBedtimePrompt()" style="font-family:var(--ff-m);font-size:10px;font-weight:600;color:#7a80ff;background:rgba(80,100,255,.16);border-radius:99px;padding:4px 10px;flex-shrink:0;white-space:nowrap;cursor:pointer">Snooze</div>';
       events.push({tier:1,id:'bedtime_active',html:
-        '<div style="background:rgba(108,99,255,.08);border:1px solid rgba(108,99,255,.3);border-radius:14px;padding:11px 13px;display:flex;align-items:center;gap:10px">'+
-        '<div style="font-size:16px">🌙</div>'+
-        '<div style="flex:1"><div style="font-size:12px;font-weight:700;color:var(--t1)">Bedtime mode on</div>'+
-        '<div style="font-family:var(--ff-m);font-size:10px;color:var(--t2);margin-top:1px">'+blockedCount+' app'+(blockedCount!==1?'s':'')+' blocked \u00b7 ends at '+fmt12(wakeH)+'</div></div>'+
-        snoozeBtn+'</div>'
+        '<div onclick="'+nav+'" style="background:rgba(80,100,255,.09);border:1px solid rgba(100,120,255,.25);border-radius:16px;'+
+        'padding:12px 14px;display:flex;align-items:center;gap:12px;cursor:pointer;transition:opacity .15s" ontouchstart="this.style.opacity=\'.75\'" ontouchend="this.style.opacity=\'1\'">'+
+        '<div style="width:36px;height:36px;border-radius:10px;background:rgba(80,100,255,.16);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">🌙</div>'+
+        '<div style="flex:1;min-width:0">'+
+          '<div style="font-size:var(--text-sm);font-weight:600;color:var(--t1);margin-bottom:2px">Bedtime mode on · '+blockedCount+' app'+(blockedCount!==1?'s':'')+' blocked</div>'+
+          '<div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3)">Wake up at '+fmt12(wakeH)+'</div>'+
+        '</div>'+
+        streakPill+snoozeBtn+
+        '</div>'
       });
       return events;
     }
 
-    // Tier 2: bedtime approaching within 60 min
+    // ── Tier 2a: wind-down — 60 min before bedtime ──────────────────────
     if (cfg.enabled&&!inWindow) {
       var minsU=(bedH-nowH)*60; if(minsU<0) minsU+=1440;
       if(minsU<=60&&minsU>0) {
-        var fmt12b=function(dec){var h24=Math.floor(dec%24),mm=Math.round((dec%1)*60),h12=h24%12||12;return h12+':'+(mm<10?'0':'')+mm+' '+(h24<12?'AM':'PM');};
+        var btStreak2=0;
+        try { if(IS_NATIVE&&typeof N.getBedtimeStreak==='function') btStreak2=(JSON.parse(N.getBedtimeStreak()||'{}')||{}).streak||0; } catch(_){}
+        var urgency=minsU<=30?'Wind down now':'Wind down soon';
+        var streakNote=btStreak2>0?' · 🔥 <span style="font-weight:600">'+btStreak2+'</span>-night streak':'';
         events.push({tier:2,id:'wind_down',html:
-          '<div style="background:rgba(168,156,255,.07);border:1px solid rgba(168,156,255,.25);border-radius:14px;padding:10px 13px;display:flex;align-items:center;gap:9px">'+
-          '<div style="font-size:14px">🌙</div>'+
-          '<div style="flex:1;font-size:12px;font-weight:600;color:var(--t1)">Bedtime in '+Math.round(minsU)+'m</div>'+
-          '<div style="font-family:var(--ff-m);font-size:10px;color:var(--t3)">Apps block at '+fmt12b(bedH)+'</div>'+
+          '<div onclick="'+nav+'" style="background:rgba(80,100,255,.09);border:1px solid rgba(100,120,255,.25);border-radius:16px;'+
+          'padding:11px 14px;display:flex;align-items:center;gap:10px;cursor:pointer;transition:opacity .15s" ontouchstart="this.style.opacity=\'.75\'" ontouchend="this.style.opacity=\'1\'">'+
+          '<div style="width:7px;height:7px;border-radius:50%;background:#7a80ff;flex-shrink:0"></div>'+
+          '<div style="flex:1;font-family:var(--ff-m);font-size:var(--text-2xs);color:#7a80ff;line-height:1.45">'+
+            '<span style="font-weight:600">'+urgency+'</span> · Bedtime at '+fmt12(bedH)+' in '+Math.round(minsU)+'m'+streakNote+'</div>'+
           '</div>'
         });
       }
     }
 
-    // Tier 2: weekly challenge at risk
+    // ── Tier 2b: weekly challenge at risk ────────────────────────────────
     var d=typeof FocusTab!=='undefined'?FocusTab.loadStripData():{};
     if(!events.length&&d.challengeLabel&&d.challengeDone!==undefined) {
       var daysLeft=7-new Date().getDay(), needed=d.challengeTarget-d.challengeDone;
       if(needed>0&&needed>=daysLeft) {
         events.push({tier:2,id:'challenge_risk',html:
-          '<div style="background:rgba(247,166,35,.07);border:1px solid rgba(247,166,35,.3);border-radius:14px;padding:10px 13px;display:flex;align-items:center;gap:9px">'+
-          '<div style="font-size:14px">\u26a0\ufe0f</div>'+
-          '<div style="flex:1;font-family:var(--ff-m);font-size:11px;color:var(--a)">'+daysLeft+' days left \u00b7 need '+needed+' more to complete this week\'s challenge</div>'+
+          '<div onclick="'+nav+'" style="background:rgba(247,166,35,.08);border:1px solid rgba(247,166,35,.25);border-radius:16px;'+
+          'padding:11px 14px;display:flex;align-items:center;gap:10px;cursor:pointer;transition:opacity .15s" ontouchstart="this.style.opacity=\'.75\'" ontouchend="this.style.opacity=\'1\'">'+
+          '<div style="width:7px;height:7px;border-radius:50%;background:var(--a);flex-shrink:0"></div>'+
+          '<div style="flex:1;font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--a);line-height:1.45">'+
+            '<span style="font-weight:600">Challenge at risk</span> · '+daysLeft+' day'+(daysLeft!==1?'s':'')+' left to complete</div>'+
           '</div>'
         });
       }
@@ -360,31 +424,45 @@ window.FocusScore = (function () {
 
     if (events.some(function(e){return e.tier===2;})) return events;
 
-    // Tier 3: morning summary (6am–11am)
+    // ── Tier 3a: morning summary (6am–11am) ──────────────────────────────
     var h=now.getHours();
     if (h>=6&&h<11) {
       var sr=calculateSleep();
       if (sr.lastNight&&sr.lastNight.hasData) {
-        var ln=sr.lastNight, warmTxt=ln.bedtimeKept?'Bedtime kept \u2713':'Bedtime missed';
-        if(ln.snoozeCount>0) warmTxt+=' \u00b7 '+ln.snoozeCount+' snooze'+(ln.snoozeCount>1?'s':'');
-        if(ln.appAttemptsTotal===0) warmTxt+=' \u00b7 0 app attempts';
+        var ln=sr.lastNight;
+        var keptColor=ln.bedtimeKept?'var(--g)':'var(--r)';
+        var keptTxt=ln.bedtimeKept?'Bedtime kept ✓':'Bedtime missed';
+        var parts2=[];
+        if ((ln.appAttemptsTotal||0)>0) parts2.push(ln.appAttemptsTotal+' app attempt'+(ln.appAttemptsTotal!==1?'s':''));
+        else if (ln.bedtimeKept)         parts2.push('0 app attempts');
+        if ((ln.snoozeCount||0)>0)       parts2.push(ln.snoozeCount+' snooze'+(ln.snoozeCount!==1?'s':''));
+        var subTxt2=parts2.length?parts2.join(' · '):'Clean night ✨';
+        var sleepStreakPill=sr.bedStreak>0
+          ? '<div style="font-family:var(--ff-m);font-size:10px;font-weight:600;color:#7a80ff;background:rgba(80,100,255,.16);border-radius:99px;padding:3px 9px;flex-shrink:0;white-space:nowrap">🔥 '+sr.bedStreak+'</div>'
+          : '';
+        var dismissBtn='<div onclick="event.stopPropagation();'+(typeof FocusHome!=='undefined'?'FocusHome.dismissMorningSummary()':'')+'" style="font-size:18px;color:var(--t3);cursor:pointer;padding:0 2px;flex-shrink:0;line-height:1">×</div>';
         events.push({tier:3,id:'morning_summary',html:
-          '<div style="background:rgba(5,200,232,.06);border:1px solid rgba(5,200,232,.2);border-radius:14px;padding:11px 13px;display:flex;align-items:center;gap:10px">'+
-          '<div style="font-size:16px">\u2600\ufe0f</div>'+
-          '<div style="flex:1"><div style="font-size:12px;font-weight:700;color:var(--t1)">Last night</div>'+
-          '<div style="font-family:var(--ff-m);font-size:10px;color:var(--t2);margin-top:1px">'+warmTxt+'</div></div>'+
-          (sr.bedStreak>0?'<div style="font-family:var(--ff-m);font-size:10px;font-weight:700;color:var(--pu);padding:3px 8px;background:rgba(80,100,255,.12);border-radius:99px">\uD83D\uDD25 streak</div>':'')+
+          '<div onclick="'+nav+'" style="background:rgba(80,100,255,.09);border:1px solid rgba(100,120,255,.25);border-radius:16px;'+
+          'padding:12px 14px;display:flex;align-items:center;gap:12px;cursor:pointer;transition:opacity .15s" ontouchstart="this.style.opacity=\'.75\'" ontouchend="this.style.opacity=\'1\'">'+
+          '<div style="width:36px;height:36px;border-radius:10px;background:rgba(80,100,255,.16);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">🌅</div>'+
+          '<div style="flex:1;min-width:0">'+
+            '<div style="font-size:var(--text-sm);font-weight:600;color:'+keptColor+';margin-bottom:2px">Last night · '+keptTxt+'</div>'+
+            '<div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3)">'+subTxt2+'</div>'+
+          '</div>'+
+          sleepStreakPill+dismissBtn+
           '</div>'
         });
       }
     }
 
-    // Tier 3: challenge milestone
-    if (d.challengeLabel&&d.challengeDone!==undefined&&d.challengeDone>0) {
+    // ── Tier 3b: challenge milestone ─────────────────────────────────────
+    if (d.challengeLabel&&d.challengeDone!==undefined&&d.challengeDone>0&&d.challengeDone<d.challengeTarget) {
       events.push({tier:3,id:'challenge_milestone',html:
-        '<div style="background:rgba(18,212,138,.06);border:1px solid rgba(18,212,138,.2);border-radius:14px;padding:10px 13px;display:flex;align-items:center;gap:9px">'+
-        '<div style="font-size:14px">🏆</div>'+
-        '<div style="flex:1;font-family:var(--ff-m);font-size:11px;color:var(--t1)">'+d.challengeDone+' of '+d.challengeTarget+' \u00b7 on track to complete this week\'s challenge</div>'+
+        '<div onclick="'+nav+'" style="background:rgba(18,212,138,.08);border:1px solid rgba(18,212,138,.28);border-radius:16px;'+
+        'padding:11px 14px;display:flex;align-items:center;gap:10px;cursor:pointer;transition:opacity .15s" ontouchstart="this.style.opacity=\'.75\'" ontouchend="this.style.opacity=\'1\'">'+
+        '<div style="width:7px;height:7px;border-radius:50%;background:var(--g);flex-shrink:0"></div>'+
+        '<div style="flex:1;font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--g);line-height:1.45">'+
+          '<span style="font-weight:600">'+d.challengeDone+' of '+d.challengeTarget+' days done</span> · On track this week</div>'+
         '</div>'
       });
     }
