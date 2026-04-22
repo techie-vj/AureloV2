@@ -59,7 +59,7 @@ window.FocusTab = (function () {
   var FOCUS_DIFF = {
     gentle: { label: 'Gentle',     color: '#12D48A', emoji: '🌿', desc: 'A gentle nudge when you open a blocked app. You can still continue if needed.' },
     firm:   { label: 'Firm',       color: '#F7A623', emoji: '🔥', desc: 'A 30-second wait before you can dismiss the block screen.' },
-    deep:   { label: 'Deep Focus', color: '#F04E7A', emoji: '🔒', desc: 'Full block for the session duration — no way past until it ends.' },
+    deep:   { label: 'Deep', color: '#F04E7A', emoji: '🔒', desc: 'Full block for the session duration — no way past until it ends.' },
   };
 
   /* ═══════════════════════════════════════════════════════════════
@@ -260,9 +260,11 @@ window.FocusTab = (function () {
   }
 
   function removeFocusBlockedApp(pkg) {
+    var removed = _focusBlockedApps.find(function (a) { return a.packageName === pkg; });
     _focusBlockedApps = _focusBlockedApps.filter(function (a) { return a.packageName !== pkg; });
     _saveFocusBlockedApps();
     _refreshFocusChips();
+    if (removed) toast(removed.name + ' removed from Focus Session', 'info');
     if (_focusSessionActive && IS_NATIVE) {
       try { N.updateFocusSession(JSON.stringify(_focusBlockedApps), Date.now() + _focusSessionSecs * 1000, _focusDifficulty); } catch (_) {}
     }

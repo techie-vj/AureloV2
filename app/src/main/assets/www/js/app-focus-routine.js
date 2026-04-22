@@ -757,10 +757,31 @@ window.FocusRoutine = (function () {
     rp.emoji=_ROUTINE_EMOJIS[idx];
     var el=document.getElementById('rp-emoji-display'); if(el) el.textContent=rp.emoji;
   }
+  /* ── Inline toast — renders a temporary feedback line inside the modal ── */
+  function _rpInlineToast(msg, type) {
+    var existing = document.getElementById('rp-inline-toast');
+    if (existing) existing.remove();
+    var el = document.createElement('div');
+    el.id = 'rp-inline-toast';
+    el.style.cssText =
+      'font-family:var(--ff-m);font-size:11px;font-weight:600;margin-top:7px;' +
+      'opacity:1;transition:opacity 0.5s ease;color:' +
+      (type === 'success' ? 'var(--g,#4ade80)' : type === 'info' ? 'var(--p)' : 'var(--r,#f04e7a)') + ';';
+    el.textContent = msg;
+    var chipsEl = document.getElementById('rp-app-chips');
+    if (chipsEl && chipsEl.parentNode) {
+      chipsEl.parentNode.insertBefore(el, chipsEl.nextSibling);
+    }
+    setTimeout(function () { el.style.opacity = '0'; }, 1800);
+    setTimeout(function () { if (el.parentNode) el.remove(); }, 2350);
+  }
+
   function _rpRemoveApp(pkg) {
     var rp=window._rp; if(!rp) return;
+    var removed = (rp.blockedApps||[]).find(function (a){ return a.packageName===pkg; });
     rp.blockedApps=(rp.blockedApps||[]).filter(function (a){return a.packageName!==pkg;});
     _rpRefreshAppChips();
+    if (removed) _rpInlineToast(removed.name.split(' ')[0] + ' removed', 'info');
   }
   function _rpRefreshAppChips() {
     var rp=window._rp; if(!rp) return;
@@ -1019,17 +1040,18 @@ window.FocusRoutine = (function () {
     window._rp.blockedApps = [...sel].map(function (pkg) { return { packageName: pkg, name: map[pkg]?.name || pkg.split('.').pop() }; });
     closePanel('focus-picker-panel');
     _rpRefreshAppChips();
-    // Smart delta toast
+    // Inline delta feedback — shown inside the modal, not as a floating toast
     var newApps   = window._rp.blockedApps;
     var added     = newApps.filter(function (a) { return !prevPkgs.has(a.packageName); });
     var removedCt = Array.from(prevPkgs).filter(function (p) { return !sel.has(p); }).length;
     if (added.length > 0 && removedCt === 0) {
-      toast(added.length === 1 ? added[0].name + ' added to Schedule' : added.length + ' apps added to Schedule', 'success');
+      _rpInlineToast(added.length === 1 ? added[0].name.split(' ')[0] + ' added' : added.length + ' apps added', 'success');
     } else if (removedCt > 0 && added.length === 0) {
-      toast(removedCt === 1 ? '1 app removed from Schedule' : removedCt + ' apps removed from Schedule', 'info');
-    } else {
-      toast('Apps updated', 'success');
+      _rpInlineToast(removedCt === 1 ? '1 app removed' : removedCt + ' apps removed', 'info');
+    } else if (added.length > 0 && removedCt > 0) {
+      _rpInlineToast('Apps updated', 'success'); // mixed
     }
+    // no change → silent
   }
 
   /* ── Delete ──────────────────────────────────────────────────── */

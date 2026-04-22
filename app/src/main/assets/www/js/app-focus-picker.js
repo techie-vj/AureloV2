@@ -37,9 +37,10 @@ window.FocusPicker = (function () {
       toast(msg, 'success');
     } else if (removedCt > 0 && added.length === 0) {
       toast(removedCt === 1 ? '1 app removed from ' + label : removedCt + ' apps removed from ' + label, 'info');
-    } else {
-      toast('Apps updated', 'success'); // mixed or no change
+    } else if (added.length > 0 && removedCt > 0) {
+      toast('Apps updated', 'success'); // mixed
     }
+    // no change → silent
   }
 
   /* ═══════════════════════════════════════════════════════════
