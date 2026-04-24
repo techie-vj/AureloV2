@@ -248,6 +248,37 @@ function calculateScreenScore() {
            firstUseStr: firstUseStr || null };
 }
 
+
+
+/**
+ * Shared Screen Score view-model.
+ * Keeps compact rows, Aurelo composite, and the detail sheet on the same
+ * Health Connect-adjusted number.
+ */
+function _getScreenScoreWithHealthConnect() {
+  var res = calculateScreenScore();
+  var hcConnected = typeof HealthConnect !== 'undefined' && HealthConnect.isConnected();
+  var hcMod = { modifier: 0, label: null };
+  if (hcConnected && typeof HealthConnect.getActivityModifier === 'function') {
+    try { hcMod = HealthConnect.getActivityModifier() || hcMod; } catch (_) {}
+  }
+  var effectiveScore = Math.min(100, Math.max(0, res.score + (hcMod.modifier || 0)));
+  return { res: res, hcConnected: hcConnected, hcMod: hcMod, effectiveScore: effectiveScore };
+}
+
+function _readHealthConnectScreenData() {
+  var raw = {};
+  try {
+    var str = (window.AppBridge && typeof window.AppBridge.getHCData === 'function')
+      ? window.AppBridge.getHCData()
+      : null;
+    if (str) raw = JSON.parse(str) || {};
+  } catch (_) {}
+  return raw;
+}
+
+window.calculateScreenScoreWithHealthConnect = _getScreenScoreWithHealthConnect;
+
 /** Grade label + colour for a screen score value. */
 function _screenScoreGrade(score) {
   if (score >= 90) return { label: 'Excellent', color: '#6ec97a' };
@@ -264,12 +295,12 @@ function _screenScoreGrade(score) {
  * openFocusScoreSheet() and openHabitsScoreSheet().
  */
 function renderScreenScoreSheet() {
-  var res = calculateScreenScore();
-  _saveScoreForToday(_SCREEN_SCORE_KEY, res.score);
-
-  // ── HC activity modifier (spec §5.2) ─────────────────────────────────
-  var hcMod = typeof HealthConnect !== 'undefined' ? HealthConnect.getActivityModifier() : { modifier: 0, label: null };
-  var effectiveScore = Math.min(100, Math.max(0, res.score + hcMod.modifier));
+  var screenVm = _getScreenScoreWithHealthConnect();
+  var res = screenVm.res;
+  var hcMod = screenVm.hcMod;
+  var hcConnected = screenVm.hcConnected;
+  var effectiveScore = screenVm.effectiveScore;
+  _saveScoreForToday(_SCREEN_SCORE_KEY, effectiveScore);
 
   var fmtGoal    = fmtM(res.goalMins);
   var fmtToday   = fmtM(res.todayMins);
@@ -346,8 +377,44 @@ function renderScreenScoreSheet() {
     improvements: improvements,
   });
 
+  if (hcConnected) {
+    var hcTitleBadge =
+      '<span style="font-size:var(--text-2xs);color:var(--hc);background:var(--hc-dim);' +
+      'border:1px solid var(--hc-border);border-radius:5px;padding:1px 6px;' +
+      'font-weight:700;letter-spacing:.3px;margin-left:8px;vertical-align:middle">HC</span>';
+    sheetHtml = sheetHtml.replace('Screen score</div>', 'Screen score' + hcTitleBadge + '</div>');
+
+    var hcRaw = _readHealthConnectScreenData();
+    var hasSteps = hcRaw && hcRaw.steps != null && hcRaw.steps >= 0;
+    var hcScreenRows = hasSteps
+      ? '<div style="display:flex;align-items:center;gap:10px;padding:8px 0">' +
+          '<div style="flex:1">' +
+            '<div style="font-size:var(--text-sm);font-weight:600;color:var(--t1)">Daily Steps</div>' +
+            '<div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3)">' +
+              Number(hcRaw.steps).toLocaleString() + ' steps from Health Connect' +
+            '</div>' +
+          '</div>' +
+          '<div style="font-family:var(--ff-m);font-size:var(--text-xs);font-weight:700;color:' +
+            ((hcMod.modifier || 0) >= 0 ? 'var(--g)' : 'var(--r)') + '">' +
+            ((hcMod.modifier || 0) > 0 ? '+' : '') + (hcMod.modifier || 0) + ' pts' +
+          '</div>' +
+        '</div>'
+      : '<div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);padding:10px 2px">No Health Connect screen-time activity data recorded today.</div>';
+    var hcScreenSection =
+      '<div style="margin-bottom:16px">' +
+        '<div style="display:flex;align-items:center;gap:7px;margin-bottom:10px">' +
+          '<span style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);letter-spacing:.8px">HEALTH CONNECT · ACTIVITY</span>' +
+          '<span style="font-size:var(--text-2xs);color:var(--hc);background:var(--hc-dim);border:1px solid var(--hc-border);border-radius:5px;padding:1px 5px;font-weight:600;letter-spacing:.3px">HC</span>' +
+        '</div>' +
+        '<div style="background:var(--s2);border:1px solid var(--border2);border-radius:14px;padding:4px 14px;margin-bottom:8px">' +
+          hcScreenRows +
+        '</div>' +
+      '</div>';
+    sheetHtml = sheetHtml.replace('HOW THIS IS CALCULATED', hcScreenSection + 'HOW THIS IS CALCULATED');
+  }
+
   // ── Inject HC modifier banner into sheet HTML if applicable ──────
-  if (hcMod.label) {
+  if (hcConnected && hcMod.label) {
     var bannerColor = hcMod.modifier > 0 ? 'var(--g)' : 'var(--r)';
     var bannerBg    = hcMod.modifier > 0 ? 'rgba(18,212,138,.07)' : 'rgba(240,78,122,.07)';
     var bannerBorder= hcMod.modifier > 0 ? 'rgba(18,212,138,.25)' : 'rgba(240,78,122,.25)';
@@ -375,12 +442,13 @@ function renderScreenScoreSheet() {
 function renderStatsScreenScoreRow() {
   var el = document.getElementById('stats-screen-score-row');
   if (!el) return;
-  var res   = calculateScreenScore();
-  _saveScoreForToday(_SCREEN_SCORE_KEY, res.score);
+  var screenVm = _getScreenScoreWithHealthConnect();
+  var res = screenVm.res;
+  var hcMod = screenVm.hcMod;
+  var hcConnected = screenVm.hcConnected;
+  var displayScore = screenVm.effectiveScore;
+  _saveScoreForToday(_SCREEN_SCORE_KEY, displayScore);
 
-  // HC activity modifier (spec §5.3)
-  var hcMod = typeof HealthConnect !== 'undefined' ? HealthConnect.getActivityModifier() : { modifier: 0, label: null };
-  var displayScore = Math.min(100, Math.max(0, res.score + hcMod.modifier));
   var grade = _screenScoreGrade(displayScore);
 
   var yScore   = _getYesterdayScore(_SCREEN_SCORE_KEY);
@@ -395,16 +463,17 @@ function renderStatsScreenScoreRow() {
     }
   }
 
-  // HC inline chip — shows when modifier is active
-  var hcChipHtml = hcMod.modifier !== 0
+  var hcChipHtml = hcConnected
     ? '<div style="display:flex;align-items:center;gap:4px;flex-shrink:0">'
         + '<span style="font-size:9px;color:var(--hc);background:var(--hc-dim);'
         + 'border:1px solid var(--hc-border);border-radius:4px;padding:1px 5px;'
         + 'font-weight:700;letter-spacing:.3px;font-family:var(--ff-m)">HC</span>'
-        + '<span style="font-family:var(--ff-m);font-size:10px;font-weight:600;color:'
-        + (hcMod.modifier > 0 ? 'var(--g)' : 'var(--r)') + '">'
-        + (hcMod.modifier > 0 ? '+' : '') + hcMod.modifier
-        + '</span>'
+        + ((hcMod.modifier || 0) !== 0
+          ? '<span style="font-family:var(--ff-m);font-size:10px;font-weight:600;color:'
+            + (hcMod.modifier > 0 ? 'var(--g)' : 'var(--r)') + '">'
+            + (hcMod.modifier > 0 ? '+' : '') + hcMod.modifier
+            + '</span>'
+          : '')
       + '</div>'
     : '';
 
@@ -418,19 +487,6 @@ function renderStatsScreenScoreRow() {
     + '<div style="height:100%;width:' + displayScore + '%;background:linear-gradient(90deg,var(--p),var(--c));border-radius:99px"></div>'
     + '</div>'
     + hcChipHtml
-    + '<div style="font-size:11px;font-weight:500;color:' + grade.color + ';flex-shrink:0">' + grade.label + '</div>'
-    + deltaHtml
-    + '</div>';
-
-  el.innerHTML =
-    '<div onclick="renderScreenScoreSheet()"'
-    + ' style="background:var(--s2);border:0.5px solid var(--border2);border-radius:14px;'
-    + 'padding:10px 14px;display:flex;align-items:center;gap:10px;cursor:pointer">'
-    + '<div style="font-size:11px;color:var(--t3);flex-shrink:0">SCREEN SCORE</div>'
-    + '<div style="font-size:16px;font-weight:600;color:var(--p2);flex-shrink:0">' + res.score + '</div>'
-    + '<div style="flex:1;height:3px;background:var(--border2);border-radius:99px;overflow:hidden">'
-    + '<div style="height:100%;width:' + res.score + '%;background:linear-gradient(90deg,var(--p),var(--c));border-radius:99px"></div>'
-    + '</div>'
     + '<div style="font-size:11px;font-weight:500;color:' + grade.color + ';flex-shrink:0">' + grade.label + '</div>'
     + deltaHtml
     + '</div>';

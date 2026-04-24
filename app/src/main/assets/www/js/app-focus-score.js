@@ -28,6 +28,14 @@ window.FocusScore = (function () {
   var _FOCUS_STREAK_KEY = 'focus_streak_v1';
   var _STRIP_CACHE_TTL  = 2000;
 
+  function _hcMindfulCredit(s) {
+    if (!s) return 0;
+    if (typeof s.creditPts === 'number') return Math.max(0, Math.round(s.creditPts));
+    if (typeof s.halfPts === 'number') return Math.max(0, Math.round(s.halfPts));
+    var raw = Number(s.pts || 0);
+    return Math.max(0, Math.round(raw * 0.5));
+  }
+
   /* ── Sleep score cache ─────────────────────────────────────── */
   var _sleepScoreCache   = null;
   var _sleepScoreCacheTs = 0;
@@ -47,7 +55,7 @@ window.FocusScore = (function () {
       if (typeof HealthConnect !== 'undefined' && HealthConnect.isConnected()) {
           var _hcSess = HealthConnect.getMindfulnessSessions();
           if (_hcSess.length) {
-              hcMindfulPts = _hcSess.reduce(function(sum,s){ return sum + s.pts; }, 0);
+              hcMindfulPts = _hcSess.reduce(function(sum,s){ return sum + _hcMindfulCredit(s); }, 0);
               hcActive = true;
           }
       }
@@ -87,12 +95,33 @@ window.FocusScore = (function () {
     _sleepScoreCache=result; _sleepScoreCacheTs=now; return result;
   }
 
+
+  function _getEffectiveSleepScore(res) {
+    if (!res || res.score < 0) return -1;
+    var hcSleep = null;
+    try {
+      if (typeof HealthConnect !== 'undefined' && HealthConnect.isConnected() &&
+          typeof HealthConnect.getSleepData === 'function') {
+        hcSleep = HealthConnect.getSleepData();
+      }
+    } catch (_) {}
+    if (!hcSleep) return res.score;
+    var durScore  = hcSleep.durScore  != null ? hcSleep.durScore  : 0;
+    var oHrvScore = hcSleep.oHrvScore != null ? hcSleep.oHrvScore : 0;
+    return Math.min(100, Math.max(0, Math.round(res.score * 0.60 + durScore * 0.25 + oHrvScore * 0.15)));
+  }
+
   function calculateAurelo() {
     var d         = typeof FocusTab !== 'undefined' ? FocusTab.loadStripData() : {};
     var focusRes  = calculateFocus(d);
     var sleepRes  = calculateSleep();
-    var screenScore = typeof calculateScreenScore==='function' ? calculateScreenScore().score : -1;
-    var sleepEnabled = sleepRes.score >= 0;
+    var screenScore = -1;
+    if (typeof calculateScreenScoreWithHealthConnect === 'function') {
+      try { screenScore = calculateScreenScoreWithHealthConnect().effectiveScore; } catch (_) { screenScore = -1; }
+    }
+    if (screenScore < 0 && typeof calculateScreenScore==='function') screenScore = calculateScreenScore().score;
+    var effectiveSleepScore = _getEffectiveSleepScore(sleepRes);
+    var sleepEnabled = effectiveSleepScore >= 0;
 
     // ── Health Connect Body Score (Pro feature, spec §4.1) ───────────────
     var hcBodyScore = -1, hcActive = false;
@@ -120,12 +149,12 @@ window.FocusScore = (function () {
     var parts=[], weights=[];
     if (screenScore>=0)  { parts.push(screenScore*swScreen); weights.push(swScreen); }
     if (focusRes.score>=0){ parts.push(focusRes.score*swFocus);  weights.push(swFocus); }
-    if (sleepEnabled)    { parts.push(sleepRes.score*swSleep);  weights.push(swSleep); }
+    if (sleepEnabled)    { parts.push(effectiveSleepScore*swSleep);  weights.push(swSleep); }
     if (hcActive)        { parts.push(hcBodyScore*swBody);      weights.push(swBody);  }
 
     var totalW = weights.reduce(function(a,b){return a+b;},0);
     var score  = totalW===0 ? -1 : Math.round(parts.reduce(function(a,b){return a+b;},0)/totalW);
-    return { score, screenScore, focusScore:focusRes.score, sleepScore:sleepRes.score,
+    return { score, screenScore, focusScore:focusRes.score, sleepScore:effectiveSleepScore,
              hcBodyScore, hcActive, swScreen, swFocus, swSleep, swBody, sleepEnabled };
   }
 
@@ -564,9 +593,9 @@ window.FocusScore = (function () {
       var bf=c.maxPts>0?Math.round((c.pts/c.maxPts)*100):0, cColor=bf>=70?'var(--g)':bf>=40?'var(--a)':'var(--r)';
       return '<div style="margin-bottom:16px"><div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:3px"><div style="font-size:13px;font-weight:700;color:var(--t1)">'+c.label+'</div><div style="font-family:var(--ff-m);font-size:10px;color:var(--t3)">weighted '+c.weight+'%</div></div><div style="font-family:var(--ff-m);font-size:11px;color:var(--t2);margin-bottom:6px">'+c.dataLine+'</div><div style="display:flex;align-items:center;gap:8px"><div style="flex:1;height:5px;background:var(--border);border-radius:3px;overflow:hidden"><div style="height:100%;width:'+bf+'%;background:'+cColor+';border-radius:3px;transition:width .4s"></div></div><div style="font-family:var(--ff-m);font-size:11px;font-weight:700;color:'+cColor+';flex-shrink:0">+'+c.pts+' pts</div></div></div>';
     }).join('');
-    var improvHtml=opts.improvements.length?'<div style="height:1px;background:var(--border);margin:4px 0 16px"></div><div style="font-family:var(--ff-m);font-size:10px;color:var(--t3);letter-spacing:.8px;margin-bottom:12px">HOW TO IMPROVE</div>'+opts.improvements.map(function(im){return'<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:10px"><div style="font-family:var(--ff-m);font-size:12px;color:var(--t2);flex:1;line-height:1.5">'+im.text+'</div><div style="font-family:var(--ff-m);font-size:11px;font-weight:700;color:var(--g);flex-shrink:0;white-space:nowrap">+'+im.impact+' pts</div></div>';}).join(''):'';
+    var improvHtml=(opts.improvements||[]).length?'<div style="height:1px;background:var(--border);margin:4px 0 16px"></div><div style="font-family:var(--ff-m);font-size:10px;color:var(--t3);letter-spacing:.8px;margin-bottom:12px">HOW TO IMPROVE</div>'+(opts.improvements||[]).map(function(im){return'<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:10px"><div style="font-family:var(--ff-m);font-size:12px;color:var(--t2);flex:1;line-height:1.5">'+im.text+'</div><div style="font-family:var(--ff-m);font-size:11px;font-weight:700;color:var(--g);flex-shrink:0;white-space:nowrap">+'+im.impact+' pts</div></div>';}).join(''):'';
     return '<div id="score-sheet-backdrop" role="presentation" style="position:fixed;inset:0;background:rgba(0,0,0,.62);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);z-index:9998;display:flex;align-items:flex-end;justify-content:center;opacity:0;transition:opacity .25s;pointer-events:none" onclick="if(event.target===this)FocusScore.closeScoreSheet()">'+
-      '<div id="score-sheet" role="dialog" aria-modal="true" aria-label="Score breakdown" style="width:100%;max-width:480px;background:var(--s0);border-radius:24px 24px 0 0;border:1px solid var(--border2);border-bottom:none;padding:12px 20px 44px;padding-bottom:max(44px,calc(env(safe-area-inset-bottom,0px) + 24px));box-sizing:border-box;transform:translateY(100%);transition:transform .3s cubic-bezier(.32,.72,0,1);max-height:88vh;overflow-y:auto">'+
+      '<div id="score-sheet" role="dialog" aria-modal="true" aria-label="Score breakdown" style="width:100%;max-width:480px;background:var(--s0);border-radius:24px 24px 0 0;border:1px solid var(--border2);border-bottom:none;padding:12px 20px 44px;padding-bottom:max(44px,calc(env(safe-area-inset-bottom,0px) + 24px));box-sizing:border-box;transform:translate3d(0,100%,0);backface-visibility:hidden;will-change:transform;contain:layout paint;transition:transform .3s cubic-bezier(.32,.72,0,1);max-height:88vh;overflow-y:auto">'+
       '<div style="width:40px;height:4px;background:var(--border2);border-radius:2px;margin:0 auto 18px"></div>'+
       '<div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:14px"><div>'+
         '<div style="font-family:var(--ff-d);font-size:20px;font-weight:700;color:var(--t1);letter-spacing:-.3px">'+opts.title+'</div>'+
@@ -583,7 +612,7 @@ window.FocusScore = (function () {
   function closeScoreSheet() {
     var backdrop=document.getElementById('score-sheet-backdrop'), sheet=document.getElementById('score-sheet');
     if(!backdrop) return;
-    backdrop.style.opacity='0'; if(sheet) sheet.style.transform='translateY(100%)';
+    backdrop.style.opacity='0'; if(sheet) sheet.style.transform='translate3d(0,100%,0)';
     setTimeout(function(){ backdrop&&backdrop.remove(); }, 320);
   }
 
@@ -596,7 +625,7 @@ window.FocusScore = (function () {
       if(!backdrop) return;
       void backdrop.offsetHeight; // flush pending styles
       backdrop.style.opacity='1'; backdrop.style.pointerEvents='all';
-      if(sheet) sheet.style.transform='translateY(0)';
+      if(sheet) sheet.style.transform='translate3d(0,0,0)';
     });
   }
 
@@ -630,7 +659,7 @@ window.FocusScore = (function () {
 
       // FIX 2: HC section always shown when connected (empty state if no sessions today)
       var hcSessions = HealthConnect.getMindfulnessSessions();
-      var totalHcPts = hcSessions.reduce(function(sum,s){return sum+s.pts;},0);
+      var totalHcPts = hcSessions.reduce(function(sum,s){return sum + _hcMindfulCredit(s);},0);
       var sessionRows = hcSessions.length > 0
         ? hcSessions.map(function(s){
             return '<div style="display:flex;align-items:center;gap:10px;padding:8px 0;'+
@@ -639,7 +668,7 @@ window.FocusScore = (function () {
                 '<div style="font-size:var(--text-sm);font-weight:600;color:var(--t1)">'+s.app+'</div>' +
                 '<div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3)">'+s.type+' · '+s.duration+' min</div>' +
               '</div>' +
-              '<div style="font-family:var(--ff-m);font-size:var(--text-xs);font-weight:700;color:var(--hc)">+'+s.pts+' pts</div>' +
+              '<div style="font-family:var(--ff-m);font-size:var(--text-xs);font-weight:700;color:var(--hc)">+'+_hcMindfulCredit(s)+' pts</div>' +
             '</div>';
           }).join('')
         : '<div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);padding:10px 2px">No external mindfulness sessions recorded today.</div>';
@@ -693,14 +722,26 @@ window.FocusScore = (function () {
 
   function openHabitsScoreSheet() {
     var res=calculateSleep();
-    if(res.score<0){toast('Enable Bedtime Mode to start tracking your sleep score','info');return;}
+    var cfg = typeof FocusBedtime !== 'undefined' ? FocusBedtime.getCfg() : {};
+    var bedtimeEnabled = !!(cfg.enabled || (S.settings && S.settings.bedtime));
+    if(res.score<0 && !bedtimeEnabled){toast('Enable Bedtime Mode to start tracking your sleep score','info');return;}
+    if(res.score<0 && bedtimeEnabled){
+      var noDataComponents=[
+        {label:'Bedtime Adherence',weight:50,pts:0,maxPts:50,dataLine:'No bedtime session recorded yet'},
+        {label:'Snooze Count',weight:30,pts:0,maxPts:30,dataLine:'No data'},
+        {label:'App Attempts Blocked',weight:20,pts:0,maxPts:20,dataLine:'No data'},
+      ];
+      var noDataHtml = _buildScoreSheet({title:'Sleep Score',score:-1,scoreKey:_SLEEP_SCORE_KEY,components:noDataComponents,improvements:[]});
+      _openScoreSheet(noDataHtml);
+      return;
+    }
     var ln=res.lastNight, improvements=[];
     if(res.adherePts===0) improvements.push({text:'Respect your bedtime window tonight — no manual disable',impact:50});
     if(res.snoozePts<30) improvements.push({text:'Avoid snoozing bedtime — each snooze costs 15 pts',impact:30-res.snoozePts});
     if(res.attemptPts<20) improvements.push({text:'Keep your blocked apps closed during the bedtime window',impact:20-res.attemptPts});
 
     // ── HC sleep enhancement (spec §7.1) ─────────────────────────────────
-    var hcSleep = typeof HealthConnect !== 'undefined' ? HealthConnect.getSleepData() : null;
+    var hcSleep = (typeof HealthConnect !== 'undefined' && HealthConnect.isConnected && HealthConnect.isConnected() && typeof HealthConnect.getSleepData === 'function') ? HealthConnect.getSleepData() : null;
     var effectiveScore = res.score;
     var components;
 
@@ -708,16 +749,20 @@ window.FocusScore = (function () {
       // Blended formula: Bedtime Mode 60% + HC Duration 25% + HC HRV 15%
       effectiveScore = Math.round(res.score * 0.60 + hcSleep.durScore * 0.25 + hcSleep.oHrvScore * 0.15);
       effectiveScore = Math.min(100, Math.max(0, effectiveScore));
-      var durH   = Math.floor(hcSleep.sleepDuration);
-      var durM   = Math.round((hcSleep.sleepDuration % 1) * 60);
-      var durStr = durH + 'h ' + (durM > 0 ? durM + 'm' : '');
+      var durH   = hcSleep.sleepDuration != null ? Math.floor(hcSleep.sleepDuration) : null;
+      var durM   = hcSleep.sleepDuration != null ? Math.round((hcSleep.sleepDuration % 1) * 60) : null;
+      var durStr = durH != null
+        ? (durH + 'h' + (durM > 0 ? ' ' + durM + 'm' : ''))
+        : 'No data';
       components=[
         {label:'Bedtime Mode',weight:60,pts:Math.round(res.score*0.60),maxPts:60,
           dataLine:(ln&&ln.hasData?(ln.bedtimeKept?'Bedtime kept ✓':'Bedtime missed'):'No data')},
         {label:'Sleep Duration',weight:25,pts:Math.round(hcSleep.durScore*0.25),maxPts:25,
           dataLine:durStr+' · goal: 7–9 hours'},
         {label:'Overnight HRV',weight:15,pts:Math.round(hcSleep.oHrvScore*0.15),maxPts:15,
-          dataLine:hcSleep.overnightHrv+'ms overnight · avg '+hcSleep.avgOHrv+'ms'},
+          dataLine:(hcSleep.overnightHrv != null ? hcSleep.overnightHrv + 'ms' : 'No data')
+            + ' overnight · avg '
+            + (hcSleep.avgOHrv != null ? hcSleep.avgOHrv + 'ms' : '–')},
       ];
     } else {
       components=[

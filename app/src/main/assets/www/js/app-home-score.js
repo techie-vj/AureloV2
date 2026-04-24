@@ -9,6 +9,26 @@
 /* ═══════════════════════════════════════════════════
  * AURELO SCORE — composite Screen + Focus + Sleep metric
  * ═══════════════════════════════════════════════════ */
+/* v11: critical Aurelo Score styles are injected by the renderer as a fallback.
+ * The same selectors also live in app.css. This prevents an unstyled score card
+ * if Android WebView serves an older cached app.css or CSS bundle order changes.
+ * All colors/fonts come from app theme variables. */
+function _ensureAureloScoreStyles() {
+  if (document.getElementById('aurelo-score-critical-css')) return;
+  var st = document.createElement('style');
+  st.id = 'aurelo-score-critical-css';
+  st.textContent = `
+:root{--aurelo-home-card-bg:var(--aurelo-home-card-bg,linear-gradient(135deg,var(--s1),var(--s2)));--aurelo-home-card-border:var(--aurelo-home-card-border,var(--border));--aurelo-home-card-shadow:var(--aurelo-home-card-shadow,0 10px 28px rgba(0,0,0,.18));--aurelo-home-accent:var(--aurelo-home-accent,var(--p));--aurelo-home-accent-2:var(--aurelo-home-accent-2,var(--c));--aurelo-home-muted:var(--aurelo-home-muted,var(--t3));--aurelo-home-hc-text:var(--aurelo-home-hc-text,var(--c));--aurelo-home-hc-bg:var(--aurelo-home-hc-bg,var(--s2));--aurelo-home-hc-border:var(--aurelo-home-hc-border,var(--border2));--aurelo-home-chip-text:var(--aurelo-home-chip-text,var(--p2));--aurelo-score-card-bg:var(--aurelo-score-card-bg,var(--aurelo-home-card-bg));--aurelo-score-card-border:var(--aurelo-score-card-border,var(--aurelo-home-card-border));--aurelo-score-card-shadow:var(--aurelo-score-card-shadow,var(--aurelo-home-card-shadow));--aurelo-score-ring-track:var(--aurelo-score-ring-track,var(--border2));--aurelo-score-ring-start:var(--aurelo-score-ring-start,var(--aurelo-home-accent));--aurelo-score-ring-end:var(--aurelo-score-ring-end,var(--aurelo-home-accent-2));--aurelo-score-glow:var(--aurelo-score-glow,var(--aurelo-home-hc-bg));--aurelo-score-tile-bg:var(--aurelo-score-tile-bg,var(--s2));--aurelo-score-tile-border:var(--aurelo-score-tile-border,var(--border2));--aurelo-score-tile-muted:var(--aurelo-score-tile-muted,var(--aurelo-home-muted));--aurelo-score-title:var(--aurelo-score-title,var(--t1));--aurelo-score-subtitle:var(--aurelo-score-subtitle,var(--t3))}
+#home-aurelo-score{box-sizing:border-box}#home-aurelo-score *,.aurelo-score-sheet-backdrop *,#aurelo-score-sheet *{box-sizing:border-box}
+.aurelo-score-card{width:100%;border-radius:20px;padding:16px;border:1px solid var(--aurelo-score-card-border);cursor:pointer;position:relative;overflow:hidden;background:var(--aurelo-score-card-bg);box-shadow:var(--aurelo-score-card-shadow);color:var(--aurelo-score-title)}
+.aurelo-score-card::after{content:'';position:absolute;top:-34px;right:-26px;width:118px;height:118px;border-radius:50%;background:var(--aurelo-score-glow);opacity:.7;pointer-events:none}
+.aurelo-score-head{display:flex;align-items:center;gap:14px;margin-bottom:14px;position:relative;z-index:1}.aurelo-score-ring-wrap{position:relative;width:76px;height:76px;min-width:76px;min-height:76px;flex:0 0 76px}.aurelo-score-ring-wrap svg{display:block;width:76px;height:76px}.aurelo-score-ring-track{stroke:var(--aurelo-score-ring-track)}.aurelo-score-ring-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;pointer-events:none}.aurelo-score-number{font-family:var(--ff-d);font-size:22px;font-weight:800;color:var(--aurelo-score-title);line-height:1}.aurelo-score-ring-label{font-family:var(--ff-m);font-size:8px;color:var(--aurelo-home-hc-text);text-transform:uppercase;letter-spacing:.55px;margin-top:2px;line-height:1}.aurelo-score-copy{flex:1;min-width:0}.aurelo-score-kicker{font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--aurelo-score-subtitle);text-transform:uppercase;letter-spacing:1px;margin-bottom:2px;line-height:1.25}.aurelo-score-grade{font-family:var(--ff-d);font-size:20px;font-weight:600;color:var(--aurelo-score-title);margin-bottom:3px;line-height:1.15}.aurelo-score-meta{display:flex;align-items:center;gap:6px;font-family:var(--ff-m);font-size:11px;color:var(--aurelo-score-subtitle);line-height:1.25;flex-wrap:wrap}.aurelo-score-hc-text{color:var(--aurelo-home-hc-text);font-weight:700}.aurelo-score-dot{color:var(--aurelo-score-subtitle)}
+.aurelo-pillars-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;position:relative;z-index:1}.aurelo-pillar-tile{background:var(--aurelo-score-tile-bg);border:1px solid var(--aurelo-score-tile-border);border-radius:10px;padding:9px 8px;cursor:pointer;min-height:50px;display:flex;flex-direction:column;justify-content:center;overflow:hidden}.aurelo-pillar-tile.is-dashed{border-style:dashed}.aurelo-pillar-tile.is-hc{background:var(--aurelo-home-hc-bg);border-color:var(--aurelo-home-hc-border)}.aurelo-pillar-tile.is-empty{opacity:.82}.aurelo-pillar-head{display:flex;align-items:center;gap:4px;margin-bottom:3px;min-width:0;flex-wrap:wrap}.aurelo-pillar-label{font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--aurelo-score-tile-muted);letter-spacing:.5px;line-height:1.1;text-transform:uppercase}.aurelo-pillar-value{font-family:var(--ff-m);font-size:var(--text-xs);font-weight:700;line-height:1.2;word-break:break-word}.aurelo-pillar-sub{font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--aurelo-score-tile-muted);margin-top:2px;line-height:1.25}.aurelo-hc-badge{font-family:var(--ff-m);font-size:8px;color:var(--aurelo-home-hc-text);background:var(--aurelo-home-hc-bg);border:1px solid var(--aurelo-home-hc-border);border-radius:4px;padding:1px 4px;font-weight:600;letter-spacing:.3px;line-height:1.2;display:inline-flex;align-items:center}.aurelo-pillar-lock{display:flex;align-items:center;gap:4px;color:var(--aurelo-home-chip-text);font-family:var(--ff-m);font-size:var(--text-2xs);font-weight:700;line-height:1.2}
+.aurelo-score-sheet-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:90;display:flex;align-items:flex-end;justify-content:center;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}#aurelo-score-sheet{width:100%;max-height:88vh;overflow-y:auto;background:var(--s0);border-radius:24px 24px 0 0;border:1px solid var(--border2);border-bottom:0;padding:0 16px 24px;color:var(--t1);font-family:var(--ff-b);box-shadow:0 -16px 40px rgba(0,0,0,.35)}.aurelo-sheet-handle{width:40px;height:4px;border-radius:999px;background:var(--border2);margin:12px auto 14px}.aurelo-sheet-hero{display:flex;align-items:flex-start;gap:12px;margin-bottom:14px}.aurelo-sheet-hero-copy{flex:1;min-width:0}.aurelo-sheet-title{font-family:var(--ff-d);font-size:var(--text-xl);font-weight:600;color:var(--t1);line-height:1.15}.aurelo-sheet-subtitle{font-family:var(--ff-m);font-size:var(--text-xs);color:var(--t3);margin-top:3px;line-height:1.4}.aurelo-sheet-total{text-align:right;flex-shrink:0}.aurelo-sheet-total-number{font-family:var(--ff-d);font-size:32px;font-weight:800;line-height:1;color:var(--t1)}.aurelo-sheet-total-grade{font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);margin-top:2px}.aurelo-sheet-pillars{display:flex;flex-direction:column;gap:10px}.aurelo-sheet-pillar{background:var(--s2);border:1px solid var(--border2);border-radius:14px;padding:12px}.aurelo-sheet-pillar.is-hc{background:var(--aurelo-home-hc-bg);border-color:var(--aurelo-home-hc-border)}.aurelo-sheet-pillar-row{display:flex;align-items:center;gap:10px}.aurelo-sheet-pillar-icon{font-size:16px;flex-shrink:0}.aurelo-sheet-pillar-copy{flex:1;min-width:0}.aurelo-sheet-pillar-title{font-family:var(--ff-m);font-size:var(--text-sm);font-weight:700;color:var(--t1);display:flex;align-items:center;gap:6px;flex-wrap:wrap}.aurelo-sheet-pillar-desc{font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);margin-top:2px;line-height:1.4}.aurelo-sheet-pillar-score{text-align:right;flex-shrink:0}.aurelo-sheet-pillar-number{font-family:var(--ff-d);font-size:20px;font-weight:700;line-height:1;color:var(--t1)}.aurelo-sheet-pillar-weight{font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);margin-top:2px}.aurelo-sheet-hc-badge{font-family:var(--ff-m);font-size:8px;color:var(--aurelo-home-hc-text);background:var(--aurelo-home-hc-bg);border:1px solid var(--aurelo-home-hc-border);border-radius:999px;padding:1px 6px;font-weight:700;letter-spacing:.4px}.aurelo-sheet-bar{height:5px;background:var(--border2);border-radius:999px;overflow:hidden;margin-top:9px}.aurelo-sheet-bar-fill{height:100%;border-radius:999px;background:linear-gradient(90deg,var(--aurelo-score-ring-start),var(--aurelo-score-ring-end))}.aurelo-sheet-empty{font-family:var(--ff-m);font-size:var(--text-xs);color:var(--t3);margin-top:9px;line-height:1.45}.aurelo-sheet-tips{background:rgba(247,166,35,.07);border:1px solid rgba(247,166,35,.22);border-radius:14px;padding:12px;margin-top:12px}.aurelo-sheet-tips-title{font-family:var(--ff-m);font-size:var(--text-xs);font-weight:700;color:var(--a);margin-bottom:6px}.aurelo-sheet-tip{font-family:var(--ff-m);font-size:var(--text-xs);color:var(--t2);line-height:1.45;margin-top:4px}
+`;
+  document.head.appendChild(st);
+}
+
 
 function _calcScreenScore(todayMins, goalMins) {
   if (!goalMins || goalMins <= 0) return -1;
@@ -97,114 +117,116 @@ function _getAureloScoreData() {
         lastNight = JSON.parse(N.getBedtimeLastNightStats() || '{}');
     } catch(_){}
   }
-  const sScreen = (typeof calculateScreenScore === 'function')
-    ? calculateScreenScore().score : _calcScreenScore(TODAY_MINS, goalMins);
-  const sSleep = typeof calculateSleepScore === 'function' ? calculateSleepScore().score : _calcSleepScore(bedEnabled, bedStreak, lastNight);
+  const sScreen = (typeof calculateScreenScoreWithHealthConnect === 'function')
+    ? calculateScreenScoreWithHealthConnect().effectiveScore
+    : ((typeof calculateScreenScore === 'function') ? calculateScreenScore().score : _calcScreenScore(TODAY_MINS, goalMins));
+  let sSleep = typeof calculateSleepScore === 'function' ? calculateSleepScore().score : _calcSleepScore(bedEnabled, bedStreak, lastNight);
+  try {
+    if (sSleep >= 0 && typeof HealthConnect !== 'undefined' && HealthConnect.isConnected && HealthConnect.isConnected() &&
+        typeof HealthConnect.getSleepData === 'function') {
+      const hcSleep = HealthConnect.getSleepData();
+      if (hcSleep) sSleep = Math.min(100, Math.max(0, Math.round(sSleep * 0.60 + (hcSleep.durScore || 0) * 0.25 + (hcSleep.oHrvScore || 0) * 0.15)));
+    }
+  } catch (_) {}
   const score    = _calcAureloScore(sScreen, fScore, sSleep);
   return { goalMins, focusD, sScreen, sFocus: fScore, sSleep, score,
            bedEnabled, bedStreak, lastNight };
 }
 
+function _isAureloSleepConfigured() {
+  try {
+    if (typeof FocusBedtime !== 'undefined' && FocusBedtime.getCfg) {
+      var cfg = FocusBedtime.getCfg() || {};
+      if (cfg.enabled !== undefined) return !!cfg.enabled;
+    }
+  } catch (_) {}
+  try { return !!(S && S.settings && S.settings.bedtime); } catch (_) { return false; }
+}
+
 function renderAureloScore() {
+  _ensureAureloScoreStyles();
   const el = document.getElementById('home-aurelo-score');
   if (!el) return;
 
-  // calculateAureloScore lives in app-focus.js — fall back gracefully if focus tab not loaded yet
-  const aureloRes = typeof calculateAureloScore === 'function'
-    ? calculateAureloScore()
-    : null;
+  const aureloRes = typeof calculateAureloScore === 'function' ? calculateAureloScore() : null;
   if (!aureloRes || aureloRes.score < 0) { el.style.display = 'none'; return; }
   el.style.display = '';
 
-  // Persist today's Aurelo Score for the home screen widget to read
   if (IS_NATIVE && typeof N.setStringPref === 'function') {
     var _aureloToday = new Date().toISOString().slice(0, 10);
-    N.setStringPref('cached_tidy_score',      String(aureloRes.score));
+    N.setStringPref('cached_tidy_score', String(aureloRes.score));
     N.setStringPref('cached_tidy_score_date', _aureloToday);
   }
 
   const { score: score, screenScore: sScreen, focusScore: sFocus, sleepScore: sSleep,
           swScreen, swFocus, swSleep, hcBodyScore, hcActive } = aureloRes;
 
-  const grade    = _aureloGrade(score);
-  const gradeCol = _aureloColor(score);
-  const isPro    = typeof ProTier !== 'undefined' && ProTier.isPro;
-  const hcConn   = typeof HealthConnect !== 'undefined' && HealthConnect.isConnected();
+  const grade  = _aureloGrade(score);
+  const isPro  = typeof ProTier !== 'undefined' && ProTier.isPro;
+  const hcConn = typeof HealthConnect !== 'undefined' && HealthConnect.isConnected();
+  const sleepConfigured = _isAureloSleepConfigured();
+
+  function _hcBadgeHtml(show) { return show ? '<span class="aurelo-hc-badge">HC</span>' : ''; }
 
   const pillars = [
-    { key:'screen', label:'SCREEN', score:sScreen, color:'var(--p2)',  tap:'_onAureloPillarTap(\'screen\')', wt:swScreen },
-    { key:'focus',  label:'FOCUS',  score:sFocus,  color:'var(--c)',   tap:'_onAureloPillarTap(\'focus\')',  wt:swFocus  },
-    { key:'sleep',  label:'SLEEP',  score:sSleep,  color:'var(--pu)',  tap:'_onAureloPillarTap(\'sleep\')',  wt:swSleep  },
-  ].filter(p => p.wt > 0);
+    { key:'screen', label:'SCREEN', score:sScreen, color:'var(--p2)', tap:"_onAureloPillarTap('screen')", wt:swScreen, hcBadge:hcConn },
+    { key:'focus',  label:'FOCUS',  score:sFocus,  color:'var(--c)',  tap:"_onAureloPillarTap('focus')",  wt:swFocus,  hcBadge:hcConn && hcActive },
+    { key:'sleep',  label:'SLEEP',  score:sSleep,  color:'var(--pu)', tap:"_onAureloPillarTap('sleep')",  wt:swSleep,  hcBadge:hcConn, keepVisible:sleepConfigured, emptyLabel:'No data', emptySub:'No sleep session yet' },
+  ].filter(function (p) { return p.wt > 0 || p.keepVisible; });
 
-  const regularPillarsHtml = pillars.map(p => {
-    const disp = p.score >= 0 ? p.score : '–';
-    const col  = p.score >= 0 ? p.color : 'var(--t3)';
-    return `<div onclick="event.stopPropagation();${p.tap}"
-      role="button" tabindex="0" style="flex:1;background:rgba(255,255,255,.04);border-radius:8px;padding:8px 7px;cursor:pointer;min-height:44px;display:flex;flex-direction:column;justify-content:center;">
-      <div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);letter-spacing:.5px;margin-bottom:2px">${p.label}</div>
-      <div style="font-family:var(--ff-m);font-size:var(--text-2xs);font-weight:600;color:${col}">${disp}</div>
-    </div>`;
+  const regularPillarsHtml = pillars.map(function (p) {
+    const noData = p.score < 0;
+    const disp = noData ? (p.emptyLabel || 'No data') : p.score;
+    const col  = noData ? 'var(--t3)' : p.color;
+    const sub  = noData && p.emptySub ? '<div class="aurelo-pillar-sub">' + p.emptySub + '</div>' : '';
+    const emptyClass = noData ? ' is-empty' : '';
+    return '<div class="aurelo-pillar-tile' + emptyClass + '" onclick="event.stopPropagation();' + p.tap + '" role="button" tabindex="0">' +
+      '<div class="aurelo-pillar-head"><div class="aurelo-pillar-label">' + p.label + '</div>' + _hcBadgeHtml(p.hcBadge) + '</div>' +
+      '<div class="aurelo-pillar-value" style="color:' + col + '">' + disp + '</div>' + sub +
+    '</div>';
   }).join('');
 
-  // ── Body pillar tile — always rendered; state: locked / connect / active ──
   let bodyTileHtml;
   if (!isPro) {
-    // Free user: show lock prompt → pro upsell
-    bodyTileHtml = `<div onclick="event.stopPropagation();_onAureloPillarTap('body')"
-      role="button" tabindex="0"
-      style="flex:1;border:1px dashed rgba(108,99,255,.35);border-radius:8px;padding:8px 7px;
-             cursor:pointer;min-height:44px;display:flex;flex-direction:column;justify-content:center;
-             background:rgba(108,99,255,.04);">
-      <div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);letter-spacing:.5px;margin-bottom:3px">BODY</div>
-      <div style="display:flex;align-items:center;gap:3px">
-        <svg width="10" height="10" viewBox="0 0 14 14" fill="none"><rect x="2" y="6" width="10" height="7" rx="1.5" stroke="var(--p2)" stroke-width="1.2"/><path d="M4.5 6V4a2.5 2.5 0 015 0v2" stroke="var(--p2)" stroke-width="1.2" stroke-linecap="round"/></svg>
-        <span style="font-family:var(--ff-m);font-size:var(--text-2xs);font-weight:600;color:var(--p2)">Pro</span>
-      </div>
-    </div>`;
+    bodyTileHtml = '<div class="aurelo-pillar-tile is-dashed" onclick="event.stopPropagation();_onAureloPillarTap(\'body\')" role="button" tabindex="0">' +
+      '<div class="aurelo-pillar-label">BODY</div>' +
+      '<div class="aurelo-pillar-lock"><svg width="10" height="10" viewBox="0 0 14 14" fill="none" aria-hidden="true"><rect x="2" y="6" width="10" height="7" rx="1.5" stroke="currentColor" stroke-width="1.2"/><path d="M4.5 6V4a2.5 2.5 0 015 0v2" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg><span>Pro</span></div>' +
+    '</div>';
   } else if (!hcConn) {
-    // Pro, HC not connected: invite to connect
-    bodyTileHtml = `<div onclick="event.stopPropagation();_onAureloPillarTap('body')"
-      role="button" tabindex="0"
-      style="flex:1;border:1px dashed var(--hc-border);border-radius:8px;padding:8px 7px;
-             cursor:pointer;min-height:44px;display:flex;flex-direction:column;justify-content:center;
-             background:var(--hc-dim);">
-      <div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);letter-spacing:.5px;margin-bottom:3px">BODY</div>
-      <div style="font-family:var(--ff-m);font-size:var(--text-2xs);font-weight:600;color:var(--hc)">Connect →</div>
-    </div>`;
+    bodyTileHtml = '<div class="aurelo-pillar-tile is-dashed is-hc" onclick="event.stopPropagation();_onAureloPillarTap(\'body\')" role="button" tabindex="0">' +
+      '<div class="aurelo-pillar-label">BODY</div>' +
+      '<div class="aurelo-pillar-value" style="color:var(--aurelo-home-hc-text)">Connect →</div>' +
+    '</div>';
   } else {
-    // Pro + HC connected: show body score
     const bDisp  = (hcBodyScore != null && hcBodyScore >= 0) ? hcBodyScore : '–';
-    const bColor = (hcBodyScore != null && hcBodyScore >= 70) ? 'var(--g)' : (hcBodyScore >= 50 ? 'var(--a)' : 'var(--hc)');
-    bodyTileHtml = `<div onclick="event.stopPropagation();_onAureloPillarTap('body')"
-      role="button" tabindex="0"
-      style="flex:1;background:rgba(255,255,255,.04);border-radius:8px;padding:8px 7px;
-             cursor:pointer;min-height:44px;display:flex;flex-direction:column;justify-content:center;
-             border:1px solid var(--hc-border);">
-      <div style="display:flex;align-items:center;gap:3px;margin-bottom:2px">
-        <div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);letter-spacing:.5px">BODY</div>
-        <div style="font-size:8px;color:var(--hc);background:var(--hc-dim);border:1px solid var(--hc-border);
-                    border-radius:4px;padding:1px 4px;font-weight:600;letter-spacing:.3px;line-height:1.4">HC</div>
-      </div>
-      <div style="font-family:var(--ff-m);font-size:var(--text-2xs);font-weight:600;color:${bColor}">${bDisp}</div>
-    </div>`;
+    const bColor = (hcBodyScore != null && hcBodyScore >= 70) ? 'var(--g)' : (hcBodyScore >= 50 ? 'var(--a)' : 'var(--aurelo-home-hc-text)');
+    bodyTileHtml = '<div class="aurelo-pillar-tile is-hc" onclick="event.stopPropagation();_onAureloPillarTap(\'body\')" role="button" tabindex="0">' +
+      '<div class="aurelo-pillar-head"><div class="aurelo-pillar-label">BODY</div><span class="aurelo-hc-badge">HC</span></div>' +
+      '<div class="aurelo-pillar-value" style="color:' + bColor + '">' + bDisp + '</div>' +
+    '</div>';
   }
 
-  el.innerHTML = `
-    <div style="background:rgba(108,99,255,.10);border:1px solid rgba(108,99,255,.22);
-                border-radius:12px;padding:9px 11px;margin-top:10px">
-      <div onclick="event.stopPropagation();_onAureloScoreRowTap()"
-           role="button" tabindex="0"
-           style="display:flex;align-items:center;gap:10px;cursor:pointer;min-height:44px">
-        <span style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--p2);letter-spacing:.5px;flex-shrink:0">AURELO SCORE</span>
-        <span style="font-family:var(--ff-d);font-size:18px;font-weight:600;color:var(--t1);flex-shrink:0;line-height:1">${score}</span>
-        <div style="flex:1;height:4px;background:rgba(255,255,255,.08);border-radius:99px;overflow:hidden">
-          <div style="height:100%;width:${score}%;background:linear-gradient(90deg,var(--p),var(--c));border-radius:99px"></div>
-        </div>
-        <span style="font-family:var(--ff-m);font-size:var(--text-2xs);font-weight:600;color:${gradeCol};flex-shrink:0">${grade}</span>
-      </div>
-      <div style="display:flex;gap:5px;margin-top:7px">${regularPillarsHtml}${bodyTileHtml}</div>
-    </div>`;
+  const _scorePct = Math.max(0, Math.min(100, score || 0));
+  const _ringCirc = 201.1;
+  const _ringOffset = _ringCirc - (_ringCirc * _scorePct / 100);
+  const _hcLine = hcConn
+    ? '<span class="aurelo-score-hc-text">HC enhanced</span><span class="aurelo-score-dot">·</span><span>Updated just now</span>'
+    : '<span>Updated just now</span>';
+
+  el.innerHTML = '<div class="aurelo-score-card" onclick="event.stopPropagation();_onAureloScoreRowTap()" role="button" tabindex="0">' +
+      '<div class="aurelo-score-head">' +
+        '<div class="aurelo-score-ring-wrap">' +
+          '<svg viewBox="0 0 76 76" width="76" height="76" aria-hidden="true">' +
+            '<defs><linearGradient id="aureloHomeRing" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="var(--aurelo-score-ring-start)"/><stop offset="100%" stop-color="var(--aurelo-score-ring-end)"/></linearGradient></defs>' +
+            '<circle class="aurelo-score-ring-track" cx="38" cy="38" r="32" fill="none" stroke-width="5"/>' +
+            '<circle cx="38" cy="38" r="32" fill="none" stroke="url(#aureloHomeRing)" stroke-width="5" stroke-linecap="round" stroke-dasharray="' + _ringCirc + '" stroke-dashoffset="' + _ringOffset + '" transform="rotate(-90 38 38)"/>' +
+          '</svg>' +
+          '<div class="aurelo-score-ring-center"><div class="aurelo-score-number">' + score + '</div><div class="aurelo-score-ring-label">Score</div></div>' +
+        '</div>' +
+        '<div class="aurelo-score-copy"><div class="aurelo-score-kicker">Aurelo Score</div><div class="aurelo-score-grade">' + grade + '</div><div class="aurelo-score-meta">' + _hcLine + '</div></div>' +
+      '</div>' +
+      '<div class="aurelo-pillars-grid">' + regularPillarsHtml + bodyTileHtml + '</div>' +
+    '</div>';
 }
 
 function _onAureloScoreRowTap() {
@@ -241,6 +263,7 @@ function _onAureloPillarTap(pillar) {
 }
 
 function _showAureloScoreSheet(focusPillar) {
+  _ensureAureloScoreStyles();
   document.getElementById('aurelo-score-sheet-backdrop')?.remove();
 
   // ── Step 1: get scores from the canonical source (same as home card)
@@ -256,7 +279,7 @@ function _showAureloScoreSheet(focusPillar) {
     const goalMins = S.streakGoalMins || 240;
     const focusD   = typeof _loadStripData === 'function' ? _loadStripData() : {};
 
-    const bedEnabled  = !!(S.settings && S.settings.bedtime);
+    const bedEnabled  = _isAureloSleepConfigured();
     let bedStreak = 0, lastNight = null;
     if (IS_NATIVE) {
       try { bedStreak = (JSON.parse(N.getBedtimeStreak() || '{}') || {}).streak || 0; } catch(_){}
@@ -284,7 +307,7 @@ function _showAureloScoreSheet(focusPillar) {
 
   const pillars = [
     {
-      key:'screen', label:'Screen Time', icon:'📱', score:sScreen, color:'var(--p2)', weight:wScreen,
+      key:'screen', label:'Screen Time', icon:'📱', score:sScreen, color:'var(--p2)', weight:wScreen, hcBadge:_hcConnSheet,
       desc: sScreen >= 0
         ? (TODAY_MINS > goalMins
             ? `${fmtM(TODAY_MINS - goalMins)} over your ${fmtM(goalMins)} goal`
@@ -293,7 +316,7 @@ function _showAureloScoreSheet(focusPillar) {
     },
     {
       key:'focus', label:'Focus', icon:'🎯', score:sFocus, color:'var(--c)', weight:wFocus,
-      hcBadge: _hcConnSheet && _mindfulSessions.length > 0,
+      hcBadge: _hcConnSheet,
       desc: (() => {
         const parts = [];
         if (focusD.total > 0)
@@ -306,7 +329,7 @@ function _showAureloScoreSheet(focusPillar) {
       })(),
     },
     {
-      key:'sleep', label:'Sleep', icon:'🌙', score:sSleep, color:'var(--pu)', weight:wSleep,
+      key:'sleep', label:'Sleep', icon:'🌙', score:sSleep, color:'var(--pu)', weight:wSleep, hcBadge:_hcConnSheet,
       desc: !bedEnabled
         ? 'Bedtime mode off'
         : (lastNight && lastNight.hasData
@@ -317,7 +340,7 @@ function _showAureloScoreSheet(focusPillar) {
               + (lastNight.appAttemptsTotal > 0
                   ? ` · ${lastNight.appAttemptsTotal} app attempt${lastNight.appAttemptsTotal > 1 ? 's' : ''}`
                   : '')
-            : `${bedStreak}-night streak`),
+            : 'No sleep session yet'),
     },
   ];
 
@@ -389,7 +412,7 @@ function _showAureloScoreSheet(focusPillar) {
            style="width:100%;max-width:480px;background:var(--s0);border-radius:24px 24px 0 0;
                   border:1px solid var(--border2);border-bottom:none;
                   padding:12px 20px 44px;padding-bottom:max(44px,calc(env(safe-area-inset-bottom,0px) + 24px));
-                  box-sizing:border-box;transform:translateY(100%);
+                  box-sizing:border-box;transform:translate3d(0,100%,0);backface-visibility:hidden;will-change:transform;contain:layout paint;
                   transition:transform .3s cubic-bezier(.32,.72,0,1);
                   max-height:88vh;overflow-y:auto">
         <div style="width:40px;height:4px;background:var(--border2);border-radius:2px;margin:0 auto 18px"></div>
@@ -407,11 +430,11 @@ function _showAureloScoreSheet(focusPillar) {
         ${tipsHtml}
         <div style="display:flex;gap:8px;margin-top:4px">
           <button type="button" onclick="shareCard('aurelo');_closeAureloScoreSheet()"
-                  type="button" style="flex:1;padding:14px;border-radius:14px;background:rgba(108,99,255,.12);
+                  style="flex:1;padding:14px;border-radius:14px;background:rgba(108,99,255,.12);
                          border:1px solid rgba(108,99,255,.30);color:var(--p2);
                          font-family:var(--ff-m);font-size:var(--text-sm);font-weight:600;cursor:pointer">📤 Share</button>
           <button type="button" onclick="_closeAureloScoreSheet()"
-                  type="button" style="flex:1;padding:14px;border-radius:14px;background:var(--s2);
+                  style="flex:1;padding:14px;border-radius:14px;background:var(--s2);
                          border:1px solid var(--border2);color:var(--t2);
                          font-family:var(--ff-m);font-size:var(--text-sm);font-weight:600;cursor:pointer">Close</button>
         </div>
@@ -431,7 +454,7 @@ function _showAureloScoreSheet(focusPillar) {
     void backdrop.offsetHeight; // force layout flush
     backdrop.style.opacity       = '1';
     backdrop.style.pointerEvents = 'all';
-    if (sheet) sheet.style.transform = 'translateY(0)';
+    if (sheet) sheet.style.transform = 'translate3d(0,0,0)';
   });
 }
 
@@ -440,7 +463,7 @@ function _closeAureloScoreSheet() {
   const sheet    = document.getElementById('aurelo-score-sheet');
   if (!backdrop) return;
   backdrop.style.opacity = '0';
-  if (sheet) sheet.style.transform = 'translateY(100%)';
+  if (sheet) sheet.style.transform = 'translate3d(0,100%,0)';
   setTimeout(() => backdrop?.remove(), 320);
 }
 
@@ -531,7 +554,7 @@ function _showBodyScoreSheet() {
            style="width:100%;max-width:480px;background:var(--s0);border-radius:24px 24px 0 0;
                   border:1px solid var(--border2);border-bottom:none;
                   padding:12px 20px 44px;padding-bottom:max(44px,calc(env(safe-area-inset-bottom,0px)+24px));
-                  box-sizing:border-box;transform:translateY(100%);
+                  box-sizing:border-box;transform:translate3d(0,100%,0);backface-visibility:hidden;will-change:transform;contain:layout paint;
                   transition:transform .3s cubic-bezier(.32,.72,0,1);max-height:88vh;overflow-y:auto">
         <div style="width:40px;height:4px;background:var(--border2);border-radius:2px;margin:0 auto 18px"></div>
         <div style="display:flex;align-items:center;gap:12px;margin-bottom:6px">
@@ -577,7 +600,7 @@ function _showBodyScoreSheet() {
     void backdrop.offsetHeight;
     backdrop.style.opacity       = '1';
     backdrop.style.pointerEvents = 'all';
-    if (sheet) sheet.style.transform = 'translateY(0)';
+    if (sheet) sheet.style.transform = 'translate3d(0,0,0)';
   });
 }
 
@@ -586,6 +609,6 @@ function _closeBodyScoreSheet() {
   const sheet    = document.getElementById('body-score-sheet');
   if (!backdrop) return;
   backdrop.style.opacity = '0';
-  if (sheet) sheet.style.transform = 'translateY(100%)';
+  if (sheet) sheet.style.transform = 'translate3d(0,100%,0)';
   setTimeout(() => backdrop?.remove(), 320);
 }

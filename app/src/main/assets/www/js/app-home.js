@@ -22,11 +22,11 @@
   }
 })();
 
-/* ═══ QUICK STATS + HOME ARC ═════════════════════════ */
+/* ═══ QUICK STATS + HOME PROGRESS STRIP ══════════════ */
 // Cache streak so we don't call into Kotlin on every 30s tick
 let _cachedStreak = 0, _streakTs = 0;
 
-// Arc path length: half-circle r=85 → π×85 ≈ 266.9
+// Legacy arc length retained for backward compatibility if any old markup remains.
 const _ARC_LEN = Math.PI * 85;
 
 function renderQuickStats(){
@@ -80,30 +80,32 @@ function renderQuickStats(){
     statusWrapEl.childNodes[0].textContent = icon + ' ';
   }
 
-  // ── Arc fill ──────────────────────────────────────────
+  // ── Progress strip fill ───────────────────────────────
   const arcEl = document.getElementById('home-arc-fill');
   const barEl = document.getElementById('home-goal-fill');
   const pctEl = document.getElementById('home-goal-pct');
   const lblEl = document.getElementById('home-goal-label');
-  if(arcEl){
+  {
     const rawPct   = goalMins > 0 ? TODAY_MINS / goalMins : 0;
     const fillPct  = Math.min(rawPct, 1);
     const filled   = fillPct * _ARC_LEN;
-    const arcColor = rawPct > 1   ? 'var(--r)'
+    const accent   = rawPct > 1   ? 'var(--r)'
                    : rawPct >= 1  ? 'var(--a)'
                    : rawPct >= .8 ? 'var(--c)'
                    : 'var(--p)';
-    arcEl.setAttribute('stroke', arcColor);
-    arcEl.setAttribute('stroke-dasharray', filled + ' 999');
+    if(arcEl){
+      arcEl.setAttribute('stroke', accent);
+      arcEl.setAttribute('stroke-dasharray', filled + ' 999');
+    }
     if(barEl){
       barEl.style.width      = Math.min(rawPct * 100, 100) + '%';
-      barEl.style.background = arcColor;
+      barEl.style.background = accent;
     }
     if(pctEl) pctEl.textContent = Math.round(rawPct * 100) + '%';
     if(lblEl){
       if(rawPct > 1)       lblEl.textContent = 'of ' + fmtM(goalMins) + ' goal · ' + fmtM(TODAY_MINS - goalMins) + ' over';
-      else if(rawPct >= .9)lblEl.textContent = 'of ' + fmtM(goalMins) + ' goal · almost there!';
-      else                 lblEl.textContent = 'of ' + fmtM(goalMins) + ' goal · tap for details →';
+      else if(rawPct >= .9)lblEl.textContent = 'of ' + fmtM(goalMins) + ' goal · almost there';
+      else                 lblEl.textContent = 'of ' + fmtM(goalMins) + ' goal · tap for details';
     }
   }
 
@@ -223,21 +225,32 @@ function renderInsightBanner(){
   if(iconEl)  iconEl.textContent  = data.icon;
   if(titleEl) titleEl.textContent = data.title;
   if(bodyEl)  bodyEl.textContent  = data.body;
+
+  // Accessibility/UX: the whole card is the action target instead of a small CTA.
+  // This keeps the touch target large, fixes mid-card CTA alignment, and gives
+  // keyboard/screen-reader users a single, clear button. Close button stops bubbling.
   banner.style.borderColor = data.color;
   banner.style.display = '';
-  if(ctaEl && data.cta){
-    ctaEl.textContent  = data.cta + ' →';
-    ctaEl.style.color  = data.color;
-    ctaEl.style.display= '';
-    ctaEl._action      = data.action;
-  } else if(ctaEl){
-    ctaEl.style.display = 'none';
-  }
+  banner._action = typeof data.action === 'function' ? data.action : null;
+  banner.setAttribute('role', banner._action ? 'button' : 'status');
+  banner.setAttribute('tabindex', banner._action ? '0' : '-1');
+  banner.setAttribute('aria-label', data.cta ? (data.title + '. ' + data.body + '. ' + data.cta) : (data.title + '. ' + data.body));
+  banner.classList.toggle('is-clickable', !!banner._action);
+  banner.style.setProperty('--hib-accent', data.color || 'var(--p)');
+
+  if(ctaEl) ctaEl.style.display = 'none';
 }
 
 function onInsightBannerAction(){
-  const ctaEl = document.getElementById('hib-cta');
-  if(ctaEl && ctaEl._action) ctaEl._action();
+  const banner = document.getElementById('home-insight-banner');
+  if(banner && banner._action) banner._action();
+}
+
+function onInsightBannerKeydown(ev){
+  if(ev.key === 'Enter' || ev.key === ' '){
+    ev.preventDefault();
+    onInsightBannerAction();
+  }
 }
 
 function dismissInsightBanner(){

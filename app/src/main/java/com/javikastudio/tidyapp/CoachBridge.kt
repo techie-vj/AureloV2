@@ -9,14 +9,18 @@ package com.javikastudio.tidyapp
 
 import android.content.Context
 import android.content.SharedPreferences
+import android.util.Log
 import android.webkit.JavascriptInterface
 import android.webkit.WebView
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.runBlocking
 import org.json.JSONArray
 import org.json.JSONObject
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeoutOrNull
 
 class CoachBridge(
     private val context: Context,
@@ -165,5 +169,48 @@ class CoachBridge(
         })
 
         return arr
+    }
+
+    @JavascriptInterface
+    fun askCoach(query: String): String {
+        return try {
+            Log.d("AureloCoach", "CoachBridge.askCoach called query=$query")
+            val hcData: HCDailyData = runBlocking {
+                val hcManager = HealthConnectManager(context)
+
+                if (hcManager.isAvailable() && hcManager.hasAnyPermission()) {
+                    try {
+                        val repo = HealthConnectRepository(hcManager)
+
+                        withTimeoutOrNull(5_000) {
+                            repo.readDailyData()
+                        } ?: HCDailyData(isAvailable = false)
+
+                    } catch (_: Exception) {
+                        HCDailyData(isAvailable = false)
+                    }
+                } else {
+                    HCDailyData(isAvailable = false)
+                }
+            }
+
+            val summary = UsageSummaryBuilder(context, prefs)
+                .build(hcData, dataWindowDays = 7)
+
+            CoachOrchestrator(context)
+                .answer(query, summary)
+                .toJson()
+
+        } catch (e: Exception) {
+            JSONObject().apply {
+                put("intent", "GENERAL_SUMMARY")
+                put("title", "Aurelo Coach")
+                put("body", "I couldn't analyse that yet, but your coach is available.")
+                put("hcBadge", false)
+                put("followUps", JSONArray())
+                put("usedFallback", true)
+                put("source", "error")
+            }.toString()
+        }
     }
 }

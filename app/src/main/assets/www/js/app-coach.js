@@ -886,6 +886,29 @@ window.CoachUI = {
     }
   },
 
+  // Open the Coach sheet with a read-only insight preview.
+  // Unlike open(prefilled), this does NOT auto-send a query/action.
+  openInsight: function(title, body, followUps) {
+    try {
+      if (!this._initialised) this.init();
+      var modal = document.getElementById('coach-modal');
+      if (modal) modal.classList.add('open');
+
+      var safeTitle = this._escapeHtml(title || 'Your daily insight');
+      var safeBody  = this._escapeHtml(body || '').replace(/\n/g, '<br>');
+      var html = '<strong>' + safeTitle + '</strong>' + (safeBody ? '<br><br>' + safeBody : '');
+
+      var self = this;
+      setTimeout(function() {
+        self._hideIntroAndChips();
+        self._addCoachMsg(html, followUps || []);
+      }, 180);
+    } catch (e) {
+      console.error('[CoachUI] openInsight error:', e);
+      this.open(null);
+    }
+  },
+
   close: function() {
     var modal = document.getElementById('coach-modal');
     if (modal) modal.classList.remove('open');
@@ -947,9 +970,46 @@ window.CoachUI = {
     var self = this;
     setTimeout(function() {
       try {
-        var result = AureloCoach.CoachOrchestrator.handleQuery(query, self._summary);
-        self._removeTyping();
-        self._addCoachMsg(result.response.text, result.response.followUps);
+        var result = null;
+
+        if (
+          window.AppBridge &&
+          typeof window.AppBridge.askCoach === 'function'
+        ) {
+          console.log('[CoachJS] calling AppBridge.askCoach:', query);
+
+          var raw = window.AppBridge.askCoach(query);
+
+          console.log('[CoachJS] AppBridge coach response:', raw);
+
+          if (raw) result = JSON.parse(raw);
+        }
+
+        if (!result) {
+          console.log('[CoachJS] using JS fallback coach');
+
+          var fallback = AureloCoach.CoachOrchestrator.handleQuery(query, self._summary);
+
+          result = {
+            intent: fallback.intent,
+            response: fallback.response,
+            confidence: fallback.confidence,
+            usedFallback: fallback.usedFallback
+          };
+        }
+
+       self._removeTyping();
+
+       if (result.response) {
+         self._addCoachMsg(result.response.text, result.response.followUps || []);
+       } else {
+         var html = result.title
+           ? '<strong>' + result.title + '</strong><br><br>' + result.body
+           : result.body;
+
+         self._addCoachMsg(html, result.followUps || []);
+       }
+
         self._hideIntroAndChips();
         // Increment query count after successful response
         AureloCoach.QueryGate.increment();
@@ -991,6 +1051,15 @@ window.CoachUI = {
   },
 
   // ── Private methods ──────────────────────────────────────────
+
+  _escapeHtml: function(text) {
+    return String(text == null ? '' : text)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  },
 
   _addUserMsg: function(text) {
     var chat = document.getElementById('coach-chat');

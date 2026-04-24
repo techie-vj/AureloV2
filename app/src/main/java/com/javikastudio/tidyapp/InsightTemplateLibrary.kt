@@ -46,11 +46,30 @@ object InsightTemplateLibrary {
 
     // ── Data classes ─────────────────────────────────────────────────────────
 
+    enum class HcSignal {
+        HRV, SLEEP, STEPS, RHR, MINDFULNESS
+    }
+
+    enum class TemplateCondition {
+        HRV_LOW,
+        HRV_NORMAL,
+        SLEEP_LOW,
+        SLEEP_NORMAL,
+        STEPS_HIGH,
+        STEPS_LOW,
+        SCORE_AVAILABLE,
+        PICKUP_AVG_AVAILABLE,
+        SOCIAL_CATEGORY_AVAILABLE
+    }
+
     data class InsightText(
         val title: String,
         val body: String,
         val hcBased: Boolean = false,
-        val variant: TemplateVariant = TemplateVariant.ENCOURAGING
+        val variant: TemplateVariant = TemplateVariant.ENCOURAGING,
+        val requiredSignals: Set<HcSignal> = emptySet(),
+        val requiredConditions: Set<TemplateCondition> = emptySet(),
+        val priority: Int = 0
     )
 
     // ── Template map ─────────────────────────────────────────────────────────
@@ -1380,16 +1399,149 @@ object InsightTemplateLibrary {
         rotationIndex: Int = 0
     ): InsightText {
         val intentMap = templates[intent] ?: templates["GENERAL_SUMMARY"]!!
-        val variantList = intentMap[variant] ?: intentMap[TemplateVariant.ENCOURAGING]!!
+        val allForIntent = intentMap.values.flatten()
 
-        // Prefer HC-aware template when HC is connected; prefer non-HC when it's not
-        val preferred = if (summary.hcConnected) {
-            variantList.filter { it.hcBased }.ifEmpty { variantList }
-        } else {
-            variantList.filter { !it.hcBased }.ifEmpty { variantList }
+        if (allForIntent.isEmpty()) return fallbackGeneralSummary()
+
+        val exactVariantEligible = intentMap[variant].orEmpty()
+            .filter { it.isEligible(summary) }
+
+        val encouragingEligible = intentMap[TemplateVariant.ENCOURAGING].orEmpty()
+            .filter { it.isEligible(summary) }
+
+        val anyVariantEligible = allForIntent
+            .filter { it.isEligible(summary) }
+
+        val nonHcExactFallback = intentMap[variant].orEmpty()
+            .filter { !it.hcBased }
+
+        val nonHcEncouragingFallback = intentMap[TemplateVariant.ENCOURAGING].orEmpty()
+            .filter { !it.hcBased }
+
+        val finalPool = when {
+            exactVariantEligible.isNotEmpty() -> exactVariantEligible
+            encouragingEligible.isNotEmpty() -> encouragingEligible
+            anyVariantEligible.isNotEmpty() -> anyVariantEligible
+            nonHcExactFallback.isNotEmpty() -> nonHcExactFallback
+            nonHcEncouragingFallback.isNotEmpty() -> nonHcEncouragingFallback
+            else -> allForIntent.filter { !it.hcBased }.ifEmpty { allForIntent }
         }
 
-        return preferred[rotationIndex.coerceIn(0, preferred.lastIndex)]
+        val sorted = finalPool.sortedByDescending { it.effectivePriority() }
+        return sorted[rotationIndex.mod(sorted.size)]
+    }
+
+    private fun fallbackGeneralSummary(): InsightText = InsightText(
+        title = "✦ Your Aurelo summary",
+        body = "I can help with your screen time, pickups, focus sessions, bedtime routine, streaks, and Health Connect patterns.",
+        variant = TemplateVariant.ENCOURAGING
+    )
+
+    private fun InsightText.effectivePriority(): Int {
+        var score = priority
+        if (!hcBased) score += 2
+        if (requiredSignals.isNotEmpty()) score += 1
+        if (requiredConditions.isNotEmpty()) score += 2
+        return score
+    }
+
+    private fun InsightText.isEligible(summary: UsageSummary): Boolean {
+        val neededSignals = requiredSignals + inferredRequiredSignals()
+        val neededConditions = requiredConditions + inferredRequiredConditions()
+
+        if (neededSignals.isEmpty() && neededConditions.isEmpty()) {
+            return !hcBased || summary.hcConnected
+        }
+
+        val hasHrv = summary.hrvToday != null && summary.hrv7DayAvg != null && summary.hrv7DayAvg > 0f
+        val hasSleep = summary.sleepDurationMinutes != null && summary.sleepDurationMinutes > 0
+        val hasSteps = summary.stepsToday != null && summary.stepsToday > 0
+        val hasRhr = summary.restingHeartRate != null && summary.rhr7DayAvg != null && summary.rhr7DayAvg > 0f
+        val hasMindfulness = summary.externalMindfulnessMinutesToday != null && summary.externalMindfulnessMinutesToday > 0
+
+        val signalOk = neededSignals.all { signal ->
+            when (signal) {
+                HcSignal.HRV -> hasHrv
+                HcSignal.SLEEP -> hasSleep
+                HcSignal.STEPS -> hasSteps
+                HcSignal.RHR -> hasRhr
+                HcSignal.MINDFULNESS -> hasMindfulness
+            }
+        }
+        if (!signalOk) return false
+
+        return neededConditions.all { condition ->
+            when (condition) {
+                TemplateCondition.HRV_LOW ->
+                    hasHrv && summary.hrvToday!! < summary.hrv7DayAvg!! * 0.95f
+                TemplateCondition.HRV_NORMAL ->
+                    hasHrv && summary.hrvToday!! >= summary.hrv7DayAvg!! * 0.95f
+                TemplateCondition.SLEEP_LOW ->
+                    hasSleep && summary.sleepDurationMinutes!! < 420
+                TemplateCondition.SLEEP_NORMAL ->
+                    hasSleep && summary.sleepDurationMinutes!! >= 420
+                TemplateCondition.STEPS_HIGH ->
+                    hasSteps && summary.stepsToday!! >= 8000
+                TemplateCondition.STEPS_LOW ->
+                    hasSteps && summary.stepsToday!! < 8000
+                TemplateCondition.SCORE_AVAILABLE ->
+                    summary.aureloScore > 0
+                TemplateCondition.PICKUP_AVG_AVAILABLE ->
+                    summary.pickups7DayAvg > 0f
+                TemplateCondition.SOCIAL_CATEGORY_AVAILABLE ->
+                    summary.topCategory.equals("Social", ignoreCase = true)
+            }
+        }
+    }
+
+    private fun InsightText.inferredRequiredSignals(): Set<HcSignal> {
+        if (!hcBased) return emptySet()
+        val text = "$title $body".lowercase()
+        val out = mutableSetOf<HcSignal>()
+        if (text.contains("hrv") || text.contains("heart rate variability") || text.contains("{hrv_")) out += HcSignal.HRV
+        if (text.contains("sleep") || text.contains("slept") || text.contains("bedtime") || text.contains("{sleep_")) out += HcSignal.SLEEP
+        if (text.contains("step") || text.contains("active day") || text.contains("activity") || text.contains("{steps_")) out += HcSignal.STEPS
+        if (text.contains("resting heart") || text.contains("{rhr_")) out += HcSignal.RHR
+        if (text.contains("mindfulness") || text.contains("{external_mindfulness") || text.contains("{mindfulness_source}")) out += HcSignal.MINDFULNESS
+        return out
+    }
+
+    private fun InsightText.inferredRequiredConditions(): Set<TemplateCondition> {
+        if (!hcBased) return emptySet()
+        val text = "$title $body".lowercase()
+        val out = mutableSetOf<TemplateCondition>()
+
+        val mentionsHrv = text.contains("hrv") || text.contains("heart rate variability") || text.contains("{hrv_")
+        val lowHrvClaim = mentionsHrv && (
+            text.contains("low hrv") ||
+            text.contains("hrv low") ||
+            text.contains("below your average") ||
+            text.contains("below average") ||
+            text.contains("below your 7-day average") ||
+            text.contains("suppresses recovery") ||
+            text.contains("confirms the strain") ||
+            text.contains("recovery is needed")
+        )
+        val normalHrvClaim = mentionsHrv && (
+            text.contains("near your") ||
+            text.contains("within your") ||
+            text.contains("all within") ||
+            text.contains("strong hrv") ||
+            text.contains("everything aligned")
+        )
+        if (lowHrvClaim) out += TemplateCondition.HRV_LOW
+        if (normalHrvClaim) out += TemplateCondition.HRV_NORMAL
+
+        val sleepClaim = text.contains("sleep") || text.contains("slept") || text.contains("{sleep_")
+        if (sleepClaim && (text.contains("short sleep") || text.contains("poor sleep") || text.contains("below target") || text.contains("sleep debt") || text.contains("under-slept"))) out += TemplateCondition.SLEEP_LOW
+        if (sleepClaim && (text.contains("7.0h") || text.contains("within your established range"))) out += TemplateCondition.SLEEP_NORMAL
+
+        val stepsClaim = text.contains("step") || text.contains("active day") || text.contains("activity") || text.contains("{steps_")
+        if (stepsClaim && (text.contains("active day") || text.contains("8,000") || text.contains("8000") || text.contains("good step"))) out += TemplateCondition.STEPS_HIGH
+
+        if (text.contains("{pickups_avg}")) out += TemplateCondition.PICKUP_AVG_AVAILABLE
+        if (text.contains("{aurelo_score}") || text.contains("score {aurelo_score}")) out += TemplateCondition.SCORE_AVAILABLE
+        return out
     }
 
     /**
@@ -1410,6 +1562,19 @@ object InsightTemplateLibrary {
      * Unknown slots are left as-is so missing data is visible during QA.
      */
     fun fillSlots(template: InsightText, summary: UsageSummary): InsightText {
+        fun safeScore(score: Int): String = if (score > 0) score.toString() else "still calculating"
+        fun safePickupAvg(avg: Float): String = if (avg > 0f) avg.toInt().toString() else "still building"
+        fun safeTopCategory(category: String): String = category.ifBlank { "your top category" }
+            .lowercase()
+            .replaceFirstChar { it.uppercase() }
+        fun hrvDeltaText(): String {
+            val h = summary.hrvToday
+            val avg = summary.hrv7DayAvg
+            if (h == null || avg == null || avg <= 0f) return "not available"
+            val pct = (((avg - h) / avg) * 100f).toInt()
+            return pct.coerceAtLeast(0).toString()
+        }
+
         fun String.fill(): String {
             var s = this
 
@@ -1423,19 +1588,17 @@ object InsightTemplateLibrary {
                 .let { if (it.isEmpty()) 0 else it.sumOf { d -> d.minutes } / it.size }
                 .toString())
             s = s.replace("{pickups_today}",      summary.pickupsToday.toString())
-            s = s.replace("{pickups_avg}",        summary.pickups7DayAvg.toInt().toString())
+            s = s.replace("{pickups_avg}",        safePickupAvg(summary.pickups7DayAvg))
             s = s.replace("{first_use_hour}",     summary.firstUseHour.toString())
-            s = s.replace("{aurelo_score}",       summary.aureloScore.toString())
-            s = s.replace("{screen_score}",       summary.screenScore.toString())
-            s = s.replace("{focus_score}",        summary.focusScore.toString())
-            s = s.replace("{sleep_score}",        summary.sleepScore.toString())
+            s = s.replace("{aurelo_score}",       safeScore(summary.aureloScore))
+            s = s.replace("{screen_score}",       safeScore(summary.screenScore))
+            s = s.replace("{focus_score}",        safeScore(summary.focusScore))
+            s = s.replace("{sleep_score}",        safeScore(summary.sleepScore))
             s = s.replace("{score_drop}",
                 (summary.aureloScoreYesterday - summary.aureloScore).coerceAtLeast(0).toString())
             s = s.replace("{focus_days_ago}",     summary.daysSinceLastFocus.toString())
             s = s.replace("{top_app}",            summary.topApps.firstOrNull()?.label ?: "your top app")
-            s = s.replace("{top_category}",       summary.topCategory
-                .lowercase()
-                .replaceFirstChar { it.uppercase() })
+            s = s.replace("{top_category}",       safeTopCategory(summary.topCategory))
             s = s.replace("{data_window_days}",   summary.dataWindowDays.toString())
             s = s.replace("{focus_session_type}", "Gentle")   // default; callers may override
 
@@ -1457,10 +1620,7 @@ object InsightTemplateLibrary {
 
             // ── Health Connect slots ─────────────────────────────────────
             if (summary.hcConnected) {
-                val hrvDelta = summary.hrv7DayAvg?.let { avg ->
-                    summary.hrvToday?.let { h -> ((1f - h / avg) * 100).toInt() }
-                } ?: 0
-                s = s.replace("{hrv_delta}",    hrvDelta.toString())
+                s = s.replace("{hrv_delta}",    hrvDeltaText())
                 s = s.replace("{hrv_ms}",       summary.hrvToday?.let { String.format("%.1f", it) } ?: "—")
                 s = s.replace("{hrv_avg_ms}",   summary.hrv7DayAvg?.let { String.format("%.1f", it) } ?: "—")
 
@@ -1486,6 +1646,15 @@ object InsightTemplateLibrary {
                     "{rhr_today}", "{mindfulness_source}", "{external_mindfulness_min}")
                     .forEach { slot -> s = s.replace(slot, "—") }
             }
+
+            s = s
+                .replace("your 7-day average is still building×", "your recent pickup average is still being built")
+                .replace("still building×", "still building")
+                .replace("Screen still calculating · Focus still calculating · Sleep still calculating", "Your score breakdown is still being built")
+                .replace("0% below", "near")
+                .replace("0% above", "near")
+                .replace("1 days", "1 day")
+                .replace("  ", " ")
 
             return s
         }

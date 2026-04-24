@@ -1,7 +1,7 @@
 <!-- PERMISSION -->
 <div id="perm-screen" class="hidden">
     <div style="font-size:56px;margin-bottom:20px">📊</div>
-    <div style="font-family:var(--ff-d);font-size:26px;font-weight:700;margin-bottom:10px">Usage Access Required</div>
+    <div style="font-family:var(--ff-d);font-size:26px;font-weight:400;margin-bottom:10px">Usage Access Required</div>
     <p style="font-size:14px;color:var(--t2);line-height:1.7;max-width:290px;margin-bottom:28px">Aurelo needs Usage Access to show real screen time. Tap Grant, then find Aurelo in the list and enable it.</p>
     <button class="perm-btn" onclick="N&&N.requestUsagePermission();this.textContent='Opening Settings…';this.style.opacity='.7'">Grant Access →</button>
     <div class="perm-skip" onclick="skipPerm()">Use demo data instead</div>
@@ -71,7 +71,7 @@
                 <div style="flex:1;height:18px;background:rgba(247,166,35,.3);border-radius:3px;filter:blur(5px)"></div>
             </div>
             <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(6,6,16,.55);backdrop-filter:blur(1px);border-radius:16px">
-                <div style="text-align:center"><div style="font-size:24px;margin-bottom:4px">🔒</div><div style="font-family:var(--ff-m);font-size:11px;color:var(--t2)">Grant access to unlock</div></div>
+                <div style="text-align:center"><div style="font-size:24px;margin-bottom:4px">🔒</div><div style="font-family:var(--ff-b);font-size:11px;color:var(--t2)">Grant access to unlock</div></div>
             </div>
         </div>
         <div id="ob-perm-usage" style="background:rgba(108,99,255,.08);border:1px solid rgba(108,99,255,.2);border-radius:14px;padding:12px 14px;width:100%;max-width:320px;box-sizing:border-box;cursor:pointer" onclick="obGrantUsage()">
@@ -109,7 +109,7 @@
         <div class="scan-rows" id="ob-scan-rows" style="display:none;max-height:340px;overflow-y:auto"></div>
         <div id="ob-first-insight" style="display:none;width:100%;max-width:320px;margin-top:12px;background:linear-gradient(135deg,rgba(108,99,255,.12),rgba(5,200,232,.06));border:1px solid rgba(108,99,255,.25);border-radius:14px;padding:13px 16px;text-align:center">
             <div style="font-family:var(--ff-m);font-size:10px;color:var(--p2);letter-spacing:1px;margin-bottom:6px">YOUR FIRST INSIGHT</div>
-            <div id="ob-insight-text" style="font-size:14px;font-weight:600;color:var(--t1);line-height:1.5"></div>
+            <div id="ob-insight-text" style="font-family:var(--ff-b);font-size:14px;font-weight:600;color:var(--t1);line-height:1.5"></div>
         </div>
         <div class="ob-dots" style="margin:16px 0 14px"><div class="ob-dot"></div><div class="ob-dot"></div><div class="ob-dot"></div><div class="ob-dot on"></div></div>
         <button class="ob-btn" id="ob4-done-btn" onclick="finishOb()" style="display:none">Enter Aurelo →</button>

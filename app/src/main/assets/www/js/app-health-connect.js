@@ -181,10 +181,28 @@ const HealthConnect = (function () {
   // this device" rather than "user denied". The Kotlin side already uses
   // availablePermissions() for the check, so missingJson will be empty in that case
   // and granted will be true. This JS side just needs to handle the labels gracefully.
+  // ── Shared helper: refresh every score surface after HC state changes ───────
+  // Called on connect, disconnect, and sync so all tabs show consistent data.
+  // Invalidates the sleep score cache first so calculateSleep() re-runs with
+  // the new HC signal set instead of returning the previous cached result.
+  function _refreshAllScores() {
+    if (typeof FocusScore !== 'undefined') {
+      if (typeof FocusScore.invalidateSleepCache === 'function')
+        FocusScore.invalidateSleepCache();          // clear stale sleep cache
+      if (typeof FocusScore.renderFocusStaticRow === 'function')
+        FocusScore.renderFocusStaticRow();           // Focus tab score row
+      if (typeof FocusScore.renderHabitsStaticRow === 'function')
+        FocusScore.renderHabitsStaticRow();          // Habits/Sleep tab score row
+    }
+    if (typeof renderAureloScore === 'function')   renderAureloScore();  // Home Aurelo card
+    if (typeof renderFocusStrip  === 'function')   renderFocusStrip();   // Home focus strip
+    // Wellness Screen Score is recalculated on next tab open — no explicit refresh needed
+  }
+
   window.onHCPermissionsResult = function (granted, bodyScore, needsSettings, missingJson) {
     if (granted) {
       renderSettingsCard();
-      if (typeof renderAureloScore === 'function') renderAureloScore();
+      _refreshAllScores();
       if (typeof toast === 'function') toast('Health Connect connected ✓', 'success');
     } else if (needsSettings) {
       // Permanently denied via standard runtime-permission path (should not happen
@@ -282,12 +300,12 @@ const HealthConnect = (function () {
 
   window.onHCSyncComplete = function () {
     renderSettingsCard();
-    if (typeof renderAureloScore === 'function') renderAureloScore();
+    _refreshAllScores();
     if (typeof toast === 'function') toast('Health Connect synced', 'success');
   };
   window.onHCDisconnected = function () {
     renderSettingsCard();
-    if (typeof renderAureloScore === 'function') renderAureloScore();
+    _refreshAllScores();
   };
 
   function connect(onSuccess) {
@@ -298,7 +316,7 @@ const HealthConnect = (function () {
       // Browser / demo fallback
       try { localStorage.setItem('hc_connected', '1'); } catch (__) {}
       renderSettingsCard();
-      if (typeof renderAureloScore === 'function') renderAureloScore();
+      _refreshAllScores();
       if (typeof onSuccess === 'function') onSuccess();
     }
   }
@@ -310,7 +328,7 @@ const HealthConnect = (function () {
     } catch (_) {
       try { localStorage.setItem('hc_connected', '0'); } catch (__) {}
       renderSettingsCard();
-      if (typeof renderAureloScore === 'function') renderAureloScore();
+      _refreshAllScores();
     }
   }
 

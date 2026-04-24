@@ -73,7 +73,7 @@
   align-items: center; justify-content: center; padding: 6px 4px;
 }
 .hsm-div    { height: 1px; background: var(--border); flex-shrink: 0; }
-.hsm-val    { font-family: var(--ff-d); font-size: 15px; font-weight: var(--fw-regular); line-height: 1; text-align: center; }
+.hsm-val    { font-family: var(--ff-d); font-size: var(--text-md); font-weight: var(--fw-regular); line-height: 1; text-align: center; }
 .hsm-lbl    { font-family: var(--ff-m); font-size: var(--text-2xs); letter-spacing: .8px; color: var(--t3); margin-top: 3px; text-transform: uppercase; text-align: center; font-weight: var(--fw-mono); }
 
 /* Progress bar */
@@ -129,7 +129,7 @@
   display: flex; align-items: flex-start; justify-content: space-between;
   padding: 4px 16px 8px;
 }
-.home-section-title { font-family: var(--ff-d); font-size: 15px; font-weight: var(--fw-regular); color: var(--t1); }
+.home-section-title { font-family: var(--ff-d); font-size: var(--text-md); font-weight: var(--fw-regular); color: var(--t1); }
 .home-section-sub   { font-family: var(--ff-m); font-size: var(--text-2xs); color: var(--t3); margin-top: 2px; font-weight: var(--fw-mono); }
 .routine-learn-badge {
   font-family: var(--ff-m); font-size: var(--text-xs); padding: 4px 10px;
@@ -235,179 +235,457 @@
 }
 
 /* ══ COACH HOME INSIGHT CARD ══════════════════════════
-   Matches S7 mockup: dark card, gradient left-accent bar,
-   star header, body text, pill CTAs, data-source footer.
+   Defined in coach.css — do not duplicate here.
    ════════════════════════════════════════════════════ */
 
-#coach-home-insight {
-  margin: 0 16px 12px;
-  background: #181525;
-  border: 1px solid rgba(139, 92, 246, 0.16);
-  border-radius: var(--rad-lg, 16px);
-  overflow: hidden;
-  position: relative;
-  cursor: pointer;
-  transition: border-color 0.18s, opacity 0.15s;
-  padding: 0; /* padding applied to inner wrapper */
+/* ═══ AURELO THEME EXTENSIONS ═══════════════════════════════════
+   Shared theme hooks for Aurelo surfaces. Keep feature CSS using
+   these vars instead of mock-specific hardcoded colors/fonts so
+   every app theme inherits the same visual language.
+   ═══════════════════════════════════════════════════════════════ */
+:root {
+  --aurelo-home-card-bg: linear-gradient(135deg, var(--s1), var(--s2));
+  --aurelo-home-card-border: var(--border);
+  --aurelo-home-card-shadow: 0 10px 28px rgba(0,0,0,.18);
+  --aurelo-home-accent: var(--p);
+  --aurelo-home-accent-2: var(--c);
+  --aurelo-home-chip-bg: var(--s2);
+  --aurelo-home-chip-border: var(--border2);
+  --aurelo-home-chip-text: var(--p2);
+  --aurelo-home-muted: var(--t3);
+  --aurelo-home-hc-text: var(--c);
+  --aurelo-home-hc-bg: var(--s2);
+  --aurelo-home-hc-border: var(--border2);
 }
 
-#coach-home-insight:active { opacity: 0.88; }
-#coach-home-insight:focus-visible {
-  outline: 2px solid var(--focus-ring-color, rgba(139,92,246,0.7));
-  outline-offset: 2px;
+.aurelo-themed-card {
+  background: var(--aurelo-home-card-bg);
+  border: 1px solid var(--aurelo-home-card-border);
+  box-shadow: var(--aurelo-home-card-shadow);
 }
 
-/* ── Left accent bar (purple → teal gradient) ─────── */
-#coach-home-insight::before {
-  content: '';
-  position: absolute;
-  left: 0; top: 0; bottom: 0;
-  width: 3px;
-  background: linear-gradient(180deg, #8B5CF6 0%, #06D6B8 100%);
-  border-radius: 3px 0 0 3px;
-  flex-shrink: 0;
+.aurelo-themed-chip {
+  background: var(--aurelo-home-chip-bg);
+  border: 1px solid var(--aurelo-home-chip-border);
+  color: var(--aurelo-home-chip-text);
+  font-family: var(--ff-m);
 }
 
-/* Inner padding wrapper (offset for accent bar) */
-.coach-home-insight-inner {
-  padding: 14px 14px 14px 18px;
+/* ═══════════════════════════════════════════════════════════════
+   Aurelo Score theme components
+   Keep layout/color tokens here so JS does not hardcode mock styles.
+   ═══════════════════════════════════════════════════════════════ */
+:root {
+  --aurelo-score-card-bg: var(--aurelo-home-card-bg);
+  --aurelo-score-card-border: var(--aurelo-home-card-border);
+  --aurelo-score-card-shadow: var(--aurelo-home-card-shadow);
+  --aurelo-score-ring-track: var(--border2);
+  --aurelo-score-ring-start: var(--aurelo-home-accent);
+  --aurelo-score-ring-end: var(--aurelo-home-accent-2);
+  --aurelo-score-glow: var(--aurelo-home-hc-bg);
+  --aurelo-score-tile-bg: var(--s2);
+  --aurelo-score-tile-border: var(--border2);
+  --aurelo-score-tile-muted: var(--aurelo-home-muted);
+  --aurelo-score-title: var(--t1);
+  --aurelo-score-subtitle: var(--t3);
+}
+.aurelo-score-card{margin-top:10px;border-radius:20px;padding:16px;border:1px solid var(--aurelo-score-card-border);cursor:pointer;position:relative;overflow:hidden;background:var(--aurelo-score-card-bg);box-shadow:var(--aurelo-score-card-shadow)}
+.aurelo-score-card::after{content:'';position:absolute;top:-34px;right:-26px;width:118px;height:118px;border-radius:50%;background:var(--aurelo-score-glow);pointer-events:none}
+.aurelo-score-head{display:flex;align-items:center;gap:14px;margin-bottom:14px;position:relative;z-index:1}
+.aurelo-score-ring-wrap{position:relative;width:76px;height:76px;flex-shrink:0}
+.aurelo-score-ring-track{stroke:var(--aurelo-score-ring-track)}
+.aurelo-score-ring-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}
+.aurelo-score-number{font-family:var(--ff-d);font-size:22px;font-weight:800;color:var(--aurelo-score-title);line-height:1}
+.aurelo-score-ring-label{font-family:var(--ff-m);font-size:8px;color:var(--aurelo-home-hc-text);text-transform:uppercase;letter-spacing:.55px;margin-top:2px}
+.aurelo-score-copy{flex:1;min-width:0}
+.aurelo-score-kicker{font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--aurelo-score-subtitle);text-transform:uppercase;letter-spacing:1px;margin-bottom:2px}
+.aurelo-score-grade{font-family:var(--ff-d);font-size:20px;font-weight:600;color:var(--aurelo-score-title);margin-bottom:3px;line-height:1.15}
+.aurelo-score-meta{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--aurelo-score-subtitle)}
+.aurelo-score-hc-text{color:var(--aurelo-home-hc-text);font-weight:700}
+.aurelo-score-dot{color:var(--aurelo-score-subtitle)}
+.aurelo-pillars-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;position:relative;z-index:1}
+.aurelo-pillar-tile{background:var(--aurelo-score-tile-bg);border:1px solid var(--aurelo-score-tile-border);border-radius:10px;padding:9px 8px;cursor:pointer;min-height:50px;display:flex;flex-direction:column;justify-content:center}
+.aurelo-pillar-tile.is-dashed{border-style:dashed}
+.aurelo-pillar-tile.is-hc{background:var(--aurelo-home-hc-bg);border-color:var(--aurelo-home-hc-border)}
+.aurelo-pillar-head{display:flex;align-items:center;gap:4px;margin-bottom:3px}
+.aurelo-pillar-label{font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--aurelo-score-tile-muted);letter-spacing:.5px}
+.aurelo-pillar-value{font-family:var(--ff-m);font-size:var(--text-xs);font-weight:700}
+.aurelo-hc-badge{font-size:8px;color:var(--aurelo-home-hc-text);background:var(--aurelo-home-hc-bg);border:1px solid var(--aurelo-home-hc-border);border-radius:4px;padding:1px 4px;font-weight:600;letter-spacing:.3px;line-height:1.4}
+.aurelo-pillar-lock{display:flex;align-items:center;gap:4px;color:var(--aurelo-home-chip-text);font-family:var(--ff-m);font-size:var(--text-2xs);font-weight:700}
+
+/* v8: keep no-data Aurelo pillars visible without counting them in the score */
+.aurelo-pillar-tile.is-empty{opacity:.82}
+.aurelo-pillar-sub{font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--aurelo-score-tile-muted);margin-top:2px;line-height:1.25}
+#home-aurelo-score .aurelo-score-card{margin-top:0}
+
+/* ═══ AURELO SCORE SHEET — theme-based details UI ═══════════════ */
+:root {
+  --aurelo-sheet-bg: var(--s0);
+  --aurelo-sheet-surface: var(--s1);
+  --aurelo-sheet-surface-2: var(--s2);
+  --aurelo-sheet-border: var(--border2);
+  --aurelo-sheet-muted: var(--t3);
+  --aurelo-sheet-title: var(--t1);
+  --aurelo-sheet-body: var(--t2);
+  --aurelo-sheet-accent: var(--p2);
+  --aurelo-sheet-hc-text: var(--aurelo-home-hc-text, var(--c));
+  --aurelo-sheet-hc-bg: var(--aurelo-home-hc-bg, var(--s2));
+  --aurelo-sheet-hc-border: var(--aurelo-home-hc-border, var(--border2));
+  --aurelo-sheet-warn-bg: rgba(247,166,35,.07);
+  --aurelo-sheet-warn-border: rgba(247,166,35,.22);
 }
 
-/* ── Header row ───────────────────────────────────── */
-.coach-home-insight-hdr {
+.aurelo-sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 9998;
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 8px;
-}
-
-.coach-home-insight-hdr-left {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.coach-home-insight-icon {
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  background: rgba(139, 92, 246, 0.18);
-  display: flex;
-  align-items: center;
+  align-items: flex-end;
   justify-content: center;
-  flex-shrink: 0;
+  background: rgba(0,0,0,.62);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .25s ease;
 }
 
-.coach-home-insight-label {
-  font-family: var(--ff-m, 'BricolageGrotesque', sans-serif);
-  font-size: 10px;
-  color: #A78BFA;
-  text-transform: uppercase;
-  letter-spacing: 0.8px;
-  font-weight: 600;
+.aurelo-sheet-panel {
+  width: 100%;
+  max-width: 480px;
+  max-height: 88vh;
+  overflow-y: auto;
+  scrollbar-width: none;
+  box-sizing: border-box;
+  padding: 12px 20px 44px;
+  padding-bottom: max(44px, calc(env(safe-area-inset-bottom, 0px) + 24px));
+  background: var(--aurelo-sheet-bg);
+  border: 1px solid var(--aurelo-sheet-border);
+  border-bottom: none;
+  border-radius: 24px 24px 0 0;
+  transform: translate3d(0,100%,0);
+  backface-visibility: hidden;
+  will-change: transform;
+  contain: layout paint;
+  transition: transform .3s cubic-bezier(.32,.72,0,1);
+}
+.aurelo-sheet-panel::-webkit-scrollbar { display: none; }
+
+.aurelo-sheet-handle {
+  width: 40px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--aurelo-sheet-border);
+  margin: 0 auto 18px;
 }
 
-.coach-home-insight-timestamp {
-  font-family: var(--ff-m, 'BricolageGrotesque', sans-serif);
-  font-size: 10px;
-  color: #5C5278;
-  flex-shrink: 0;
-}
-
-/* ── HC badge (shown when hcBadge is true) ────────── */
-.coach-home-insight-hc-badge {
-  font-family: var(--ff-m, 'BricolageGrotesque', sans-serif);
-  font-size: 9px;
-  color: #06D6B8;
-  background: rgba(6, 214, 184, 0.1);
-  border: 1px solid rgba(6, 214, 184, 0.22);
-  border-radius: 6px;
-  padding: 2px 7px;
-  font-weight: 600;
-  letter-spacing: 0.3px;
-  margin-left: 4px;
-  align-self: center;
-}
-
-/* ── Title ────────────────────────────────────────── */
-.coach-home-insight-title {
-  font-size: 12px;
-  color: #9589B0;
-  font-family: var(--ff-m, 'BricolageGrotesque', sans-serif);
-  font-weight: 600;
-  margin-bottom: 5px;
-  letter-spacing: 0.1px;
-}
-
-/* ── Body text ────────────────────────────────────── */
-.coach-home-insight-body {
-  font-family: var(--ff-m, 'BricolageGrotesque', sans-serif);
-  font-size: 13px;
-  color: #F0EDF8;
-  line-height: 1.65;
-  margin-bottom: 12px;
-}
-
-/* ── Action buttons row ───────────────────────────── */
-.coach-home-insight-actions {
+.aurelo-sheet-hero {
   display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+.aurelo-sheet-hero-copy { flex: 1; min-width: 0; }
+.aurelo-sheet-title {
+  font-family: var(--ff-d);
+  font-size: var(--text-xl);
+  font-weight: 700;
+  color: var(--aurelo-sheet-title);
+  letter-spacing: -.3px;
+}
+.aurelo-sheet-subtitle {
+  font-family: var(--ff-m);
+  font-size: var(--text-2xs);
+  color: var(--aurelo-sheet-muted);
+  margin-top: 2px;
+}
+.aurelo-sheet-total { text-align: right; flex-shrink: 0; }
+.aurelo-sheet-total-number {
+  font-family: var(--ff-d);
+  font-size: var(--text-3xl);
+  font-weight: 700;
+  line-height: 1;
+}
+.aurelo-sheet-total-grade {
+  font-family: var(--ff-m);
+  font-size: var(--text-xs);
+  margin-top: 1px;
+}
+
+.aurelo-sheet-pillars { display: flex; flex-direction: column; gap: 10px; }
+.aurelo-sheet-pillar {
+  background: var(--aurelo-sheet-surface-2);
+  border: 1px solid var(--aurelo-sheet-border);
+  border-radius: 14px;
+  padding: 13px 14px;
+}
+.aurelo-sheet-pillar.is-hc {
+  background: var(--aurelo-sheet-hc-bg);
+  border-color: var(--aurelo-sheet-hc-border);
+}
+.aurelo-sheet-pillar.is-weak {
+  background: var(--aurelo-sheet-warn-bg);
+  border-color: var(--aurelo-sheet-warn-border);
+}
+.aurelo-sheet-pillar-row {
+  display: flex;
+  align-items: center;
   gap: 8px;
-  margin-bottom: 10px;
-  flex-wrap: wrap;
 }
-
-/* Primary pill — "Ask follow-up →" */
-.coach-home-insight-cta {
-  background: rgba(139, 92, 246, 0.12);
-  border: 1px solid rgba(139, 92, 246, 0.28);
-  border-radius: 20px;
-  padding: 6px 13px;
-  font-size: 11px;
-  color: #A78BFA;
-  font-family: var(--ff-m, 'BricolageGrotesque', sans-serif);
-  font-weight: 600;
-  cursor: pointer;
-  white-space: nowrap;
-  min-height: 32px;
-  display: inline-flex;
-  align-items: center;
-  transition: background 0.15s, border-color 0.15s;
-}
-.coach-home-insight-cta:active { background: rgba(139, 92, 246, 0.22); }
-.coach-home-insight-cta:focus-visible {
-  outline: 2px solid rgba(139,92,246,0.6);
-  outline-offset: 2px;
-}
-
-/* Dismiss ghost pill — "Got it" */
-.coach-home-insight-dismiss {
-  background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 20px;
-  padding: 6px 13px;
-  font-size: 11px;
-  color: #5C5278;
-  font-family: var(--ff-m, 'BricolageGrotesque', sans-serif);
-  cursor: pointer;
-  white-space: nowrap;
-  min-height: 32px;
-  display: inline-flex;
-  align-items: center;
-  transition: border-color 0.15s, color 0.15s;
-}
-.coach-home-insight-dismiss:active { color: #9589B0; border-color: rgba(255,255,255,0.16); }
-.coach-home-insight-dismiss:focus-visible {
-  outline: 2px solid rgba(139,92,246,0.5);
-  outline-offset: 2px;
-}
-
-/* ── Data source footer ───────────────────────────── */
-.coach-home-insight-source {
+.aurelo-sheet-pillar-icon { font-size: 16px; flex-shrink: 0; }
+.aurelo-sheet-pillar-copy { flex: 1; min-width: 0; }
+.aurelo-sheet-pillar-title {
   display: flex;
   align-items: center;
   gap: 5px;
-  font-family: var(--ff-m, 'BricolageGrotesque', sans-serif);
-  font-size: 10px;
-  color: #5C5278;
-  padding-top: 2px;
+  font-size: var(--text-sm);
+  font-weight: 700;
+  color: var(--aurelo-sheet-title);
 }
+.aurelo-sheet-pillar-desc {
+  font-family: var(--ff-m);
+  font-size: var(--text-2xs);
+  color: var(--aurelo-sheet-muted);
+  margin-top: 1px;
+  line-height: 1.45;
+}
+.aurelo-sheet-pillar-score { text-align: right; flex-shrink: 0; }
+.aurelo-sheet-pillar-number {
+  font-family: var(--ff-d);
+  font-size: var(--text-2xl);
+  font-weight: 700;
+  line-height: 1;
+}
+.aurelo-sheet-pillar-weight {
+  font-family: var(--ff-m);
+  font-size: var(--text-2xs);
+  color: var(--aurelo-sheet-muted);
+  margin-top: 1px;
+}
+.aurelo-sheet-hc-badge {
+  font-family: var(--ff-m);
+  font-size: 9px;
+  color: var(--aurelo-sheet-hc-text);
+  background: var(--aurelo-sheet-hc-bg);
+  border: 1px solid var(--aurelo-sheet-hc-border);
+  border-radius: 5px;
+  padding: 1px 5px;
+  font-weight: 600;
+  letter-spacing: .3px;
+  line-height: 1.4;
+}
+.aurelo-sheet-bar {
+  height: 4px;
+  background: var(--border);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-top: 8px;
+}
+.aurelo-sheet-bar-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width .4s ease;
+}
+.aurelo-sheet-empty {
+  margin-top: 8px;
+  font-family: var(--ff-m);
+  font-size: var(--text-2xs);
+  color: var(--aurelo-sheet-muted);
+}
+
+.aurelo-sheet-tips {
+  background: var(--aurelo-sheet-warn-bg);
+  border: 1px solid var(--aurelo-sheet-warn-border);
+  border-radius: 14px;
+  padding: 12px 14px;
+  margin: 16px 0;
+}
+.aurelo-sheet-tips-title {
+  font-family: var(--ff-m);
+  font-size: var(--text-2xs);
+  color: var(--a);
+  letter-spacing: .5px;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+}
+.aurelo-sheet-tip {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 6px;
+  font-family: var(--ff-m);
+  font-size: var(--text-xs);
+  color: var(--aurelo-sheet-body);
+  line-height: 1.5;
+}
+.aurelo-sheet-tip:last-child { margin-bottom: 0; }
+.aurelo-sheet-tip span { color: var(--aurelo-sheet-muted); flex-shrink: 0; }
+
+.aurelo-sheet-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+.aurelo-sheet-btn {
+  flex: 1;
+  min-height: 46px;
+  padding: 14px;
+  border-radius: 14px;
+  background: var(--aurelo-sheet-surface-2);
+  border: 1px solid var(--aurelo-sheet-border);
+  color: var(--aurelo-sheet-body);
+  font-family: var(--ff-m);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  cursor: pointer;
+}
+.aurelo-sheet-btn.primary {
+  background: var(--aurelo-home-chip-bg, var(--s2));
+  border-color: var(--aurelo-home-chip-border, var(--border2));
+  color: var(--aurelo-sheet-accent);
+}
+
+
+.aurelo-sheet-btn.secondary{background:var(--aurelo-sheet-surface-2);color:var(--aurelo-sheet-body);}
+
+/* ═══ v18 Home density pass: compact stats + single Aurelo hero ═══ */
+.home-quick-strip{
+  margin:0 16px 12px;
+  padding:10px 12px 11px;
+  border-radius:var(--rad-xl);
+  background:linear-gradient(135deg,rgba(108,99,255,.10),rgba(5,200,232,.045));
+  border:1px solid rgba(108,99,255,.24);
+  box-shadow:0 10px 24px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.035);
+  cursor:pointer;
+}
+.home-quick-strip:active{opacity:.94}
+.home-quick-strip:focus-visible{outline:2px solid var(--focus-ring-color);outline-offset:3px}
+.home-quick-strip .home-status-line{margin-bottom:9px;font-size:var(--text-xs);line-height:1.25}
+.home-kpi-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.home-kpi-pill{
+  min-height:70px;
+  padding:9px 8px 8px;
+  background:rgba(255,255,255,.035);
+  border:1px solid rgba(255,255,255,.075);
+  border-radius:var(--rad-md);
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  text-align:center;
+}
+.home-kpi-value{
+  font-family:var(--ff-d);
+  font-size:24px;
+  font-weight:var(--fw-regular);
+  line-height:1.05;
+  color:var(--t1);
+  white-space:nowrap;
+}
+.home-kpi-value.is-alert{color:var(--r)}
+.home-kpi-value.is-streak{color:var(--a)}
+.home-kpi-label{
+  margin-top:7px;
+  font-family:var(--ff-m);
+  font-size:var(--text-2xs);
+  font-weight:var(--fw-mono);
+  color:var(--t3);
+  letter-spacing:1px;
+  text-transform:uppercase;
+  line-height:1.1;
+}
+.home-progress-wrap{margin-top:10px}
+.home-goal-bar-wrap--slim{height:6px;border-radius:999px;background:rgba(255,255,255,.09);margin-bottom:6px}
+.home-goal-bar-wrap--slim .home-goal-bar-fill{border-radius:999px}
+.home-goal-meta--compact{justify-content:flex-start;line-height:1.2}
+#home-aurelo-score{padding:0 16px;margin-bottom:10px}
+
+/* Dark-mode readability for Aurelo Score hero. !important is used because
+   app-home-score.js injects a safety style at runtime after CSS loads. */
+#home-aurelo-score .aurelo-score-card{
+  padding:13px !important;
+  border-radius:20px !important;
+  border:1px solid rgba(108,99,255,.30) !important;
+  background:linear-gradient(135deg,rgba(108,99,255,.075),rgba(5,200,232,.032)) !important;
+  box-shadow:0 12px 28px rgba(0,0,0,.22), inset 0 1px 0 rgba(255,255,255,.04) !important;
+}
+#home-aurelo-score .aurelo-score-card::after{opacity:.35 !important}
+#home-aurelo-score .aurelo-score-head{margin-bottom:10px !important;gap:12px !important}
+#home-aurelo-score .aurelo-score-ring-wrap,
+#home-aurelo-score .aurelo-score-ring-wrap svg{width:66px !important;height:66px !important;min-width:66px !important;min-height:66px !important;flex-basis:66px !important}
+#home-aurelo-score .aurelo-score-ring-track{stroke:rgba(255,255,255,.18) !important}
+#home-aurelo-score .aurelo-score-ring-wrap svg circle:not(.aurelo-score-ring-track){stroke-width:6 !important}
+#home-aurelo-score .aurelo-score-number{font-size:20px !important}
+#home-aurelo-score .aurelo-score-grade{font-size:19px !important;line-height:1.08 !important}
+#home-aurelo-score .aurelo-score-meta{font-size:10px !important}
+#home-aurelo-score .aurelo-pillars-grid{gap:7px !important}
+#home-aurelo-score .aurelo-pillar-tile{
+  min-height:48px !important;
+  padding:8px 9px !important;
+  border-radius:12px !important;
+  border-color:rgba(255,255,255,.075) !important;
+  background:rgba(255,255,255,.026) !important;
+}
+#home-aurelo-score .aurelo-pillar-tile.is-dashed{border-color:rgba(255,255,255,.48) !important;border-width:2px !important}
+#home-aurelo-score .aurelo-pillar-label{font-size:10px !important;letter-spacing:.8px !important}
+#home-aurelo-score .aurelo-pillar-value{font-size:12px !important}
+#home-aurelo-score .aurelo-pillar-sub{font-size:10px !important;margin-top:2px !important;line-height:1.25 !important}
+:root[data-theme=light] .home-quick-strip{background:linear-gradient(135deg,rgba(108,99,255,.06),rgba(5,200,232,.035));border-color:rgba(108,99,255,.16);box-shadow:0 8px 20px rgba(40,45,75,.06), inset 0 1px 0 rgba(255,255,255,.8)}
+:root[data-theme=light] .home-kpi-pill{background:rgba(255,255,255,.64);border-color:rgba(108,99,255,.12)}
+:root[data-theme=light] #home-aurelo-score .aurelo-score-card{border-color:rgba(108,99,255,.16) !important;background:linear-gradient(135deg,rgba(108,99,255,.045),rgba(5,200,232,.025)) !important;box-shadow:0 8px 20px rgba(40,45,75,.06), inset 0 1px 0 rgba(255,255,255,.8) !important}
+:root[data-theme=light] #home-aurelo-score .aurelo-score-ring-track{stroke:rgba(20,20,40,.12) !important}
+@media (max-width:380px){.home-kpi-pill{min-height:64px;padding:8px 6px}.home-kpi-value{font-size:21px}.home-kpi-label{font-size:9px}#home-aurelo-score .aurelo-score-ring-wrap,#home-aurelo-score .aurelo-score-ring-wrap svg{width:62px !important;height:62px !important;min-width:62px !important;min-height:62px !important;flex-basis:62px !important}}
+
+
+
+/* v21 — Aurelo Score premium refinement (safe patch) */
+.aurelo-score-card{
+  border:1px solid color-mix(in srgb, var(--p2) 18%, rgba(255,255,255,.10));
+  box-shadow:
+    0 12px 28px rgba(0,0,0,.18),
+    inset 0 1px 0 rgba(255,255,255,.04),
+    inset 0 0 0 1px rgba(255,255,255,.02);
+}
+
+.aurelo-score-card::before{
+  content:"";
+  position:absolute;
+  inset:0;
+  border-radius:inherit;
+  pointer-events:none;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.025);
+}
+
+.aurelo-pillar-tile{
+  border:1px solid color-mix(in srgb, var(--p2) 16%, var(--border2) 84%);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.03);
+}
+
+.aurelo-pillar-tile.score-good{
+  background: color-mix(in srgb, #4fa3ff 10%, var(--s2) 90%);
+}
+.aurelo-pillar-tile.score-warn{
+  background: color-mix(in srgb, #ffb84d 10%, var(--s2) 90%);
+}
+.aurelo-pillar-tile.score-positive{
+  background: color-mix(in srgb, #42d392 10%, var(--s2) 90%);
+}
+.aurelo-pillar-tile.score-empty{
+  background: color-mix(in srgb, white 3%, var(--s2) 97%);
+}
+
+.aurelo-pillar-value{
+  color:var(--t1);
+  font-weight:700;
+}
+
+:root[data-theme="light"] .aurelo-score-card{
+  border-color: color-mix(in srgb, var(--p2) 14%, rgba(40,40,60,.12));
+  box-shadow:
+    0 10px 22px rgba(45,51,77,.06),
+    inset 0 1px 0 rgba(255,255,255,.92);
+}
+
+:root[data-theme="light"] .aurelo-pillar-tile{
+  border-color: rgba(141,138,255,.14);
+}
+

@@ -330,4 +330,5 @@ class AppBridge(private val context: Context, private val webView: WebView) {
     @JavascriptInterface fun incrementCoachQueryCount()        = coach.incrementCoachQueryCount()
     @JavascriptInterface fun getDailyCoachInsight()            = coach.getDailyCoachInsight()
     @JavascriptInterface fun getCoachChips()                   = coach.getCoachChips()
+    @JavascriptInterface fun askCoach(query: String)           = coach.askCoach(query)
 }

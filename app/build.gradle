@@ -82,6 +82,9 @@ dependencies {
     // Spec §2.2: implementation "androidx.health.connect:connect-client:1.1.0-alpha07"
     implementation 'androidx.health.connect:connect-client:1.2.0-alpha04'
 
+    // onnxruntime for aurelo coach
+    implementation "com.microsoft.onnxruntime:onnxruntime-android:1.25.0"
+
     // In-App Review — shows native Play Store rating dialog without leaving the app
     implementation 'com.google.android.play:review-ktx:2.0.2'
 

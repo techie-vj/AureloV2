@@ -109,8 +109,24 @@
 .coach-title {
   font-family: var(--ff-d);
   font-size: var(--text-xl);
-  font-weight: 300;
+  font-weight: var(--fw-regular);
   color: var(--t1);
+}
+
+.coach-beta-badge {
+  display: inline-flex;
+  align-items: center;
+  height: 18px;
+  padding: 0 7px;
+  border-radius: 999px;
+  background: rgba(108, 99, 255, 0.14);
+  border: 1px solid rgba(108, 99, 255, 0.28);
+  color: var(--p);
+  font-family: var(--ff-m);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.9px;
+  line-height: 1;
 }
 
 /* matches .coach-phase-row */
@@ -127,7 +143,7 @@
   border: 1px solid rgba(18,212,138,0.25);
   border-radius: var(--rad-xs);
   padding: 2px 6px;
-  font-weight: 600;
+  font-weight: var(--fw-semibold);
   letter-spacing: 0.3px;
 }
 
@@ -166,7 +182,7 @@
   background: var(--s1);
   border: none;
   color: var(--t3);
-  font-size: 14px;
+  font-size: var(--text-sm);
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -183,7 +199,7 @@
   background: var(--s1);
   border: none;
   color: var(--t3);
-  font-size: 14px;
+  font-size: var(--text-sm);
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -256,7 +272,7 @@
 
 .coach-chip-arr {
   color: var(--t3);
-  font-size: 15px;
+  font-size: var(--text-md);
   margin-left: 8px;
   flex-shrink: 0;
 }
@@ -280,7 +296,7 @@
   color: var(--t3);
   cursor: pointer;
   font-family: var(--ff-b);
-  font-weight: 500;
+  font-weight: var(--fw-medium);
   transition: color 0.15s, border-color 0.15s;
   white-space: nowrap;
   text-align: center;
@@ -432,7 +448,7 @@
   color: var(--t1);
   line-height: 1.65;
 }
-.msg-coach-bubble strong { color: var(--c); font-weight: 600; }
+.msg-coach-bubble strong { color: var(--c); font-weight: var(--fw-semibold); }
 
 @keyframes coachMsgIn {
   from { opacity: 0; transform: translateY(8px); }
@@ -455,7 +471,7 @@
   color: var(--p2);
   cursor: pointer;
   font-family: var(--ff-b);
-  font-weight: 500;
+  font-weight: var(--fw-medium);
   transition: background 0.15s;
   white-space: nowrap;
 }
@@ -553,7 +569,7 @@
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  font-size: 10px;
+  font-size: var(--text-2xs);
   color: var(--g);
 }
 
@@ -588,9 +604,9 @@
 
 .hc-badge-inline {
   display: inline-block;
-  font-size: 9px;
+  font-size: var(--text-2xs);
   font-family: var(--ff-m);
-  font-weight: 600;
+  font-weight: var(--fw-semibold);
   letter-spacing: 0.4px;
   color: var(--p);
   background: rgba(108,99,255,0.12);
@@ -601,165 +617,250 @@
   margin-left: 5px;
 }
 
-/* ── Home tab coach insight card ──────────────────────────────────────── */
+/* ── Home tab coach insight card ────────────────────────────────────────
+   Uses global Aurelo theme hooks from app.css. No mock font imports or
+   mock-specific palette values here — it follows the active app theme. */
 #coach-home-insight {
-  margin: 0 16px 12px;
+  margin: 0 16px 14px;
   border-radius: var(--rad-lg);
-  background: #181525;
-  border: 1px solid rgba(139,92,246,0.16);
+  background: var(--aurelo-home-card-bg, var(--s1));
+  border: 1px solid var(--aurelo-home-card-border, var(--border));
+  box-shadow: var(--aurelo-home-card-shadow, none);
   overflow: hidden;
   position: relative;
   cursor: pointer;
-  transition: opacity 0.15s, transform 0.15s;
-  /* Reset any padding — handled by inner wrapper */
+  transition: opacity 0.15s, transform 0.15s, border-color 0.15s;
   padding: 0;
 }
 #coach-home-insight:active {
-  opacity: 0.88;
+  opacity: 0.9;
   transform: scale(0.985);
 }
 #coach-home-insight:focus-visible {
   outline: 2px solid var(--p);
   outline-offset: 2px;
 }
-
-/* Gradient left-accent bar */
 #coach-home-insight::before {
   content: '';
   position: absolute;
-  left: 0; top: 0; bottom: 0;
+  left: 0;
+  top: 0;
+  bottom: 0;
   width: 3px;
-  background: linear-gradient(180deg, var(--p) 0%, var(--c) 100%);
+  background: linear-gradient(180deg, var(--aurelo-home-accent, var(--p)), var(--aurelo-home-accent-2, var(--c)));
   border-radius: 3px 0 0 3px;
   pointer-events: none;
 }
-
-/* Inner padding wrapper — offset for accent bar */
-.coach-home-insight-inner {
-  padding: 13px 14px 13px 18px;
+#coach-home-insight::after {
+  content: '';
+  position: absolute;
+  right: -34px;
+  top: -34px;
+  width: 112px;
+  height: 112px;
+  border-radius: 50%;
+  background: var(--s2);
+  opacity: .28;
+  pointer-events: none;
 }
-
-/* ── Header row ────────────────────────────────────── */
+.coach-home-insight-inner {
+  padding: 14px 15px 14px 18px;
+  position: relative;
+  z-index: 1;
+}
 .coach-home-insight-hdr {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 6px;
+  margin-bottom: 8px;
 }
 .coach-home-insight-hdr-left {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
+  min-width: 0;
 }
-
-/* Aurelo arch logo icon (replaces star) */
 .coach-home-insight-icon {
-  width: 20px;
-  height: 20px;
-  border-radius: 6px;
-  background: rgba(139,92,246,0.15);
+  width: 26px;
+  height: 26px;
+  border-radius: 10px;
+  background: var(--aurelo-home-chip-bg, var(--s2));
+  border: 1px solid var(--aurelo-home-chip-border, var(--border2));
+  color: var(--aurelo-home-chip-text, var(--p2));
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
 }
-
 .coach-home-insight-label {
   font-family: var(--ff-m);
   font-size: var(--text-2xs);
-  color: #A78BFA;
+  color: var(--p2);
   text-transform: uppercase;
   letter-spacing: 0.8px;
-  font-weight: 600;
+  font-weight: var(--fw-semibold);
+  white-space: nowrap;
 }
 .coach-home-insight-timestamp {
   font-family: var(--ff-m);
   font-size: var(--text-2xs);
-  color: var(--t3);
+  color: var(--aurelo-home-muted, var(--t3));
   flex-shrink: 0;
 }
 .coach-home-insight-hc-badge {
   font-family: var(--ff-m);
-  font-size: 9px;
-  color: var(--c);
-  background: rgba(5,200,232,0.1);
-  border: 1px solid rgba(5,200,232,0.22);
-  border-radius: 5px;
+  font-size: var(--text-2xs);
+  color: var(--aurelo-home-hc-text, var(--c));
+  background: var(--aurelo-home-hc-bg, var(--s2));
+  border: 1px solid var(--aurelo-home-hc-border, var(--border2));
+  border-radius: var(--rad-xs);
   padding: 2px 6px;
-  font-weight: 600;
+  font-weight: var(--fw-semibold);
   letter-spacing: 0.3px;
   margin-left: 4px;
 }
-
-/* ── Title ─────────────────────────────────────────── */
 .coach-home-insight-title {
-  font-family: var(--ff-m);
+  font-family: var(--ff-b);
   font-size: var(--text-xs);
-  font-weight: 600;
-  color: var(--t3);
-  margin-bottom: 4px;
-  line-height: 1.3;
+  font-weight: var(--fw-semibold);
+  color: var(--p2);
+  text-transform: none;
+  letter-spacing: 0;
+  margin-bottom: 5px;
+  line-height: 1.35;
 }
-
-/* ── Body ──────────────────────────────────────────── */
 .coach-home-insight-body {
-  font-family: var(--ff-m);
+  font-family: var(--ff-b);
   font-size: var(--text-sm);
   color: var(--t1);
-  line-height: 1.65;
-  margin-bottom: 11px;
+  line-height: 1.55;
+  margin-bottom: 12px;
 }
-
-/* ── Actions row — both buttons side by side ───────── */
+.coach-home-insight-body strong,
+.coach-home-insight-body b {
+  color: var(--g);
+  font-weight: var(--fw-semibold);
+}
 .coach-home-insight-actions {
   display: flex;
   flex-direction: row;
   align-items: center;
   gap: 8px;
-  margin-bottom: 9px;
+  margin-bottom: 10px;
 }
-
 .coach-home-insight-cta {
-  background: rgba(139,92,246,0.12);
-  border: 1px solid rgba(139,92,246,0.28);
-  border-radius: 20px;
-  padding: 6px 13px;
-  font-family: var(--ff-m);
+  background: var(--aurelo-home-chip-bg, var(--s2));
+  border: 1px solid var(--aurelo-home-chip-border, var(--border2));
+  border-radius: 999px;
+  padding: 7px 13px;
+  font-family: var(--ff-b);
   font-size: var(--text-xs);
-  font-weight: 600;
-  color: #A78BFA;
+  font-weight: var(--fw-semibold);
+  color: var(--aurelo-home-chip-text, var(--p2));
   cursor: pointer;
   white-space: nowrap;
-  min-height: 30px;
+  min-height: 32px;
   display: inline-flex;
   align-items: center;
-  transition: background 0.15s;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
 }
-.coach-home-insight-cta:active { background: rgba(139,92,246,0.22); }
-
+.coach-home-insight-cta:active {
+  background: var(--s1);
+  border-color: var(--p);
+}
 .coach-home-insight-dismiss {
   background: transparent;
-  border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 20px;
-  padding: 6px 13px;
-  font-family: var(--ff-m);
+  border: 1px solid var(--border2);
+  border-radius: 999px;
+  padding: 7px 13px;
+  font-family: var(--ff-b);
   font-size: var(--text-xs);
   color: var(--t3);
   cursor: pointer;
   white-space: nowrap;
-  min-height: 30px;
+  min-height: 32px;
   display: inline-flex;
   align-items: center;
-  transition: border-color 0.15s, color 0.15s;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
 }
-.coach-home-insight-dismiss:active { color: var(--t2); border-color: rgba(255,255,255,0.16); }
-
-/* ── Data source footer ────────────────────────────── */
+.coach-home-insight-dismiss:active {
+  color: var(--t2);
+  border-color: var(--border);
+  background: var(--s1);
+}
 .coach-home-insight-source {
   display: flex;
   align-items: center;
   gap: 5px;
-  font-family: var(--ff-m);
+  font-family: var(--ff-b);
   font-size: var(--text-2xs);
-  color: var(--t3);
+  color: var(--aurelo-home-muted, var(--t3));
+  padding-top: 2px;
 }
+.coach-home-insight-source::before {
+  content: '✓';
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--aurelo-home-hc-bg, var(--s2));
+  border: 1px solid var(--aurelo-home-hc-border, var(--border2));
+  color: var(--g);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  flex-shrink: 0;
+}
+
+
+/* v16: Home card is a compact preview; full text opens in Coach sheet. */
+#coach-home-insight,
+.coach-home-insight-inner{
+  height:auto !important;
+  max-height:none !important;
+}
+.coach-home-insight-title,
+.coach-home-insight-body,
+.coach-home-insight-source{
+  white-space:normal !important;
+  text-overflow:clip !important;
+  -webkit-line-clamp:unset !important;
+  -webkit-box-orient:unset !important;
+  overflow-wrap:break-word;
+}
+
+/* v18: compact Home preview; tap card for full text in Coach sheet */
+#coach-home-insight{
+  margin:0 16px 10px !important;
+  border-color:rgba(108,99,255,.24) !important;
+  box-shadow:0 10px 24px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.035) !important;
+}
+.coach-home-insight-inner{padding:11px 14px 12px 18px !important}
+.coach-home-insight-hdr{margin-bottom:7px !important}
+.coach-home-insight-title{
+  font-family:var(--ff-b) !important;
+  font-size:var(--text-xs) !important;
+  color:var(--p2) !important;
+  text-transform:none !important;
+  letter-spacing:0 !important;
+  margin-bottom:4px !important;
+}
+.coach-home-insight-body{
+  font-family:var(--ff-b) !important;
+  font-size:var(--text-sm) !important;
+  line-height:1.45 !important;
+  margin-bottom:8px !important;
+  display:-webkit-box !important;
+  -webkit-line-clamp:2 !important;
+  -webkit-box-orient:vertical !important;
+  overflow:hidden !important;
+  text-overflow:ellipsis !important;
+  overflow-wrap:break-word !important;
+}
+.coach-home-insight-actions{margin-bottom:0 !important;gap:8px !important}
+.coach-home-insight-cta,.coach-home-insight-dismiss{
+  min-height:30px !important;
+  padding:6px 12px !important;
+  font-family:var(--ff-b) !important;
+}
+.coach-home-insight-source{display:none !important}

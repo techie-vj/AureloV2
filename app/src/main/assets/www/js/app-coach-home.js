@@ -70,7 +70,7 @@
     var dismissEl = card.querySelector('.coach-home-insight-dismiss');
 
     if (titleEl)   titleEl.textContent = insight.title || '';
-    if (bodyEl)    bodyEl.textContent  = insight.body  || '';
+    if (bodyEl)    bodyEl.textContent  = insight.previewBody || insight.body || '';
     if (hcBadge)   hcBadge.style.display = insight.hcBadge ? '' : 'none';
 
     if (tsEl) {
@@ -96,7 +96,23 @@
     }
 
     card.onclick = function () {
-      if (typeof CoachUI !== 'undefined') CoachUI.open(insight.intentQuery || null);
+      if (typeof CoachUI === 'undefined') return;
+      if (typeof CoachUI.openInsight === 'function') {
+        CoachUI.openInsight(
+          insight.title || 'Your daily insight',
+          insight.fullBody || insight.body || insight.previewBody || '',
+          insight.intentQuery ? [insight.intentQuery] : []
+        );
+      } else {
+        CoachUI.open(null);
+      }
+    };
+
+    card.onkeydown = function (e) {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        card.click();
+      }
     };
 
     card.style.display = '';
@@ -113,9 +129,12 @@
         if (raw) {
           var parsed = JSON.parse(raw);
           if (parsed && parsed.title) {
+            var parsedBody = parsed.body || '';
             return {
               title:       parsed.title,
-              body:        isPro ? parsed.body : _truncate(parsed.body, 80),
+              body:        isPro ? parsedBody : _truncate(parsedBody, 80),
+              fullBody:    isPro ? parsedBody : _truncate(parsedBody, 80),
+              previewBody: isPro ? _truncate(parsedBody, 118) : _truncate(parsedBody, 80),
               hcBadge:     !!parsed.hcBadge,
               intentQuery: _intentToQuery(parsed.intent),
             };
@@ -134,7 +153,9 @@
       var bodyText = (resp.text || '').replace(/<[^>]+>/g, '');
       return {
         title:       _intentTitle(top.intent),
-        body:        isPro ? _truncate(bodyText, 120) : _truncate(bodyText, 80),
+        body:        isPro ? bodyText : _truncate(bodyText, 80),
+        fullBody:    isPro ? bodyText : _truncate(bodyText, 80),
+        previewBody: isPro ? _truncate(bodyText, 118) : _truncate(bodyText, 80),
         hcBadge:     top.intent === 'HC_POOR_SLEEP_HIGH_USAGE' ||
                      top.intent === 'HC_ACTIVE_DAY_BETTER_FOCUS',
         intentQuery: resp.followUps && resp.followUps[0] ? resp.followUps[0] : null,
@@ -154,7 +175,8 @@
     card.id  = 'coach-home-insight';
     card.style.display = 'none';
     card.setAttribute('role', 'button');
-    card.setAttribute('aria-label', 'Aurelo Coach daily insight — tap to open');
+    card.setAttribute('tabindex', '0');
+    card.setAttribute('aria-label', 'Aurelo Coach daily insight — tap to read full insight');
 
     // Aurelo arch logo — prefix 'chi' on gradient IDs to avoid SVG defs clashes
     var ARCH_SVG =
