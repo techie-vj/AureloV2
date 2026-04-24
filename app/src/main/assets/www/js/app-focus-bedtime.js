@@ -901,6 +901,15 @@ window.FocusBedtime = (function () {
         'background:rgba(247,166,35,.15);color:var(--a);margin-left:5px">🔥 ' + streakCount + ' nights</span>'
       : '';
 
+    // ── HC Enhanced badge (spec §7.3) ────────────────────────────
+    var hcSleepAvail = typeof HealthConnect !== 'undefined' && HealthConnect.isConnected() && HealthConnect.getSleepData();
+    var hcSleepBadge = hcSleepAvail
+      ? '<span style="font-size:10px;color:var(--hc);background:var(--hc-dim);' +
+        'border:1px solid var(--hc-border);border-radius:5px;' +
+        'padding:1px 6px;font-weight:700;letter-spacing:.3px;margin-left:6px;' +
+        'font-family:var(--ff-m)">HC Enhanced</span>'
+      : '';
+
     // Status text
     function decToStr(dec) {
       var h24 = ((Math.round(dec * 4) / 4) + 24) % 24;
@@ -972,7 +981,7 @@ window.FocusBedtime = (function () {
         '<div style="flex:1;min-width:0">' +
           '<div style="display:flex;align-items:center;flex-wrap:wrap">' +
             '<span style="font-size:13px;font-weight:700;color:var(--t1)">Bedtime Mode</span>' +
-            streakBadge +
+            streakBadge + hcSleepBadge +
           '</div>' +
           '<div style="font-family:var(--ff-m);font-size:10px;color:var(--t3);margin-top:2px">' + statusTxt + '</div>' +
         '</div>' +

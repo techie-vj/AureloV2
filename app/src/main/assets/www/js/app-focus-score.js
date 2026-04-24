@@ -34,13 +34,32 @@ window.FocusScore = (function () {
 
   /* ── Score calculations ────────────────────────────────────── */
   function calculateFocus(d) {
-    d = d || (typeof FocusTab !== 'undefined' ? FocusTab.loadStripData() : {});
-    var totalW=0, earned=0, sessW=0, timerW=0, mindfulW=0, sessPts=0, timerPts=0, mindfulPts=0;
-    if (d.total > 0)      { sessW=40;    sessPts=Math.round((d.completed/d.total)*40);                                totalW+=sessW;    earned+=sessPts; }
-    if (d.timerTotal > 0) { timerW=35;   timerPts=Math.round(((d.timerTotal-d.timerOverCount)/d.timerTotal)*35);     totalW+=timerW;   earned+=timerPts; }
-    if (d.pauseCount > 0) { mindfulW=25; mindfulPts=Math.round((d.resistCount/d.pauseCount)*25);                     totalW+=mindfulW; earned+=mindfulPts; }
-    var score = totalW===0 ? -1 : Math.round((earned/totalW)*100);
-    return { score, sessPts, timerPts, mindfulPts, sessW, timerW, mindfulW, sessMax:sessW, timerMax:timerW, mindfulMax:mindfulW };
+      d = d || (typeof FocusTab !== 'undefined' ? FocusTab.loadStripData() : {});
+      var totalW=0, earned=0, sessW=0, timerW=0, mindfulW=0,
+          sessPts=0, timerPts=0, mindfulPts=0;
+
+      if (d.total > 0)      { sessW=40;    sessPts=Math.round((d.completed/d.total)*40);                            totalW+=sessW;    earned+=sessPts; }
+      if (d.timerTotal > 0) { timerW=35;   timerPts=Math.round(((d.timerTotal-d.timerOverCount)/d.timerTotal)*35); totalW+=timerW;   earned+=timerPts; }
+      if (d.pauseCount > 0) { mindfulW=25; mindfulPts=Math.round((d.resistCount/d.pauseCount)*25);                 totalW+=mindfulW; earned+=mindfulPts; }
+
+      // ── HC external mindfulness (spec §6.2 — 50% credit, bonus on top) ──
+      var hcMindfulPts = 0, hcActive = false;
+      if (typeof HealthConnect !== 'undefined' && HealthConnect.isConnected()) {
+          var _hcSess = HealthConnect.getMindfulnessSessions();
+          if (_hcSess.length) {
+              hcMindfulPts = _hcSess.reduce(function(sum,s){ return sum + s.pts; }, 0);
+              hcActive = true;
+          }
+      }
+
+      var baseScore = totalW === 0 ? -1 : Math.round((earned / totalW) * 100);
+      var score = hcActive
+          ? Math.min(100, (baseScore >= 0 ? baseScore : 0) + hcMindfulPts)
+          : baseScore;
+
+      return { score, sessPts, timerPts, mindfulPts, sessW, timerW, mindfulW,
+               sessMax:sessW, timerMax:timerW, mindfulMax:mindfulW,
+               hcMindfulPts, hcActive };
   }
 
   function calculateSleep() {
@@ -74,14 +93,40 @@ window.FocusScore = (function () {
     var sleepRes  = calculateSleep();
     var screenScore = typeof calculateScreenScore==='function' ? calculateScreenScore().score : -1;
     var sleepEnabled = sleepRes.score >= 0;
-    var swScreen = sleepEnabled?40:55, swFocus=sleepEnabled?35:45, swSleep=sleepEnabled?25:0;
+
+    // ── Health Connect Body Score (Pro feature, spec §4.1) ───────────────
+    var hcBodyScore = -1, hcActive = false;
+    if (typeof HealthConnect !== 'undefined' && HealthConnect.isConnected()) {
+      hcBodyScore = HealthConnect.getBodyScore();
+      hcActive    = hcBodyScore >= 0;
+    }
+
+    // ── Weight redistribution per spec §4.1 ─────────────────────────────
+    // Without HC: Screen 40 / Focus 35 / Sleep 25 (unchanged if sleep off: 55/45)
+    // With HC:    Screen 35 / Focus 30 / Sleep 25 / Body 10
+    var swScreen, swFocus, swSleep, swBody;
+    if (hcActive) {
+      swSleep  = sleepEnabled ? 25 : 0;
+      swScreen = sleepEnabled ? 35 : 48;
+      swFocus  = sleepEnabled ? 30 : 42;
+      swBody   = sleepEnabled ? 10 : 10;
+    } else {
+      swSleep  = sleepEnabled ? 25 : 0;
+      swScreen = sleepEnabled ? 40 : 55;
+      swFocus  = sleepEnabled ? 35 : 45;
+      swBody   = 0;
+    }
+
     var parts=[], weights=[];
     if (screenScore>=0)  { parts.push(screenScore*swScreen); weights.push(swScreen); }
     if (focusRes.score>=0){ parts.push(focusRes.score*swFocus);  weights.push(swFocus); }
     if (sleepEnabled)    { parts.push(sleepRes.score*swSleep);  weights.push(swSleep); }
+    if (hcActive)        { parts.push(hcBodyScore*swBody);      weights.push(swBody);  }
+
     var totalW = weights.reduce(function(a,b){return a+b;},0);
     var score  = totalW===0 ? -1 : Math.round(parts.reduce(function(a,b){return a+b;},0)/totalW);
-    return { score, screenScore, focusScore:focusRes.score, sleepScore:sleepRes.score, swScreen, swFocus, swSleep, sleepEnabled };
+    return { score, screenScore, focusScore:focusRes.score, sleepScore:sleepRes.score,
+             hcBodyScore, hcActive, swScreen, swFocus, swSleep, swBody, sleepEnabled };
   }
 
   /* ── Score persistence ─────────────────────────────────────── */
@@ -151,6 +196,10 @@ window.FocusScore = (function () {
         'padding:4px 8px;border-radius:8px;background:rgba(108,99,255,.1);border:1px solid rgba(108,99,255,.2);min-width:52px;max-width:60px;box-sizing:border-box">'+
         '<div style="font-family:var(--ff-m);font-size:9px;color:var(--p2);letter-spacing:.5px">SCORE</div>'+
         '<div style="font-family:var(--ff-d);font-size:18px;font-weight:700;color:'+scoreColor+';line-height:1">'+scoreDisp+'</div>'+
+        + (opts.hcActive
+                    ? '<div style="font-family:var(--ff-m);font-size:7px;color:var(--hc);' +
+                      'letter-spacing:.3px;margin-top:1px">HC</div>'
+                    : '')
       '</div></div>'+
       (opts.streakEarnLine?'<div style="font-family:var(--ff-m);font-size:10px;color:var(--t3);margin-top:8px;line-height:1.4">'+opts.streakEarnLine+'</div>':'')+
     '</div>';
@@ -562,7 +611,84 @@ window.FocusScore = (function () {
     if(res.sessW>0) components.push({label:'Sessions',weight:res.sessW,pts:res.sessPts,maxPts:res.sessMax,dataLine:d.completed+' of '+d.total+' sessions completed today ('+d.rate+'%)'});
     if(res.timerW>0) components.push({label:'App Timers',weight:res.timerW,pts:res.timerPts,maxPts:res.timerMax,dataLine:(d.timerTotal-d.timerOverCount)+' of '+d.timerTotal+' timers respected today'});
     if(res.mindfulW>0) components.push({label:'Mindful Pause',weight:res.mindfulW,pts:res.mindfulPts,maxPts:res.mindfulMax,dataLine:d.resistCount+' of '+d.pauseCount+' pauses resisted today'});
-    _openScoreSheet(_buildScoreSheet({title:'Focus Score',score:res.score,scoreKey:_FOCUS_SCORE_KEY,components,improvements:improvements.slice(0,3)}));
+
+    var sheetHtml = _buildScoreSheet({title:'Focus Score',score:res.score,scoreKey:_FOCUS_SCORE_KEY,components,improvements:improvements.slice(0,3)});
+
+    // ── HC external mindfulness section (spec §6.2) ─────────────────────
+    // FIX: Gate on HealthConnect.isConnected() (not res.hcActive) so the HC badge
+    //      and section always appear when HC is connected, even on days with no
+    //      external mindfulness sessions (res.hcActive is only true when sessions
+    //      exist, which caused the badge/section/pts to silently disappear).
+    var _hcConnected = typeof HealthConnect !== 'undefined' && HealthConnect.isConnected();
+    if (_hcConnected) {
+      // FIX 1: HC tag always shown in sheet title when HC is connected
+      var hcBadge =
+                '<span style="font-size:var(--text-2xs);color:var(--hc);background:var(--hc-dim);' +
+                'border:1px solid var(--hc-border);border-radius:5px;padding:1px 6px;' +
+                'font-weight:700;letter-spacing:.3px;margin-left:8px;vertical-align:middle">HC</span>';
+      sheetHtml = sheetHtml.replace('Focus Score</div>', 'Focus Score' + hcBadge + '</div>');
+
+      // FIX 2: HC section always shown when connected (empty state if no sessions today)
+      var hcSessions = HealthConnect.getMindfulnessSessions();
+      var totalHcPts = hcSessions.reduce(function(sum,s){return sum+s.pts;},0);
+      var sessionRows = hcSessions.length > 0
+        ? hcSessions.map(function(s){
+            return '<div style="display:flex;align-items:center;gap:10px;padding:8px 0;'+
+              'border-bottom:1px solid rgba(255,255,255,.04)">' +
+              '<div style="flex:1">' +
+                '<div style="font-size:var(--text-sm);font-weight:600;color:var(--t1)">'+s.app+'</div>' +
+                '<div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3)">'+s.type+' · '+s.duration+' min</div>' +
+              '</div>' +
+              '<div style="font-family:var(--ff-m);font-size:var(--text-xs);font-weight:700;color:var(--hc)">+'+s.pts+' pts</div>' +
+            '</div>';
+          }).join('')
+        : '<div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);padding:10px 2px">No external mindfulness sessions recorded today.</div>';
+      var hcFooter = hcSessions.length > 0
+        ? '<div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);' +
+          'line-height:1.5;padding:0 2px">' +
+          'Run sessions inside Aurelo for full credit. External sessions earn 50% to reward healthy habits wherever they happen.' +
+          '</div>'
+        : '';
+      var hcSection =
+        '<div style="margin-bottom:16px">' +
+          '<div style="display:flex;align-items:center;gap:7px;margin-bottom:10px">' +
+            '<span style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);' +
+            'letter-spacing:.8px">HEALTH CONNECT · MINDFULNESS</span>' +
+            '<span style="font-size:var(--text-2xs);color:var(--hc);background:var(--hc-dim);' +
+            'border:1px solid var(--hc-border);border-radius:5px;padding:1px 5px;font-weight:600;' +
+            'letter-spacing:.3px">50% credit</span>' +
+          '</div>' +
+          '<div style="background:var(--s2);border:1px solid var(--border2);border-radius:14px;' +
+          'padding:4px 14px;margin-bottom:8px">' +
+            sessionRows +
+          '</div>' +
+          hcFooter +
+        '</div>';
+      sheetHtml = sheetHtml.replace('HOW THIS IS CALCULATED', hcSection + 'HOW THIS IS CALCULATED');
+
+      // FIX 3: Add HC pts as a component row in the score breakdown bars
+      if (res.hcActive && res.hcMindfulPts > 0) {
+        var hcCompRow =
+          '<div style="margin-bottom:16px">' +
+            '<div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:3px">' +
+              '<div style="font-size:13px;font-weight:700;color:var(--hc)">HC Mindfulness (bonus)</div>' +
+              '<div style="font-family:var(--ff-m);font-size:10px;color:var(--t3)">+' + res.hcMindfulPts + ' pts bonus</div>' +
+            '</div>' +
+            '<div style="font-family:var(--ff-m);font-size:11px;color:var(--t2);margin-bottom:6px">' +
+              totalHcPts + ' bonus pts added from Health Connect mindfulness sessions (50% credit)' +
+            '</div>' +
+            '<div style="display:flex;align-items:center;gap:8px">' +
+              '<div style="flex:1;height:5px;background:var(--border);border-radius:3px;overflow:hidden">' +
+                '<div style="height:100%;width:100%;background:var(--hc);border-radius:3px;transition:width .4s"></div>' +
+              '</div>' +
+              '<div style="font-family:var(--ff-m);font-size:11px;font-weight:700;color:var(--hc);flex-shrink:0">+' + res.hcMindfulPts + ' pts</div>' +
+            '</div>' +
+          '</div>';
+        sheetHtml = sheetHtml.replace('HOW THIS IS CALCULATED', hcCompRow + 'HOW THIS IS CALCULATED');
+      }
+    }
+
+    _openScoreSheet(sheetHtml);
   }
 
   function openHabitsScoreSheet() {
@@ -572,12 +698,47 @@ window.FocusScore = (function () {
     if(res.adherePts===0) improvements.push({text:'Respect your bedtime window tonight — no manual disable',impact:50});
     if(res.snoozePts<30) improvements.push({text:'Avoid snoozing bedtime — each snooze costs 15 pts',impact:30-res.snoozePts});
     if(res.attemptPts<20) improvements.push({text:'Keep your blocked apps closed during the bedtime window',impact:20-res.attemptPts});
-    var components=[
-      {label:'Bedtime Adherence',weight:50,pts:res.adherePts,maxPts:50,dataLine:ln&&ln.hasData?(ln.bedtimeKept?'Bedtime window respected last night':'Bedtime window was not respected'):'No data yet'},
-      {label:'Snooze Count',weight:30,pts:res.snoozePts,maxPts:30,dataLine:ln&&ln.hasData?(ln.snoozeCount+' snooze'+(ln.snoozeCount!==1?'s':'')+' last night'):'No data'},
-      {label:'App Attempts Blocked',weight:20,pts:res.attemptPts,maxPts:20,dataLine:ln&&ln.hasData?((ln.appAttemptsTotal||0)+' blocked app attempt'+((ln.appAttemptsTotal||0)!==1?'s':'')+' last night'):'No data'},
-    ];
-    _openScoreSheet(_buildScoreSheet({title:'Sleep Score',score:res.score,scoreKey:_SLEEP_SCORE_KEY,components,improvements:improvements.slice(0,3)}));
+
+    // ── HC sleep enhancement (spec §7.1) ─────────────────────────────────
+    var hcSleep = typeof HealthConnect !== 'undefined' ? HealthConnect.getSleepData() : null;
+    var effectiveScore = res.score;
+    var components;
+
+    if (hcSleep) {
+      // Blended formula: Bedtime Mode 60% + HC Duration 25% + HC HRV 15%
+      effectiveScore = Math.round(res.score * 0.60 + hcSleep.durScore * 0.25 + hcSleep.oHrvScore * 0.15);
+      effectiveScore = Math.min(100, Math.max(0, effectiveScore));
+      var durH   = Math.floor(hcSleep.sleepDuration);
+      var durM   = Math.round((hcSleep.sleepDuration % 1) * 60);
+      var durStr = durH + 'h ' + (durM > 0 ? durM + 'm' : '');
+      components=[
+        {label:'Bedtime Mode',weight:60,pts:Math.round(res.score*0.60),maxPts:60,
+          dataLine:(ln&&ln.hasData?(ln.bedtimeKept?'Bedtime kept ✓':'Bedtime missed'):'No data')},
+        {label:'Sleep Duration',weight:25,pts:Math.round(hcSleep.durScore*0.25),maxPts:25,
+          dataLine:durStr+' · goal: 7–9 hours'},
+        {label:'Overnight HRV',weight:15,pts:Math.round(hcSleep.oHrvScore*0.15),maxPts:15,
+          dataLine:hcSleep.overnightHrv+'ms overnight · avg '+hcSleep.avgOHrv+'ms'},
+      ];
+    } else {
+      components=[
+        {label:'Bedtime Adherence',weight:50,pts:res.adherePts,maxPts:50,dataLine:ln&&ln.hasData?(ln.bedtimeKept?'Bedtime window respected last night':'Bedtime window was not respected'):'No data yet'},
+        {label:'Snooze Count',weight:30,pts:res.snoozePts,maxPts:30,dataLine:ln&&ln.hasData?(ln.snoozeCount+' snooze'+(ln.snoozeCount!==1?'s':'')+' last night'):'No data'},
+        {label:'App Attempts Blocked',weight:20,pts:res.attemptPts,maxPts:20,dataLine:ln&&ln.hasData?((ln.appAttemptsTotal||0)+' blocked app attempt'+((ln.appAttemptsTotal||0)!==1?'s':'')+' last night'):'No data'},
+      ];
+    }
+
+    var sheetHtml = _buildScoreSheet({title:'Sleep Score',score:effectiveScore,scoreKey:_SLEEP_SCORE_KEY,components,improvements:improvements.slice(0,3)});
+
+    // Inject HC Enhanced badge into title when HC data active
+    if (hcSleep) {
+      var hcBadge =
+        '<span style="font-size:var(--text-2xs);color:var(--hc);background:var(--hc-dim);' +
+        'border:1px solid var(--hc-border);border-radius:5px;padding:1px 6px;' +
+        'font-weight:700;letter-spacing:.3px;margin-left:8px;vertical-align:middle">HC Enhanced</span>';
+      sheetHtml = sheetHtml.replace('Sleep Score</div>', 'Sleep Score' + hcBadge + '</div>');
+    }
+
+    _openScoreSheet(sheetHtml);
   }
 
   /* ── Public API ────────────────────────────────────────────── */

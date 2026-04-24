@@ -233,3 +233,181 @@
   .boot-enter  { opacity: 1; transform: none; }
   .boot-visible { transition: none; }
 }
+
+/* ══ COACH HOME INSIGHT CARD ══════════════════════════
+   Matches S7 mockup: dark card, gradient left-accent bar,
+   star header, body text, pill CTAs, data-source footer.
+   ════════════════════════════════════════════════════ */
+
+#coach-home-insight {
+  margin: 0 16px 12px;
+  background: #181525;
+  border: 1px solid rgba(139, 92, 246, 0.16);
+  border-radius: var(--rad-lg, 16px);
+  overflow: hidden;
+  position: relative;
+  cursor: pointer;
+  transition: border-color 0.18s, opacity 0.15s;
+  padding: 0; /* padding applied to inner wrapper */
+}
+
+#coach-home-insight:active { opacity: 0.88; }
+#coach-home-insight:focus-visible {
+  outline: 2px solid var(--focus-ring-color, rgba(139,92,246,0.7));
+  outline-offset: 2px;
+}
+
+/* ── Left accent bar (purple → teal gradient) ─────── */
+#coach-home-insight::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 3px;
+  background: linear-gradient(180deg, #8B5CF6 0%, #06D6B8 100%);
+  border-radius: 3px 0 0 3px;
+  flex-shrink: 0;
+}
+
+/* Inner padding wrapper (offset for accent bar) */
+.coach-home-insight-inner {
+  padding: 14px 14px 14px 18px;
+}
+
+/* ── Header row ───────────────────────────────────── */
+.coach-home-insight-hdr {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.coach-home-insight-hdr-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.coach-home-insight-icon {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: rgba(139, 92, 246, 0.18);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.coach-home-insight-label {
+  font-family: var(--ff-m, 'BricolageGrotesque', sans-serif);
+  font-size: 10px;
+  color: #A78BFA;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  font-weight: 600;
+}
+
+.coach-home-insight-timestamp {
+  font-family: var(--ff-m, 'BricolageGrotesque', sans-serif);
+  font-size: 10px;
+  color: #5C5278;
+  flex-shrink: 0;
+}
+
+/* ── HC badge (shown when hcBadge is true) ────────── */
+.coach-home-insight-hc-badge {
+  font-family: var(--ff-m, 'BricolageGrotesque', sans-serif);
+  font-size: 9px;
+  color: #06D6B8;
+  background: rgba(6, 214, 184, 0.1);
+  border: 1px solid rgba(6, 214, 184, 0.22);
+  border-radius: 6px;
+  padding: 2px 7px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  margin-left: 4px;
+  align-self: center;
+}
+
+/* ── Title ────────────────────────────────────────── */
+.coach-home-insight-title {
+  font-size: 12px;
+  color: #9589B0;
+  font-family: var(--ff-m, 'BricolageGrotesque', sans-serif);
+  font-weight: 600;
+  margin-bottom: 5px;
+  letter-spacing: 0.1px;
+}
+
+/* ── Body text ────────────────────────────────────── */
+.coach-home-insight-body {
+  font-family: var(--ff-m, 'BricolageGrotesque', sans-serif);
+  font-size: 13px;
+  color: #F0EDF8;
+  line-height: 1.65;
+  margin-bottom: 12px;
+}
+
+/* ── Action buttons row ───────────────────────────── */
+.coach-home-insight-actions {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+
+/* Primary pill — "Ask follow-up →" */
+.coach-home-insight-cta {
+  background: rgba(139, 92, 246, 0.12);
+  border: 1px solid rgba(139, 92, 246, 0.28);
+  border-radius: 20px;
+  padding: 6px 13px;
+  font-size: 11px;
+  color: #A78BFA;
+  font-family: var(--ff-m, 'BricolageGrotesque', sans-serif);
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  min-height: 32px;
+  display: inline-flex;
+  align-items: center;
+  transition: background 0.15s, border-color 0.15s;
+}
+.coach-home-insight-cta:active { background: rgba(139, 92, 246, 0.22); }
+.coach-home-insight-cta:focus-visible {
+  outline: 2px solid rgba(139,92,246,0.6);
+  outline-offset: 2px;
+}
+
+/* Dismiss ghost pill — "Got it" */
+.coach-home-insight-dismiss {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 20px;
+  padding: 6px 13px;
+  font-size: 11px;
+  color: #5C5278;
+  font-family: var(--ff-m, 'BricolageGrotesque', sans-serif);
+  cursor: pointer;
+  white-space: nowrap;
+  min-height: 32px;
+  display: inline-flex;
+  align-items: center;
+  transition: border-color 0.15s, color 0.15s;
+}
+.coach-home-insight-dismiss:active { color: #9589B0; border-color: rgba(255,255,255,0.16); }
+.coach-home-insight-dismiss:focus-visible {
+  outline: 2px solid rgba(139,92,246,0.5);
+  outline-offset: 2px;
+}
+
+/* ── Data source footer ───────────────────────────── */
+.coach-home-insight-source {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--ff-m, 'BricolageGrotesque', sans-serif);
+  font-size: 10px;
+  color: #5C5278;
+  padding-top: 2px;
+}

@@ -293,7 +293,7 @@ window.FocusTab = (function () {
     } else {
       _refreshFocusChips();
     }
-    if (removed) toast(removed.name + ' removed', 'info');
+    if (removed) toast(removed.name + ' removed from Focus Session', 'info');
     if (_focusSessionActive && IS_NATIVE) {
       try { N.updateFocusSession(JSON.stringify(_focusBlockedApps), Date.now() + _focusSessionSecs * 1000, _focusDifficulty); } catch (_) {}
     }

@@ -276,18 +276,28 @@ document.addEventListener('DOMContentLoaded', () => {
     if(vBadge)  vBadge.textContent  = liveVer;
     if(vBadge2) vBadge2.textContent = liveVer;
     var _bt=IS_NATIVE&&N.getStringPref?N.getStringPref('app_theme')||S.theme||'dark':S.theme||'dark';
-    S.theme=_bt; applyTheme(_bt);
-    buildIconGrid();
-    if (!IS_NATIVE) {
-      if (S.onboardingDone) { loadDemoData(); showApp(); }
-      else { document.getElementById('ob-screen').style.display='flex'; /* new user */ }
-    } else if (S.onboardingDone) {
-      bootApp(); // returning user — ob-screen stays hidden (no flash)
-    } else {
-      document.getElementById('ob-screen').style.display='flex'; // new user
+    S.theme=_bt;
+    // Wrap post-template init in try/catch so a non-fatal throw (e.g. a missing
+    // DOM element in buildIconGrid or applyTheme) does not reject the Promise and
+    // incorrectly surface as a TemplateLoader failure in the .catch() block.
+    try { applyTheme(_bt); } catch(e) { console.warn('[TemplateLoader] applyTheme error:', e); }
+    try { buildIconGrid(); } catch(e) { console.warn('[TemplateLoader] buildIconGrid error:', e); }
+    // Register coach FAB drag handlers as soon as the template DOM is available.
+    if (typeof CoachUI !== 'undefined') {
+      try { CoachUI._initFabDrag(); } catch(e) { console.warn('[TemplateLoader] CoachUI._initFabDrag error:', e); }
     }
+    try {
+      if (!IS_NATIVE) {
+        if (S.onboardingDone) { loadDemoData(); showApp(); }
+        else { document.getElementById('ob-screen').style.display='flex'; }
+      } else if (S.onboardingDone) {
+        bootApp();
+      } else {
+        document.getElementById('ob-screen').style.display='flex';
+      }
+    } catch(e) { console.warn('[TemplateLoader] boot error:', e); bootApp(); }
   }).catch(function (err) {
-    // Graceful fallback: if template loading fails (e.g. old build), boot anyway
+    // Only reaches here if template LOADING itself fails (fetch/asset error), not post-init throws.
     console.error('[TemplateLoader] Failed to load templates, booting anyway:', err);
     bootApp();
   });
@@ -592,49 +602,55 @@ function scheduleGridRefresh(){
   }, 50);
 }
 function renderAll(){
-  updateGreeting();
-  scheduleBedtimeCheck();
+  try { updateGreeting(); } catch(e) { console.warn('[renderAll] updateGreeting:', e); }
+  if(typeof scheduleBedtimeCheck === 'function') try { scheduleBedtimeCheck(); } catch(e) {}
   // Invalidate bridge-data caches at start of each full render cycle
   if(typeof _invalidateStripCache === 'function') _invalidateStripCache();
   // Always update stats (cheap text writes)
-  renderQuickStats();
-  // Refresh tab-level Pro-gated UI (insight card, widget picker, etc.) on every full render.
-    // Gate DOM elements (blur/lock/ceiling/teaser) are managed by ProTier directly.
-   refreshAllProGates();
+  if(typeof renderQuickStats === 'function') try { renderQuickStats(); } catch(e) { console.warn('[renderAll] renderQuickStats:', e); }
+  // Refresh tab-level Pro-gated UI on every full render
+  try { refreshAllProGates(); } catch(e) {}
   // Only render sections for the active tab, mark others dirty
   if(_activeTab==='home'){
-    renderRecent();
-    renderGhostBanner();
-    // Render Pro-gated insight card (delegates to ProTier.canAccess internally)
-    if(typeof renderContextualInsight === 'function') renderContextualInsight();
-    if(typeof renderFocusStrip === 'function') renderFocusStrip();
-    if(typeof renderAureloScore  === 'function') renderAureloScore();
-    if(typeof renderSleepCard  === 'function') renderSleepCard();
-    if(typeof renderTimerAlert === 'function') renderTimerAlert();
-    if(typeof checkStreakIncrements       === 'function') checkStreakIncrements();
-    if(typeof renderHomeFocusDynamicRow   === 'function') renderHomeFocusDynamicRow();
-    if(typeof renderHomeHabitsDynamicRow  === 'function') renderHomeHabitsDynamicRow();
+    if(typeof renderRecent === 'function') try { renderRecent(); } catch(e) {}
+    if(typeof renderGhostBanner === 'function') try { renderGhostBanner(); } catch(e) {}
+    if(typeof renderContextualInsight === 'function') try { renderContextualInsight(); } catch(e) {}
+    if(typeof renderFocusStrip === 'function') try { renderFocusStrip(); } catch(e) {}
+    if(typeof renderAureloScore  === 'function') try { renderAureloScore(); } catch(e) {}
+    if(typeof HealthConnect !== 'undefined') try { HealthConnect.renderHomeBanner(); } catch(e) {}
+    if(typeof renderCoachHomeInsight === 'function') try { renderCoachHomeInsight(); } catch(e) {}
+    if(typeof renderSleepCard  === 'function') try { renderSleepCard(); } catch(e) {}
+    if(typeof renderTimerAlert === 'function') try { renderTimerAlert(); } catch(e) {}
+    if(typeof checkStreakIncrements       === 'function') try { checkStreakIncrements(); } catch(e) {}
+    if(typeof renderHomeFocusDynamicRow   === 'function') try { renderHomeFocusDynamicRow(); } catch(e) {}
+    if(typeof renderHomeHabitsDynamicRow  === 'function') try { renderHomeHabitsDynamicRow(); } catch(e) {}
     // Only re-render cat grid when cats changed
     const catHash = JSON.stringify(Object.keys(CATS_MAP).sort());
     if(catHash !== _lastRenderHash){
       _lastRenderHash = catHash;
-      if(typeof renderCategoryGrid  === 'function') renderCategoryGrid();
-      if(typeof renderCategoryList  === 'function') renderCategoryList();
-      if(typeof renderManageCats    === 'function') renderManageCats();
-      if(typeof updateCatsSub       === 'function') updateCatsSub();
+      if(typeof renderCategoryGrid  === 'function') try { renderCategoryGrid(); } catch(e) {}
+      if(typeof renderCategoryList  === 'function') try { renderCategoryList(); } catch(e) {}
+      if(typeof renderManageCats    === 'function') try { renderManageCats(); } catch(e) {}
+      if(typeof updateCatsSub       === 'function') try { updateCatsSub(); } catch(e) {}
     } else { _catsDirty = false; }
-    renderGhostPanel();
+    if(typeof renderGhostPanel === 'function') try { renderGhostPanel(); } catch(e) {}
     _homeDirty = false;
     _ghostDirty = false;
   } else {
-    _homeDirty = true;  // refresh home content next time it becomes active
+    _homeDirty = true;
   }
-  if(_activeTab==='wellness') { renderWellness(); _wellnessDirty = false; }
-  else _wellnessDirty = true;
+  if(_activeTab==='wellness') {
+    if(typeof renderWellness === 'function') try { renderWellness(); } catch(e) {}
+    _wellnessDirty = false;
+  } else _wellnessDirty = true;
   if(_activeTab==='settings'){
-    updateTimersSub(); updateLockedSub(); updateHiddenSub(); updatePermUI();
+    if(typeof updateTimersSub === 'function') try { updateTimersSub(); } catch(e) {}
+    if(typeof updateLockedSub === 'function') try { updateLockedSub(); } catch(e) {}
+    if(typeof updateHiddenSub === 'function') try { updateHiddenSub(); } catch(e) {}
+    if(typeof updatePermUI    === 'function') try { updatePermUI(); } catch(e) {}
+    if(typeof HealthConnect !== 'undefined') try { HealthConnect.renderSettingsCard(); } catch(e) {}
   }
-  updateNotifDot();
+  if(typeof updateNotifDot === 'function') try { updateNotifDot(); } catch(e) {}
 }
 
 function refreshAndRenderGhosts() {
@@ -703,8 +719,8 @@ function refreshUsage(){
     }
   } catch(e){ console.error('refreshUsage:', e); }
   // Only render what's currently visible — skip off-screen tabs entirely
-  renderQuickStats();
-  renderRecent();
+  if(typeof renderQuickStats === 'function') renderQuickStats();
+  if(typeof renderRecent === 'function') renderRecent();
   if(typeof renderAureloScore  === 'function') renderAureloScore();
   if(typeof renderTimerAlert === 'function') renderTimerAlert();
   if(typeof checkStreakIncrements       === 'function') checkStreakIncrements();

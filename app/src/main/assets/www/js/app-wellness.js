@@ -267,6 +267,10 @@ function renderScreenScoreSheet() {
   var res = calculateScreenScore();
   _saveScoreForToday(_SCREEN_SCORE_KEY, res.score);
 
+  // ── HC activity modifier (spec §5.2) ─────────────────────────────────
+  var hcMod = typeof HealthConnect !== 'undefined' ? HealthConnect.getActivityModifier() : { modifier: 0, label: null };
+  var effectiveScore = Math.min(100, Math.max(0, res.score + hcMod.modifier));
+
   var fmtGoal    = fmtM(res.goalMins);
   var fmtToday   = fmtM(res.todayMins);
   var goalPts    = Math.round(res.goalAdherenceScore * 0.5);
@@ -334,13 +338,33 @@ function renderScreenScoreSheet() {
 
   // BUG-06 fix: _openScoreSheet and _buildScoreSheet are private to the FocusScore
   // IIFE. Call them through the public API instead of as bare globals.
-  FocusScore.openScoreSheet(FocusScore.buildScoreSheet({
+  var sheetHtml = FocusScore.buildScoreSheet({
     title:        'Screen score',
-    score:        res.score,
+    score:        effectiveScore,
     scoreKey:     _SCREEN_SCORE_KEY,
     components:   components,
     improvements: improvements,
-  }));
+  });
+
+  // ── Inject HC modifier banner into sheet HTML if applicable ──────
+  if (hcMod.label) {
+    var bannerColor = hcMod.modifier > 0 ? 'var(--g)' : 'var(--r)';
+    var bannerBg    = hcMod.modifier > 0 ? 'rgba(18,212,138,.07)' : 'rgba(240,78,122,.07)';
+    var bannerBorder= hcMod.modifier > 0 ? 'rgba(18,212,138,.25)' : 'rgba(240,78,122,.25)';
+    var hcBanner =
+      '<div style="background:' + bannerBg + ';border:1px solid ' + bannerBorder + ';' +
+      'border-radius:12px;padding:10px 13px;margin-bottom:14px;display:flex;align-items:center;gap:8px">' +
+      '<span style="font-size:10px;color:var(--hc);background:var(--hc-dim);border:1px solid var(--hc-border);' +
+      'border-radius:5px;padding:1px 6px;font-weight:700;letter-spacing:.3px;flex-shrink:0">HC</span>' +
+      '<span style="font-family:var(--ff-m);font-size:var(--text-xs);color:' + bannerColor + ';font-weight:600">' +
+      hcMod.label + '</span>' +
+      '<span style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);margin-left:auto">Includes Health Connect step data</span>' +
+      '</div>';
+    // Inject just before the HOW THIS IS CALCULATED label
+    sheetHtml = sheetHtml.replace('HOW THIS IS CALCULATED', hcBanner + 'HOW THIS IS CALCULATED');
+  }
+
+  FocusScore.openScoreSheet(sheetHtml);
 }
 
 /**
@@ -353,12 +377,16 @@ function renderStatsScreenScoreRow() {
   if (!el) return;
   var res   = calculateScreenScore();
   _saveScoreForToday(_SCREEN_SCORE_KEY, res.score);
-  var grade = _screenScoreGrade(res.score);
+
+  // HC activity modifier (spec §5.3)
+  var hcMod = typeof HealthConnect !== 'undefined' ? HealthConnect.getActivityModifier() : { modifier: 0, label: null };
+  var displayScore = Math.min(100, Math.max(0, res.score + hcMod.modifier));
+  var grade = _screenScoreGrade(displayScore);
 
   var yScore   = _getYesterdayScore(_SCREEN_SCORE_KEY);
   var deltaHtml = '';
   if (yScore !== null) {
-    var diff = res.score - yScore;
+    var diff = displayScore - yScore;
     if (diff !== 0) {
       var dCol  = diff > 0 ? '#6ec97a' : '#ff6a6a';
       var dSign = diff > 0 ? '↑' : '↓';
@@ -366,6 +394,33 @@ function renderStatsScreenScoreRow() {
                 + dSign + Math.abs(diff) + '</div>';
     }
   }
+
+  // HC inline chip — shows when modifier is active
+  var hcChipHtml = hcMod.modifier !== 0
+    ? '<div style="display:flex;align-items:center;gap:4px;flex-shrink:0">'
+        + '<span style="font-size:9px;color:var(--hc);background:var(--hc-dim);'
+        + 'border:1px solid var(--hc-border);border-radius:4px;padding:1px 5px;'
+        + 'font-weight:700;letter-spacing:.3px;font-family:var(--ff-m)">HC</span>'
+        + '<span style="font-family:var(--ff-m);font-size:10px;font-weight:600;color:'
+        + (hcMod.modifier > 0 ? 'var(--g)' : 'var(--r)') + '">'
+        + (hcMod.modifier > 0 ? '+' : '') + hcMod.modifier
+        + '</span>'
+      + '</div>'
+    : '';
+
+  el.innerHTML =
+    '<div onclick="renderScreenScoreSheet()"'
+    + ' style="background:var(--s2);border:0.5px solid var(--border2);border-radius:14px;'
+    + 'padding:10px 14px;display:flex;align-items:center;gap:10px;cursor:pointer">'
+    + '<div style="font-size:11px;color:var(--t3);flex-shrink:0">SCREEN SCORE</div>'
+    + '<div style="font-size:16px;font-weight:600;color:var(--p2);flex-shrink:0">' + displayScore + '</div>'
+    + '<div style="flex:1;height:3px;background:var(--border2);border-radius:99px;overflow:hidden">'
+    + '<div style="height:100%;width:' + displayScore + '%;background:linear-gradient(90deg,var(--p),var(--c));border-radius:99px"></div>'
+    + '</div>'
+    + hcChipHtml
+    + '<div style="font-size:11px;font-weight:500;color:' + grade.color + ';flex-shrink:0">' + grade.label + '</div>'
+    + deltaHtml
+    + '</div>';
 
   el.innerHTML =
     '<div onclick="renderScreenScoreSheet()"'

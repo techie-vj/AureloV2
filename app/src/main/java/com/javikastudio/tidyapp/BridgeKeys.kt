@@ -122,6 +122,9 @@ const val STREAK_GOAL_MINS = "streak_goal_mins"
 const val ONBOARDING_DONE  = "onboarding_done"
 const val IS_PRO_USER      = "is_pro_user"
 
+// ── Health Connect ────────────────────────────────────────────────────────
+const val HC_CONNECTED = "hc_connected"   // "1" = connected, "0" / absent = disconnected
+
 // ── Rate-app prompt ───────────────────────────────────────────────────────
 const val KEY_RATE_INSTALL_MS    = "rate_install_ms"
 const val KEY_RATE_LAST_SHOWN_MS = "rate_last_shown_ms"

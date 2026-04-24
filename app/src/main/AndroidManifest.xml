@@ -38,6 +38,17 @@
     <!-- Required for billing API -->
     <uses-permission android:name="com.android.vending.BILLING" />
 
+    <!-- ── HEALTH CONNECT — read-only consumer ──────────────────────────────
+         Spec §3.1 / §10. All five data types declared. Access type: read only.
+         Android 14+: HC is a system app — no separate install needed.
+         Android 9–13: user must have the Health Connect app installed.
+         Android 8.0–8.1: HC not supported; feature hidden gracefully. -->
+    <uses-permission android:name="android.permission.health.READ_STEPS" />
+    <uses-permission android:name="android.permission.health.READ_SLEEP" />
+    <uses-permission android:name="android.permission.health.READ_HEART_RATE_VARIABILITY" />
+    <uses-permission android:name="android.permission.health.READ_RESTING_HEART_RATE" />
+    <uses-permission android:name="android.permission.health.READ_MINDFULNESS" />
+
 
     <!--
         SYSTEM_ALERT_WINDOW (Draw Over Other Apps)
@@ -75,6 +86,8 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
 
     <queries>
+        <!-- Health Connect provider (needed on Android 9–13 where HC is a separate app) -->
+        <package android:name="com.google.android.apps.healthdata" />
         <intent>
             <action android:name="android.intent.action.VIEW" />
             <data android:scheme="market" />
@@ -115,6 +128,40 @@
                 android:name="androidx.work.WorkManagerInitializer"
                 android:value="androidx.startup" />
         </provider>
+
+        <!-- ── HEALTH CONNECT — permission rationale activity ──────────────
+             Required so that:
+             (a) Aurelo appears in Health Connect's "Connected apps" list.
+             (b) The system can route users back here when they manage
+                 permissions from inside the Health Connect app.
+
+             TWO intent-filters are needed for full API range support:
+               • API 26–33 (HC is a separate app):
+                   androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE
+               • API 34+ (HC is part of the OS):
+                   android.intent.action.VIEW_PERMISSION_USAGE
+                   + android.intent.category.HEALTH_PERMISSIONS
+
+             Without BOTH, Aurelo is invisible in Health Connect on one or
+             the other API range. On Android 14+ the SDK action is completely
+             ignored — only the OS-level filter is scanned.                    -->
+        <activity
+            android:name=".PermissionRationaleActivity"
+            android:exported="true"
+            android:theme="@style/AppTheme">
+
+            <!-- API 26–33: Health Connect SDK action -->
+            <intent-filter>
+                <action android:name="androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE" />
+            </intent-filter>
+
+            <!-- API 34+ (Android 14+): OS-level Health Connect action -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW_PERMISSION_USAGE" />
+                <category android:name="android.intent.category.HEALTH_PERMISSIONS" />
+            </intent-filter>
+
+        </activity>
 
         <!-- ── MAIN ACTIVITY ─────────────────────────────────── -->
         <activity
