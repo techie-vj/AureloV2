@@ -4,6 +4,24 @@
  *                   Categories   → app-categories.js
  * ════════════════════════════════════════════════════════════════════════════ */
 
+
+/* ═══ FOUC PREVENTION — font-load guard ══════════════════════════════════
+   Adds .fonts-ready to <body> once all webfonts have resolved.
+   CSS rule `body:not(.fonts-ready) .screens { opacity:0 }` keeps screen
+   content invisible until then, preventing the flash of fallback/unstyled
+   text that occurs when Bodoni Moda hasn't arrived yet but the
+   loading-screen has already faded out.
+   Falls back instantly on browsers without FontFaceSet API so the app
+   is never permanently hidden.                                            */
+(function initFontGuard() {
+  function markReady() { document.body.classList.add('fonts-ready'); }
+  if (typeof document.fonts !== 'undefined' && document.fonts.ready) {
+    document.fonts.ready.then(markReady);
+  } else {
+    markReady(); // Fallback: reveal immediately
+  }
+})();
+
 /* ═══ QUICK STATS + HOME ARC ═════════════════════════ */
 // Cache streak so we don't call into Kotlin on every 30s tick
 let _cachedStreak = 0, _streakTs = 0;
