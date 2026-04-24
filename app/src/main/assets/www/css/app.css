@@ -17,6 +17,17 @@
 .screen::-webkit-scrollbar{display:none}
 .screen.active{display:block}
 .screen.swipe-transitioning{display:block;pointer-events:none}
+
+/* ── FOUC prevention ───────────────────────────────
+   Screens start invisible. JS adds .fonts-ready to
+   <body> once document.fonts.ready resolves, then a
+   short fade reveals content already fully styled.
+   The loading-screen (z-index 190) covers the boot
+   path, but this guard catches the edge case where
+   the splash is dismissed before webfonts arrive
+   (slow network / cold cache). ─────────────────── */
+body:not(.fonts-ready) .screens{opacity:0}
+body.fonts-ready .screens{opacity:1;transition:opacity .18s ease}
 /* Thin progress bar under nav shows swipe position */
 .swipe-indicator{position:absolute;bottom:0;left:0;height:2px;background:var(--p);border-radius:1px;transition:none;pointer-events:none;opacity:0}
 .swipe-indicator.visible{opacity:1}
@@ -334,7 +345,7 @@
 .dhero-deco{position:absolute;top:-4px;right:-8px;font-size:120px;opacity:.11;line-height:1;pointer-events:none;transform:rotate(12deg);filter:blur(1px)}
 .dhero-body{position:absolute;bottom:0;left:0;right:0;padding:18px 20px 22px}
 .dhero-rating{font-family:var(--ff-m);font-size:10px;color:rgba(255,255,255,.6);margin-bottom:5px;letter-spacing:.2px}
-.dhero-name{font-size:26px;font-weight:900;font-family:'Bodoni Moda',Georgia,serif;color:#fff;line-height:1.08;margin-bottom:6px;text-shadow:0 2px 16px rgba(0,0,0,.5)}
+.dhero-name{font-size:26px;font-weight:900;font-family:var(--ff-d);color:#fff;line-height:1.08;margin-bottom:6px;text-shadow:0 2px 16px rgba(0,0,0,.5)}
 .dhero-tag{font-family:var(--ff-m);font-size:11px;color:rgba(255,255,255,.72);margin-bottom:16px;line-height:1.4}
 .dhero-cta{display:inline-flex;align-items:center;gap:7px;padding:11px 26px;border-radius:999px;border:none;font-family:var(--ff-m);font-size:12px;font-weight:900;cursor:pointer;letter-spacing:.5px;transition:transform .14s,opacity .14s,box-shadow .14s;box-shadow:0 4px 16px rgba(0,0,0,.35)}
 .dhero-cta:active{transform:scale(.93);opacity:.82}
