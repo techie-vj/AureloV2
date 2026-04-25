@@ -845,7 +845,8 @@
   letter-spacing:0 !important;
   margin-bottom:4px !important;
 }
-.coach-home-insight-body{
+/* Home card body — 2-line compact teaser */
+#coach-home-insight .coach-home-insight-body{
   font-family:var(--ff-b) !important;
   font-size:var(--text-sm) !important;
   line-height:1.45 !important;
@@ -855,6 +856,22 @@
   -webkit-box-orient:vertical !important;
   overflow:hidden !important;
   text-overflow:ellipsis !important;
+  overflow-wrap:break-word !important;
+}
+
+/* Wellness tab cards — full text, no truncation */
+#wt-coach-insight .coach-home-insight-body,
+#ww-insights .coach-home-insight-body,
+#wm-coach-insight .coach-home-insight-body{
+  font-family:var(--ff-b) !important;
+  font-size:var(--text-sm) !important;
+  line-height:1.55 !important;
+  margin-bottom:8px !important;
+  display:block !important;
+  -webkit-line-clamp:unset !important;
+  -webkit-box-orient:unset !important;
+  overflow:visible !important;
+  text-overflow:clip !important;
   overflow-wrap:break-word !important;
 }
 .coach-home-insight-actions{margin-bottom:0 !important;gap:8px !important}
