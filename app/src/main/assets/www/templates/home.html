@@ -56,7 +56,7 @@
     <div id="home-aurelo-score"></div>
 
     <!-- ── Health Connect promo banner (rendered by app-health-connect.js) ── -->
-    <div id="hc-home-banner" style="padding:0 16px;margin-bottom:10px;display:none"></div>
+    <div id="hc-home-banner" style="padding:0 16px;margin-bottom:10px;display:none" onclick="if(typeof openSettingsWithHC==='function'){openSettingsWithHC();}else{activateTab('settings');requestAnimationFrame(()=>toggleHCSettingsSection&&toggleHCSettingsSection(true));}" role="button" tabindex="0"></div>
 
     <!-- ── First-run snapshot card ── -->
     <div id="first-run-card" style="display:none">
@@ -102,15 +102,6 @@
     </div>
     <div class="recent-row" id="recent-row"></div>
 
-    <!-- ── Search ────────────────────────────────────── -->
-    <div class="search-wrap" style="padding-top:2px;margin-bottom:2px">
-        <div style="position:relative">
-            <span class="search-ico">🔍</span>
-            <input class="search-input" id="search-input" type="text" placeholder=" Search apps…" oninput="onSearch(this.value)" autocomplete="off"/>
-            <div class="search-dropdown" id="search-drop"></div>
-        </div>
-    </div>
-
     <!-- ── Play Store Banner ─────────────────────────── -->
     <div id="play-sync-banner" style="display:none;margin:0 16px 12px;border-radius:16px;background:linear-gradient(135deg,rgba(108,99,255,.1),rgba(5,200,232,.06));border:1px solid rgba(108,99,255,.28);padding:14px 16px">
         <div id="psb-prompt">
@@ -149,21 +140,34 @@
         </div>
     </div>
 
-    <!-- ── Categories ────────────────────────────────── -->
-    <div class="home-cats-hdr">
-        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-            <div class="home-section-title">Categories</div>
-            <div id="cat-total-badge" style="display:none;font-family:var(--ff-m);font-size:10px;color:var(--t2);font-weight:600;background:var(--s2);border:1px solid var(--border2);border-radius:999px;padding:1px 8px"></div>
+    <!-- ── Dynamic Culprits / Most Used ─────────────────────────── -->
+    <div id="home-culprits-section" style="padding:0 16px;margin-bottom:12px;display:none">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+            <div style="display:flex;align-items:center;gap:7px">
+                <div id="home-culprits-label" style="font-family:var(--ff-m);font-size:10px;letter-spacing:1.5px;color:var(--r)">TODAY'S CULPRITS</div>
+                <span id="home-culprits-count" style="display:none;font-family:var(--ff-m);font-size:10px;color:var(--t3);background:var(--s2);border:1px solid var(--border2);border-radius:99px;padding:1px 7px"></span>
+            </div>
+            <div onclick="openAllApps()" style="font-family:var(--ff-m);font-size:10px;color:var(--p);cursor:pointer">See all →</div>
         </div>
-        <div style="display:flex;gap:6px">
-            <div class="home-cat-btn home-cat-btn-new" onclick="openAddCatModal()">＋ New</div>
-            <div class="home-cat-btn" onclick="openPanel('manage-cats-panel')">Manage</div>
-        </div>
+        <div id="home-culprits-list"></div>
     </div>
-    <div id="cat-grid-view"></div>
-    <div id="cat-list-view" style="display:none;padding:0 16px"></div>
+
+    <!-- ── Category Summary Strip ────────────────────────────────── -->
+    <div id="home-cat-summary" style="padding:0 16px;margin-bottom:12px;display:none">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+            <div style="display:flex;align-items:center;gap:7px">
+                <div style="font-family:var(--ff-m);font-size:10px;letter-spacing:1.5px;color:var(--t3)">TOP CATEGORIES TODAY</div>
+                <span id="home-cat-count" style="display:none;font-family:var(--ff-m);font-size:10px;color:var(--t3);background:var(--s2);border:1px solid var(--border2);border-radius:99px;padding:1px 7px"></span>
+            </div>
+            <div onclick="openPanel('manage-cats-panel')" style="font-family:var(--ff-m);font-size:10px;color:var(--p);cursor:pointer">Manage →</div>
+        </div>
+        <div id="home-cat-summary-list"></div>
+    </div>
 
     <!-- Hidden stubs -->
+    <div id="cat-grid-view" style="display:none"></div>
+    <div id="cat-list-view" style="display:none"></div>
+    <div id="cat-total-badge" style="display:none"></div>
     <button id="vt-grid" class="vt-btn on" style="display:none"></button>
     <button id="vt-list" class="vt-btn" style="display:none"></button>
     <div id="notif-dot" style="display:none"></div>

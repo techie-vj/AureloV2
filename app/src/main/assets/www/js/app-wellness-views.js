@@ -76,7 +76,8 @@ function switchWellnessView(view, btn) {
         // Defer the slow N.getWeeklyAppUsage() bridge call so chart paints first
         setTimeout(function() {
           renderWeekTopApps();
-          renderWeekInsights();
+          if (typeof renderWeekCoachInsight === 'function') renderWeekCoachInsight();
+          else if (typeof renderWeekInsights === 'function') renderWeekInsights();
         }, 0);
       } else {
         // Re-visit: restore correct chart tab highlight and re-render chart
@@ -155,6 +156,9 @@ function _renderMonthAfterLoad() {
   renderAppDNA();
   renderMonthStreakGrid();
   renderMonthTopApps();
+
+  // Coach insight card for Pro users — added above Top Apps
+  if (typeof renderMonthCoachInsight === 'function') renderMonthCoachInsight();
 
   // Restore scroll position after DOM settles (one rAF is enough for layout to flush)
   if (scr && savedScroll > 0) {

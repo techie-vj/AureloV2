@@ -31,7 +31,16 @@
     <!-- Integrations — Health Connect (Pro) -->
     <div id="hc-settings-card" class="sg" style="margin-bottom:24px">
         <div class="sg-lbl">Integrations</div>
-        <div id="hc-settings-inner"><!-- rendered by HealthConnect.renderSettingsCard() --></div>
+        <!-- Health Connect collapsible row -->
+        <div class="sr" onclick="toggleHCSettingsSection()" id="hc-settings-toggle-row" style="user-select:none">
+            <div class="sr-ico" style="background:rgba(18,212,138,.12)">❤️</div>
+            <div style="flex:1">
+                <div class="sr-lbl">Health Connect</div>
+                <div class="sr-sub" id="hc-settings-sub">Steps, sleep &amp; heart rate</div>
+            </div>
+            <span id="hc-settings-chev" style="font-size:16px;color:var(--t3);transition:transform .25s;transform:rotate(0deg)">›</span>
+        </div>
+        <div id="hc-settings-inner" style="display:none;overflow:hidden;transition:opacity .2s"><!-- rendered by HealthConnect.renderSettingsCard() --></div>
     </div>
 
     <!-- Usage Controls -->
@@ -40,11 +49,6 @@
         <div class="sr" onclick="openStreakGoalPicker()">
             <div class="sr-ico" style="background:rgba(247,166,35,.15)">🎯</div>
             <div style="flex:1"><div class="sr-lbl">Daily Screen Time Goal</div><div class="sr-sub" id="streak-goal-sub">4h per day</div></div>
-            <span class="sr-chev">›</span>
-        </div>
-        <div class="sr" onclick="openPanel('lock-panel')">
-            <div class="sr-ico" style="background:rgba(240,78,122,.15)">🔒</div>
-            <div style="flex:1"><div class="sr-lbl">Locked Apps</div><div class="sr-sub" id="locked-sub">Tap to configure</div></div>
             <span class="sr-chev">›</span>
         </div>
         <div class="sr">
@@ -62,9 +66,24 @@
     <!-- ② Organisation -->
     <div class="sg" style="margin-bottom:24px">
         <div class="sg-lbl">Organisation</div>
+        <div class="sr" onclick="openPanel('manage-cats-panel')">
+            <div class="sr-ico" style="background:rgba(247,166,35,.15)">🗂️</div>
+            <div style="flex:1"><div class="sr-lbl">App Categories</div><div class="sr-sub" id="org-cats-sub">Manage &amp; assign categories</div></div>
+            <span class="sr-chev">›</span>
+        </div>
         <div class="sr" onclick="openPanel('hide-panel')">
             <div class="sr-ico" style="background:rgba(176,110,255,.15)">🙈</div>
             <div style="flex:1"><div class="sr-lbl">Hidden Apps</div><div class="sr-sub" id="hidden-sub">Hide from categories</div></div>
+            <span class="sr-chev">›</span>
+        </div>
+        <div class="sr" onclick="openPanel('lock-panel')">
+            <div class="sr-ico" style="background:rgba(240,78,122,.15)">🔒</div>
+            <div style="flex:1"><div class="sr-lbl">Locked Apps</div><div class="sr-sub" id="locked-sub">Tap to configure</div></div>
+            <span class="sr-chev">›</span>
+        </div>
+        <div class="sr" onclick="openPanel('ghost-panel')">
+            <div class="sr-ico" style="background:rgba(255,102,68,.15)">👻</div>
+            <div style="flex:1"><div class="sr-lbl">Ghost Apps</div><div class="sr-sub" id="ghost-org-sub">Apps unused in 30+ days</div></div>
             <span class="sr-chev">›</span>
         </div>
         <div class="sr" onclick="startPlaySyncFromSettings()">

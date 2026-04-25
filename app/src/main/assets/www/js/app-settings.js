@@ -792,6 +792,48 @@ function toast(msg,type='info',duration){
 function fmtM(m){ if(!m||m<=0) return ''; const h=Math.floor(m/60),mn=m%60; return h>0?(mn>0?`${h}h ${mn}m`:`${h}h`):`${mn}m`; }
 function nCall(method,...args){ try{ if(N&&typeof N[method]==='function') return N[method](...args); }catch(e){ console.error('[Bridge]',method,e); } return null; }
 
+/* ── Health Connect collapsible (Settings › Integrations) ── */
+    function toggleHCSettingsSection(forceOpen) {
+      const body = document.getElementById('hc-settings-inner');
+      const chev = document.getElementById('hc-settings-chev');
+      const sub  = document.getElementById('hc-settings-sub');
+      if (!body) return;
+
+      const isOpen   = body.style.display !== 'none';
+      const shouldOpen = (forceOpen !== undefined) ? !!forceOpen : !isOpen;
+
+      body.style.display = shouldOpen ? '' : 'none';
+      body.style.opacity  = shouldOpen ? '1' : '0';
+      if (chev) chev.style.transform = shouldOpen ? 'rotate(90deg)' : 'rotate(0deg)';
+
+      // Update subtitle to reflect state
+      if (sub) {
+        if (shouldOpen) {
+          sub.textContent = 'Steps, sleep & heart rate';
+        } else {
+          // Check if connected and show status
+          const connected = (typeof HealthConnect !== 'undefined' && HealthConnect.isConnected && HealthConnect.isConnected());
+          sub.textContent = connected ? 'Connected ✓' : 'Tap to expand';
+        }
+      }
+    }
+
+    /* Auto-expand HC section when arriving via deep-link from home.
+       Call openSettingsWithHC() instead of activateTab('settings') when
+       the user taps a Health Connect prompt on the home screen. */
+    function openSettingsWithHC() {
+      if (typeof activateTab === 'function') activateTab('settings');
+      // setTimeout gives the settings screen time to fully render before expanding
+      setTimeout(() => toggleHCSettingsSection(true), 80);
+    }
+
 /* ═══ BOOT ════════════════════════════════════════════ */
 applySettings();
 setCatView(S.catView);
+/* ── Fix 3: Settings "Improve App Categories" row alias ───────────────────────
+ * startPlaySyncFromSettings routes through startPlaySync (in app-home.js)
+ * which already passes the deleted-categories exclusion list to the bridge.
+ * Defined here so it is available when settings.html onclick fires it.       */
+function startPlaySyncFromSettings(){
+  if(typeof startPlaySync==='function') startPlaySync();
+}

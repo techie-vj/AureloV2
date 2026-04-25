@@ -567,8 +567,11 @@ function renderWellness(){
   const adSlot = document.getElementById('wellness-ad-slot');
   if(adSlot) adSlot.style.display = 'none';
 
-  // Smart tips
+  // Smart tips (rule-based, shown to free users; hidden for Pro by renderTodayCoachInsight)
   renderSmartTips();
+
+  // Coach insight card (Pro only) — replaces smart-tips section
+  if (typeof renderTodayCoachInsight === 'function') renderTodayCoachInsight();
 }
 
 // ── Native Recommendations — Persona-driven + Country-aware ─────────────────

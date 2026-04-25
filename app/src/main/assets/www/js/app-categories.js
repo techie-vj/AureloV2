@@ -861,8 +861,19 @@ function initDrag(){
   });
 }
 function updateCatsSub(){
-  const total=Object.keys(CATS_MAP).length, apps=Object.values(CATS_MAP).flat().length;
-  document.getElementById('cats-sub').textContent=`${total} categories · ${apps} apps`;
+  const total = Object.keys(CATS_MAP).length;
+  // Use N.getAllApps() for the real installed-app count (includes auto-categorised apps
+  // that may not yet appear in CATS_MAP). Falls back to CATS_MAP count in demo mode.
+  let apps = Object.values(CATS_MAP).flat().length;
+  if(IS_NATIVE && typeof N !== 'undefined' && typeof N.getAllApps === 'function'){
+    try{ apps = JSON.parse(N.getAllApps()||'[]').length; }catch(_){}
+  }
+  const text = `${total} categories · ${apps} apps`;
+  const el = document.getElementById('cats-sub');
+  if(el) el.textContent = text;
+  // Keep Settings > Organisation subtitle in sync
+  const orgEl = document.getElementById('org-cats-sub');
+  if(orgEl) orgEl.textContent = text;
 }
 
 /* ═══ EDIT CAT ═══════════════════════════════════════ */
@@ -911,6 +922,15 @@ function saveEditCat(){
 function confirmDelCat(){ if(editingCat) confirmDelCatByName(editingCat); }
 function confirmDelCatByName(name){
   showConfirm(`Delete "${name}"?`,'Apps will move back to auto-categorized groups.',()=>{
+    // ── Fix 3: record this category as user-deleted so Play Store sync never restores it ──
+    try{
+      let deleted=[];
+      if(IS_NATIVE && typeof N.getStringPref==='function') deleted=JSON.parse(N.getStringPref('deletedCategories')||'[]');
+      else deleted=JSON.parse(localStorage.getItem('deletedCategories')||'[]');
+      if(!deleted.includes(name)) deleted.push(name);
+      if(IS_NATIVE && typeof N.setStringPref==='function') N.setStringPref('deletedCategories',JSON.stringify(deleted));
+      else localStorage.setItem('deletedCategories',JSON.stringify(deleted));
+    }catch(_){}
     let acm={};
     if(IS_NATIVE){ try{ acm=JSON.parse(N.getAppCategoryMap()||'{}'); }catch(e){} }
     // Remap apps currently visible in CATS_MAP[name]

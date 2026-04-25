@@ -708,6 +708,109 @@ function renderGhostBanner(){
   if(stub) stub.style.display='none';
   // Drive the consolidated insight banner instead
  // renderInsightBanner() is called separately by renderAll() — no call needed here
+
+  // Render bottom-of-home sections
+  renderCulpritsSection();
+  renderCategorySummary();
+
+  // Update ghost count in Settings → Organisation
+  const ghostOrgSub = document.getElementById('ghost-org-sub');
+  if (ghostOrgSub && GHOSTS && GHOSTS.length > 0) {
+    ghostOrgSub.textContent = `${GHOSTS.length} app${GHOSTS.length !== 1 ? 's' : ''} unused 30+ days`;
+  }
+}
+
+/* ═══ CULPRITS / MOST USED SECTION ═══════════════════════════════════════
+ * Dynamic section at bottom of Home. Label + colour change based on goal status:
+ *   over goal  → "TODAY'S CULPRITS"   (red)
+ *   near goal  → "WATCH THESE TODAY"  (amber)
+ *   on track   → "MOST USED TODAY"    (neutral)
+ * Shows top 3 apps by screen time. Always visible when usage data exists.
+ * ═══════════════════════════════════════════════════════════════════════ */
+function renderCulpritsSection() {
+  const section = document.getElementById('home-culprits-section');
+  const labelEl = document.getElementById('home-culprits-label');
+  const listEl  = document.getElementById('home-culprits-list');
+  if (!section || !listEl) return;
+
+  const hidden  = new Set(S.hiddenPkgs || []);
+  const top3    = DAILY_USE.filter(a => !hidden.has(a.packageName)).slice(0, 3);
+  if (!top3.length) { section.style.display = 'none'; return; }
+
+  const goalMins = S.streakGoalMins || 240;
+  const rawPct   = goalMins > 0 ? TODAY_MINS / goalMins : 0;
+  const maxMins  = top3[0].totalMinutes || 1;
+
+  // Dynamic label + colour based on goal state
+  let label, color;
+  if (rawPct > 1) {
+    label = "TODAY'S CULPRITS"; color = 'var(--r)';
+  } else if (rawPct >= 0.9) {
+    label = 'WATCH THESE TODAY'; color = 'var(--a)';
+  } else {
+    label = 'MOST USED TODAY';   color = 'var(--t3)';
+  }
+  if (labelEl) { labelEl.textContent = label; labelEl.style.color = color; }
+
+  listEl.innerHTML = top3.map(a => {
+    const mins   = a.totalMinutes || 0;
+    const barPct = maxMins > 0 ? Math.round((mins / maxMins) * 100) : 0;
+    return `<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+      ${icoDiv(a.packageName, 32)}
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+          <span style="font-size:12px;color:var(--t1);font-weight:500">${escHtml(a.name)}</span>
+          <span style="font-size:12px;color:${color};font-weight:600">${fmtM(mins)}</span>
+        </div>
+        <div style="height:3px;background:var(--border2);border-radius:2px;overflow:hidden">
+          <div style="height:100%;width:${barPct}%;background:${color};border-radius:2px;opacity:.7"></div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+
+  section.style.display = '';
+}
+
+/* ═══ CATEGORY SUMMARY STRIP ═════════════════════════════════════════════
+ * Shows top 3 categories for today with time totals.
+ * "Manage →" deep-links to Settings → Organisation.
+ * Provides a lightweight connection back to the app organisation layer.
+ * ═══════════════════════════════════════════════════════════════════════ */
+function renderCategorySummary() {
+  const section = document.getElementById('home-cat-summary');
+  const listEl  = document.getElementById('home-cat-summary-list');
+  if (!section || !listEl) return;
+
+  const hidden   = new Set(S.hiddenPkgs || []);
+  const usageMap = {};
+  DAILY_USE.forEach(u => { usageMap[u.packageName] = u.totalMinutes || 0; });
+
+  const catTotals = {};
+  Object.entries(CATS_MAP).forEach(([cat, apps]) => {
+    const total = apps
+      .filter(a => !hidden.has(a.packageName))
+      .reduce((sum, a) => sum + (usageMap[a.packageName] || 0), 0);
+    if (total > 0) catTotals[cat] = total;
+  });
+
+  const sorted = Object.entries(catTotals)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 3);
+
+  if (!sorted.length) { section.style.display = 'none'; return; }
+
+  const ACCENT_COLORS = ['var(--p)', 'var(--c)', 'var(--a)', 'var(--g)', 'var(--r)'];
+  listEl.innerHTML = sorted.map(([cat, mins], i) => `
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:9px">
+      <div style="display:flex;align-items:center;gap:8px">
+        <div style="width:6px;height:6px;border-radius:3px;background:${ACCENT_COLORS[i % ACCENT_COLORS.length]};flex-shrink:0"></div>
+        <span style="font-family:var(--ff-m);font-size:11px;color:var(--t2)">${escHtml(cat)}</span>
+      </div>
+      <span style="font-family:var(--ff-m);font-size:11px;color:var(--t1);font-weight:600">${fmtM(mins)}</span>
+    </div>`).join('');
+
+  section.style.display = '';
 }
 
 /* ═══ PLAY STORE SYNC — Phase 4 ══════════════════════ */

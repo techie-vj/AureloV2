@@ -637,55 +637,197 @@
 
 
 
-/* v21 — Aurelo Score premium refinement (safe patch) */
-.aurelo-score-card{
-  border:1px solid color-mix(in srgb, var(--p2) 18%, rgba(255,255,255,.10));
+/* v22 — Aurelo Score premium upgrade ══════════════════════════════════════
+ * Card: stronger border, inner glow, elevated surface
+ * Ring: visible track, thicker accent stroke
+ * Tiles: tinted bg matching pillar color, subtle colored border, white text
+ * Light mode: full overrides for readability
+ * ═══════════════════════════════════════════════════════════════════════ */
+
+/* ── Card shell ─────────────────────────────────────────────────────── */
+.aurelo-score-card {
+  border: 1.5px solid rgba(108,99,255,.42) !important;
+  background: linear-gradient(145deg,
+    rgba(108,99,255,.10) 0%,
+    rgba(5,200,232,.055) 60%,
+    rgba(108,99,255,.04) 100%) !important;
   box-shadow:
-    0 12px 28px rgba(0,0,0,.18),
-    inset 0 1px 0 rgba(255,255,255,.04),
-    inset 0 0 0 1px rgba(255,255,255,.02);
+    0 16px 40px rgba(0,0,0,.30),
+    0 2px 8px rgba(0,0,0,.18),
+    inset 0 1px 0 rgba(255,255,255,.08),
+    inset 0 -1px 0 rgba(0,0,0,.12),
+    0 0 0 1px rgba(108,99,255,.12) !important;
 }
 
-.aurelo-score-card::before{
-  content:"";
-  position:absolute;
-  inset:0;
-  border-radius:inherit;
-  pointer-events:none;
-  box-shadow: inset 0 0 0 1px rgba(255,255,255,.025);
+/* Subtle inner glow layer */
+.aurelo-score-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: radial-gradient(ellipse at 70% 0%,
+    rgba(108,99,255,.10) 0%,
+    transparent 65%);
 }
 
-.aurelo-pillar-tile{
-  border:1px solid color-mix(in srgb, var(--p2) 16%, var(--border2) 84%);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.03);
+/* ── Score ring ─────────────────────────────────────────────────────── */
+/* Visible muted track — not invisible, not heavy */
+#home-aurelo-score .aurelo-score-ring-track {
+  stroke: rgba(255,255,255,.14) !important;
+}
+/* Thicker accent stroke */
+#home-aurelo-score .aurelo-score-ring-wrap svg circle:not(.aurelo-score-ring-track) {
+  stroke-width: 7 !important;
+  filter: drop-shadow(0 0 4px rgba(108,99,255,.45));
 }
 
-.aurelo-pillar-tile.score-good{
-  background: color-mix(in srgb, #4fa3ff 10%, var(--s2) 90%);
-}
-.aurelo-pillar-tile.score-warn{
-  background: color-mix(in srgb, #ffb84d 10%, var(--s2) 90%);
-}
-.aurelo-pillar-tile.score-positive{
-  background: color-mix(in srgb, #42d392 10%, var(--s2) 90%);
-}
-.aurelo-pillar-tile.score-empty{
-  background: color-mix(in srgb, white 3%, var(--s2) 97%);
-}
+/* ── Pillar tiles: tinted bg + colored border + white value text ──── */
 
-.aurelo-pillar-value{
-  color:var(--t1);
-  font-weight:700;
-}
-
-:root[data-theme="light"] .aurelo-score-card{
-  border-color: color-mix(in srgb, var(--p2) 14%, rgba(40,40,60,.12));
+/* Base tile — slightly elevated from card bg */
+.aurelo-pillar-tile {
+  border: 1px solid rgba(255,255,255,.10) !important;
   box-shadow:
-    0 10px 22px rgba(45,51,77,.06),
-    inset 0 1px 0 rgba(255,255,255,.92);
+    inset 0 1px 0 rgba(255,255,255,.06),
+    0 2px 6px rgba(0,0,0,.12) !important;
+  background: rgba(255,255,255,.04) !important;
 }
 
-:root[data-theme="light"] .aurelo-pillar-tile{
-  border-color: rgba(141,138,255,.14);
+/* SCREEN tile — purple tint (var(--p2) mapped to indigo/purple) */
+.aurelo-pillar-tile.score-screen {
+  background: rgba(108,99,255,.18) !important;
+  border-color: rgba(108,99,255,.38) !important;
+}
+.aurelo-pillar-tile.score-screen .aurelo-pillar-value {
+  color: #fff !important;
+  text-shadow: 0 1px 8px rgba(108,99,255,.55);
 }
 
+/* FOCUS tile — cyan tint */
+.aurelo-pillar-tile.score-focus {
+  background: rgba(5,200,232,.16) !important;
+  border-color: rgba(5,200,232,.38) !important;
+}
+.aurelo-pillar-tile.score-focus .aurelo-pillar-value {
+  color: #fff !important;
+  text-shadow: 0 1px 8px rgba(5,200,232,.45);
+}
+
+/* SLEEP tile — purple/violet tint */
+.aurelo-pillar-tile.score-sleep {
+  background: rgba(140,82,255,.18) !important;
+  border-color: rgba(140,82,255,.38) !important;
+}
+.aurelo-pillar-tile.score-sleep .aurelo-pillar-value {
+  color: #fff !important;
+  text-shadow: 0 1px 8px rgba(140,82,255,.45);
+}
+
+/* BODY tile — teal/HC tint */
+.aurelo-pillar-tile.score-body {
+  background: rgba(18,212,138,.14) !important;
+  border-color: rgba(18,212,138,.32) !important;
+}
+.aurelo-pillar-tile.score-body .aurelo-pillar-value {
+  color: #fff !important;
+}
+
+/* Empty/no-data tiles — subtle neutral */
+.aurelo-pillar-tile.score-empty {
+  background: rgba(255,255,255,.04) !important;
+  border-color: rgba(255,255,255,.08) !important;
+}
+
+/* Dashed connect tile */
+.aurelo-pillar-tile.is-dashed {
+  border-style: dashed !important;
+  border-color: rgba(5,200,232,.32) !important;
+  background: rgba(5,200,232,.07) !important;
+}
+
+/* Label always readable */
+.aurelo-pillar-label {
+  color: rgba(255,255,255,.55) !important;
+}
+.aurelo-pillar-sub {
+  color: rgba(255,255,255,.40) !important;
+}
+
+/* ── Light mode overrides ─────────────────────────────────────────── */
+:root[data-theme="light"] .aurelo-score-card {
+  border-color: rgba(108,99,255,.28) !important;
+  background: linear-gradient(145deg,
+    rgba(108,99,255,.07) 0%,
+    rgba(5,200,232,.04) 60%,
+    rgba(255,255,255,.0) 100%) !important;
+  box-shadow:
+    0 10px 28px rgba(40,45,90,.09),
+    0 2px 6px rgba(40,45,90,.05),
+    inset 0 1px 0 rgba(255,255,255,.95),
+    0 0 0 1px rgba(108,99,255,.08) !important;
+}
+
+:root[data-theme="light"] .aurelo-score-card::before {
+  background: radial-gradient(ellipse at 70% 0%,
+    rgba(108,99,255,.06) 0%,
+    transparent 65%);
+}
+
+:root[data-theme="light"] .aurelo-score-ring-track {
+  stroke: rgba(20,20,60,.12) !important;
+}
+:root[data-theme="light"] .aurelo-score-ring-wrap svg circle:not(.aurelo-score-ring-track) {
+  filter: drop-shadow(0 0 3px rgba(108,99,255,.30));
+}
+
+/* Light mode tiles — tinted but readable on white */
+:root[data-theme="light"] .aurelo-pillar-tile {
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.9),
+    0 2px 5px rgba(40,45,90,.06) !important;
+}
+:root[data-theme="light"] .aurelo-pillar-tile.score-screen {
+  background: rgba(108,99,255,.12) !important;
+  border-color: rgba(108,99,255,.28) !important;
+}
+:root[data-theme="light"] .aurelo-pillar-tile.score-screen .aurelo-pillar-value {
+  color: #3a30d0 !important;
+  text-shadow: none;
+}
+:root[data-theme="light"] .aurelo-pillar-tile.score-focus {
+  background: rgba(5,200,232,.10) !important;
+  border-color: rgba(5,200,232,.28) !important;
+}
+:root[data-theme="light"] .aurelo-pillar-tile.score-focus .aurelo-pillar-value {
+  color: #0888a8 !important;
+  text-shadow: none;
+}
+:root[data-theme="light"] .aurelo-pillar-tile.score-sleep {
+  background: rgba(140,82,255,.10) !important;
+  border-color: rgba(140,82,255,.28) !important;
+}
+:root[data-theme="light"] .aurelo-pillar-tile.score-sleep .aurelo-pillar-value {
+  color: #6020c0 !important;
+  text-shadow: none;
+}
+:root[data-theme="light"] .aurelo-pillar-tile.score-body {
+  background: rgba(18,212,138,.08) !important;
+  border-color: rgba(18,212,138,.24) !important;
+}
+:root[data-theme="light"] .aurelo-pillar-tile.score-body .aurelo-pillar-value {
+  color: #0a8055 !important;
+}
+:root[data-theme="light"] .aurelo-pillar-tile.score-empty {
+  background: rgba(40,40,80,.04) !important;
+  border-color: rgba(40,40,80,.10) !important;
+}
+:root[data-theme="light"] .aurelo-pillar-tile.is-dashed {
+  background: rgba(5,200,232,.05) !important;
+  border-color: rgba(5,200,232,.28) !important;
+}
+:root[data-theme="light"] .aurelo-pillar-label {
+  color: rgba(40,40,80,.50) !important;
+}
+:root[data-theme="light"] .aurelo-pillar-sub {
+  color: rgba(40,40,80,.40) !important;
+}

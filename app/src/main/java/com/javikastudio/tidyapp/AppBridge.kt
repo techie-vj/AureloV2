@@ -326,9 +326,10 @@ class AppBridge(private val context: Context, private val webView: WebView) {
     @JavascriptInterface fun openHCPlayStore()                 = healthConnect.openHCPlayStore()
 
     // ── Aurelo Coach ───────────────────────────────────────────────────────
-    @JavascriptInterface fun getCoachQueryCount()              = coach.getCoachQueryCount()
-    @JavascriptInterface fun incrementCoachQueryCount()        = coach.incrementCoachQueryCount()
-    @JavascriptInterface fun getDailyCoachInsight()            = coach.getDailyCoachInsight()
-    @JavascriptInterface fun getCoachChips()                   = coach.getCoachChips()
-    @JavascriptInterface fun askCoach(query: String)           = coach.askCoach(query)
+    @JavascriptInterface fun getCoachQueryCount()                              = coach.getCoachQueryCount()
+    @JavascriptInterface fun incrementCoachQueryCount()                        = coach.incrementCoachQueryCount()
+    @JavascriptInterface fun getDailyCoachInsight()                            = coach.getDailyCoachInsight()
+    @JavascriptInterface fun getCoachChips()                                   = coach.getCoachChips()
+    @JavascriptInterface fun askCoach(query: String)                           = coach.askCoach(query)
+    @JavascriptInterface fun getTabCoachInsight(tab: String, ctx: String)      = coach.getTabCoachInsight(tab, ctx)
 }
