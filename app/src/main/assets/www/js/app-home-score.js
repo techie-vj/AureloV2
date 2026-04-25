@@ -1,6 +1,12 @@
 /* ═══════════════════════════════════════════════════════
    app-home-score.js — Aurelo Score hero card + detail sheet
-   Split from app-home.js (Phase 4).
+   v2.1 — PREMIUM REDESIGN
+   Changes:
+     • Ring gradient is score-based (green/teal/amber/red)
+     • Card background is theme-adaptive (light = var(--s1), dark = var(--s1))
+     • Score number color matches ring color
+     • Unique gradient IDs to avoid SVG conflicts
+     • "SCORE" ring label replaced with grade label
    Requires: fmtM(), escHtml(), activateTab(), IS_NATIVE,
              TODAY_MINS, S, DAILY_USE, CATS_MAP, ProTier,
              FocusScore (app-focus-score.js)
@@ -12,17 +18,275 @@ function _ensureAureloScoreStyles() {
   const st = document.createElement('style');
   st.id = 'aurelo-score-critical-css';
   st.textContent = `
-:root{--aurelo-home-card-bg:var(--aurelo-home-card-bg,linear-gradient(135deg,var(--s1),var(--s2)));--aurelo-home-card-border:var(--aurelo-home-card-border,var(--border));--aurelo-home-card-shadow:var(--aurelo-home-card-shadow,0 10px 28px rgba(0,0,0,.18));--aurelo-home-accent:var(--aurelo-home-accent,var(--p));--aurelo-home-accent-2:var(--aurelo-home-accent-2,var(--c));--aurelo-home-muted:var(--aurelo-home-muted,var(--t3));--aurelo-home-hc-text:var(--aurelo-home-hc-text,var(--c));--aurelo-home-hc-bg:var(--aurelo-home-hc-bg,var(--s2));--aurelo-home-hc-border:var(--aurelo-home-hc-border,var(--border2));--aurelo-home-chip-text:var(--aurelo-home-chip-text,var(--p2));--aurelo-score-card-bg:var(--aurelo-score-card-bg,var(--aurelo-home-card-bg));--aurelo-score-card-border:var(--aurelo-score-card-border,var(--aurelo-home-card-border));--aurelo-score-card-shadow:var(--aurelo-score-card-shadow,var(--aurelo-home-card-shadow));--aurelo-score-ring-track:var(--aurelo-score-ring-track,var(--border2));--aurelo-score-ring-start:var(--aurelo-score-ring-start,var(--aurelo-home-accent));--aurelo-score-ring-end:var(--aurelo-score-ring-end,var(--aurelo-home-accent-2));--aurelo-score-glow:var(--aurelo-score-glow,var(--aurelo-home-hc-bg));--aurelo-score-tile-bg:var(--aurelo-score-tile-bg,var(--s2));--aurelo-score-tile-border:var(--aurelo-score-tile-border,var(--border2));--aurelo-score-tile-muted:var(--aurelo-score-tile-muted,var(--aurelo-home-muted));--aurelo-score-title:var(--aurelo-score-title,var(--t1));--aurelo-score-subtitle:var(--aurelo-score-subtitle,var(--t3))}
-#home-aurelo-score{box-sizing:border-box}#home-aurelo-score *,.aurelo-sheet-backdrop *,.aurelo-sheet-panel *{box-sizing:border-box}
-.aurelo-score-card{width:100%;border-radius:20px;padding:16px;border:1px solid var(--aurelo-score-card-border);cursor:pointer;position:relative;overflow:hidden;background:var(--aurelo-score-card-bg);box-shadow:var(--aurelo-score-card-shadow);color:var(--aurelo-score-title)}
-.aurelo-score-card::after{content:'';position:absolute;top:-34px;right:-26px;width:118px;height:118px;border-radius:50%;background:var(--aurelo-score-glow);opacity:.7;pointer-events:none}
-.aurelo-score-head{display:flex;align-items:center;gap:14px;margin-bottom:14px;position:relative;z-index:1}.aurelo-score-ring-wrap{position:relative;width:76px;height:76px;min-width:76px;min-height:76px;flex:0 0 76px}.aurelo-score-ring-wrap svg{display:block;width:76px;height:76px}.aurelo-score-ring-track{stroke:var(--aurelo-score-ring-track)}.aurelo-score-ring-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;pointer-events:none}.aurelo-score-number{font-family:var(--ff-d);font-size:22px;font-weight:800;color:var(--aurelo-score-title);line-height:1}.aurelo-score-ring-label{font-family:var(--ff-m);font-size:8px;color:var(--aurelo-home-hc-text);text-transform:uppercase;letter-spacing:.55px;margin-top:2px;line-height:1}.aurelo-score-copy{flex:1;min-width:0}.aurelo-score-kicker{font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--aurelo-score-subtitle);text-transform:uppercase;letter-spacing:1px;margin-bottom:2px;line-height:1.25}.aurelo-score-grade{font-family:var(--ff-d);font-size:20px;font-weight:600;color:var(--aurelo-score-title);margin-bottom:3px;line-height:1.15}.aurelo-score-meta{display:flex;align-items:center;gap:6px;font-family:var(--ff-m);font-size:11px;color:var(--aurelo-score-subtitle);line-height:1.25;flex-wrap:wrap}.aurelo-score-hc-text{color:var(--aurelo-home-hc-text);font-weight:700}.aurelo-score-dot{color:var(--aurelo-score-subtitle)}
-.aurelo-pillars-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;position:relative;z-index:1}.aurelo-pillar-tile{background:var(--aurelo-score-tile-bg);border:1px solid var(--aurelo-score-tile-border);border-radius:10px;padding:9px 8px;cursor:pointer;min-height:50px;display:flex;flex-direction:column;justify-content:center;overflow:hidden}.aurelo-pillar-tile.is-dashed{border-style:dashed}.aurelo-pillar-tile.is-hc{background:var(--aurelo-home-hc-bg);border-color:var(--aurelo-home-hc-border)}.aurelo-pillar-tile.is-empty{opacity:.82}.aurelo-pillar-head{display:flex;align-items:center;gap:4px;margin-bottom:3px;min-width:0;flex-wrap:wrap}.aurelo-pillar-label{font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--aurelo-score-tile-muted);letter-spacing:.5px;line-height:1.1;text-transform:uppercase}.aurelo-pillar-value{font-family:var(--ff-m);font-size:var(--text-xs);font-weight:700;line-height:1.2;word-break:break-word}.aurelo-pillar-sub{font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--aurelo-score-tile-muted);margin-top:2px;line-height:1.25}.aurelo-hc-badge{font-family:var(--ff-m);font-size:8px;color:var(--aurelo-home-hc-text);background:var(--aurelo-home-hc-bg);border:1px solid var(--aurelo-home-hc-border);border-radius:4px;padding:1px 4px;font-weight:600;letter-spacing:.3px;line-height:1.2;display:inline-flex;align-items:center}.aurelo-pillar-lock{display:flex;align-items:center;gap:4px;color:var(--aurelo-home-chip-text);font-family:var(--ff-m);font-size:var(--text-2xs);font-weight:700;line-height:1.2}
-.aurelo-sheet-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.62);z-index:9998;display:flex;align-items:flex-end;justify-content:center;backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);opacity:0;pointer-events:none;transition:opacity .25s ease}
-.aurelo-sheet-panel{width:100%;max-width:480px;max-height:88vh;overflow-y:auto;scrollbar-width:none;box-sizing:border-box;padding:12px 20px 44px;background:var(--s0,#fff);border:1px solid var(--border2);border-bottom:none;border-radius:24px 24px 0 0;transform:translate3d(0,100%,0);will-change:transform;transition:transform .3s cubic-bezier(.32,.72,0,1);box-shadow:0 -16px 40px rgba(0,0,0,.35)}.aurelo-sheet-panel::-webkit-scrollbar{display:none}
-.aurelo-sheet-handle{width:40px;height:4px;border-radius:2px;background:var(--border2);margin:0 auto 18px}.aurelo-sheet-hero{display:flex;align-items:center;gap:12px;margin-bottom:18px}.aurelo-sheet-hero-copy{flex:1;min-width:0}.aurelo-sheet-title{font-family:var(--ff-d);font-size:var(--text-xl);font-weight:700;color:var(--t1);letter-spacing:-.3px}.aurelo-sheet-subtitle{font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);margin-top:2px}.aurelo-sheet-total{text-align:right;flex-shrink:0}.aurelo-sheet-total-number{font-family:var(--ff-d);font-size:32px;font-weight:700;line-height:1}.aurelo-sheet-total-grade{font-family:var(--ff-m);font-size:var(--text-xs);margin-top:1px}
-.aurelo-sheet-pillars{display:flex;flex-direction:column;gap:10px}.aurelo-sheet-pillar{background:var(--s2);border:1px solid var(--border2);border-radius:14px;padding:13px 14px}.aurelo-sheet-pillar.is-hc{background:var(--aurelo-home-hc-bg);border-color:var(--aurelo-home-hc-border)}.aurelo-sheet-pillar-row{display:flex;align-items:center;gap:10px}.aurelo-sheet-pillar-icon{font-size:16px;flex-shrink:0}.aurelo-sheet-pillar-copy{flex:1;min-width:0}.aurelo-sheet-pillar-title{font-family:var(--ff-m);font-size:var(--text-sm);font-weight:700;color:var(--t1);display:flex;align-items:center;gap:6px;flex-wrap:wrap}.aurelo-sheet-pillar-desc{font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);margin-top:2px;line-height:1.4}.aurelo-sheet-pillar-score{text-align:right;flex-shrink:0}.aurelo-sheet-pillar-number{font-family:var(--ff-d);font-size:20px;font-weight:700;line-height:1}.aurelo-sheet-pillar-weight{font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);margin-top:2px}.aurelo-sheet-hc-badge{font-family:var(--ff-m);font-size:8px;color:var(--aurelo-home-hc-text);background:var(--aurelo-home-hc-bg);border:1px solid var(--aurelo-home-hc-border);border-radius:999px;padding:1px 6px;font-weight:700;letter-spacing:.4px}.aurelo-sheet-bar{height:5px;background:var(--border2);border-radius:999px;overflow:hidden;margin-top:9px}.aurelo-sheet-bar-fill{height:100%;border-radius:999px;background:linear-gradient(90deg,var(--aurelo-score-ring-start),var(--aurelo-score-ring-end))}.aurelo-sheet-empty{font-family:var(--ff-m);font-size:var(--text-xs);color:var(--t3);margin-top:9px;line-height:1.45}.aurelo-sheet-tips{background:rgba(247,166,35,.07);border:1px solid rgba(247,166,35,.22);border-radius:14px;padding:12px;margin-top:12px}.aurelo-sheet-tips-title{font-family:var(--ff-m);font-size:var(--text-xs);font-weight:700;color:var(--a);margin-bottom:6px}.aurelo-sheet-tip{font-family:var(--ff-m);font-size:var(--text-xs);color:var(--t2);line-height:1.45;margin-top:4px}
-.aurelo-sheet-actions{display:flex;gap:8px;margin-top:18px}.aurelo-sheet-btn{flex:1;padding:12px;border-radius:12px;font-family:var(--ff-m);font-size:var(--text-sm);font-weight:600;border:1px solid var(--border2);background:var(--s2);color:var(--t1);cursor:pointer;text-align:center}.aurelo-sheet-btn.primary{background:var(--p);border-color:var(--p);color:#fff}
+:root{
+  --aurelo-home-card-bg: var(--s1);
+  --aurelo-home-card-border: var(--border);
+  --aurelo-home-card-shadow: 0 2px 16px rgba(0,0,0,.08);
+  --aurelo-home-accent: var(--p);
+  --aurelo-home-accent-2: var(--c);
+  --aurelo-home-muted: var(--t3);
+  --aurelo-home-hc-text: var(--c);
+  --aurelo-home-hc-bg: var(--s2);
+  --aurelo-home-hc-border: var(--border2);
+  --aurelo-home-chip-text: var(--p2);
+  --aurelo-score-card-bg: var(--aurelo-home-card-bg);
+  --aurelo-score-card-border: var(--aurelo-home-card-border);
+  --aurelo-score-card-shadow: var(--aurelo-home-card-shadow);
+  --aurelo-score-ring-track: var(--border2);
+  --aurelo-score-glow: var(--aurelo-home-hc-bg);
+  --aurelo-score-tile-bg: var(--s2);
+  --aurelo-score-tile-border: var(--border2);
+  --aurelo-score-tile-muted: var(--aurelo-home-muted);
+  --aurelo-score-title: var(--t1);
+  --aurelo-score-subtitle: var(--t3);
+}
+
+#home-aurelo-score { box-sizing: border-box; padding: 0 16px; margin-bottom: 12px; }
+#home-aurelo-score *, .aurelo-sheet-backdrop *, .aurelo-sheet-panel * { box-sizing: border-box; }
+
+/* ── Card ── */
+.aurelo-score-card {
+  width: 100%;
+  border-radius: 20px;
+  padding: 16px;
+  border: 1px solid var(--aurelo-score-card-border);
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  background: var(--aurelo-score-card-bg);
+  box-shadow: var(--aurelo-score-card-shadow);
+  color: var(--aurelo-score-title);
+  transition: opacity .15s;
+}
+.aurelo-score-card:active { opacity: .9; }
+.aurelo-score-card:focus-visible {
+  outline: 2px solid var(--focus-ring-color, var(--p));
+  outline-offset: 3px;
+}
+.aurelo-score-card::after {
+  content: '';
+  position: absolute; top: -34px; right: -26px;
+  width: 118px; height: 118px; border-radius: 50%;
+  background: var(--aurelo-score-glow);
+  opacity: .5;
+  pointer-events: none;
+}
+
+/* ── Head row ── */
+.aurelo-score-head {
+  display: flex; align-items: center; gap: 14px;
+  margin-bottom: 14px; position: relative; z-index: 1;
+}
+
+/* ── Ring ── */
+.aurelo-score-ring-wrap {
+  position: relative;
+  width: 76px; height: 76px;
+  min-width: 76px; min-height: 76px; flex: 0 0 76px;
+}
+.aurelo-score-ring-wrap svg {
+  display: block; width: 76px; height: 76px;
+}
+.aurelo-score-ring-track { stroke: var(--aurelo-score-ring-track); }
+.aurelo-score-ring-center {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  text-align: center; pointer-events: none;
+}
+.aurelo-score-number {
+  font-family: var(--ff-d);
+  font-size: 22px; font-weight: 800;
+  line-height: 1;
+  /* color set dynamically to match ring */
+}
+.aurelo-score-ring-label {
+  font-family: var(--ff-m);
+  font-size: 8px;
+  color: var(--aurelo-score-subtitle);
+  text-transform: uppercase;
+  letter-spacing: .55px; margin-top: 2px; line-height: 1;
+}
+
+/* ── Copy ── */
+.aurelo-score-copy { flex: 1; min-width: 0; }
+.aurelo-score-kicker {
+  font-family: var(--ff-m);
+  font-size: var(--text-2xs);
+  color: var(--aurelo-score-subtitle);
+  text-transform: uppercase;
+  letter-spacing: 1px; margin-bottom: 2px; line-height: 1.25;
+}
+.aurelo-score-grade {
+  font-family: var(--ff-d);
+  font-size: 20px; font-weight: 600;
+  margin-bottom: 3px; line-height: 1.15;
+  /* color set dynamically */
+}
+.aurelo-score-meta {
+  display: flex; align-items: center; gap: 6px;
+  font-family: var(--ff-m); font-size: 11px;
+  color: var(--aurelo-score-subtitle);
+  line-height: 1.25; flex-wrap: wrap;
+}
+.aurelo-score-hc-text { color: var(--aurelo-home-hc-text); font-weight: 700; }
+.aurelo-score-dot { color: var(--aurelo-score-subtitle); }
+
+/* ── Pillars ── */
+.aurelo-pillars-grid {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 8px; position: relative; z-index: 1;
+}
+.aurelo-pillar-tile {
+  background: var(--aurelo-score-tile-bg);
+  border: 1px solid var(--aurelo-score-tile-border);
+  border-radius: 10px; padding: 9px 8px;
+  cursor: pointer; min-height: 50px;
+  display: flex; flex-direction: column; justify-content: center;
+  overflow: hidden; transition: opacity .15s;
+}
+.aurelo-pillar-tile:active { opacity: .85; }
+.aurelo-pillar-tile.is-dashed { border-style: dashed; }
+.aurelo-pillar-tile.is-hc { background: var(--aurelo-home-hc-bg); border-color: var(--aurelo-home-hc-border); }
+.aurelo-pillar-tile.is-empty { opacity: .82; }
+.aurelo-pillar-head {
+  display: flex; align-items: center; gap: 4px;
+  margin-bottom: 3px; min-width: 0; flex-wrap: wrap;
+}
+.aurelo-pillar-label {
+  font-family: var(--ff-m); font-size: var(--text-2xs);
+  color: var(--aurelo-score-tile-muted);
+  letter-spacing: .5px; line-height: 1.1; text-transform: uppercase;
+}
+.aurelo-pillar-value {
+  font-family: var(--ff-m); font-size: var(--text-xs);
+  font-weight: 700; line-height: 1.2; word-break: break-word;
+}
+.aurelo-pillar-sub {
+  font-family: var(--ff-m); font-size: var(--text-2xs);
+  color: var(--aurelo-score-tile-muted); margin-top: 2px; line-height: 1.25;
+}
+.aurelo-hc-badge {
+  font-family: var(--ff-m); font-size: 8px;
+  color: var(--aurelo-home-hc-text);
+  background: var(--aurelo-home-hc-bg);
+  border: 1px solid var(--aurelo-home-hc-border);
+  border-radius: 4px; padding: 1px 4px;
+  font-weight: 600; letter-spacing: .3px;
+  line-height: 1.2; display: inline-flex; align-items: center;
+}
+.aurelo-pillar-lock {
+  display: flex; align-items: center; gap: 4px;
+  color: var(--aurelo-home-chip-text);
+  font-family: var(--ff-m); font-size: var(--text-2xs);
+  font-weight: 700; line-height: 1.2;
+}
+
+/* ── Bottom sheet ── */
+.aurelo-sheet-backdrop {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,.62); z-index: 9998;
+  display: flex; align-items: flex-end; justify-content: center;
+  backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+  opacity: 0; pointer-events: none; transition: opacity .25s ease;
+}
+.aurelo-sheet-panel {
+  width: 100%; max-width: 480px;
+  max-height: 88vh; overflow-y: auto; scrollbar-width: none;
+  box-sizing: border-box; padding: 12px 20px 44px;
+  background: var(--s0, var(--bg));
+  border: 1px solid var(--border2); border-bottom: none;
+  border-radius: 24px 24px 0 0;
+  transform: translate3d(0,100%,0); will-change: transform;
+  transition: transform .3s cubic-bezier(.32,.72,0,1);
+  box-shadow: 0 -16px 40px rgba(0,0,0,.35);
+}
+.aurelo-sheet-panel::-webkit-scrollbar { display: none; }
+.aurelo-sheet-handle {
+  width: 40px; height: 4px; border-radius: 2px;
+  background: var(--border2); margin: 0 auto 18px;
+}
+.aurelo-sheet-hero {
+  display: flex; align-items: center; gap: 12px; margin-bottom: 18px;
+}
+.aurelo-sheet-hero-copy { flex: 1; min-width: 0; }
+.aurelo-sheet-title {
+  font-family: var(--ff-d); font-size: var(--text-xl);
+  font-weight: 700; color: var(--t1); letter-spacing: -.3px;
+}
+.aurelo-sheet-subtitle {
+  font-family: var(--ff-m); font-size: var(--text-2xs);
+  color: var(--t3); margin-top: 2px;
+}
+.aurelo-sheet-total { text-align: right; flex-shrink: 0; }
+.aurelo-sheet-total-number {
+  font-family: var(--ff-d); font-size: 32px; font-weight: 700; line-height: 1;
+}
+.aurelo-sheet-total-grade {
+  font-family: var(--ff-m); font-size: var(--text-xs); margin-top: 1px;
+}
+.aurelo-sheet-pillars { display: flex; flex-direction: column; gap: 10px; }
+.aurelo-sheet-pillar {
+  background: var(--s2); border: 1px solid var(--border2);
+  border-radius: 14px; padding: 13px 14px;
+}
+.aurelo-sheet-pillar.is-hc {
+  background: var(--aurelo-home-hc-bg); border-color: var(--aurelo-home-hc-border);
+}
+.aurelo-sheet-pillar-row { display: flex; align-items: center; gap: 10px; }
+.aurelo-sheet-pillar-icon { font-size: 16px; flex-shrink: 0; }
+.aurelo-sheet-pillar-copy { flex: 1; min-width: 0; }
+.aurelo-sheet-pillar-title {
+  font-family: var(--ff-m); font-size: var(--text-sm);
+  font-weight: 700; color: var(--t1);
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+}
+.aurelo-sheet-pillar-desc {
+  font-family: var(--ff-m); font-size: var(--text-2xs);
+  color: var(--t3); margin-top: 2px; line-height: 1.4;
+}
+.aurelo-sheet-pillar-score { text-align: right; flex-shrink: 0; }
+.aurelo-sheet-pillar-number {
+  font-family: var(--ff-d); font-size: 20px; font-weight: 700; line-height: 1;
+}
+.aurelo-sheet-pillar-weight {
+  font-family: var(--ff-m); font-size: var(--text-2xs); color: var(--t3); margin-top: 2px;
+}
+.aurelo-sheet-hc-badge {
+  font-family: var(--ff-m); font-size: 8px;
+  color: var(--aurelo-home-hc-text); background: var(--aurelo-home-hc-bg);
+  border: 1px solid var(--aurelo-home-hc-border);
+  border-radius: 999px; padding: 1px 6px; font-weight: 700; letter-spacing: .4px;
+}
+.aurelo-sheet-bar {
+  height: 5px; background: var(--border2); border-radius: 999px; overflow: hidden; margin-top: 9px;
+}
+.aurelo-sheet-bar-fill { height: 100%; border-radius: 999px; }
+.aurelo-sheet-empty {
+  font-family: var(--ff-m); font-size: var(--text-xs);
+  color: var(--t3); margin-top: 9px; line-height: 1.45;
+}
+.aurelo-sheet-tips {
+  background: rgba(247,166,35,.07);
+  border: 1px solid rgba(247,166,35,.22);
+  border-radius: 14px; padding: 12px; margin-top: 12px;
+}
+.aurelo-sheet-tips-title {
+  font-family: var(--ff-m); font-size: var(--text-xs);
+  font-weight: 700; color: var(--a); margin-bottom: 6px;
+}
+.aurelo-sheet-tip {
+  font-family: var(--ff-m); font-size: var(--text-xs);
+  color: var(--t2); line-height: 1.45; margin-top: 4px;
+}
+.aurelo-sheet-actions { display: flex; gap: 8px; margin-top: 18px; }
+.aurelo-sheet-btn {
+  flex: 1; padding: 12px; border-radius: 12px;
+  font-family: var(--ff-m); font-size: var(--text-sm); font-weight: 600;
+  border: 1px solid var(--border2); background: var(--s2);
+  color: var(--t1); cursor: pointer; text-align: center;
+}
+.aurelo-sheet-btn.primary { background: var(--p); border-color: var(--p); color: #fff; }
 `;
   document.head.appendChild(st);
 }
@@ -36,6 +300,15 @@ function _aureloGrade(score) {
   return               { label: 'Needs Work',  color: 'var(--r)'  };
 }
 
+/* ── Score → ring color pair ──────────────────────────── */
+function _scoreRingColors(score) {
+  if (score >= 90) return { start: '#22C55E', end: '#16A34A' };   // green
+  if (score >= 75) return { start: '#06B6D4', end: '#0284C7' };   // teal/cyan
+  if (score >= 60) return { start: '#818CF8', end: '#6366F1' };   // indigo (matches --p2)
+  if (score >= 45) return { start: '#F59E0B', end: '#D97706' };   // amber
+  return                  { start: '#F87171', end: '#DC2626' };   // red
+}
+
 /* ── Backward-compat: _aureloColor() ─────────────────── */
 function _aureloColor(score) { return _aureloGrade(score).color; }
 
@@ -47,7 +320,6 @@ function _screenPillarScore() {
   return Math.round(Math.max(0, Math.min(100, (1 - Math.min(ratio, 2) / 2) * 100)));
 }
 
-/* FIX: call FocusScore.calculateFocus() — the FOCUS_SCORE global never exists */
 function _focusPillarScore() {
   try {
     if (typeof FocusScore !== 'undefined' && typeof FocusScore.calculateFocus === 'function') {
@@ -59,14 +331,11 @@ function _focusPillarScore() {
   return null;
 }
 
-/* FIX: Sleep does NOT require HC — it runs on bedtime tracking alone.
-   HC optionally enhances the score. Removed the false HC dependency. */
 function _sleepPillarScore() {
   try {
     if (typeof FocusScore !== 'undefined' && typeof FocusScore.calculateSleep === 'function') {
       const res = FocusScore.calculateSleep();
       if (!res || res.score < 0) return null;
-      // Apply HC enhancement when available (mirrors _getEffectiveSleepScore in app-focus-score.js)
       try {
         if (typeof HealthConnect !== 'undefined' &&
             typeof HealthConnect.isConnected === 'function' &&
@@ -87,7 +356,6 @@ function _sleepPillarScore() {
   return null;
 }
 
-/* FIX: call HealthConnect.getBodyScore() — HC_BODY_SCORE global never exists */
 function _bodyPillarScore() {
   try {
     if (typeof HealthConnect !== 'undefined' &&
@@ -101,12 +369,7 @@ function _bodyPillarScore() {
   return null;
 }
 
-/* ── Overall score: delegate to FocusScore.calculateAurelo()
-   which owns the correct weight-redistribution logic (spec §4.1).
-   Individual pillar functions are the fallback.
-   ──────────────────────────────────────────────────────────── */
 function _computeAureloScore() {
-  // PRIMARY: use FocusScore.calculateAurelo() — single source of truth
   if (typeof FocusScore !== 'undefined' &&
       typeof FocusScore.calculateAurelo === 'function') {
     try {
@@ -118,7 +381,6 @@ function _computeAureloScore() {
           focus:    a.focusScore    >= 0 ? a.focusScore    : null,
           sleep:    a.sleepScore    >= 0 ? a.sleepScore    : null,
           body:     a.hcBodyScore   >= 0 ? a.hcBodyScore   : null,
-          // pass weights through so the sheet can display them accurately
           swScreen: a.swScreen, swFocus: a.swFocus,
           swSleep:  a.swSleep,  swBody:  a.swBody,
           hcActive: a.hcActive,
@@ -127,12 +389,10 @@ function _computeAureloScore() {
     } catch (_) {}
   }
 
-  // FALLBACK: compute from individual pillar functions
   const screen = _screenPillarScore();
   const focus  = _focusPillarScore();
   const sleep  = _sleepPillarScore();
   const body   = _bodyPillarScore();
-
   const weights = [
     { score: screen, weight: 40 },
     { score: focus,  weight: 20 },
@@ -141,7 +401,6 @@ function _computeAureloScore() {
   ];
   const available = weights.filter(p => p.score !== null);
   if (!available.length) return { overall: screen, screen, focus, sleep, body };
-
   const totalWeight = available.reduce((s, p) => s + p.weight, 0);
   const weightedSum = available.reduce((s, p) => s + p.score * p.weight, 0);
   const overall     = Math.round(weightedSum / totalWeight);
@@ -150,22 +409,25 @@ function _computeAureloScore() {
 }
 
 /* ── Ring SVG helper ──────────────────────────────────── */
-function _scoreRingHTML(score, size, strokeW) {
+/* v2.1: gradId is unique per render to avoid DOM conflicts */
+function _scoreRingHTML(score, size, strokeW, gradId) {
+  const id     = gradId || 'asGrad_' + Date.now();
   const r      = (size / 2) - (strokeW * 1.2);
   const C      = 2 * Math.PI * r;
   const filled = (Math.max(0, Math.min(score, 100)) / 100) * C;
+  const cols   = _scoreRingColors(score);
   return `<svg viewBox="0 0 ${size} ${size}" fill="none"
     style="width:${size}px;height:${size}px" aria-hidden="true">
     <defs>
-      <linearGradient id="asGrad" x1="0" y1="0" x2="1" y2="1">
-        <stop offset="0%"   stop-color="var(--aurelo-score-ring-start,var(--p))"/>
-        <stop offset="100%" stop-color="var(--aurelo-score-ring-end,var(--c))"/>
+      <linearGradient id="${id}" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0%"   stop-color="${cols.start}"/>
+        <stop offset="100%" stop-color="${cols.end}"/>
       </linearGradient>
     </defs>
     <circle class="aurelo-score-ring-track" cx="${size/2}" cy="${size/2}" r="${r}"
       stroke-width="${strokeW}" fill="none"/>
     <circle cx="${size/2}" cy="${size/2}" r="${r}"
-      stroke="url(#asGrad)" stroke-width="${strokeW}" fill="none"
+      stroke="url(#${id})" stroke-width="${strokeW}" fill="none"
       stroke-linecap="round"
       stroke-dasharray="${filled.toFixed(2)} ${C.toFixed(2)}"
       transform="rotate(-90 ${size/2} ${size/2})"/>
@@ -187,7 +449,6 @@ function _pillarTileHTML(cfg) {
     !hasData ? 'score-empty is-empty' : '',
   ].filter(Boolean).join(' ');
 
-  // stopPropagation prevents bubbling to the parent card onclick (double-action bug)
   const tapAttr = onTap
     ? `onclick="event.stopPropagation();${onTap}" role="button" tabindex="0"`
     : '';
@@ -217,7 +478,9 @@ function renderAureloScore() {
 
   const scores = _computeAureloScore();
   const { overall, screen, focus, sleep, body, hcActive } = scores;
-  const g = _aureloGrade(overall);
+  const g    = _aureloGrade(overall);
+  const cols = _scoreRingColors(overall);
+  const gradId = 'asGrad_' + overall + '_' + Date.now();
 
   // Persist for Android home-screen widget
   if (typeof IS_NATIVE !== 'undefined' && IS_NATIVE &&
@@ -234,9 +497,18 @@ function renderAureloScore() {
                        HealthConnect.isConnected());
   const isPro = typeof ProTier !== 'undefined' && ProTier.isPro;
 
-  // ── Screen, Focus, Sleep tiles ─────────────────────────
-  // FIX: Sleep tile is NOT is-hc — sleep works without HC.
-  //      HC optionally enhances the score but is not required.
+  // Trend delta (optional — surfaced if available)
+  let trendHTML = '';
+  try {
+    if (typeof S !== 'undefined' && S.yesterdayScore != null) {
+      const delta = overall - S.yesterdayScore;
+      const sign  = delta >= 0 ? '+' : '';
+      const col   = delta >= 0 ? 'var(--g)' : 'var(--r)';
+      trendHTML   = `<span class="aurelo-score-dot">·</span>
+                     <span style="color:${col};font-weight:700">${sign}${delta} vs yesterday</span>`;
+    }
+  } catch (_) {}
+
   const regularPillarsHTML = [
     _pillarTileHTML({
       label: 'Screen', icon: '📱', cls: 'score-screen',
@@ -252,7 +524,7 @@ function renderAureloScore() {
     }),
     _pillarTileHTML({
       label: 'Sleep', icon: '😴', cls: 'score-sleep',
-      value: sleep, isHC: false,     // FIX: not HC-dependent
+      value: sleep, isHC: false,
       sub:   sleep !== null
                ? (hcConnected ? 'HC enhanced' : 'Bedtime tracking')
                : 'No data yet',
@@ -260,7 +532,6 @@ function renderAureloScore() {
     }),
   ].join('');
 
-  // ── Body tile — three states based on Pro + HC ─────────
   let bodyTileHTML;
   if (!isPro) {
     bodyTileHTML = `<div class="aurelo-pillar-tile is-dashed"
@@ -301,8 +572,8 @@ function renderAureloScore() {
     weekday: 'short', month: 'short', day: 'numeric',
   });
   const hcLine = hcConnected
-    ? `<span class="aurelo-score-hc-text">HC enhanced</span><span class="aurelo-score-dot">·</span><span>${dateStr}</span>`
-    : `<span>${dateStr}</span>`;
+    ? `<span class="aurelo-score-hc-text">HC enhanced</span><span class="aurelo-score-dot">·</span><span>${dateStr}</span>${trendHTML}`
+    : `<span>${dateStr}</span>${trendHTML}`;
 
   el.innerHTML = `
     <div class="aurelo-score-card"
@@ -311,9 +582,9 @@ function renderAureloScore() {
          aria-label="Aurelo Score: ${overall}. ${g.label}. Tap for details.">
       <div class="aurelo-score-head">
         <div class="aurelo-score-ring-wrap">
-          ${_scoreRingHTML(overall, 64, 6)}
+          ${_scoreRingHTML(overall, 76, 6, gradId)}
           <div class="aurelo-score-ring-center">
-            <div class="aurelo-score-number">${overall}</div>
+            <div class="aurelo-score-number" style="color:${cols.start}">${overall}</div>
             <div class="aurelo-score-ring-label">SCORE</div>
           </div>
         </div>
@@ -347,7 +618,7 @@ function _onAureloPillarTap(pillar) {
       if (typeof HealthConnect !== 'undefined' &&
           typeof HealthConnect.openSettings === 'function') HealthConnect.openSettings();
     } else {
-      _showBodyScoreSheet();  // FIX: now always defined below
+      _showBodyScoreSheet();
     }
     return;
   }
@@ -363,11 +634,7 @@ function _onAureloPillarTap(pillar) {
   if (typeof activateTab === 'function') activateTab('wellness');
 }
 
-/* ═══ openAureloScoreSheet — bottom sheet ════════════════════
-   FIX: now uses _computeAureloScore() which delegates to
-   FocusScore.calculateAurelo() — so all pillar scores actually
-   populate instead of showing '–'.
-   ═══════════════════════════════════════════════════════════ */
+/* ═══ openAureloScoreSheet — bottom sheet ════════════════════ */
 let _scoreSheetOpen = false;
 
 function openAureloScoreSheet() {
@@ -424,7 +691,6 @@ function openAureloScoreSheet() {
     </div>`;
   }
 
-  // Tips: weakest pillar
   const available = [
     { v: screen, lbl: 'screen time'   },
     { v: focus,  lbl: 'focus'         },
@@ -492,12 +758,12 @@ function openAureloScoreSheet() {
           See Full Stats
         </button>
         ${!hcConn
-          ? `<button class="aurelo-sheet-btn secondary"
+          ? `<button class="aurelo-sheet-btn"
                      onclick="closeAureloScoreSheet();
                               typeof openSettingsWithHC==='function'
                                 ?openSettingsWithHC()
                                 :activateTab('settings')">Connect HC</button>`
-          : `<button class="aurelo-sheet-btn secondary"
+          : `<button class="aurelo-sheet-btn"
                      onclick="closeAureloScoreSheet()">Done</button>`}
       </div>
     </div>`;
@@ -536,10 +802,7 @@ function closeAureloScoreSheet() {
   setTimeout(() => { backdrop.remove(); _scoreSheetOpen = false; }, 300);
 }
 
-/* ═══ _showBodyScoreSheet — HC body detail sheet (restored) ══
-   FIX: was missing entirely — HC-connected body tap did nothing.
-   Ported from old file; shows HRV · RHR · Steps breakdown.
-   ═══════════════════════════════════════════════════════════ */
+/* ═══ _showBodyScoreSheet — unchanged from v2.0 ══════════════ */
 function _showBodyScoreSheet() {
   document.getElementById('body-score-sheet-backdrop')?.remove();
   if (typeof HealthConnect === 'undefined' || !HealthConnect.isConnected()) return;
@@ -613,46 +876,36 @@ function _showBodyScoreSheet() {
     </div>`).join('');
 
   const html = `
-    <div id="body-score-sheet-backdrop" role="dialog" aria-modal="true"
-         aria-label="Body Score"
-         style="position:fixed;inset:0;background:rgba(0,0,0,.62);
-                backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);
-                z-index:9999;display:flex;align-items:flex-end;justify-content:center;
-                opacity:0;transition:opacity .25s;pointer-events:none"
+    <div id="body-score-sheet-backdrop" role="dialog" aria-modal="true" aria-label="Body Score"
+         style="position:fixed;inset:0;background:rgba(0,0,0,.62);backdrop-filter:blur(4px);
+                -webkit-backdrop-filter:blur(4px);z-index:9999;display:flex;align-items:flex-end;
+                justify-content:center;opacity:0;transition:opacity .25s;pointer-events:none"
          onclick="if(event.target===this)_closeBodyScoreSheet()">
       <div id="body-score-sheet"
-           style="width:100%;max-width:480px;background:var(--s0);
-                  border-radius:24px 24px 0 0;border:1px solid var(--border2);
-                  border-bottom:none;padding:12px 20px 44px;
-                  padding-bottom:max(44px,calc(env(safe-area-inset-bottom,0px)+24px));
-                  box-sizing:border-box;transform:translate3d(0,100%,0);
-                  will-change:transform;transition:transform .3s cubic-bezier(.32,.72,0,1);
-                  max-height:88vh;overflow-y:auto">
-        <div style="width:40px;height:4px;background:var(--border2);
-                    border-radius:2px;margin:0 auto 18px"></div>
+           style="width:100%;max-width:480px;background:var(--s0);border-radius:24px 24px 0 0;
+                  border:1px solid var(--border2);border-bottom:none;
+                  padding:12px 20px max(44px,calc(env(safe-area-inset-bottom,0px)+24px));
+                  box-sizing:border-box;transform:translate3d(0,100%,0);will-change:transform;
+                  transition:transform .3s cubic-bezier(.32,.72,0,1);max-height:88vh;overflow-y:auto">
+        <div style="width:40px;height:4px;background:var(--border2);border-radius:2px;margin:0 auto 18px"></div>
         <div style="display:flex;align-items:center;gap:12px;margin-bottom:6px">
           <div style="flex:1">
             <div style="font-family:var(--ff-d);font-size:var(--text-xl);font-weight:700;
                         color:var(--t1);letter-spacing:-.3px">Body Score</div>
             <div style="display:flex;align-items:center;gap:6px;margin-top:4px">
-              <span style="font-family:var(--ff-m);font-size:var(--text-2xs);
-                           color:var(--t3)">via Health Connect</span>
+              <span style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3)">via Health Connect</span>
               <span style="font-size:var(--text-2xs);color:var(--hc,var(--c));
                            background:var(--hc-dim,rgba(0,200,200,.1));
                            border:1px solid var(--hc-border,rgba(0,200,200,.3));
-                           border-radius:5px;padding:1px 6px;font-weight:600;
-                           letter-spacing:.3px">HC</span>
+                           border-radius:5px;padding:1px 6px;font-weight:600;letter-spacing:.3px">HC</span>
             </div>
           </div>
           <div style="text-align:right;flex-shrink:0">
             <div style="font-family:var(--ff-d);font-size:var(--text-3xl);font-weight:700;
-                        color:${gradeColor};line-height:1">
-              ${bodyScore >= 0 ? bodyScore : '\u2013'}
-            </div>
+                        color:${gradeColor};line-height:1">${bodyScore >= 0 ? bodyScore : '\u2013'}</div>
           </div>
         </div>
-        <div style="height:6px;background:var(--border2);border-radius:3px;
-                    overflow:hidden;margin-bottom:20px">
+        <div style="height:6px;background:var(--border2);border-radius:3px;overflow:hidden;margin-bottom:20px">
           <div style="height:100%;width:${Math.max(0, bodyScore >= 0 ? bodyScore : 0)}%;
                       background:linear-gradient(90deg,var(--hc,var(--c)),var(--g));
                       border-radius:3px;transition:width .4s"></div>
@@ -663,8 +916,7 @@ function _showBodyScoreSheet() {
         <div style="background:var(--hc-dim,rgba(0,200,200,.07));
                     border:1px solid var(--hc-border,rgba(0,200,200,.22));
                     border-radius:12px;padding:10px 13px;font-family:var(--ff-m);
-                    font-size:var(--text-xs);color:var(--t3);line-height:1.55;
-                    margin-bottom:16px">
+                    font-size:var(--text-xs);color:var(--t3);line-height:1.55;margin-bottom:16px">
           Each signal scored 0–100 against your personal 7-day baseline.
           Body Score is the average. Equal 33% weight per signal.
         </div>
