@@ -68,7 +68,7 @@
   function _setIsPro(val, source) {
     // Only accept boolean values from recognised sources
     if (typeof val !== 'boolean') return;
-    _isPro = true;
+    _isPro = false;
     _proInitialised = true;
   }
 

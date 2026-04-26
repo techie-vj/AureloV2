@@ -102,44 +102,6 @@
     </div>
     <div class="recent-row" id="recent-row"></div>
 
-    <!-- ── Play Store Banner ─────────────────────────── -->
-    <div id="play-sync-banner" style="display:none;margin:0 16px 12px;border-radius:16px;background:linear-gradient(135deg,rgba(108,99,255,.1),rgba(5,200,232,.06));border:1px solid rgba(108,99,255,.28);padding:14px 16px">
-        <div id="psb-prompt">
-            <div style="display:flex;align-items:flex-start;gap:12px">
-                <div style="font-size:24px;flex-shrink:0">🪄</div>
-                <div style="flex:1">
-                    <div style="font-size:13px;font-weight:700;color:var(--p2)">Improve App Categories</div>
-                    <div style="font-family:var(--ff-m);font-size:10px;color:var(--t3);margin-top:3px;line-height:1.5">Offline sorting is limited. Tap to sync categories from Play Store (Online).</div>
-                </div>
-                <div onclick="dismissPlaySyncBanner()" style="font-size:18px;color:var(--t3);cursor:pointer;padding:0 0 0 4px;flex-shrink:0;line-height:1">×</div>
-            </div>
-            <div style="display:flex;gap:8px;margin-top:12px">
-                <button onclick="startPlaySync()" style="flex:1;padding:9px;border-radius:10px;background:linear-gradient(135deg,var(--p),var(--c));border:none;color:#fff;font-family:var(--ff-m);font-size:11px;font-weight:700;cursor:pointer">Categorize Now <span id="categorise-pro-badge"></span></button>
-                <button onclick="dismissPlaySyncBanner()" style="padding:9px 14px;border-radius:10px;background:var(--s2);border:1px solid var(--border2);color:var(--t3);font-family:var(--ff-m);font-size:11px;cursor:pointer">Later</button>
-            </div>
-        </div>
-        <div id="psb-progress" style="display:none">
-            <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
-                <div style="font-size:18px">🔄</div>
-                <div style="flex:1">
-                    <div style="font-size:13px;font-weight:700;color:var(--p2)">Categorising apps…</div>
-                    <div style="font-family:var(--ff-m);font-size:10px;color:var(--t3);margin-top:2px" id="psb-progress-txt">Connecting…</div>
-                </div>
-            </div>
-            <div style="height:4px;background:var(--border2);border-radius:2px;overflow:hidden">
-                <div id="psb-bar" style="height:100%;width:0%;border-radius:2px;background:linear-gradient(90deg,var(--p),var(--c));transition:width .3s ease"></div>
-            </div>
-        </div>
-        <div id="psb-done" style="display:none;align-items:center;gap:10px">
-            <div style="font-size:20px">✅</div>
-            <div style="flex:1">
-                <div style="font-size:13px;font-weight:700;color:var(--g)">Categories updated!</div>
-                <div style="font-family:var(--ff-m);font-size:10px;color:var(--t3);margin-top:2px" id="psb-done-txt"></div>
-            </div>
-            <div onclick="dismissPlaySyncBanner()" style="font-size:18px;color:var(--t3);cursor:pointer;flex-shrink:0">×</div>
-        </div>
-    </div>
-
     <!-- ── Dynamic Culprits / Most Used Apps ─────────────────────────── -->
     <div id="home-culprits-section" style="padding:0 16px;margin-bottom:12px;display:none">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
@@ -165,12 +127,6 @@
     </div>
 
     <!-- Hidden stubs -->
-    <div id="cat-grid-view" style="display:none"></div>
-    <div id="cat-list-view" style="display:none"></div>
-    <div id="cat-total-badge" style="display:none"></div>
-    <button id="vt-grid" class="vt-btn on" style="display:none"></button>
-    <button id="vt-list" class="vt-btn" style="display:none"></button>
     <div id="notif-dot" style="display:none"></div>
-
     <div style="height:20px"></div>
 </div>

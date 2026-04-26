@@ -847,33 +847,6 @@ function renderCategorySummary() {
   section.style.display = '';
 }
 
-/* ═══ PLAY STORE SYNC ════════════════════════════════ */
-function getPlaySyncStatus() {
-  const isPro = ProTier.isPro;
-  if (!isPro) return { canSync: false, reason: 'pro_required' };
-  return { canSync: true };
-}
-
-function startPlaySync() {
-  const status = getPlaySyncStatus();
-  if (!status.canSync) {
-    ProTier.triggerUpsell('UNLIMITED_CATEGORIES');
-    return;
-  }
-  if (IS_NATIVE && typeof nCall === 'function') {
-    toast('Syncing categories from Play Store…', 'info');
-    nCall('startPlaySync');
-  } else {
-    toast('Play Store sync not available in demo mode', 'info');
-  }
-}
-
-function onPlaySyncComplete(updatedCount) {
-  toast(`✓ ${updatedCount} categories updated — you're in control`, 'success', 3500);
-  try { localStorage.setItem('lastPlaySync', String(Date.now())); } catch(_) {}
-  if (typeof updatePlaySyncSubtitle === 'function') updatePlaySyncSubtitle();
-}
-
 /* ═══ SECTION LABELS POST-RENDER HOOK ════════════════
  * Called after all home render functions complete so labels
  * can be injected after dynamic content has been painted.

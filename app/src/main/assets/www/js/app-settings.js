@@ -830,10 +830,132 @@ function nCall(method,...args){ try{ if(N&&typeof N[method]==='function') return
 /* ═══ BOOT ════════════════════════════════════════════ */
 applySettings();
 setCatView(S.catView);
-/* ── Fix 3: Settings "Improve App Categories" row alias ───────────────────────
- * startPlaySyncFromSettings routes through startPlaySync (in app-home.js)
- * which already passes the deleted-categories exclusion list to the bridge.
- * Defined here so it is available when settings.html onclick fires it.       */
-function startPlaySyncFromSettings(){
-  if(typeof startPlaySync==='function') startPlaySync();
+/* ── Play Sync (Improve App Categories) — panel-based flow ─────────────────── */
+var playSyncSettingsState = { running: false };
+
+function setPlaySyncSettingsStep(step, message, percent){
+  var prompt   = document.getElementById('pssm-prompt');
+  var progress = document.getElementById('pssm-progress');
+  var done     = document.getElementById('pssm-done');
+  var bar      = document.getElementById('pssm-bar');
+  var progressTxt = document.getElementById('pssm-progress-txt');
+  var doneTxt     = document.getElementById('pssm-done-txt');
+  if(prompt)   prompt.style.display   = step === 'prompt'   ? 'block' : 'none';
+  if(progress) progress.style.display = step === 'progress' ? 'block' : 'none';
+  if(done)     done.style.display     = step === 'done'     ? 'block' : 'none';
+  if(progressTxt && message && step === 'progress') progressTxt.textContent = message;
+  if(bar && typeof percent === 'number') bar.style.width = Math.max(0, Math.min(100, percent)) + '%';
+  if(doneTxt && message && step === 'done') doneTxt.textContent = message;
+}
+
+function openPlaySyncSettingsPanel(){
+  playSyncSettingsState.running = false;
+  setPlaySyncSettingsStep('prompt');
+  openPanel('play-sync-settings-panel');
+}
+
+function closePlaySyncSettingsPanel(){
+  if(playSyncSettingsState.running) return;
+  closePanel('play-sync-settings-panel');
+}
+
+function maybeShowPlaySyncBanner() {
+  // Play Sync entry point has moved to Settings → "Improve App Categories"
+  // Do not auto-show the home banner or navigate away from the current screen
+}
+
+function dismissPlaySyncBanner(){
+  var el = document.getElementById('play-sync-banner');
+  if (el) el.style.display = 'none';
+}
+
+function startPlaySync(){
+  if(!ProTier.isPro){
+    ProTier.triggerUpsell('PLAY_STORE_SYNC');
+    return;
+  }
+  if (!IS_NATIVE) return;
+
+  if (typeof _psbState === 'function') _psbState('progress');
+
+  window.onPlaySyncProgress = function(done, total) {
+    var pct = total > 0 ? Math.round((done / total) * 100) : 0;
+    var msg = done + ' of ' + total + ' apps checked…';
+
+    var bar = document.getElementById('psb-bar');
+    var txt = document.getElementById('psb-progress-txt');
+    if (bar) bar.style.width = pct + '%';
+    if (txt) txt.textContent = msg;
+
+    var pssmBar = document.getElementById('pssm-bar');
+    var pssmTxt = document.getElementById('pssm-progress-txt');
+    if (pssmBar) pssmBar.style.width = pct + '%';
+    if (pssmTxt) pssmTxt.textContent = msg;
+  };
+
+  window.onPlaySyncComplete = function(updatedCount) {
+    S.playSyncSynced = true;
+    saveS();
+
+    var resultMsg = updatedCount > 0
+      ? updatedCount + ' app' + (updatedCount > 1 ? 's' : '') + ' updated'
+      : 'All apps already categorised';
+
+    if (typeof _psbState === 'function') _psbState('done');
+
+    var txt = document.getElementById('psb-done-txt');
+    if (txt) txt.textContent = resultMsg;
+    setTimeout(dismissPlaySyncBanner, 4000);
+
+    playSyncSettingsState.running = false;
+    setPlaySyncSettingsStep('done', resultMsg);
+
+    if (typeof loadNativeData === 'function') {
+      loadNativeData();
+    } else {
+      if (typeof IS_NATIVE !== 'undefined' && IS_NATIVE && typeof N !== 'undefined') {
+        try {
+          if (typeof buildCatsMap === 'function') {
+            buildCatsMap(JSON.parse(N.getCachedApps() || '[]'));
+          }
+        } catch (_) {}
+      }
+      if (typeof renderCategoryGrid === 'function') renderCategoryGrid();
+      if (typeof renderCategoryList === 'function') renderCategoryList();
+      if (typeof updateCatsSub === 'function') updateCatsSub();
+      if (typeof scheduleGridRefresh === 'function') scheduleGridRefresh();
+    }
+
+    setTimeout(function(){
+      closePlaySyncSettingsPanel();
+    }, 3000);
+  };
+
+  try {
+    nCall('startPlaySync');
+  } catch (e) {
+    playSyncSettingsState.running = false;
+    setPlaySyncSettingsStep('prompt');
+    if (typeof toast === 'function') {
+      toast('Could not start sync — check your connection', 'error');
+    }
+    if (typeof _psbState === 'function') _psbState('prompt');
+  }
+}
+
+function runPlaySyncFromSettings(){
+  if(playSyncSettingsState.running) return;
+  playSyncSettingsState.running = true;
+  setPlaySyncSettingsStep('progress', 'Connecting...', 12);
+  if(typeof startPlaySync === 'function') startPlaySync();
+  else {
+    playSyncSettingsState.running = false;
+    setPlaySyncSettingsStep('prompt');
+    if(typeof toast === 'function') toast('Play Store sync is unavailable right now', 'warn');
+  }
+}
+
+function onPlaySyncProgressFromSettings(message, percent){
+  if(!playSyncSettingsState.running) return;
+  setPlaySyncSettingsStep('progress', message || 'Syncing...', typeof percent === 'number' ? percent : 60);
 }

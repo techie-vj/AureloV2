@@ -249,3 +249,56 @@
         <div id="add-to-cat-list"></div>
     </div>
 </div>
+
+<!-- ─── Improve App Categories (Play Sync) Modal ────────────────────────── -->
+<!-- Lives here in modals-root so position:fixed escapes any screen overflow/transform context -->
+<div class="panel" id="play-sync-settings-panel">
+    <div class="panel-hdr">
+        <div class="panel-back" onclick="closePlaySyncSettingsPanel()">←</div>
+        <div class="panel-title">🏷️ Improve App Categories</div>
+        <div></div>
+    </div>
+    <div class="panel-body">
+
+        <!-- Prompt state -->
+        <div id="pssm-prompt">
+            <div style="font-family:var(--ff-m);font-size:12px;color:var(--t3);line-height:1.6;margin-bottom:20px;">
+                Fetch accurate categories for your installed apps directly from the Play Store. This keeps your category grid organised and up to date.
+            </div>
+            <button type="button" onclick="runPlaySyncFromSettings()"
+                    style="width:100%;padding:14px;border:none;border-radius:14px;background:linear-gradient(135deg,var(--p),var(--c));color:#fff;font-family:var(--ff-m);font-size:13px;font-weight:700;cursor:pointer;letter-spacing:.3px;">
+                Categorize Now
+            </button>
+            <button type="button" onclick="closePlaySyncSettingsPanel()"
+                    style="width:100%;margin-top:10px;padding:13px;border-radius:14px;background:var(--s2);border:1px solid var(--border2);color:var(--t3);font-family:var(--ff-m);font-size:13px;cursor:pointer;">
+                Later
+            </button>
+        </div>
+
+        <!-- Progress state -->
+        <div id="pssm-progress" style="display:none;">
+            <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
+                <div style="font-size:22px;">⏳</div>
+                <div style="flex:1;min-width:0;">
+                    <div style="font-size:14px;font-weight:700;color:var(--t1);">Categorising apps…</div>
+                    <div id="pssm-progress-txt" style="font-family:var(--ff-m);font-size:12px;color:var(--t3);margin-top:3px;">Connecting...</div>
+                </div>
+            </div>
+            <div style="height:6px;background:var(--border2);border-radius:999px;overflow:hidden;">
+                <div id="pssm-bar" style="height:100%;width:0%;border-radius:999px;background:linear-gradient(90deg,var(--p),var(--c));transition:width .3s ease;"></div>
+            </div>
+        </div>
+
+        <!-- Done state -->
+        <div id="pssm-done" style="display:none;">
+            <div style="display:flex;align-items:flex-start;gap:12px;">
+                <div style="font-size:28px;">✅</div>
+                <div style="flex:1;min-width:0;">
+                    <div style="font-size:15px;font-weight:700;color:var(--g);">Categories updated</div>
+                    <div id="pssm-done-txt" style="font-family:var(--ff-m);font-size:12px;color:var(--t3);margin-top:4px;"></div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>

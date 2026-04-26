@@ -384,7 +384,6 @@ window.onPageReady = function(alreadyDone) {
     scanReadyForOnboarding = true;
     if (IS_NATIVE) { try { buildCatsMap(JSON.parse(N.getCachedApps() || '[]')); } catch(e) {} }
     if (obStep === 3) _finishObScan();
-    maybeShowPlaySyncBanner();
   }
   // FIX: Set self-app icon src now that bridge is ready and package name is known
     const selfIconSrc = 'app-icon://' + SELF_PKG;
@@ -411,7 +410,6 @@ window.onScanComplete = function() {
   if (document.getElementById('app').style.display !== 'none') {
     try { scheduleGridRefresh(); } catch(e) {}
   }
-  maybeShowPlaySyncBanner();
 };
 
 // _updateProUI — app-core-specific Pro UI touches that complement ProTier's own
