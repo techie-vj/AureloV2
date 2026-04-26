@@ -31,8 +31,8 @@
   position: absolute; inset: 0;
   overflow-y: auto; overflow-x: hidden;
   display: none; scrollbar-width: none;
-  /* Extra bottom padding = nav (68px) + safe area + 20px breathing room */
-  padding-bottom: calc(88px + env(safe-area-inset-bottom, 0px));
+  /* Extra bottom padding = nav (68px) + safe area + 8px breathing room */
+    padding-bottom: 16px;
   -webkit-overflow-scrolling: touch;
   /* FLICKER FIX: Do NOT use contain:content or will-change:transform here.
      Both create a new stacking context, meaning position:fixed children

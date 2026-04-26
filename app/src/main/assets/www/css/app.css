@@ -13,7 +13,7 @@
 
 /* ═══ SCREENS ═════════════════════════════════════ */
 .screens{flex:1;position:relative;overflow:hidden}
-.screen{position:absolute;inset:0;overflow-y:auto;overflow-x:hidden;display:none;scrollbar-width:none;padding-bottom:88px;-webkit-overflow-scrolling:touch;transform:translateZ(0)}
+.screen{position:absolute;inset:0;overflow-y:auto;overflow-x:hidden;display:none;scrollbar-width:none;padding-bottom: 16px;-webkit-overflow-scrolling:touch;transform:translateZ(0)}
 .screen::-webkit-scrollbar{display:none}
 .screen.active{display:block}
 .screen.swipe-transitioning{display:block;pointer-events:none}
