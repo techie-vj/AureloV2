@@ -24,11 +24,10 @@
         </div>
     </div>
 
-    <!-- ── Aurelo score hero ─────────────────────────── -->
-    <div id="home-aurelo-score"></div>
+    <!-- ── REORDERED: Score card FIRST (emotional anchor) ─────────────────────────── -->
+    <div id="home-aurelo-score" style="margin-bottom:12px"></div>
 
-
-    <!-- ── Compact today stats + progress ─────────────────────────── -->
+    <!-- ── Quick stats strip (now supporting detail) ─────────────────────────── -->
     <div class="home-quick-strip" onclick="activateTab('wellness')" role="button" tabindex="0" aria-label="Open wellness details">
         <div id="home-status-line" class="home-status-line">✅ <span id="home-status-text">On track today</span></div>
         <div class="home-kpi-grid">
@@ -69,6 +68,17 @@
         <span id="first-run-card-close" onclick="dismissFirstRunCard()">×</span>
     </div>
 
+    <!-- ── CONTEXTUAL INSIGHT BANNER (moved up, softer design) ──── -->
+    <div id="home-insight-banner" class="home-insight-banner home-insight-banner--contextual" style="display:none" onclick="onInsightBannerAction()" onkeydown="onInsightBannerKeydown(event)">
+        <div id="hib-icon" class="hib-icon">⚠️</div>
+        <div style="flex:1;min-width:0">
+            <div id="hib-title" class="hib-title"></div>
+            <div id="hib-body" class="hib-body"></div>
+        </div>
+        <div onclick="event.stopPropagation(); dismissInsightBanner()" class="hib-close" role="button" tabindex="0" aria-label="Dismiss insight">×</div>
+    </div>
+    <div id="ghost-banner" style="display:none"><div id="ghost-banner-sub"></div></div>
+
     <!-- ── Focus dynamic row ──── -->
     <div id="home-focus-dynamic" style="padding:0 14px;margin-bottom:8px"></div>
     <!-- ── Habits dynamic row ──── -->
@@ -82,22 +92,11 @@
     <div id="home-timer-alert" style="padding:0 16px;margin-bottom:10px;display:none"></div>
     <div id="home-sleep-card" style="padding:0 16px;margin-bottom:10px;display:none"></div>
 
-    <!-- ── Consolidated Insight Banner ── -->
-    <div id="home-insight-banner" class="home-insight-banner" style="display:none" onclick="onInsightBannerAction()" onkeydown="onInsightBannerKeydown(event)">
-        <div id="hib-icon" class="hib-icon">🔥</div>
-        <div style="flex:1;min-width:0">
-            <div id="hib-title" class="hib-title"></div>
-            <div id="hib-body" class="hib-body"></div>
-        </div>
-        <div onclick="event.stopPropagation(); dismissInsightBanner()" class="hib-close" role="button" tabindex="0" aria-label="Dismiss insight">×</div>
-    </div>
-    <div id="ghost-banner" style="display:none"><div id="ghost-banner-sub"></div></div>
-
-    <!-- ── Time-slot Routine ─────────────────────────── -->
+    <!-- ── Time-slot Routine (contextual app suggestions) ─────────────────────────── -->
     <div class="home-section-hdr">
         <div>
-            <div class="home-section-title" id="routine-slot-label">Recent</div>
-            <div class="home-section-sub" id="routine-slot-sub">Your most-used apps today</div>
+            <div class="home-section-title" id="routine-slot-label">Afternoon Picks</div>
+            <div class="home-section-sub" id="routine-slot-sub">Based on your habits</div>
         </div>
         <div id="routine-learn-badge" class="routine-learn-badge" style="display:none"></div>
     </div>
@@ -141,11 +140,11 @@
         </div>
     </div>
 
-    <!-- ── Dynamic Culprits / Most Used ─────────────────────────── -->
+    <!-- ── Dynamic Culprits / Most Used Apps ─────────────────────────── -->
     <div id="home-culprits-section" style="padding:0 16px;margin-bottom:12px;display:none">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
             <div style="display:flex;align-items:center;gap:7px">
-                <div id="home-culprits-label" style="font-family:var(--ff-m);font-size:10px;letter-spacing:1.5px;color:var(--r)">TODAY'S CULPRITS</div>
+                <div id="home-culprits-label" style="font-family:var(--ff-m);font-size:10px;letter-spacing:1.5px;color:var(--r)">TOP APPS TODAY</div>
                 <span id="home-culprits-count" style="display:none;font-family:var(--ff-m);font-size:10px;color:var(--t3);background:var(--s2);border:1px solid var(--border2);border-radius:99px;padding:1px 7px"></span>
             </div>
             <div onclick="openAllApps()" style="font-family:var(--ff-m);font-size:10px;color:var(--p);cursor:pointer">See all →</div>

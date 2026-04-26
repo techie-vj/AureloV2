@@ -518,3 +518,50 @@
     grid-column: 1 / -1;
   }
 }
+
+/* ── v2.1 additions ───────────────────────────────────────────────────── */
+
+/* Timer pip on routine app icons */
+.rc-icon { position: relative; }
+.app-icon-timer {
+  position: absolute;
+  bottom: -5px; right: -6px;
+  background: var(--r);
+  color: #fff;
+  font-size: 8px; font-weight: 700;
+  padding: 2px 5px;
+  border-radius: 6px;
+  border: 1.5px solid var(--bg);
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* Section label above coach card */
+#home-coach-sec-label {
+  padding-top: 4px;
+}
+
+/* Section label above reminders */
+#home-reminders-sec-label {
+  padding-top: 4px;
+}
+
+/* Routine learn badge — match slot colour via currentColor */
+#routine-learn-badge {
+  border: 1px solid currentColor;
+  border-radius: 6px;
+  padding: 2px 7px;
+  font-family: var(--ff-m);
+  font-size: var(--text-2xs);
+  font-weight: var(--fw-semibold);
+  letter-spacing: 0.3px;
+  background: transparent;
+}
+
+/* Ensure home section headers render consistently */
+.home-section-hdr + #home-focus-dynamic,
+.home-section-hdr + #home-habits-dynamic,
+.home-section-hdr + #coach-home-insight {
+  margin-top: 0;
+}

@@ -116,6 +116,14 @@
     };
 
     card.style.display = '';
+    if (coachCard && coachCard.style.display !== 'none') {
+        _ensureSectionLabel(
+          'coach-home-insight',
+          'home-coach-sec-label',
+          'Coach Insight',
+          ''
+        );
+      }
 
     if (typeof HealthConnect !== 'undefined') HealthConnect.renderHomeBanner();
   }

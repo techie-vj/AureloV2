@@ -607,7 +607,7 @@ function renderAll(){
   // Invalidate bridge-data caches at start of each full render cycle
   if(typeof _invalidateStripCache === 'function') _invalidateStripCache();
   // Always update stats (cheap text writes)
-  if(typeof renderQuickStats === 'function') try { renderQuickStats(); } catch(e) { console.warn('[renderAll] renderQuickStats:', e); }
+  if(typeof renderQuickStats === 'function') try { renderQuickStats();renderHomeSectionLabelsDeferred(); } catch(e) { console.warn('[renderAll] renderQuickStats:', e); }
   // Refresh tab-level Pro-gated UI on every full render
   try { refreshAllProGates(); } catch(e) {}
   // Only render sections for the active tab, mark others dirty
