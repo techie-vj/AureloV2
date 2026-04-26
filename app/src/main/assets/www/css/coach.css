@@ -831,7 +831,7 @@
 
 /* v18: compact Home preview; tap card for full text in Coach sheet */
 #coach-home-insight{
-  margin:0 16px 10px !important;
+  margin:0 16px 16px !important;
   border-color:rgba(108,99,255,.24) !important;
   box-shadow:0 10px 24px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.035) !important;
 }
