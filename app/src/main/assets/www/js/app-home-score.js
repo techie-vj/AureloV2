@@ -125,7 +125,7 @@ function _ensureAureloScoreStyles() {
 }
 .aurelo-score-meta {
   display: flex; align-items: center; gap: 6px;
-  font-family: var(--ff-m); font-size: 11px;
+  font-family: var(--ff-m); font-size: var(--text-2xs);
   color: var(--aurelo-score-subtitle);
   line-height: 1.25; flex-wrap: wrap;
 }
@@ -458,7 +458,7 @@ function _pillarTileHTML(cfg) {
 
   return `<div class="${tileClass}" ${tapAttr}>
     <div class="aurelo-pillar-head">
-      <span style="font-size:11px;line-height:1" aria-hidden="true">${icon || ''}</span>
+      <span style="font-size: var(--text-2xs);line-height:1" aria-hidden="true">${icon || ''}</span>
       <span class="aurelo-pillar-label">${safeLabel}</span>
       ${isHC ? '<span class="aurelo-hc-badge">HC</span>' : ''}
     </div>
@@ -553,7 +553,7 @@ function renderAureloScore() {
         onclick="event.stopPropagation();_onAureloPillarTap('body')"
         role="button" tabindex="0">
       <div class="aurelo-pillar-head">
-        <span style="font-size:11px" aria-hidden="true">❤️</span>
+        <span style="font-size: var(--text-2xs)" aria-hidden="true">❤️</span>
         <span class="aurelo-pillar-label">BODY</span>
         <span class="aurelo-hc-badge">HC</span>
       </div>

@@ -526,7 +526,7 @@
 .app-sel-check.on  { background: var(--p); border-color: var(--p); }
 .app-sel-check.on::after { content: '✓'; color: #fff; font-size: 13px; font-weight: var(--fw-bold); }
 .app-sel-check.partial { background: rgba(108,99,255,.18); border-color: var(--p); }
-.app-sel-check.partial::after { content: '■'; color: var(--p); font-size: 11px; }
+.app-sel-check.partial::after { content: '■'; color: var(--p); font-size: var(--text-2xs); }
 
 .cat-pick-group { border-bottom: 1px solid var(--border); }
 .cat-pick-group:last-child { border: none; }
