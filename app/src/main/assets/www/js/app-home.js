@@ -135,30 +135,54 @@ function renderQuickStats(){
 
 /* ─── Inject section labels for dynamic rows + coach card ─ */
 function _renderHomeSectionLabels() {
-  // "Active Reminders" above focus dynamic row (only if it has content)
+  // 1. Handle "Active Reminders" (Focus OR Habits)
   var focusDyn  = document.getElementById('home-focus-dynamic');
   var habitsDyn = document.getElementById('home-habits-dynamic');
+  var remindersLabelId = 'home-reminders-sec-label';
 
-  // We inject above focus-dynamic; habits-dynamic is a continuation
-  if (focusDyn) {
+  // Check if Focus exists and has children
+  var hasFocus = focusDyn && focusDyn.children.length > 0;
+  // Check if Habits exists and has children
+  var hasHabits = habitsDyn && habitsDyn.children.length > 0;
+
+  if (hasFocus || hasHabits) {
+    // We inject above focus-dynamic specifically as it's the top-most row
     _ensureSectionLabel(
       'home-focus-dynamic',
-      'home-reminders-sec-label',
+      remindersLabelId,
       'Active Reminders',
       ''
     );
+  } else {
+    _removeSectionLabel(remindersLabelId);
   }
 
-  // "Coach Insight" label above the coach card (inserted dynamically by app-coach-home.js)
+  // 2. Handle "Coach Insight"
   var coachCard = document.getElementById('coach-home-insight');
-  if (coachCard && coachCard.style.display !== 'none') {
+  var coachLabelId = 'home-coach-sec-label';
+
+  var hasCoachContent = coachCard &&
+                        coachCard.style.display !== 'none' &&
+                        coachCard.innerText.trim().length > 0;
+
+  if (hasCoachContent) {
     _ensureSectionLabel(
       'coach-home-insight',
-      'home-coach-sec-label',
+      coachLabelId,
       'Coach Insight',
       ''
     );
+  } else {
+    _removeSectionLabel(coachLabelId);
   }
+}
+
+/**
+ * Helper to remove a label if it exists
+ */
+function _removeSectionLabel(labelId) {
+  var label = document.getElementById(labelId);
+  if (label) label.remove();
 }
 
 /* ─── Consolidated insight banner ───────────────────── */
