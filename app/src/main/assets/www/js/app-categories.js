@@ -188,10 +188,8 @@ function dropAppOnCat(cat, event){
 }
 
 function renderCategoryList(){
-   const el = document.getElementById('cat-list-view');
-    if (!el) return;
-    const cats = getEffectiveCatOrder();
-    el.innerHTML = cats.map(cat => {
+  const cats = getEffectiveCatOrder();
+  document.getElementById('cat-list-view').innerHTML = cats.map(cat => {
     const apps = CATS_MAP[cat], ico = CAT_ICONS[cat] || '📱';
     return `<div class="cat-list-row" onclick="openCatPopup('${cat}')">
       <div style="font-size:22px;flex-shrink:0">${ico}</div>
@@ -229,6 +227,79 @@ function setCatView(mode){
   if(grid) grid.style.display=mode==='grid'?'':'none';
   if(list) list.style.display=mode==='list'?'':'none';
   if(S.catView!==mode){ S.catView=mode; saveS(); }
+}
+
+/* ═══ ALL CATEGORIES PANEL ═════════════════════════ */
+function openAllCatsPanel() {
+  renderAllCatsPanel();
+  openPanel('all-cats-panel');
+}
+
+function renderAllCatsPanel() {
+  const container = document.getElementById('all-cats-list');
+  const countEl   = document.getElementById('all-cats-count');
+  if (!container) return;
+
+  const usageMap = {};
+  DAILY_USE.forEach(u => { usageMap[u.packageName] = u.totalMinutes || 0; });
+  const totalScreenMins = Math.max(TODAY_MINS || 1, 1);
+  const hasUsageData    = DAILY_USE.length > 0 && TODAY_MINS > 0;
+
+  const allCats = getEffectiveCatOrder()
+    .map(cat => {
+      const apps    = CATS_MAP[cat] || [];
+      const catMins = apps.reduce((s, a) => s + (usageMap[a.packageName] || 0), 0);
+      return { cat, apps, catMins };
+    })
+    .filter(c => c.apps.length > 0);
+
+  const totalApps = allCats.reduce((s, c) => s + c.apps.length, 0);
+  if (countEl) countEl.textContent = totalApps + ' apps';
+
+  container.innerHTML = allCats.map(({ cat, apps, catMins }) => {
+    const ico     = CAT_ICONS[cat] || '📱';
+    const col     = CAT_COLOR[cat] || '6C63FF';
+    const rgb     = _hexToRgb(col);
+    const pct     = hasUsageData ? Math.round((catMins / totalScreenMins) * 100) : 0;
+    const barW    = Math.min(pct, 100);
+    const timeStr = hasUsageData && catMins > 0 ? fmtM(catMins) : '–';
+    const pctStr  = hasUsageData ? pct + '% of today' : '0% of today';
+
+    const topApps = [...apps]
+      .sort((a, b) => (usageMap[b.packageName] || 0) - (usageMap[a.packageName] || 0))
+      .slice(0, 5);
+
+    const iconStrip = topApps.map(a => {
+      const mins      = usageMap[a.packageName] || 0;
+      const timeLabel = mins > 0 ? fmtM(mins) : '–';
+      const timeCls   = mins > 0 ? 'cat-exp-app-time has-usage' : 'cat-exp-app-time';
+      return `<div class="cat-exp-app-wrap">
+        <div class="cat-exp-app-ico">${appIco(a.packageName, 34, 9)}</div>
+        <div class="${timeCls}">${timeLabel}</div>
+      </div>`;
+    }).join('');
+
+    const moreCount = apps.length > 5
+      ? `<div class="cat-exp-more">+${apps.length - 5}</div>` : '';
+
+    return `<div class="cat-exp-card" onclick="openCatPopup('${cat}')" style="margin-bottom:10px;cursor:pointer">
+      <div class="cat-exp-hdr">
+        <div class="cat-exp-ico" style="background:rgba(${rgb},.15)">${ico}</div>
+        <div class="cat-exp-meta">
+          <div class="cat-exp-name">${cat}</div>
+          <div class="cat-exp-count">${apps.length} app${apps.length !== 1 ? 's' : ''}</div>
+        </div>
+        <div class="cat-exp-time-col">
+          <div class="cat-exp-time">${timeStr}</div>
+          <div class="cat-exp-pct">${pctStr}</div>
+        </div>
+      </div>
+      <div class="cat-exp-bar-track">
+        <div class="cat-exp-bar-fill" style="width:${barW}%;background:#${col}"></div>
+      </div>
+      <div class="cat-exp-icons">${iconStrip}${moreCount}</div>
+    </div>`;
+  }).join('');
 }
 
 /* ═══ CAT POPUP ════════════════════════════════════ */
