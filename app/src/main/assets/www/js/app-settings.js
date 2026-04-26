@@ -1,6 +1,7 @@
 /* ═══ app-settings.js — Settings tab: theme, goal, bedtime, permissions ════
  * Widget settings panel → app-settings-widget.js (Phase 4)
  * ════════════════════════════════════════════════════════════════════════════ */
+var playSyncSettingsState = { running: false };
 
 /* ═══ SETTINGS ════════════════════════════════════════ */
 var APP_THEMES=[
@@ -829,9 +830,8 @@ function nCall(method,...args){ try{ if(N&&typeof N[method]==='function') return
 
 /* ═══ BOOT ════════════════════════════════════════════ */
 applySettings();
-setCatView(S.catView);
+if (typeof setCatView === 'function') setCatView(S.catView);
 /* ── Play Sync (Improve App Categories) — panel-based flow ─────────────────── */
-var playSyncSettingsState = { running: false };
 
 function setPlaySyncSettingsStep(step, message, percent){
   var prompt   = document.getElementById('pssm-prompt');
@@ -849,14 +849,25 @@ function setPlaySyncSettingsStep(step, message, percent){
 }
 
 function openPlaySyncSettingsPanel(){
-  playSyncSettingsState.running = false;
-  setPlaySyncSettingsStep('prompt');
+  try {
+    playSyncSettingsState.running = false;
+    setPlaySyncSettingsStep('prompt');
+  } catch (e) {
+    console.error("Initialization failed, but opening panel anyway", e);
+  }
+  // This must be outside the try/catch or at the very end to ensure it runs
   openPanel('play-sync-settings-panel');
 }
 
 function closePlaySyncSettingsPanel(){
-  if(playSyncSettingsState.running) return;
+  // Remove the rigid block so the user can always back out.
+  playSyncSettingsState.running = false;
   closePanel('play-sync-settings-panel');
+
+  // Reset the UI cleanly after the panel slides away
+  setTimeout(function() {
+    setPlaySyncSettingsStep('prompt');
+  }, 300);
 }
 
 function maybeShowPlaySyncBanner() {
@@ -871,12 +882,16 @@ function dismissPlaySyncBanner(){
 
 function startPlaySync(){
   if(!ProTier.isPro){
+    playSyncSettingsState.running = false;
+    setPlaySyncSettingsStep('prompt');
     ProTier.triggerUpsell('PLAY_STORE_SYNC');
     return;
   }
-  if (!IS_NATIVE) return;
-
-  if (typeof _psbState === 'function') _psbState('progress');
+  if (!IS_NATIVE) {
+    playSyncSettingsState.running = false;
+    setPlaySyncSettingsStep('prompt');
+    return;
+  }
 
   window.onPlaySyncProgress = function(done, total) {
     var pct = total > 0 ? Math.round((done / total) * 100) : 0;
@@ -894,37 +909,50 @@ function startPlaySync(){
   };
 
   window.onPlaySyncComplete = function(updatedCount) {
-    S.playSyncSynced = true;
-    saveS();
+      // ── UI update first — guaranteed regardless of anything below ──
+      playSyncSettingsState.running = false;
+      var resultMsg = updatedCount > 0
+          ? updatedCount + ' app' + (updatedCount > 1 ? 's' : '') + ' updated'
+          : 'All apps already categorised';
+      setPlaySyncSettingsStep('done', resultMsg);
 
-    var resultMsg = updatedCount > 0
-      ? updatedCount + ' app' + (updatedCount > 1 ? 's' : '') + ' updated'
-      : 'All apps already categorised';
+      // ── Everything else is best-effort ──
+      try {
+          if (typeof _psbState === 'function') _psbState('done');
+          var txt = document.getElementById('psb-done-txt');
+          if (txt) txt.textContent = resultMsg;
+          setTimeout(dismissPlaySyncBanner, 4000);
 
-    if (typeof _psbState === 'function') _psbState('done');
-
-    var txt = document.getElementById('psb-done-txt');
-    if (txt) txt.textContent = resultMsg;
-    setTimeout(dismissPlaySyncBanner, 4000);
-
-    playSyncSettingsState.running = false;
-    setPlaySyncSettingsStep('done', resultMsg);
-
-    if (typeof loadNativeData === 'function') {
-      loadNativeData();
-    } else {
-      if (typeof IS_NATIVE !== 'undefined' && IS_NATIVE && typeof N !== 'undefined') {
-        try {
-          if (typeof buildCatsMap === 'function') {
-            buildCatsMap(JSON.parse(N.getCachedApps() || '[]'));
+          if (typeof S !== 'undefined' && S !== null) {
+              S.playSyncSynced = true;
+              if (typeof saveS === 'function') saveS();
           }
-        } catch (_) {}
+
+          if (typeof loadNativeData === 'function') {
+              loadNativeData();
+          } else {
+              if (typeof IS_NATIVE !== 'undefined' && IS_NATIVE && typeof N !== 'undefined') {
+                  try {
+                      if (typeof buildCatsMap === 'function') {
+                          buildCatsMap(JSON.parse(N.getCachedApps() || '[]'));
+                      }
+                  } catch (_) {}
+              }
+              if (typeof renderCategoryGrid === 'function') renderCategoryGrid();
+              if (typeof renderCategoryList === 'function') renderCategoryList();
+              if (typeof updateCatsSub === 'function') updateCatsSub();
+              if (typeof scheduleGridRefresh === 'function') scheduleGridRefresh();
+          }
+      } catch (e) {
+          console.error('[PlaySync] onPlaySyncComplete post-processing error:', e);
       }
-      if (typeof renderCategoryGrid === 'function') renderCategoryGrid();
-      if (typeof renderCategoryList === 'function') renderCategoryList();
-      if (typeof updateCatsSub === 'function') updateCatsSub();
-      if (typeof scheduleGridRefresh === 'function') scheduleGridRefresh();
-    }
+
+    window.onPlaySyncError = function() {
+        clearTimeout(_playSyncWatchdog);
+        playSyncSettingsState.running = false;
+        setPlaySyncSettingsStep('prompt');
+        if (typeof toast === 'function') toast('Could not reach Play Store — check your connection', 'error');
+    };
 
     setTimeout(function(){
       closePlaySyncSettingsPanel();
@@ -933,13 +961,20 @@ function startPlaySync(){
 
   try {
     nCall('startPlaySync');
+    // Add a 60-second watchdog after nCall('startPlaySync'):
+        var _playSyncWatchdog = setTimeout(function() {
+            if (playSyncSettingsState.running) {
+                playSyncSettingsState.running = false;
+                setPlaySyncSettingsStep('prompt');
+                if (typeof toast === 'function') toast('Sync timed out — please try again', 'warn');
+            }
+        }, 60000);
   } catch (e) {
     playSyncSettingsState.running = false;
     setPlaySyncSettingsStep('prompt');
     if (typeof toast === 'function') {
       toast('Could not start sync — check your connection', 'error');
     }
-    if (typeof _psbState === 'function') _psbState('prompt');
   }
 }
 

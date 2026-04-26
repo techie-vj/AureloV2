@@ -124,10 +124,10 @@ function refreshAllProGates() {
 // NFU-07 FIX: Global error boundary — catches real JS errors with source info.
 // "Script error." is an opaque browser signal for cross-origin or evaluateJavascript()
 // errors — it has no source/line/col and is not actionable, so we log it silently only.
-window.onerror = function(msg, src, line, col, err){
+window.error = function(msg, src, line, col, err){
   if(msg === 'Script error.' || (!src && !line)) {
     // Opaque cross-origin or eval error — log only, no user toast
-    console.warn('[Aurelo] Opaque script error (cross-origin/eval)');
+    console.log('[Aurelo] Opaque script error (cross-origin/eval)', err ? err.toString() : '(no detail)');
     return true;
   }
   console.error('[Aurelo Error]', msg, src+':'+line+':'+col, err||'');
