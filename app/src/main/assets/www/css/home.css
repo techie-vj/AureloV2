@@ -257,7 +257,7 @@
   right: -5px;
   background: var(--r);
   color: white;
-  font-size: 8px;
+  font-size: var(--text-2xs);
   font-weight: 700;
   padding: 2px 5px;
   border-radius: 6px;
@@ -630,7 +630,7 @@
   bottom: -5px; right: -6px;
   background: var(--r);
   color: #fff;
-  font-size: 8px; font-weight: 700;
+  font-size: var(--text-2xs); font-weight: 700;
   padding: 2px 5px;
   border-radius: 6px;
   border: 1.5px solid var(--bg);

@@ -166,7 +166,7 @@ window.FocusHome = (function () {
       var border = today ? '1px solid rgba(108,99,255,.5)' : '1px solid transparent';
       html += '<div style="width:18px;height:18px;border-radius:50%;background:' + bg + ';border:' + border + ';' +
         'display:flex;align-items:center;justify-content:center;flex-shrink:0">' +
-        '<span style="font-family:var(--ff-m);font-size:10px;font-weight:700;color:' +
+        '<span style="font-family:var(--ff-m);font-size:var(--text-2xs);font-weight:700;color:' +
         (on ? '#fff' : today ? 'var(--p)' : 'var(--t3)') + '">' + days[i] + '</span></div>';
     });
     html += '</div>';
@@ -236,7 +236,7 @@ window.FocusHome = (function () {
   }
 
   function _pill(text, p) {
-    return '<div style="font-family:var(--ff-m);font-size:10px;font-weight:600;color:' + p.text + ';' +
+    return '<div style="font-family:var(--ff-m);font-size:var(--text-2xs);font-weight:600;color:' + p.text + ';' +
       'background:' + p.icon + ';border-radius:99px;padding:3px 9px;flex-shrink:0;white-space:nowrap">' + text + '</div>';
   }
 
@@ -318,10 +318,10 @@ window.FocusHome = (function () {
     // Build app chips (first 3 blocked apps + "+N more" overflow) — mirrors home dynamic strip
     var blockedApps = ss.blockedApps || [];
     var chips = blockedApps.slice(0, 3).map(function (a) {
-      return '<span style="background:' + diff.color + '1a;border:1px solid ' + diff.color + '38;border-radius:6px;padding:2px 8px;font-family:var(--ff-m);font-size:10px;color:' + diff.color + '">' + a.name.split(' ')[0] + '</span>';
+      return '<span style="background:' + diff.color + '1a;border:1px solid ' + diff.color + '38;border-radius:6px;padding:2px 8px;font-family:var(--ff-m);font-size:var(--text-2xs);color:' + diff.color + '">' + a.name.split(' ')[0] + '</span>';
     }).join('');
     if (blockedApps.length > 3) {
-      chips += '<span style="background:' + diff.color + '1a;border:1px solid ' + diff.color + '38;border-radius:6px;padding:2px 8px;font-family:var(--ff-m);font-size:10px;color:' + diff.color + '">+' + (blockedApps.length - 3) + '</span>';
+      chips += '<span style="background:' + diff.color + '1a;border:1px solid ' + diff.color + '38;border-radius:6px;padding:2px 8px;font-family:var(--ff-m);font-size:var(--text-2xs);color:' + diff.color + '">+' + (blockedApps.length - 3) + '</span>';
     }
     return '<div onclick="activateTab(\'focus\')" style="background:var(--s2);border:1px solid ' + diff.color + ';border-radius:16px;padding:12px 14px;cursor:pointer;transition:opacity .15s" ontouchstart="this.style.opacity=\'.75\'" ontouchend="this.style.opacity=\'1\'">' +
       '<div style="display:flex;align-items:center;gap:12px;margin-bottom:' + (chips ? '8px' : '10px') + '">' +
@@ -406,7 +406,7 @@ window.FocusHome = (function () {
       if (_sfr && _sfr.score >= 0) {
         var _sCol = _sfr.score >= 70 ? 'var(--g)' : _sfr.score >= 50 ? 'var(--a)' : 'var(--r)';
         var _sBg  = _sfr.score >= 70 ? 'rgba(18,212,138,.12)' : _sfr.score >= 50 ? 'rgba(247,166,35,.12)' : 'rgba(240,78,122,.12)';
-        scoreHtml = '<div style="font-family:var(--ff-m);font-size:10px;font-weight:700;color:' + _sCol + ';' +
+        scoreHtml = '<div style="font-family:var(--ff-m);font-size:var(--text-2xs);font-weight:700;color:' + _sCol + ';' +
           'background:' + _sBg + ';border-radius:99px;padding:3px 8px;flex-shrink:0;white-space:nowrap;line-height:1.4">' + _sfr.score + '</div>';
       }
     } catch (_) {}
@@ -465,7 +465,7 @@ window.FocusHome = (function () {
     }
     return '<div style="background:var(--s2);border:1px solid var(--border2);border-radius:14px;overflow:hidden">' +
       buildStripRow('🎯', d.completed + '/' + d.total + ' sessions', d.totalMins + ' min',
-        '<span style="font-family:var(--ff-m);font-size:10px;font-weight:700;color:' + rateColor + '">' + d.rate + '% done</span>') +
+        '<span style="font-family:var(--ff-m);font-size:var(--text-2xs);font-weight:700;color:' + rateColor + '">' + d.rate + '% done</span>') +
       '<div style="height:1px;background:var(--border)"></div>' +
       buildStripRow('🔥', streak + '-day streak', '', buildDayDots(d.focusDays)) +
       (challengeHtml ? '<div style="height:1px;background:var(--border)"></div>' + challengeHtml : '') +
@@ -477,17 +477,17 @@ window.FocusHome = (function () {
     var resistPct = d.pauseCount > 0 ? Math.round((d.resistCount / d.pauseCount) * 100) : null;
     var parts = [];
     if (d.timerTotal > 0)
-      parts.push('<span style="font-family:var(--ff-m);font-size:11px;font-weight:700;color:' + (d.timerOverCount > 0 ? 'var(--r)' : 'var(--g)') + '">' + d.timerOverCount + '/' + d.timerTotal + '</span><span style="font-family:var(--ff-m);font-size:11px;color:var(--t3)"> blocked</span>');
+      parts.push('<span style="font-family:var(--ff-m);font-size:var(--text-2xs);font-weight:700;color:' + (d.timerOverCount > 0 ? 'var(--r)' : 'var(--g)') + '">' + d.timerOverCount + '/' + d.timerTotal + '</span><span style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3)"> blocked</span>');
     if (resistPct !== null)
-      parts.push('<span style="font-family:var(--ff-m);font-size:11px;font-weight:700;color:var(--pu)">' + resistPct + '%</span><span style="font-family:var(--ff-m);font-size:11px;color:var(--t3)"> resisted</span>');
+      parts.push('<span style="font-family:var(--ff-m);font-size:var(--text-2xs);font-weight:700;color:var(--pu)">' + resistPct + '%</span><span style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3)"> resisted</span>');
     if (d.bedtimeEnabled)
-      parts.push('<span style="font-family:var(--ff-m);font-size:11px;font-weight:700;color:var(--p2)">🌙 ' + d.bedtimeStreak + '</span><span style="font-family:var(--ff-m);font-size:11px;color:var(--t3)"> nights</span>');
+      parts.push('<span style="font-family:var(--ff-m);font-size:var(--text-2xs);font-weight:700;color:var(--p2)">🌙 ' + d.bedtimeStreak + '</span><span style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3)"> nights</span>');
     if (!parts.length) {
-      return '<div onclick="FocusTab._switchFocusSubTab(\'habits\');activateTab(\'focus\')" style="background:var(--s2);border:1px solid var(--border2);border-radius:14px;padding:10px 14px;cursor:pointer;display:flex;align-items:center;gap:10px"><span style="font-size:16px;opacity:.4">🛡️</span><div style="flex:1"><div style="font-size:11px;font-weight:600;color:var(--t3)">Limits</div><div style="font-family:var(--ff-m);font-size:11px;color:var(--t3);opacity:.6">Set up timers or bedtime</div></div><div style="font-family:var(--ff-m);font-size:10px;color:var(--p2);opacity:.7">Set up \u2192</div></div>';
+      return '<div onclick="FocusTab._switchFocusSubTab(\'habits\');activateTab(\'focus\')" style="background:var(--s2);border:1px solid var(--border2);border-radius:14px;padding:10px 14px;cursor:pointer;display:flex;align-items:center;gap:10px"><span style="font-size:16px;opacity:.4">🛡️</span><div style="flex:1"><div style="font-size:var(--text-2xs);font-weight:600;color:var(--t3)">Limits</div><div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);opacity:.6">Set up timers or bedtime</div></div><div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--p2);opacity:.7">Set up \u2192</div></div>';
     }
     return '<div onclick="FocusTab._switchFocusSubTab(\'habits\');activateTab(\'focus\')" style="background:var(--s2);border:1px solid var(--border2);border-radius:14px;padding:10px 14px;cursor:pointer;display:flex;align-items:center;gap:8px"><span style="font-size:14px">🛡️</span><div style="display:flex;align-items:center;gap:10px;flex:1;flex-wrap:wrap">' +
       parts.map(function (p) { return '<div>' + p + '</div>'; }).join('<div style="width:1px;height:14px;background:var(--border2)"></div>') +
-      '</div><div style="font-family:var(--ff-m);font-size:11px;color:var(--p2);opacity:.7;flex-shrink:0">\u2192</div></div>';
+      '</div><div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--p2);opacity:.7;flex-shrink:0">\u2192</div></div>';
   }
 
   function buildLimitsSubtabStripHtml() {
@@ -495,16 +495,16 @@ window.FocusHome = (function () {
     var resistPct   = d.pauseCount > 0 ? Math.round((d.resistCount / d.pauseCount) * 100) : null;
     var resistColor = resistPct !== null ? (resistPct >= 70 ? 'var(--g)' : resistPct >= 50 ? 'var(--a)' : 'var(--r)') : 'var(--t3)';
     if (!d.timerTotal && !d.pauseCount && !d.bedtimeEnabled) {
-      return '<div style="background:var(--s2);border:1px solid var(--border2);border-radius:14px;padding:14px 16px;text-align:center"><div style="font-size:22px;opacity:.3;margin-bottom:6px">🛡️</div><div style="font-family:var(--ff-m);font-size:11px;color:var(--t3)">Set up app timers, mindful pause or bedtime to see your limits stats here.</div></div>';
+      return '<div style="background:var(--s2);border:1px solid var(--border2);border-radius:14px;padding:14px 16px;text-align:center"><div style="font-size:22px;opacity:.3;margin-bottom:6px">🛡️</div><div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3)">Set up app timers, mindful pause or bedtime to see your limits stats here.</div></div>';
     }
     var timerDetail = d.timerOverCount > 0
-      ? '<span style="font-family:var(--ff-m);font-size:10px;font-weight:700;color:var(--r)">' + d.timerOverCount + ' limit' + (d.timerOverCount !== 1 ? 's' : '') + ' reached</span>'
-      : '<span style="font-family:var(--ff-m);font-size:10px;color:var(--g)">All clear \u2713</span>';
+      ? '<span style="font-family:var(--ff-m);font-size:var(--text-2xs);font-weight:700;color:var(--r)">' + d.timerOverCount + ' limit' + (d.timerOverCount !== 1 ? 's' : '') + ' reached</span>'
+      : '<span style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--g)">All clear \u2713</span>';
     var timerRow    = d.timerTotal > 0 ? buildStripRow('\u23f1', d.timerTotal + ' timer' + (d.timerTotal !== 1 ? 's' : '') + ' active', '', timerDetail) : buildStripRowMuted('\u23f1', 'App Timers', 'Not configured');
     var resistBar   = '';
     if (d.pauseCount > 0) {
       var rp = Math.min(100, Math.round((d.resistCount / d.pauseCount) * 100));
-      resistBar = '<div style="display:flex;align-items:center;gap:6px;flex:1"><div style="height:4px;background:var(--border);border-radius:2px;overflow:hidden;flex:1"><div style="height:100%;width:' + rp + '%;background:' + resistColor + ';border-radius:2px;transition:width .4s"></div></div><span style="font-family:var(--ff-m);font-size:10px;font-weight:700;color:' + resistColor + '">' + rp + '%</span></div>';
+      resistBar = '<div style="display:flex;align-items:center;gap:6px;flex:1"><div style="height:4px;background:var(--border);border-radius:2px;overflow:hidden;flex:1"><div style="height:100%;width:' + rp + '%;background:' + resistColor + ';border-radius:2px;transition:width .4s"></div></div><span style="font-family:var(--ff-m);font-size:var(--text-2xs);font-weight:700;color:' + resistColor + '">' + rp + '%</span></div>';
     }
     var mindfulRow  = d.pauseCount > 0 ? buildStripRow('🧠', d.resistCount + '/' + d.pauseCount + ' paused', 'resisted', resistBar) : buildStripRowMuted('🧠', 'Mindful Pause', 'Not triggered today');
     var cfg    = typeof FocusBedtime !== 'undefined' ? FocusBedtime.getCfg() : {};
@@ -536,10 +536,10 @@ window.FocusHome = (function () {
       var blockedApps = ss.blockedApps || [];
       // FIX-1a: show 3 app chips + "+x more" overflow badge
       var chips = blockedApps.slice(0, 3).map(function (a) {
-        return '<span style="background:rgba(108,99,255,.12);border:1px solid rgba(108,99,255,.22);border-radius:6px;padding:2px 8px;font-family:var(--ff-m);font-size:10px;color:var(--p2)">' + a.name.split(' ')[0] + '</span>';
+        return '<span style="background:rgba(108,99,255,.12);border:1px solid rgba(108,99,255,.22);border-radius:6px;padding:2px 8px;font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--p2)">' + a.name.split(' ')[0] + '</span>';
       }).join('');
       if (blockedApps.length > 3) {
-        chips += '<span style="background:rgba(108,99,255,.12);border:1px solid rgba(108,99,255,.22);border-radius:6px;padding:2px 8px;font-family:var(--ff-m);font-size:10px;color:var(--p2)">+' + (blockedApps.length - 3) + '</span>';
+        chips += '<span style="background:rgba(108,99,255,.12);border:1px solid rgba(108,99,255,.22);border-radius:6px;padding:2px 8px;font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--p2)">+' + (blockedApps.length - 3) + '</span>';
       }
       // FIX-1a: show schedule name in subtitle when session was triggered by a routine
       var schedName = '';
@@ -683,7 +683,7 @@ window.FocusHome = (function () {
       var snoozeActive = snoozeEndsAt > now, minsLeft = snoozeActive ? Math.ceil((snoozeEndsAt - now) / 60000) : 0;
       var p = _PALETTE.indigo;
       var streakBadge = bedStreakNow > 1 ? _pill('🔥 ' + bedStreakNow, p) : '';
-      var snoozeBtn   = '<div onclick="event.stopPropagation();' + (snoozeActive ? '' : 'snoozeBedtimePrompt()') + '" style="font-family:var(--ff-m);font-size:10px;font-weight:600;' +
+      var snoozeBtn   = '<div onclick="event.stopPropagation();' + (snoozeActive ? '' : 'snoozeBedtimePrompt()') + '" style="font-family:var(--ff-m);font-size:var(--text-2xs);font-weight:600;' +
         (snoozeActive ? 'color:var(--t3);background:var(--s3);cursor:default;opacity:.55' : 'color:' + p.text + ';background:' + p.icon + ';cursor:pointer') +
         ';border-radius:99px;padding:4px 10px;flex-shrink:0;white-space:nowrap">' + (snoozeActive ? minsLeft + 'm' : 'Snooze') + '</div>';
       el.innerHTML = _card(p, nav,

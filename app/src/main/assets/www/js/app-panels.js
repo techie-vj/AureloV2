@@ -273,8 +273,8 @@ function renderTimerList(){
       ${atLimit
         ?`<div style="display:flex;align-items:center;gap:5px">${typeof proBadge==='function'?proBadge(true):''}</div>`
         :limits[a.packageName]
-          ?`<div style="font-family:var(--ff-m);font-size:10px;color:var(--a);padding:4px 8px;border-radius:8px;background:rgba(247,166,35,.1);border:1px solid rgba(247,166,35,.25)">${fmtM(limits[a.packageName])}</div>`
-          :`<div style="font-family:var(--ff-m);font-size:10px;color:var(--t3)">No limit</div>`}
+          ?`<div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--a);padding:4px 8px;border-radius:8px;background:rgba(247,166,35,.1);border:1px solid rgba(247,166,35,.25)">${fmtM(limits[a.packageName])}</div>`
+          :`<div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3)">No limit</div>`}
     </div>`;
   });
   // Re-apply "Has Timer" filter if active, using data-has-timer attr

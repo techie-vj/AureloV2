@@ -344,7 +344,7 @@ function renderContextualInsight() {
       <div style="font-size:18px;flex-shrink:0">${insight.icon}</div>
       <div style="flex:1;min-width:0">
         <div style="font-size:13px;font-weight:700;color:var(--t1);margin-bottom:2px">${insight.title}</div>
-        <div style="font-family:var(--ff-m);font-size:11px;color:var(--t2);line-height:1.6">${insight.body}</div>
+        <div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t2);line-height:1.6">${insight.body}</div>
       </div>
       ${insight.cta ? `<div id="home-insight-cta">...</div>` : ''}
     </div>`;
@@ -641,12 +641,12 @@ function onSearch(val){
       <div class="sdr-icon">${appIco(a.packageName,34)}</div>
       <div style="flex:1;min-width:0">
         <div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${hlName(a.name)}</div>
-        <div style="font-family:var(--ff-m);font-size:10px;color:var(--t3);display:flex;align-items:center;gap:2px;margin-top:1px">
+        <div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);display:flex;align-items:center;gap:2px;margin-top:1px">
           ${usageLbl(a._usageMins)}${freqLbl(a._usageMins)}
           ${!a._usageMins?'<span style="color:var(--t3)">Not used today</span>':''}
         </div>
       </div>
-      <div style="font-family:var(--ff-m);font-size:10px;color:var(--t3);padding:0 4px">⠿</div>
+      <div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);padding:0 4px">⠿</div>
     </div>`).join('');
 
   drop.querySelectorAll('.sdr[data-pkg]').forEach(row=>{

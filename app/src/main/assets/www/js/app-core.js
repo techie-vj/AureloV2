@@ -66,7 +66,7 @@ const APP_CONFIG = {
  * Kept for backward-compat with any call sites in tab JS files.
  */
 function proBadge(small = false) {
-  const sz = small ? 'font-size:11px;padding:1px 6px' : 'font-size:10px;padding:2px 8px';
+  const sz = small ? 'font-size:var(--text-2xs);padding:1px 6px' : 'font-size:var(--text-2xs);padding:2px 8px';
   return `<span class="pg-pro-badge" style="${sz}">✦ PRO</span>`;
 }
 
@@ -902,7 +902,7 @@ function initPullToRefresh(){
       const dy=e.touches[0].clientY-startY;
       if(dy>20&&!indicator){
         indicator=document.createElement('div');
-        indicator.style.cssText='position:sticky;top:0;left:0;right:0;z-index:50;display:flex;align-items:center;justify-content:center;padding:10px;gap:8px;font-family:var(--ff-m);font-size:11px;color:var(--t3);background:var(--bg)';indicator.setAttribute('role','status');indicator.setAttribute('aria-label','Pull to refresh');
+        indicator.style.cssText='position:sticky;top:0;left:0;right:0;z-index:50;display:flex;align-items:center;justify-content:center;padding:10px;gap:8px;font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);background:var(--bg)';indicator.setAttribute('role','status');indicator.setAttribute('aria-label','Pull to refresh');
         indicator.innerHTML='<div style="width:20px;height:20px;border-radius:50%;border:2px solid var(--border2);border-top-color:var(--p);animation:spin .8s linear infinite;flex-shrink:0"></div>Pull to refresh';
         screen.prepend(indicator);
       }
@@ -945,7 +945,7 @@ function doFullRefresh(){
   if(pickedApp){ cancelPickMode(); }
   clearCatHighlights();
   // Clear stale notification panel immediately so it doesn't linger
-  document.getElementById('notif-list').innerHTML='<div style="text-align:center;font-family:var(--ff-m);font-size:11px;color:var(--t3);padding:20px">Refreshing…</div>';
+  document.getElementById('notif-list').innerHTML='<div style="text-align:center;font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);padding:20px">Refreshing…</div>';
   document.getElementById('notif-dot') && (document.getElementById('notif-dot').style.display='none');
   DAILY_USE  = JSON.parse(N.getDailyUsageStats()||'[]');
   WEEKLY     = JSON.parse(N.getCachedWeeklyData()||'[]');

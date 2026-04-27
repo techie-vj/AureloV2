@@ -374,16 +374,16 @@
         border: 1px solid rgba(124,111,247,0.15); transition: background 0.2s;
       }
       .pg-blur-overlay:hover { background: rgba(14,15,19,0.1); }
-      .pg-blur-hint { font-size: 10px; color: rgba(255,255,255,0.4); font-family: monospace; }
+      .pg-blur-hint { font-size: var(--text-2xs); color: rgba(255,255,255,0.4); font-family: monospace; }
       .pg-pro-badge {
         display: inline-flex; align-items: center; gap: 4px; padding: 4px 12px; border-radius: 40px;
         background: linear-gradient(135deg,#7c6ff7,#9b6fff);
-        color: #fff; font-size: 10px; font-weight: 700; letter-spacing: 0.06em; font-family: monospace;
+        color: #fff; font-size: var(--text-2xs); font-weight: 700; letter-spacing: 0.06em; font-family: monospace;
       }
       .pg-pro-chip {
         display: inline-flex; align-items: center; gap: 3px; padding: 2px 8px; border-radius: 40px;
         background: rgba(247,201,72,0.12); border: 1px solid rgba(247,201,72,0.25);
-        color: #f7c948; font-size: 10px; font-weight: 700; font-family: monospace;
+        color: #f7c948; font-size: var(--text-2xs); font-weight: 700; font-family: monospace;
       }
       .pg-lock-wrap { position: relative; cursor: pointer; }
       .pg-lock-wrap > *:not(.pg-lock-badge) { opacity: 0.4; pointer-events: none; }
@@ -397,7 +397,7 @@
         border-radius: 8px; background: rgba(78,205,196,0.08); border: 1px solid rgba(78,205,196,0.2);
         color: #4ecdc4; font-size: 12px; font-weight: 600; cursor: pointer;
       }
-      .pg-ceiling-star { font-size: 10px; opacity: 0.75; }
+      .pg-ceiling-star { font-size: var(--text-2xs); opacity: 0.75; }
       .pg-teaser-row {
         display: flex; align-items: center; gap: 12px; padding: 13px 16px; border-radius: 14px;
         background: var(--s0); border: 1px solid #2a2d3a;
@@ -410,9 +410,9 @@
       }
       .pg-teaser-text { flex: 1; min-width: 0; }
       .pg-teaser-label { display: block; font-size: 13.5px; font-weight: 600; color: #e8eaf0; }
-      .pg-teaser-desc  { display: block; font-size: 11px; color: #5c6070; margin-top: 2px; }
+      .pg-teaser-desc  { display: block; font-size: var(--text-2xs); color: #5c6070; margin-top: 2px; }
       .pg-teaser-right { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
-      .pg-lock-icon-sm { font-size: 11px; opacity: 0.5; }
+      .pg-lock-icon-sm { font-size: var(--text-2xs); opacity: 0.5; }
     `;
     document.head.appendChild(s);
   })();

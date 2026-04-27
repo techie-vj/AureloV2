@@ -59,7 +59,7 @@ function _renderDiscover() {
   // visible to users whenever affiliate links are present on screen.
   const disclosureText = (_affiliateData && _affiliateData.disclosure) || '';
   const disclosureHtml = disclosureText
-    ? `<div style="padding:12px 20px 20px;font-family:var(--ff-m);font-size:10px;` +
+    ? `<div style="padding:12px 20px 20px;font-family:var(--ff-m);font-size:var(--text-2xs);` +
       `color:var(--t3);line-height:1.6;text-align:center;opacity:.7">` +
       `ℹ️ ${disclosureText}</div>`
     : '';
@@ -88,7 +88,7 @@ function _buildHabitsSection() {
     <div style="padding:18px 20px 6px;display:flex;align-items:baseline;justify-content:space-between">
       <div>
         <div style="font-family:var(--ff-d);font-size:16px;font-weight:700">Based on Your Habits</div>
-        <div style="font-family:var(--ff-m);font-size:11px;color:var(--t3);margin-top:2px;letter-spacing:.5px">YOUR TOP APPS · BETTER ALTERNATIVES</div>
+        <div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);margin-top:2px;letter-spacing:.5px">YOUR TOP APPS · BETTER ALTERNATIVES</div>
       </div>
     </div>
     <div style="display:flex;gap:10px;padding:0 20px 4px;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch">${cards.join('')}</div>`;
@@ -100,18 +100,18 @@ function _buildHabitCard(app,cat,topApp) {
   const border=_hexToRgba(app.accentColor,0.25);
   const pkg=app.playStorePkg||app.pkg||'';
   return `<div onclick="if(IS_NATIVE)nCall('openPlayStore','${pkg}')" style="flex:0 0 140px;background:${bg};border:1px solid ${border};border-radius:18px;padding:14px 12px 12px;cursor:pointer;flex-shrink:0;-webkit-tap-highlight-color:transparent" ontouchstart="this.style.transform='scale(.96)'" ontouchend="this.style.transform=''">
-    <div style="font-family:var(--ff-m);font-size:11px;color:var(--t3);margin-bottom:8px;display:flex;align-items:center;gap:4px">Replace <span style="background:rgba(240,90,122,.12);border:1px solid rgba(240,90,122,.2);color:var(--r);padding:1px 6px;border-radius:99px;font-size:10px">${timeStr?timeStr+' of '+_shortCat(cat):_shortCat(cat)}</span></div>
+    <div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);margin-bottom:8px;display:flex;align-items:center;gap:4px">Replace <span style="background:rgba(240,90,122,.12);border:1px solid rgba(240,90,122,.2);color:var(--r);padding:1px 6px;border-radius:99px;font-size:var(--text-2xs)">${timeStr?timeStr+' of '+_shortCat(cat):_shortCat(cat)}</span></div>
     <div style="width:44px;height:44px;border-radius:13px;background:var(--s2);display:flex;align-items:center;justify-content:center;font-size:24px;margin-bottom:8px">${app.emoji}</div>
     <div style="font-size:13px;font-weight:700;margin-bottom:3px;color:var(--t1)">${app.name}</div>
-    <div style="font-family:var(--ff-m);font-size:11px;color:var(--t2);line-height:1.5;margin-bottom:10px">${app.tagline}</div>
-    <button type="button" onclick="event.stopPropagation();if(IS_NATIVE)nCall('openPlayStore','${pkg}')" style="width:100%;padding:7px 0;border-radius:9px;border:none;background:rgba(124,111,255,.15);color:var(--p2);font-family:var(--ff-m);font-size:10px;font-weight:600;cursor:pointer">View →</button>
+    <div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t2);line-height:1.5;margin-bottom:10px">${app.tagline}</div>
+    <button type="button" onclick="event.stopPropagation();if(IS_NATIVE)nCall('openPlayStore','${pkg}')" style="width:100%;padding:7px 0;border-radius:9px;border:none;background:rgba(124,111,255,.15);color:var(--p2);font-family:var(--ff-m);font-size:var(--text-2xs);font-weight:600;cursor:pointer">View →</button>
   </div>`;
 }
 
 function _buildNoReplaceCard(cat,msg) {
   return `<div style="flex:0 0 140px;background:var(--s1);border:1px dashed var(--border);border-radius:18px;padding:14px 12px;flex-shrink:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:8px">
     <div style="font-size:26px;opacity:.4">${CAT_ICONS[_normalizeCat(cat)]||'📱'}</div>
-    <div style="font-family:var(--ff-m);font-size:11px;color:var(--t3);line-height:1.55">${msg}</div>
+    <div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);line-height:1.55">${msg}</div>
   </div>`;
 }
 
@@ -139,7 +139,7 @@ function _buildCollectionsSection() {
     return `<div onclick="_openCollection('${coll.id}')" style="flex:0 0 200px;border-radius:18px;padding:14px;cursor:pointer;overflow:hidden;background:linear-gradient(135deg,${bg},transparent);border:1px solid ${border};flex-shrink:0" ontouchstart="this.style.transform='scale(.97)'" ontouchend="this.style.transform=''">
       <span style="font-size:28px;margin-bottom:8px;display:block">${coll.emoji}</span>
       <div style="font-size:13px;font-weight:700;line-height:1.35;margin-bottom:3px;color:var(--t1)">${coll.title}</div>
-      <div style="font-family:var(--ff-m);font-size:11px;color:rgba(255,255,255,.45);margin-bottom:10px">${coll.apps.length} apps</div>
+      <div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:rgba(255,255,255,.45);margin-bottom:10px">${coll.apps.length} apps</div>
       <div style="display:flex;gap:4px">${icons}</div>
     </div>`;
   }).join('');
@@ -147,7 +147,7 @@ function _buildCollectionsSection() {
     <div style="padding:18px 20px 10px;display:flex;align-items:baseline;justify-content:space-between">
       <div>
         <div style="font-family:var(--ff-d);font-size:16px;font-weight:700">Apps You Might Like</div>
-        <div style="font-family:var(--ff-m);font-size:11px;color:var(--t3);margin-top:2px;letter-spacing:.5px">WELLNESS &amp; PRODUCTIVITY ONLY</div>
+        <div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);margin-top:2px;letter-spacing:.5px">WELLNESS &amp; PRODUCTIVITY ONLY</div>
       </div>
     </div>
     <div style="display:flex;gap:10px;padding:0 20px 4px;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch">${cards}</div>`;
@@ -157,7 +157,7 @@ function _openCollection(collId) {
   const coll=(_affiliateData.collections||[]).find(c=>c.id===collId); if(!coll) return;
   const cc=_countryCode();
   const apps=(coll.appIds||[]).map(id=>(_affiliateData.apps||[]).find(a=>a.id===id)).filter(a=>a&&_appAvailable(a,cc));
-  const rows=apps.map(a=>{const pkg=a.playStorePkg||a.pkg||'';return`<div style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--border)"><div style="width:44px;height:44px;border-radius:13px;background:var(--s2);display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0">${a.emoji}</div><div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600;margin-bottom:2px">${a.name}</div><div style="font-family:var(--ff-m);font-size:10px;color:var(--t2)">${a.tagline}</div></div><button type="button" onclick="if(IS_NATIVE)nCall('openPlayStore','${pkg}')" style="padding:8px 14px;border-radius:10px;border:none;background:var(--p);color:#fff;font-family:var(--ff-m);font-size:11px;font-weight:700;cursor:pointer;flex-shrink:0">Get →</button></div>`}).join('');
+  const rows=apps.map(a=>{const pkg=a.playStorePkg||a.pkg||'';return`<div style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--border)"><div style="width:44px;height:44px;border-radius:13px;background:var(--s2);display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0">${a.emoji}</div><div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600;margin-bottom:2px">${a.name}</div><div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t2)">${a.tagline}</div></div><button type="button" onclick="if(IS_NATIVE)nCall('openPlayStore','${pkg}')" style="padding:8px 14px;border-radius:10px;border:none;background:var(--p);color:#fff;font-family:var(--ff-m);font-size:var(--text-2xs);font-weight:700;cursor:pointer;flex-shrink:0">Get →</button></div>`}).join('');
   showConfirm(`${coll.emoji} ${coll.title}`,coll.description,null,'Close',null);
   setTimeout(()=>{
     const body=document.getElementById('cdlg-body');

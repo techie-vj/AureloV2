@@ -306,7 +306,7 @@ window.FocusBedtime = (function () {
           </button>
 
           <div onclick="document.getElementById('bt-nudge-popup')?.remove()"
-               style="font-size:11px;color:rgba(238,238,255,.25);margin-top:10px;cursor:pointer">
+               style="font-size:var(--text-2xs);color:rgba(238,238,255,.25);margin-top:10px;cursor:pointer">
             Keep bedtime on →
           </div>
 
@@ -484,7 +484,7 @@ window.FocusBedtime = (function () {
     pill.dataset.active  = nowActive ? '1' : '0';
     pill.style.cssText   =
       'flex:1;text-align:center;padding:7px 0;border-radius:8px;cursor:pointer;' +
-      'font-family:var(--ff-m);font-size:11px;font-weight:700;' +
+      'font-family:var(--ff-m);font-size:var(--text-2xs);font-weight:700;' +
       'border:1px solid ' + (nowActive ? 'var(--p)' : 'var(--border2)') + ';' +
       'background:'       + (nowActive ? 'var(--p)' : 'var(--bg)') + ';' +
       'color:'            + (nowActive ? '#fff'     : 'var(--t3)') + ';' +
@@ -533,11 +533,11 @@ window.FocusBedtime = (function () {
     var overflow = _btBlockedApps.length > 5
       ? '<div class="focus-app-chip" onclick="_btInlineOpenBlockPicker(true)"' +
         ' style="background:var(--s2);border-color:var(--border2);color:var(--t3);' +
-        'font-family:var(--ff-m);font-size:10px;cursor:pointer;font-weight:700">' +
+        'font-family:var(--ff-m);font-size:var(--text-2xs);cursor:pointer;font-weight:700">' +
         '+' + (_btBlockedApps.length - 5) + ' more</div>'
       : '';
     wrap.innerHTML = chips + overflow + (_btBlockedApps.length < 20
-      ? '<div onclick="_btInlineOpenBlockPicker()" style="font-family:var(--ff-m);font-size:11px;color:var(--t3);' +
+      ? '<div onclick="_btInlineOpenBlockPicker()" style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);' +
         'border:1px dashed var(--border2);border-radius:8px;padding:5px 10px;cursor:pointer;opacity:.7">＋ Add</div>'
       : '');
     _btMarkDirty();
@@ -834,7 +834,7 @@ window.FocusBedtime = (function () {
             '<span style="font-size:13px;font-weight:700;color:var(--t1)">Bedtime Mode</span>' +
             (typeof proBadge === 'function' ? proBadge() : '') +
           '</div>' +
-          '<div style="font-family:var(--ff-m);font-size:10px;color:var(--t3);margin-top:2px">' +
+          '<div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);margin-top:2px">' +
             'DND &amp; wind-down &middot; Pro only</div>' +
         '</div>' +
         '<div class="tog off" onclick="ProTier.triggerUpsell(\'BEDTIME_MODE\')"' +
@@ -897,14 +897,14 @@ window.FocusBedtime = (function () {
     }
 
     var streakBadge = streakCount > 1
-      ? '<span style="font-family:var(--ff-m);font-size:11px;padding:2px 7px;border-radius:99px;' +
+      ? '<span style="font-family:var(--ff-m);font-size:var(--text-2xs);padding:2px 7px;border-radius:99px;' +
         'background:rgba(247,166,35,.15);color:var(--a);margin-left:5px">🔥 ' + streakCount + ' nights</span>'
       : '';
 
     // ── HC Enhanced badge (spec §7.3) ────────────────────────────
     var hcSleepAvail = typeof HealthConnect !== 'undefined' && HealthConnect.isConnected() && HealthConnect.getSleepData();
     var hcSleepBadge = hcSleepAvail
-      ? '<span style="font-size:10px;color:var(--hc);background:var(--hc-dim);' +
+      ? '<span style="font-size:var(--text-2xs);color:var(--hc);background:var(--hc-dim);' +
         'border:1px solid var(--hc-border);border-radius:5px;' +
         'padding:1px 6px;font-weight:700;letter-spacing:.3px;margin-left:6px;' +
         'font-family:var(--ff-m)">HC Enhanced</span>'
@@ -967,7 +967,7 @@ window.FocusBedtime = (function () {
     var overflowChip = blockedApps.length > 5
       ? '<div class="focus-app-chip" onclick="openFocusAppPicker(\'bedtime\',true)"' +
         ' style="background:var(--s2);border-color:var(--border2);color:var(--t3);' +
-        'font-family:var(--ff-m);font-size:10px;cursor:pointer;font-weight:700">' +
+        'font-family:var(--ff-m);font-size:var(--text-2xs);cursor:pointer;font-weight:700">' +
         '+' + (blockedApps.length - 5) + ' more</div>'
       : '';
 
@@ -983,7 +983,7 @@ window.FocusBedtime = (function () {
             '<span style="font-size:13px;font-weight:700;color:var(--t1)">Bedtime Mode</span>' +
             streakBadge + hcSleepBadge +
           '</div>' +
-          '<div style="font-family:var(--ff-m);font-size:10px;color:var(--t3);margin-top:2px">' + statusTxt + '</div>' +
+          '<div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);margin-top:2px">' + statusTxt + '</div>' +
         '</div>' +
         '<div class="tog ' + (cfg.enabled ? 'on' : 'off') + '" id="bt-inline-master-tog"' +
         ' onclick="event.stopPropagation();FocusBedtime.toggle()" style="flex-shrink:0">' +
@@ -1003,26 +1003,26 @@ window.FocusBedtime = (function () {
         /* Time pills */
         '<div style="display:flex;gap:10px;margin-bottom:16px">' +
           '<div style="flex:1;text-align:center;background:var(--bg);border:1px solid var(--border2);border-radius:10px;padding:8px 6px">' +
-            '<div style="font-family:var(--ff-m);font-size:11px;color:var(--t3);margin-bottom:3px;letter-spacing:.5px">BEDTIME</div>' +
+            '<div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);margin-bottom:3px;letter-spacing:.5px">BEDTIME</div>' +
             '<div id="bt-pill-bed" style="font-size:15px;font-weight:700;color:var(--r)">' + decToStr(bedDecDisp) + '</div>' +
           '</div>' +
           '<div style="display:flex;align-items:center;color:var(--t3);font-size:14px">\u2192</div>' +
           '<div style="flex:1;text-align:center;background:var(--bg);border:1px solid var(--border2);border-radius:10px;padding:8px 6px">' +
-            '<div style="font-family:var(--ff-m);font-size:11px;color:var(--t3);margin-bottom:3px;letter-spacing:.5px">WAKE UP</div>' +
+            '<div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);margin-bottom:3px;letter-spacing:.5px">WAKE UP</div>' +
             '<div id="bt-pill-wake" style="font-size:15px;font-weight:700;color:var(--g)">' + decToStr(wakeDecDisp) + '</div>' +
           '</div>' +
         '</div>' +
 
         /* 2. Active days — rolling 7-day rolling ticks now removed; streak shown above */
         '<div style="margin-bottom:16px">' +
-          '<div style="font-family:var(--ff-m);font-size:11px;color:var(--t2);font-weight:600;margin-bottom:8px">Active days</div>' +
+          '<div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t2);font-weight:600;margin-bottom:8px">Active days</div>' +
           '<div style="display:flex;gap:6px">' +
             ['S','M','T','W','T','F','S'].map(function (lbl, idx) {
               var on = cfg.activeDays.includes(idx);
               return '<div id="bt-day-' + idx + '" data-active="' + (on ? '1' : '0') + '"' +
                 ' onclick="event.stopPropagation();FocusBedtime.btToggleDay(' + idx + ')"' +
                 ' style="flex:1;text-align:center;padding:7px 0 5px;border-radius:8px;cursor:pointer;' +
-                'font-family:var(--ff-m);font-size:11px;font-weight:700;' +
+                'font-family:var(--ff-m);font-size:var(--text-2xs);font-weight:700;' +
                 'border:1px solid ' + (on ? 'var(--p)' : 'var(--border2)') + ';' +
                 'background:' + (on ? 'var(--p)' : 'var(--bg)') + ';' +
                 'color:' + (on ? '#fff' : 'var(--t3)') + '">' + lbl + '</div>';
@@ -1035,10 +1035,10 @@ window.FocusBedtime = (function () {
           '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">' +
             '<div>' +
               '<div style="font-size:12px;font-weight:700;color:var(--t1)">\uD83D\uDEAB Block during bedtime</div>' +
-              '<div style="font-family:var(--ff-m);font-size:10px;color:var(--t3);margin-top:2px">Shows calming screen instead</div>' +
+              '<div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);margin-top:2px">Shows calming screen instead</div>' +
             '</div>' +
             '<div onclick="_btInlineOpenBlockPicker()"' +
-            ' style="font-family:var(--ff-m);font-size:11px;color:var(--p);cursor:pointer;white-space:nowrap;' +
+            ' style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--p);cursor:pointer;white-space:nowrap;' +
             'padding:4px 10px;border-radius:8px;border:1px solid rgba(108,99,255,.25);background:rgba(108,99,255,.08)">' +
               '\uFF0B Add' +
             '</div>' +
@@ -1046,7 +1046,7 @@ window.FocusBedtime = (function () {
           '<div id="bt-inline-blocked-chips" style="display:flex;flex-wrap:wrap;gap:6px">' +
             blockedChips + overflowChip +
             (!blockedApps.length
-              ? '<div onclick="_btInlineOpenBlockPicker()" style="font-family:var(--ff-m);font-size:11px;color:var(--t3);' +
+              ? '<div onclick="_btInlineOpenBlockPicker()" style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);' +
                 'border:1px dashed var(--border2);border-radius:8px;padding:5px 10px;cursor:pointer;opacity:.7">Tap to add apps\u2026</div>'
               : '') +
           '</div>' +
@@ -1056,10 +1056,10 @@ window.FocusBedtime = (function () {
         '<div style="border-top:1px solid var(--border);margin:0 -16px;padding:0 16px">' +
           '<div style="display:flex;align-items:center;justify-content:space-between;padding:11px 0;cursor:pointer"' +
           ' onclick="_toggleBedtimeSettings()">' +
-            '<div style="font-family:var(--ff-m);font-size:11px;color:var(--t2);font-weight:600">Sleep settings</div>' +
+            '<div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t2);font-weight:600">Sleep settings</div>' +
             '<div style="display:flex;align-items:center;gap:8px">' +
-              '<span style="font-family:var(--ff-m);font-size:10px;color:var(--t3)">DND \u00b7 wind-down \u00b7 morning</span>' +
-              '<span id="bt-settings-chev" style="font-size:11px;color:var(--t3);transition:transform .2s;' +
+              '<span style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3)">DND \u00b7 wind-down \u00b7 morning</span>' +
+              '<span id="bt-settings-chev" style="font-size:var(--text-2xs);color:var(--t3);transition:transform .2s;' +
               'transform:' + (settingsOpen ? 'rotate(180deg)' : 'rotate(0deg)') + '">\u25be</span>' +
             '</div>' +
           '</div>' +
@@ -1070,7 +1070,7 @@ window.FocusBedtime = (function () {
                 '<div style="font-size:16px">\uD83D\uDD15</div>' +
                 '<div style="flex:1">' +
                   '<div style="font-size:12px;font-weight:600;color:var(--t1)">Do Not Disturb</div>' +
-                  '<div style="font-family:var(--ff-m);font-size:10px;color:var(--t3)">Silences notifications except alarms</div>' +
+                  '<div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3)">Silences notifications except alarms</div>' +
                 '</div>' +
                 '<div class="tog on" style="pointer-events:none;opacity:.5"><div class="tog-knob"></div></div>' +
               '</div>' +
@@ -1079,7 +1079,7 @@ window.FocusBedtime = (function () {
                 '<div style="font-size:16px">\u23F0</div>' +
                 '<div style="flex:1">' +
                   '<div style="font-size:12px;font-weight:600;color:var(--t1)">Wind-down reminder</div>' +
-                  '<div style="font-family:var(--ff-m);font-size:10px;color:var(--t3)">Notification 30 min before bedtime</div>' +
+                  '<div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3)">Notification 30 min before bedtime</div>' +
                 '</div>' +
                 '<div class="tog ' + (cfg.windDown ? 'on' : 'off') + '" id="bt-inline-tog-wind"' +
                 ' onclick="event.stopPropagation();FocusBedtime.btInlineToggle(\'bt-inline-tog-wind\')">' +
@@ -1091,7 +1091,7 @@ window.FocusBedtime = (function () {
                 '<div style="font-size:16px">\u2600\uFE0F</div>' +
                 '<div style="flex:1">' +
                   '<div style="font-size:12px;font-weight:600;color:var(--t1)">Morning summary</div>' +
-                  '<div style="font-family:var(--ff-m);font-size:10px;color:var(--t3)">Sleep duration + streak at wake-up</div>' +
+                  '<div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3)">Sleep duration + streak at wake-up</div>' +
                 '</div>' +
                 '<div class="tog ' + ((cfg.morningSummary != null ? cfg.morningSummary : true) ? 'on' : 'off') + '" id="bt-inline-tog-morning"' +
                 ' onclick="event.stopPropagation();FocusBedtime.btInlineToggle(\'bt-inline-tog-morning\')">' +

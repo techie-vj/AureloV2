@@ -165,7 +165,7 @@ function _ensureGoalModal() {
           'background:var(--border,rgba(255,255,255,.15));margin:0 auto 18px"></div>' +
       '<div style="font-family:var(--ff-d);font-size:18px;font-weight:700;' +
           'color:var(--t1);margin-bottom:6px">Daily Screen Time Goal</div>' +
-      '<div style="font-family:var(--ff-m);font-size:11px;color:var(--t3);' +
+      '<div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);' +
           'margin-bottom:18px">Choose how much daily screen time you\'re aiming for</div>' +
       '<div id="goal-grid" style="display:grid;grid-template-columns:repeat(3,1fr);' +
           'gap:8px;margin-bottom:20px">' +
@@ -367,10 +367,10 @@ function _btRefreshBlockedChips() {
     </div>`).join('');
   const overflow = _btBlockedApps.length > 5
     ? `<div class="focus-app-chip" style="background:var(--s2);border-color:var(--border2);
-         color:var(--t3);font-family:var(--ff-m);font-size:10px;cursor:default">
+         color:var(--t3);font-family:var(--ff-m);font-size:var(--text-2xs);cursor:default">
          +${_btBlockedApps.length - 5}</div>` : '';
   const addBtn = `<div onclick="_btInlineOpenBlockPicker()"
-       style="font-family:var(--ff-m);font-size:11px;color:var(--p);cursor:pointer;
+       style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--p);cursor:pointer;
               white-space:nowrap">+ Add</div>`;
   wrap.innerHTML = chips + overflow + (_btBlockedApps.length < 10 ? addBtn : '');
 }
@@ -702,7 +702,7 @@ function _updateSettingsIdentityCard(isPro) {
         <span style="font-size:14px">✦</span>
         <div style="flex:1">
           <div style="font-size:12px;font-weight:700;color:#c4c0ff;line-height:1.2">Upgrade to Pro</div>
-          <div style="font-family:var(--ff-m);font-size:10px;color:#7c6ff7;margin-top:1px">Unlock all features · tap to see plans</div>
+          <div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:#7c6ff7;margin-top:1px">Unlock all features · tap to see plans</div>
         </div>
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#7c6ff7" stroke-width="2.5"
           stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>

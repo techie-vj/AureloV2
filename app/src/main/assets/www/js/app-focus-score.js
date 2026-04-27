@@ -208,8 +208,8 @@ window.FocusScore = (function () {
       else{bg='var(--s2)';border='1px solid var(--border2)';textCol='var(--t3)';}
       var inner=filled?'✓':(isToday?'–':'·');
       return '<div style="width:22px;height:22px;border-radius:6px;background:'+bg+';border:'+border+';display:flex;align-items:center;justify-content:center;flex-direction:column;flex-shrink:0">'+
-        '<div style="font-family:var(--ff-m);font-size:7px;color:'+textCol+';opacity:.7;letter-spacing:.3px">'+dayLetters[i]+'</div>'+
-        '<div style="font-family:var(--ff-m);font-size:9px;color:'+textCol+';line-height:1">'+inner+'</div>'+
+        '<div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:'+textCol+';opacity:.7;letter-spacing:.3px">'+dayLetters[i]+'</div>'+
+        '<div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:'+textCol+';line-height:1">'+inner+'</div>'+
       '</div>';
     }).join('');
     var scoreColor=opts.score>=70?'var(--g)':opts.score>=50?'var(--a)':opts.score>=0?'var(--r)':'var(--t3)';
@@ -220,17 +220,17 @@ window.FocusScore = (function () {
       '<div style="display:flex;align-items:center;gap:4px;flex-shrink:0">'+
         '<span style="font-size:14px">🔥</span>'+
         '<div><div style="font-family:var(--ff-m);font-size:14px;font-weight:700;color:var(--a);line-height:1">'+(opts.streak||0)+'</div>'+
-        '<div style="font-family:var(--ff-m);font-size:8px;color:var(--t3);margin-top:1px">'+(opts.streakLabel||'days')+'</div></div></div>'+
+        '<div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);margin-top:1px">'+(opts.streakLabel||'days')+'</div></div></div>'+
       '<div onclick="'+opts.onScoreTap+'" style="cursor:pointer;text-align:right;flex-shrink:0;'+
         'padding:4px 8px;border-radius:8px;background:rgba(108,99,255,.1);border:1px solid rgba(108,99,255,.2);min-width:52px;max-width:60px;box-sizing:border-box">'+
-        '<div style="font-family:var(--ff-m);font-size:9px;color:var(--p2);letter-spacing:.5px">SCORE</div>'+
+        '<div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--p2);letter-spacing:.5px">SCORE</div>'+
         '<div style="font-family:var(--ff-d);font-size:18px;font-weight:700;color:'+scoreColor+';line-height:1">'+scoreDisp+'</div>'+
         + (opts.hcActive
-                    ? '<div style="font-family:var(--ff-m);font-size:7px;color:var(--hc);' +
+                    ? '<div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--hc);' +
                       'letter-spacing:.3px;margin-top:1px">HC</div>'
                     : '')
       '</div></div>'+
-      (opts.streakEarnLine?'<div style="font-family:var(--ff-m);font-size:10px;color:var(--t3);margin-top:8px;line-height:1.4">'+opts.streakEarnLine+'</div>':'')+
+      (opts.streakEarnLine?'<div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);margin-top:8px;line-height:1.4">'+opts.streakEarnLine+'</div>':'')+
     '</div>';
   }
 
@@ -295,12 +295,12 @@ window.FocusScore = (function () {
       var blockedApps=ss.blockedApps||[];
       var chips=blockedApps.slice(0,3).map(function(a){
         return '<span style="background:'+diff.color+'1a;border:1px solid '+diff.color+'44;'+
-          'border-radius:6px;padding:2px 8px;font-family:var(--ff-m);font-size:10px;font-weight:600;color:'+diff.color+'">'+
+          'border-radius:6px;padding:2px 8px;font-family:var(--ff-m);font-size:var(--text-2xs);font-weight:600;color:'+diff.color+'">'+
           a.name.split(' ')[0]+'</span>';
       }).join('');
       if (blockedApps.length>3) {
         chips+='<span style="background:'+diff.color+'1a;border:1px solid '+diff.color+'44;'+
-          'border-radius:6px;padding:2px 8px;font-family:var(--ff-m);font-size:10px;font-weight:600;color:'+diff.color+'">+'+(blockedApps.length-3)+'</span>';
+          'border-radius:6px;padding:2px 8px;font-family:var(--ff-m);font-size:var(--text-2xs);font-weight:600;color:'+diff.color+'">+'+(blockedApps.length-3)+'</span>';
       }
       var schedName='';
       if (ss.activeRoutineId&&typeof FocusRoutine!=='undefined') {
@@ -458,11 +458,11 @@ window.FocusScore = (function () {
       var bedStreakN=0;
       try { if(IS_NATIVE&&typeof N.getBedtimeStreak==='function') bedStreakN=(JSON.parse(N.getBedtimeStreak()||'{}')||{}).streak||0; } catch(_){}
       var streakPill=bedStreakN>1
-        ? '<div style="font-family:var(--ff-m);font-size:10px;font-weight:600;color:#7a80ff;background:rgba(80,100,255,.16);border-radius:99px;padding:3px 9px;flex-shrink:0;white-space:nowrap">🔥 '+bedStreakN+'</div>'
+        ? '<div style="font-family:var(--ff-m);font-size:var(--text-2xs);font-weight:600;color:#7a80ff;background:rgba(80,100,255,.16);border-radius:99px;padding:3px 9px;flex-shrink:0;white-space:nowrap">🔥 '+bedStreakN+'</div>'
         : '';
       var snoozeBtn=snoozeActive
-        ? '<div style="font-family:var(--ff-m);font-size:10px;font-weight:600;color:var(--t3);background:var(--s3);border-radius:99px;padding:4px 10px;flex-shrink:0;white-space:nowrap;cursor:default;opacity:.55">⏱ '+snoozeMins+'m</div>'
-        : '<div onclick="event.stopPropagation();snoozeBedtimePrompt()" style="font-family:var(--ff-m);font-size:10px;font-weight:600;color:#7a80ff;background:rgba(80,100,255,.16);border-radius:99px;padding:4px 10px;flex-shrink:0;white-space:nowrap;cursor:pointer">Snooze</div>';
+        ? '<div style="font-family:var(--ff-m);font-size:var(--text-2xs);font-weight:600;color:var(--t3);background:var(--s3);border-radius:99px;padding:4px 10px;flex-shrink:0;white-space:nowrap;cursor:default;opacity:.55">⏱ '+snoozeMins+'m</div>'
+        : '<div onclick="event.stopPropagation();snoozeBedtimePrompt()" style="font-family:var(--ff-m);font-size:var(--text-2xs);font-weight:600;color:#7a80ff;background:rgba(80,100,255,.16);border-radius:99px;padding:4px 10px;flex-shrink:0;white-space:nowrap;cursor:pointer">Snooze</div>';
       events.push({tier:1,id:'bedtime_active',html:
         '<div onclick="'+nav+'" style="background:rgba(80,100,255,.09);border:1px solid rgba(100,120,255,.25);border-radius:16px;'+
         'padding:12px 14px;display:flex;align-items:center;gap:12px;cursor:pointer;transition:opacity .15s" ontouchstart="this.style.opacity=\'.75\'" ontouchend="this.style.opacity=\'1\'">'+
@@ -528,7 +528,7 @@ window.FocusScore = (function () {
         if ((ln.snoozeCount||0)>0)       parts2.push(ln.snoozeCount+' snooze'+(ln.snoozeCount!==1?'s':''));
         var subTxt2=parts2.length?parts2.join(' · '):'Clean night ✨';
         var sleepStreakPill=sr.bedStreak>0
-          ? '<div style="font-family:var(--ff-m);font-size:10px;font-weight:600;color:#7a80ff;background:rgba(80,100,255,.16);border-radius:99px;padding:3px 9px;flex-shrink:0;white-space:nowrap">🔥 '+sr.bedStreak+'</div>'
+          ? '<div style="font-family:var(--ff-m);font-size:var(--text-2xs);font-weight:600;color:#7a80ff;background:rgba(80,100,255,.16);border-radius:99px;padding:3px 9px;flex-shrink:0;white-space:nowrap">🔥 '+sr.bedStreak+'</div>'
           : '';
         var dismissBtn='<div onclick="event.stopPropagation();'+(typeof FocusHome!=='undefined'?'FocusHome.dismissMorningSummary()':'')+'" style="font-size:18px;color:var(--t3);cursor:pointer;padding:0 2px;flex-shrink:0;line-height:1">×</div>';
         events.push({tier:3,id:'morning_summary',html:
@@ -576,7 +576,7 @@ window.FocusScore = (function () {
     if(!events.length){el.innerHTML='';el.style.display='none';return;}
     el.style.display='';
     var top=events[0], moreCount=events.length-1;
-    var moreBadge=moreCount>0?'<div onclick="FocusScore.showQueuedEvents(\''+elId+'\')" style="position:absolute;top:6px;right:6px;font-family:var(--ff-m);font-size:9px;color:var(--t2);background:var(--s1);border:1px solid var(--border2);border-radius:6px;padding:2px 6px;cursor:pointer">+'+moreCount+' more</div>':'';
+    var moreBadge=moreCount>0?'<div onclick="FocusScore.showQueuedEvents(\''+elId+'\')" style="position:absolute;top:6px;right:6px;font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t2);background:var(--s1);border:1px solid var(--border2);border-radius:6px;padding:2px 6px;cursor:pointer">+'+moreCount+' more</div>':'';
     el.innerHTML='<div style="position:relative">'+top.html+moreBadge+'</div>';
     el._queuedEvents=events.slice(1);
   }
@@ -591,9 +591,9 @@ window.FocusScore = (function () {
     var gradeColor=opts.score>=70?'var(--g)':opts.score>=50?'var(--a)':'var(--r)';
     var componentsHtml=opts.components.map(function(c){
       var bf=c.maxPts>0?Math.round((c.pts/c.maxPts)*100):0, cColor=bf>=70?'var(--g)':bf>=40?'var(--a)':'var(--r)';
-      return '<div style="margin-bottom:16px"><div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:3px"><div style="font-size:13px;font-weight:700;color:var(--t1)">'+c.label+'</div><div style="font-family:var(--ff-m);font-size:10px;color:var(--t3)">weighted '+c.weight+'%</div></div><div style="font-family:var(--ff-m);font-size:11px;color:var(--t2);margin-bottom:6px">'+c.dataLine+'</div><div style="display:flex;align-items:center;gap:8px"><div style="flex:1;height:5px;background:var(--border);border-radius:3px;overflow:hidden"><div style="height:100%;width:'+bf+'%;background:'+cColor+';border-radius:3px;transition:width .4s"></div></div><div style="font-family:var(--ff-m);font-size:11px;font-weight:700;color:'+cColor+';flex-shrink:0">+'+c.pts+' pts</div></div></div>';
+      return '<div style="margin-bottom:16px"><div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:3px"><div style="font-size:13px;font-weight:700;color:var(--t1)">'+c.label+'</div><div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3)">weighted '+c.weight+'%</div></div><div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t2);margin-bottom:6px">'+c.dataLine+'</div><div style="display:flex;align-items:center;gap:8px"><div style="flex:1;height:5px;background:var(--border);border-radius:3px;overflow:hidden"><div style="height:100%;width:'+bf+'%;background:'+cColor+';border-radius:3px;transition:width .4s"></div></div><div style="font-family:var(--ff-m);font-size:var(--text-2xs);font-weight:700;color:'+cColor+';flex-shrink:0">+'+c.pts+' pts</div></div></div>';
     }).join('');
-    var improvHtml=(opts.improvements||[]).length?'<div style="height:1px;background:var(--border);margin:4px 0 16px"></div><div style="font-family:var(--ff-m);font-size:10px;color:var(--t3);letter-spacing:.8px;margin-bottom:12px">HOW TO IMPROVE</div>'+(opts.improvements||[]).map(function(im){return'<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:10px"><div style="font-family:var(--ff-m);font-size:12px;color:var(--t2);flex:1;line-height:1.5">'+im.text+'</div><div style="font-family:var(--ff-m);font-size:11px;font-weight:700;color:var(--g);flex-shrink:0;white-space:nowrap">+'+im.impact+' pts</div></div>';}).join(''):'';
+    var improvHtml=(opts.improvements||[]).length?'<div style="height:1px;background:var(--border);margin:4px 0 16px"></div><div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);letter-spacing:.8px;margin-bottom:12px">HOW TO IMPROVE</div>'+(opts.improvements||[]).map(function(im){return'<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:10px"><div style="font-family:var(--ff-m);font-size:12px;color:var(--t2);flex:1;line-height:1.5">'+im.text+'</div><div style="font-family:var(--ff-m);font-size:var(--text-2xs);font-weight:700;color:var(--g);flex-shrink:0;white-space:nowrap">+'+im.impact+' pts</div></div>';}).join(''):'';
     return '<div id="score-sheet-backdrop" role="presentation" style="position:fixed;inset:0;background:rgba(0,0,0,.62);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);z-index:9998;display:flex;align-items:flex-end;justify-content:center;opacity:0;transition:opacity .25s;pointer-events:none" onclick="if(event.target===this)FocusScore.closeScoreSheet()">'+
       '<div id="score-sheet" role="dialog" aria-modal="true" aria-label="Score breakdown" style="width:100%;max-width:480px;background:var(--s0);border-radius:24px 24px 0 0;border:1px solid var(--border2);border-bottom:none;padding:12px 20px 44px;padding-bottom:max(44px,calc(env(safe-area-inset-bottom,0px) + 24px));box-sizing:border-box;transform:translate3d(0,100%,0);backface-visibility:hidden;will-change:transform;contain:layout paint;transition:transform .3s cubic-bezier(.32,.72,0,1);max-height:88vh;overflow-y:auto">'+
       '<div style="width:40px;height:4px;background:var(--border2);border-radius:2px;margin:0 auto 18px"></div>'+
@@ -602,7 +602,7 @@ window.FocusScore = (function () {
         '<div style="display:flex;align-items:center;margin-top:4px"><span style="font-family:var(--ff-d);font-size:32px;font-weight:700;color:'+gradeColor+';line-height:1">'+(opts.score>=0?opts.score:'–')+'</span>'+deltaHtml+'</div>'+
       '</div></div>'+
       '<div style="height:6px;background:var(--border);border-radius:3px;overflow:hidden;margin-bottom:20px"><div style="height:100%;width:'+Math.max(0,opts.score)+'%;background:linear-gradient(90deg,var(--p),var(--c));border-radius:3px;transition:width .4s"></div></div>'+
-      '<div style="font-family:var(--ff-m);font-size:10px;color:var(--t3);letter-spacing:.8px;margin-bottom:14px">HOW THIS IS CALCULATED</div>'+componentsHtml+improvHtml+
+      '<div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);letter-spacing:.8px;margin-bottom:14px">HOW THIS IS CALCULATED</div>'+componentsHtml+improvHtml+
       '<div style="display:flex;gap:8px;margin-top:4px">'+
         '<button type="button" onclick="shareCard(\''+(opts.scoreKey===_SLEEP_SCORE_KEY?'sleep_score':'focus_score')+'\');" style="flex:1;padding:14px;border-radius:14px;background:rgba(108,99,255,.12);border:1px solid rgba(108,99,255,.30);color:var(--p2);font-family:var(--ff-m);font-size:13px;font-weight:600;cursor:pointer">📤 Share</button>'+
         '<button type="button" onclick="FocusScore.closeScoreSheet()" style="flex:1;padding:14px;border-radius:14px;background:var(--s2);border:1px solid var(--border2);color:var(--t2);font-family:var(--ff-m);font-size:13px;font-weight:600;cursor:pointer">Close</button>'+
@@ -701,16 +701,16 @@ window.FocusScore = (function () {
           '<div style="margin-bottom:16px">' +
             '<div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:3px">' +
               '<div style="font-size:13px;font-weight:700;color:var(--hc)">HC Mindfulness (bonus)</div>' +
-              '<div style="font-family:var(--ff-m);font-size:10px;color:var(--t3)">+' + res.hcMindfulPts + ' pts bonus</div>' +
+              '<div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3)">+' + res.hcMindfulPts + ' pts bonus</div>' +
             '</div>' +
-            '<div style="font-family:var(--ff-m);font-size:11px;color:var(--t2);margin-bottom:6px">' +
+            '<div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t2);margin-bottom:6px">' +
               totalHcPts + ' bonus pts added from Health Connect mindfulness sessions (50% credit)' +
             '</div>' +
             '<div style="display:flex;align-items:center;gap:8px">' +
               '<div style="flex:1;height:5px;background:var(--border);border-radius:3px;overflow:hidden">' +
                 '<div style="height:100%;width:100%;background:var(--hc);border-radius:3px;transition:width .4s"></div>' +
               '</div>' +
-              '<div style="font-family:var(--ff-m);font-size:11px;font-weight:700;color:var(--hc);flex-shrink:0">+' + res.hcMindfulPts + ' pts</div>' +
+              '<div style="font-family:var(--ff-m);font-size:var(--text-2xs);font-weight:700;color:var(--hc);flex-shrink:0">+' + res.hcMindfulPts + ' pts</div>' +
             '</div>' +
           '</div>';
         sheetHtml = sheetHtml.replace('HOW THIS IS CALCULATED', hcCompRow + 'HOW THIS IS CALCULATED');

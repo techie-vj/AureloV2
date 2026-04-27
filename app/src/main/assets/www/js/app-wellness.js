@@ -89,7 +89,7 @@ function renderDonutChart(){
     <div style="display:flex;align-items:center;gap:5px;white-space:nowrap;overflow:hidden">
       <div style="width:8px;height:8px;border-radius:2px;flex-shrink:0;background:${li.color}"></div>
       <span style="font-size:12px;color:var(--t2);overflow:hidden;text-overflow:ellipsis;max-width:80px">${li.name}</span>
-      <span style="font-family:var(--ff-m);font-size:11px;color:var(--t3);flex-shrink:0">${fmtM(li.mins)}</span>
+      <span style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);flex-shrink:0">${fmtM(li.mins)}</span>
     </div>`).join('');
 
   wrap.innerHTML=`
@@ -421,7 +421,7 @@ function renderScreenScoreSheet() {
     var hcBanner =
       '<div style="background:' + bannerBg + ';border:1px solid ' + bannerBorder + ';' +
       'border-radius:12px;padding:10px 13px;margin-bottom:14px;display:flex;align-items:center;gap:8px">' +
-      '<span style="font-size:10px;color:var(--hc);background:var(--hc-dim);border:1px solid var(--hc-border);' +
+      '<span style="font-size:var(--text-2xs);color:var(--hc);background:var(--hc-dim);border:1px solid var(--hc-border);' +
       'border-radius:5px;padding:1px 6px;font-weight:700;letter-spacing:.3px;flex-shrink:0">HC</span>' +
       '<span style="font-family:var(--ff-m);font-size:var(--text-xs);color:' + bannerColor + ';font-weight:600">' +
       hcMod.label + '</span>' +
@@ -458,18 +458,18 @@ function renderStatsScreenScoreRow() {
     if (diff !== 0) {
       var dCol  = diff > 0 ? '#6ec97a' : '#ff6a6a';
       var dSign = diff > 0 ? '↑' : '↓';
-      deltaHtml = '<div style="font-size:10px;color:' + dCol + ';flex-shrink:0">'
+      deltaHtml = '<div style="font-size:var(--text-2xs);color:' + dCol + ';flex-shrink:0">'
                 + dSign + Math.abs(diff) + '</div>';
     }
   }
 
   var hcChipHtml = hcConnected
     ? '<div style="display:flex;align-items:center;gap:4px;flex-shrink:0">'
-        + '<span style="font-size:9px;color:var(--hc);background:var(--hc-dim);'
+        + '<span style="font-size:var(--text-2xs);color:var(--hc);background:var(--hc-dim);'
         + 'border:1px solid var(--hc-border);border-radius:4px;padding:1px 5px;'
         + 'font-weight:700;letter-spacing:.3px;font-family:var(--ff-m)">HC</span>'
         + ((hcMod.modifier || 0) !== 0
-          ? '<span style="font-family:var(--ff-m);font-size:10px;font-weight:600;color:'
+          ? '<span style="font-family:var(--ff-m);font-size:var(--text-2xs);font-weight:600;color:'
             + (hcMod.modifier > 0 ? 'var(--g)' : 'var(--r)') + '">'
             + (hcMod.modifier > 0 ? '+' : '') + hcMod.modifier
             + '</span>'
@@ -481,13 +481,13 @@ function renderStatsScreenScoreRow() {
     '<div onclick="renderScreenScoreSheet()"'
     + ' style="background:var(--s2);border:0.5px solid var(--border2);border-radius:14px;'
     + 'padding:10px 14px;display:flex;align-items:center;gap:10px;cursor:pointer">'
-    + '<div style="font-size:11px;color:var(--t3);flex-shrink:0">SCREEN SCORE</div>'
+    + '<div style="font-size:var(--text-2xs);color:var(--t3);flex-shrink:0">SCREEN SCORE</div>'
     + '<div style="font-size:16px;font-weight:600;color:var(--p2);flex-shrink:0">' + displayScore + '</div>'
     + '<div style="flex:1;height:3px;background:var(--border2);border-radius:99px;overflow:hidden">'
     + '<div style="height:100%;width:' + displayScore + '%;background:linear-gradient(90deg,var(--p),var(--c));border-radius:99px"></div>'
     + '</div>'
     + hcChipHtml
-    + '<div style="font-size:11px;font-weight:500;color:' + grade.color + ';flex-shrink:0">' + grade.label + '</div>'
+    + '<div style="font-size:var(--text-2xs);font-weight:500;color:' + grade.color + ';flex-shrink:0">' + grade.label + '</div>'
     + deltaHtml
     + '</div>';
 }
@@ -853,9 +853,9 @@ function _renderWellnessFallback(){
       <div style="width:44px;height:44px;border-radius:12px;overflow:hidden;background:var(--s2);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:22px">${appIco(rec.pkg,44,11)}</div>
       <div style="font-size:14px;font-weight:700;line-height:1.25;color:var(--t1)">${titleText}</div>
     </div>
-    <div style="font-family:var(--ff-m);font-size:11px;color:var(--t2);line-height:1.55;margin-bottom:12px">${bodyText}</div>
-    <button style="display:inline-flex;align-items:center;gap:5px;padding:9px 18px;border-radius:999px;background:var(--t1);border:none;font-family:var(--ff-m);font-size:11px;font-weight:700;color:var(--bg);cursor:pointer">${rec.cta} →</button>
-    <div style="position:absolute;bottom:10px;right:12px;font-family:var(--ff-m);font-size:9px;color:var(--t3);letter-spacing:.5px">Based on your usage</div>
+    <div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t2);line-height:1.55;margin-bottom:12px">${bodyText}</div>
+    <button style="display:inline-flex;align-items:center;gap:5px;padding:9px 18px;border-radius:999px;background:var(--t1);border:none;font-family:var(--ff-m);font-size:var(--text-2xs);font-weight:700;color:var(--bg);cursor:pointer">${rec.cta} →</button>
+    <div style="position:absolute;bottom:10px;right:12px;font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);letter-spacing:.5px">Based on your usage</div>
   </div>`;
   slot.style.display = '';
 }
@@ -919,7 +919,7 @@ function renderWeeklyBars(container){
     const borderTop = isToday ? `border-top:2px solid ${col}` : '';
     // Time label: inside bar if bar >= 28px, rotated text
     const timeEl = labelH ? (barH >= 28
-      ? `<span style="font-family:var(--ff-m);font-size:8px;font-weight:700;color:#fff;opacity:.95;writing-mode:horizontal-tb;line-height:1;padding:0 1px;white-space:nowrap;text-shadow:0 1px 2px rgba(0,0,0,.4)">${labelH}</span>`
+      ? `<span style="font-family:var(--ff-m);font-size:var(--text-2xs);font-weight:700;color:#fff;opacity:.95;writing-mode:horizontal-tb;line-height:1;padding:0 1px;white-space:nowrap;text-shadow:0 1px 2px rgba(0,0,0,.4)">${labelH}</span>`
       : '') : '';
     return `<div style="flex:1;display:flex;flex-direction:column;align-items:center">
       <div style="height:${BAR_H}px;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;width:100%">
@@ -927,7 +927,7 @@ function renderWeeklyBars(container){
           ${timeEl}
         </div>
       </div>
-      <div style="font-family:var(--ff-m);font-size:9px;color:${isToday?col:'var(--t3)'};font-weight:${isToday?700:400};margin-top:4px;text-align:center">${d.day.slice?d.day.slice(0,3):d.day}</div>
+      <div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:${isToday?col:'var(--t3)'};font-weight:${isToday?700:400};margin-top:4px;text-align:center">${d.day.slice?d.day.slice(0,3):d.day}</div>
     </div>`;
   }).join('');
 
@@ -960,7 +960,7 @@ function renderHourlyBars(container){
 
   container.innerHTML=`
     <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:10px">
-      ${[['#6C63FF','12am–5am'],['#F7A623','6am–11am'],['#5DD6F8','12pm–4pm'],['#12D48A','5pm–8pm'],['#A89CFF','9pm+']].map(([c,l])=>`<div style="display:flex;align-items:center;gap:4px;font-family:var(--ff-m);font-size:9px;color:var(--t3)"><div style="width:8px;height:8px;border-radius:2px;background:${c}"></div>${l}</div>`).join('')}
+      ${[['#6C63FF','12am–5am'],['#F7A623','6am–11am'],['#5DD6F8','12pm–4pm'],['#12D48A','5pm–8pm'],['#A89CFF','9pm+']].map(([c,l])=>`<div style="display:flex;align-items:center;gap:4px;font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3)"><div style="width:8px;height:8px;border-radius:2px;background:${c}"></div>${l}</div>`).join('')}
     </div>
     <div class="hour-chart"><div class="hc-bars">${active.map(d=>{
       const barH=Math.max(d.minutes>0?3:1,Math.round((d.minutes/max)*68));
@@ -969,13 +969,13 @@ function renderHourlyBars(container){
       return `<div class="hc-bar-wrap" title="${d.minutes>0?d.minutes+'m at '+hrStr(d.hour):'No usage at '+hrStr(d.hour)}">
         <div class="hc-bar-area">
           <div class="hc-bar" style="height:${barH}px;background:${d.minutes>0?barColor(d.hour):'rgba(255,255,255,.05)'}">
-            ${isPeak?`<div style="position:absolute;bottom:calc(100%+2px);left:50%;transform:translateX(-50%);background:var(--p);color:#fff;font-family:var(--ff-m);font-size:8px;padding:2px 5px;border-radius:4px;white-space:nowrap;z-index:5">${d.minutes}m ▲</div>`:''}
+            ${isPeak?`<div style="position:absolute;bottom:calc(100%+2px);left:50%;transform:translateX(-50%);background:var(--p);color:#fff;font-family:var(--ff-m);font-size:var(--text-2xs);padding:2px 5px;border-radius:4px;white-space:nowrap;z-index:5">${d.minutes}m ▲</div>`:''}
           </div>
         </div>
-        <div class="hc-lbl" style="${lbl?'color:var(--t2);font-weight:600;font-size:9px':'opacity:.25'}">${lbl||'·'}</div>
+        <div class="hc-lbl" style="${lbl?'color:var(--t2);font-weight:600;font-size:var(--text-2xs)':'opacity:.25'}">${lbl||'·'}</div>
       </div>`;
     }).join('')}</div></div>
-    <div style="font-family:var(--ff-m);font-size:10px;color:var(--t3);margin-top:6px;text-align:center">
+    <div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);margin-top:6px;text-align:center">
       ${peakEntry.minutes>0?`📍 Peak usage at <strong style="color:var(--t2)">${hrStr(peakEntry.hour)}</strong> — ${fmtM(peakEntry.minutes)}`:'No usage recorded yet today'}
     </div>`;
 }
@@ -1012,7 +1012,7 @@ function renderTopApps(){
   if(!DAILY_USE.length){
     // Distinguish: permission missing vs permission granted but no data yet
     const hasPermission = IS_NATIVE && N.hasUsagePermission && N.hasUsagePermission();
-    list.innerHTML=`<div style="padding:20px;font-family:var(--ff-m);font-size:11px;color:var(--t3);text-align:center">${
+    list.innerHTML=`<div style="padding:20px;font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);text-align:center">${
       hasPermission
         ? '📭 No app usage recorded yet today'
         : 'Grant Usage Access to see real screen time.'
@@ -1227,22 +1227,22 @@ function renderAllAppsPanel(){
     const hasLim  = !!limits[a.packageName];
     const suffix  = isMonth ? (hasMonthData ? ' /mo' : ' ~est') : isWeek ? ' /wk' : '';
     const timeLabel = mins>0
-      ? `${fmtM(mins)}<span style="font-size:9px;opacity:.6">${suffix}</span> · ${pct}%`
+      ? `${fmtM(mins)}<span style="font-size:var(--text-2xs);opacity:.6">${suffix}</span> · ${pct}%`
       : `<span style="color:var(--t3)">–</span>`;
     return `<div style="display:flex;align-items:center;gap:12px;padding:11px 16px;border-bottom:1px solid var(--border)">
       <div style="width:38px;height:38px;border-radius:11px;overflow:hidden;background:var(--s2);display:flex;align-items:center;justify-content:center;font-size:19px;flex-shrink:0">${appIco(a.packageName,38,11)}</div>
       <div style="flex:1;min-width:0">
         <div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${a.name}</div>
         <div style="margin-top:2px">${cat
-          ?`<span style="font-family:var(--ff-m);font-size:9px;background:var(--s2);border:1px solid var(--border2);border-radius:5px;padding:1px 5px;color:var(--t3)">${CAT_ICONS[cat]||''} ${cat}</span>`
-          :`<span style="font-family:var(--ff-m);font-size:9px;color:var(--t3);opacity:.45">Uncategorised</span>`}
+          ?`<span style="font-family:var(--ff-m);font-size:var(--text-2xs);background:var(--s2);border:1px solid var(--border2);border-radius:5px;padding:1px 5px;color:var(--t3)">${CAT_ICONS[cat]||''} ${cat}</span>`
+          :`<span style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);opacity:.45">Uncategorised</span>`}
         </div>
         ${mins>0?`<div style="margin-top:5px;height:3px;background:var(--s2);border-radius:2px;overflow:hidden"><div style="height:100%;width:${barPct}%;background:${barCol};border-radius:2px"></div></div>`:''}
       </div>
       <div style="text-align:right;flex-shrink:0;min-width:62px">
-        <div style="font-family:var(--ff-m);font-size:11px;color:var(--t2)">${timeLabel}</div>
+        <div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t2)">${timeLabel}</div>
         <button type="button" onclick="openTimerForApp('${a.packageName}','${a.name.replace(/'/g,"\\'")}',${a.todayMins})"
-          style="margin-top:4px;padding:3px 8px;border-radius:7px;border:1px solid ${hasLim?'rgba(247,166,35,.3)':'var(--border2)'};background:${hasLim?'rgba(247,166,35,.1)':'var(--s2)'};font-family:var(--ff-m);font-size:9px;color:${hasLim?'var(--a)':'var(--t3)'};cursor:pointer">
+          style="margin-top:4px;padding:3px 8px;border-radius:7px;border:1px solid ${hasLim?'rgba(247,166,35,.3)':'var(--border2)'};background:${hasLim?'rgba(247,166,35,.1)':'var(--s2)'};font-family:var(--ff-m);font-size:var(--text-2xs);color:${hasLim?'var(--a)':'var(--t3)'};cursor:pointer">
           ${hasLim?fmtM(limits[a.packageName])+'✓':'Limit'}
         </button>
       </div>
@@ -1353,7 +1353,7 @@ function openDigest(initialMode){
   if(bestDay?.day&&validDays.length>1) tips.push(`✅ ${bestDay.day} was your best day at just ${fmtM(bestDay.minutes)} — ${avg>0?Math.round((avg-bestDay.minutes)/avg*100)+'% below average':''}.`);
   if(total>0&&avg>0) tips.push(`📈 ${avg<180?'Great discipline':'Room to improve'}: your 7-day average is ${fmtM(avg)}/day. Goal: stay under ${fmtM(240)}.`);
   if(!tips.length) tips.push('Grant Usage Access to unlock weekly insights.');
-  document.getElementById('dg-tips').innerHTML=tips.map((t,i)=>`<div style="display:flex;gap:10px;padding:10px 0;border-bottom:1px solid ${i===tips.length-1?'transparent':'var(--border)'}"><div style="width:22px;height:22px;border-radius:7px;flex-shrink:0;background:rgba(108,99,255,.15);border:1px solid rgba(108,99,255,.3);display:flex;align-items:center;justify-content:center;font-family:var(--ff-m);font-size:10px;color:var(--p2);margin-top:2px">${i+1}</div><div style="font-size:13px;color:var(--t2);line-height:1.6">${t}</div></div>`).join('');
+  document.getElementById('dg-tips').innerHTML=tips.map((t,i)=>`<div style="display:flex;gap:10px;padding:10px 0;border-bottom:1px solid ${i===tips.length-1?'transparent':'var(--border)'}"><div style="width:22px;height:22px;border-radius:7px;flex-shrink:0;background:rgba(108,99,255,.15);border:1px solid rgba(108,99,255,.3);display:flex;align-items:center;justify-content:center;font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--p2);margin-top:2px">${i+1}</div><div style="font-size:13px;color:var(--t2);line-height:1.6">${t}</div></div>`).join('');
 
   document.getElementById('digest').classList.add('open');
 }

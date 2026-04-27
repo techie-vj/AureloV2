@@ -42,14 +42,14 @@ function _showMonthSkeleton() {
   if (area) area.innerHTML = `
     <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 0;gap:12px">
       <div style="width:32px;height:32px;border-radius:50%;border:3px solid var(--border2);border-top-color:var(--p);animation:spin .8s linear infinite"></div>
-      <div style="font-family:var(--ff-m);font-size:11px;color:var(--t3)">Loading month data…</div>
+      <div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3)">Loading month data…</div>
     </div>`;
   // DNA card
   const dna = document.getElementById('wm-dna-card');
   if (dna) dna.innerHTML = '';
   // Top apps
   const list = document.getElementById('wm-top-apps-list');
-  if (list) list.innerHTML = `<div style="padding:20px;font-family:var(--ff-m);font-size:11px;color:var(--t3);text-align:center">Loading…</div>`;
+  if (list) list.innerHTML = `<div style="padding:20px;font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);text-align:center">Loading…</div>`;
   // Force load on first open
   _loadMonthlyData(true);
 }
@@ -111,8 +111,8 @@ function _renderMonthCalendar(area) {
 
   let html = '<div style="margin-bottom:10px">'
     +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">'
-    +'<div style="font-family:var(--ff-m);font-size:11px;font-weight:700;color:var(--t2)">'+monthName+' '+now.getFullYear()+'</div>'
-    +'<div style="font-family:var(--ff-m);font-size:10px;color:var(--t3)">'+realCount+' of '+pastCount+' days tracked</div>'
+    +'<div style="font-family:var(--ff-m);font-size:var(--text-2xs);font-weight:700;color:var(--t2)">'+monthName+' '+now.getFullYear()+'</div>'
+    +'<div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3)">'+realCount+' of '+pastCount+' days tracked</div>'
     +'</div>';
 
   const pct = Math.round((realCount/Math.max(pastCount,1))*100);
@@ -121,7 +121,7 @@ function _renderMonthCalendar(area) {
     +'</div>';
 
   html += '<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-bottom:3px">';
-  DOW_LABELS.forEach(l => { html += '<div style="font-family:var(--ff-m);font-size:9px;color:var(--t3);text-align:center">'+l+'</div>'; });
+  DOW_LABELS.forEach(l => { html += '<div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);text-align:center">'+l+'</div>'; });
   html += '</div>';
 
   html += '<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px">';
@@ -152,23 +152,23 @@ function _renderMonthCalendar(area) {
           : c.mins+'m')
       : '';
     html += '<div '+titleAttr+' style="aspect-ratio:1;border-radius:6px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:var(--ff-m);color:'+color+';background:'+bg+';border:'+border+';'+extra+'position:relative">'
-      + '<div style="font-size:10px;font-weight:'+fw+'">'+c.day+'</div>'
-      + (timeStr ? '<div style="font-size:7px;opacity:.9;line-height:1.1;font-weight:600;text-align:center;padding:0 1px">'+timeStr+'</div>' : '')
+      + '<div style="font-size:var(--text-2xs);font-weight:'+fw+'">'+c.day+'</div>'
+      + (timeStr ? '<div style="font-size:var(--text-2xs);opacity:.9;line-height:1.1;font-weight:600;text-align:center;padding:0 1px">'+timeStr+'</div>' : '')
       + '</div>';
   });
 
   html += '</div>';
 
   html += '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px">'
-    + '<div style="display:flex;align-items:center;gap:4px;font-family:var(--ff-m);font-size:9px;color:var(--t3)"><div style="width:10px;height:10px;border-radius:2px;background:rgba(0,200,100,0.28);border:1px solid rgba(0,200,100,0.85)"></div>Under goal</div>'
-    + '<div style="display:flex;align-items:center;gap:4px;font-family:var(--ff-m);font-size:9px;color:var(--t3)"><div style="width:10px;height:10px;border-radius:2px;background:rgba(230,50,80,0.28);border:1px solid rgba(230,50,80,0.85)"></div>Over goal</div>'
-    + '<div style="display:flex;align-items:center;gap:4px;font-family:var(--ff-m);font-size:9px;color:var(--t3)"><div style="width:10px;height:10px;border-radius:2px;border:2px solid var(--p);box-shadow:0 0 0 1px rgba(108,99,255,0.4)"></div>Today</div>'
+    + '<div style="display:flex;align-items:center;gap:4px;font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3)"><div style="width:10px;height:10px;border-radius:2px;background:rgba(0,200,100,0.28);border:1px solid rgba(0,200,100,0.85)"></div>Under goal</div>'
+    + '<div style="display:flex;align-items:center;gap:4px;font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3)"><div style="width:10px;height:10px;border-radius:2px;background:rgba(230,50,80,0.28);border:1px solid rgba(230,50,80,0.85)"></div>Over goal</div>'
+    + '<div style="display:flex;align-items:center;gap:4px;font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3)"><div style="width:10px;height:10px;border-radius:2px;border:2px solid var(--p);box-shadow:0 0 0 1px rgba(108,99,255,0.4)"></div>Today</div>'
     + '</div>';
 
   if (realCount === 0) {
-    html += '<div style="margin-top:8px;padding:8px 12px;background:rgba(108,99,255,0.08);border:1px solid rgba(108,99,255,0.2);border-radius:8px;font-family:var(--ff-m);font-size:10px;color:var(--p2)">📈 Data loads as days pass. Check back tomorrow!</div>';
+    html += '<div style="margin-top:8px;padding:8px 12px;background:rgba(108,99,255,0.08);border:1px solid rgba(108,99,255,0.2);border-radius:8px;font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--p2)">📈 Data loads as days pass. Check back tomorrow!</div>';
   } else if (realCount < 7) {
-    html += '<div style="margin-top:8px;padding:8px 12px;background:rgba(108,99,255,0.08);border:1px solid rgba(108,99,255,0.2);border-radius:8px;font-family:var(--ff-m);font-size:10px;color:var(--p2)">📈 '+(7-realCount)+' more day'+(7-realCount!==1?'s':'')+' until a full week of data.</div>';
+    html += '<div style="margin-top:8px;padding:8px 12px;background:rgba(108,99,255,0.08);border:1px solid rgba(108,99,255,0.2);border-radius:8px;font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--p2)">📈 '+(7-realCount)+' more day'+(7-realCount!==1?'s':'')+' until a full week of data.</div>';
   }
   html += '</div>';
   area.innerHTML = html;
@@ -183,9 +183,9 @@ function _renderMonthPickupsCalendar(area) {
   const pickRate  = (PICKUPS>0&&TODAY_MINS>=30) ? PICKUPS/TODAY_MINS : 0.28;
 
   let html = '<div style="margin-bottom:10px">'
-    +'<div style="font-family:var(--ff-m);font-size:11px;font-weight:700;color:var(--t2);margin-bottom:8px">'+monthName+' Pickups</div>'
+    +'<div style="font-family:var(--ff-m);font-size:var(--text-2xs);font-weight:700;color:var(--t2);margin-bottom:8px">'+monthName+' Pickups</div>'
     +'<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-bottom:3px">';
-  DOW_LABELS.forEach(l=>{ html+='<div style="font-family:var(--ff-m);font-size:9px;color:var(--t3);text-align:center">'+l+'</div>'; });
+  DOW_LABELS.forEach(l=>{ html+='<div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);text-align:center">'+l+'</div>'; });
   html += '</div><div style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px">';
   for(let i=0;i<firstDow;i++) html+='<div></div>';
 
@@ -213,8 +213,8 @@ function _renderMonthPickupsCalendar(area) {
       border='1px solid '+(over?'rgba(230,50,80,0.85)':'rgba(0,200,100,0.85)');
       const titleAttrInner = 'title="'+(isReal?'':'~')+pu+' pickups"';
       html+='<div '+titleAttrInner+' style="aspect-ratio:1;border-radius:6px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:var(--ff-m);color:'+color+';background:'+bg+';border:'+border+';overflow:hidden">'
-        +'<div style="font-size:9px;font-weight:'+fw+'">'+c.day+'</div>'
-        +'<div style="font-size:8px;opacity:.9;font-weight:600">'+(isReal?'':'~')+pu+'</div>'
+        +'<div style="font-size:var(--text-2xs);font-weight:'+fw+'">'+c.day+'</div>'
+        +'<div style="font-size:var(--text-2xs);opacity:.9;font-weight:600">'+(isReal?'':'~')+pu+'</div>'
         +'</div>';
       return; // skip the default html+= below
     } else {
@@ -222,12 +222,12 @@ function _renderMonthPickupsCalendar(area) {
     }
     const titleAttr = pu!=='' ? 'title="'+(c.isToday?'':'~')+pu+' pickups"' : '';
     html+='<div '+titleAttr+' style="aspect-ratio:1;border-radius:6px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:var(--ff-m);color:'+color+';background:'+bg+';border:'+border+';'+extra+'overflow:hidden">'
-      +'<div style="font-size:9px;font-weight:'+fw+'">'+c.day+'</div>'
-      +(pu!==''?'<div style="font-size:8px;opacity:.9;font-weight:600">'+(c.isToday?'':'~')+pu+'</div>':'')
+      +'<div style="font-size:var(--text-2xs);font-weight:'+fw+'">'+c.day+'</div>'
+      +(pu!==''?'<div style="font-size:var(--text-2xs);opacity:.9;font-weight:600">'+(c.isToday?'':'~')+pu+'</div>':'')
       +'</div>';
   });
 
-  html += '</div></div><div style="font-family:var(--ff-m);font-size:9px;color:var(--t3);margin-top:6px">today = real · other days = estimated from screen time</div>';
+  html += '</div></div><div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);margin-top:6px">today = real · other days = estimated from screen time</div>';
   area.innerHTML = html;
 }
 
@@ -269,13 +269,13 @@ function renderMonthCategoryChart(area) {
     + sorted.map(([cat, mins], i) => {
         const pct = Math.round((mins / total) * 100);
         return `<div style="display:flex;align-items:center;gap:8px">
-          <div style="font-family:var(--ff-m);font-size:10px;color:var(--t2);width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${cat}</div>
+          <div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t2);width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${cat}</div>
           <div style="flex:1;height:8px;background:var(--s2);border-radius:4px;overflow:hidden"><div style="height:100%;width:${pct}%;background:${colors[i]};border-radius:4px;transition:width .5s"></div></div>
-          <div style="font-family:var(--ff-m);font-size:10px;color:var(--t3);width:44px;text-align:right">${fmtM(mins)}</div>
+          <div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);width:44px;text-align:right">${fmtM(mins)}</div>
         </div>`;
       }).join('')
     + '</div>'
-    + `<div style="font-family:var(--ff-m);font-size:10px;color:var(--t3);margin-top:8px">${isEstimate ? 'Loading monthly data…' : 'This month\'s real usage'}</div>`;
+    + `<div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);margin-top:8px">${isEstimate ? 'Loading monthly data…' : 'This month\'s real usage'}</div>`;
 }
 
 // Returns e.g. "21st March" from a day number string and month name
@@ -360,15 +360,15 @@ function renderAppDNA() {
   // ── Trend sentence (unique — not shown in stats row) ─────────────────────
   let trendHtml = '';
   if (currentStreak >= 3) {
-    trendHtml = `<div style="padding:10px 12px;background:rgba(18,212,138,.08);border:1px solid rgba(18,212,138,.2);border-radius:10px;font-family:var(--ff-m);font-size:11px;color:var(--g);margin-bottom:8px">
+    trendHtml = `<div style="padding:10px 12px;background:rgba(18,212,138,.08);border:1px solid rgba(18,212,138,.2);border-radius:10px;font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--g);margin-bottom:8px">
       🔥 ${currentStreak}-day goal streak — don't break it!
     </div>`;
   } else if (longestStreak > currentStreak && longestStreak >= 3) {
-    trendHtml = `<div style="padding:10px 12px;background:rgba(247,166,35,.08);border:1px solid rgba(247,166,35,.2);border-radius:10px;font-family:var(--ff-m);font-size:11px;color:var(--a);margin-bottom:8px">
+    trendHtml = `<div style="padding:10px 12px;background:rgba(247,166,35,.08);border:1px solid rgba(247,166,35,.2);border-radius:10px;font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--a);margin-bottom:8px">
       ⭐ Best run this month: ${longestStreak} days under goal
     </div>`;
   } else if (topApp) {
-    trendHtml = `<div style="padding:10px 12px;background:rgba(240,78,122,.06);border:1px solid rgba(240,78,122,.18);border-radius:10px;font-family:var(--ff-m);font-size:11px;color:var(--t2);margin-bottom:8px">
+    trendHtml = `<div style="padding:10px 12px;background:rgba(240,78,122,.06);border:1px solid rgba(240,78,122,.18);border-radius:10px;font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t2);margin-bottom:8px">
       📱 <strong>${topApp.name}</strong> is your top app — ${fmtM(topApp.mins)} ${isMonthly ? 'this month' : 'this week'}
     </div>`;
   }
@@ -448,9 +448,9 @@ function renderAppDNA() {
           <div class="dna-cell-lbl">📅 LAST WEEK → THIS WEEK</div>
           <div style="display:flex;align-items:baseline;gap:4px;margin:4px 0 2px;overflow:hidden">
             <span style="font-size:13px;font-weight:700;color:var(--t3);opacity:.7;white-space:nowrap">${hasLastWeek ? fmtM(lastWeekAvg) : '–'}</span>
-            <span style="font-size:10px;color:var(--t3);flex-shrink:0">→</span>
+            <span style="font-size:var(--text-2xs);color:var(--t3);flex-shrink:0">→</span>
             <span style="font-size:14px;font-weight:700;color:var(--t1);white-space:nowrap">${fmtM(thisWeekAvg)}</span>
-            <span style="font-size:11px;color:var(--t3);opacity:.6;flex-shrink:0">/day</span>
+            <span style="font-size:var(--text-2xs);color:var(--t3);opacity:.6;flex-shrink:0">/day</span>
           </div>
           <div class="dna-cell-delta" style="color:${hasLastWeek ? trendClr : 'var(--t3)'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
             ${deltaText}
@@ -463,7 +463,7 @@ function renderAppDNA() {
     const wkVsWkendHtml = (wkdayAvg > 0 || wkendAvg > 0) ? `
         <div class="dna-cell">
           <div class="dna-cell-lbl">💼 WEEKDAY VS 🎉 WEEKEND</div>
-          <div class="dna-cell-val" style="font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${wkdayAvg > 0 ? fmtM(wkdayAvg) : '–'} <span style="font-size:11px;opacity:.6">/ ${wkendAvg > 0 ? fmtM(wkendAvg) : '–'}</span></div>
+          <div class="dna-cell-val" style="font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${wkdayAvg > 0 ? fmtM(wkdayAvg) : '–'} <span style="font-size:var(--text-2xs);opacity:.6">/ ${wkendAvg > 0 ? fmtM(wkendAvg) : '–'}</span></div>
           <div class="dna-cell-delta" style="color:${wkendAvg > wkdayAvg ? 'var(--r)' : 'var(--g)'}">
             ${wkdayAvg > 0 && wkendAvg > 0
               ? (wkendAvg > wkdayAvg
@@ -502,14 +502,14 @@ function renderAppDNA() {
   if (timePattern) {
     const bars = timePattern.slots.map(s =>
       `<div style="display:flex;align-items:center;gap:6px">
-        <div style="font-family:var(--ff-m);font-size:9px;color:var(--t3);width:66px">${s.label}</div>
+        <div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);width:66px">${s.label}</div>
         <div style="flex:1;height:6px;background:var(--s2);border-radius:3px;overflow:hidden">
           <div style="height:100%;width:${s.pct}%;background:${s.color};border-radius:3px;transition:width .5s"></div>
         </div>
-        <div style="font-family:var(--ff-m);font-size:9px;color:var(--t3);width:28px;text-align:right">${s.pct}%</div>
+        <div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);width:28px;text-align:right">${s.pct}%</div>
       </div>`).join('');
     timeHtml = `<div style="margin-bottom:8px">
-      <div style="font-family:var(--ff-m);font-size:9px;color:var(--t3);letter-spacing:1px;text-transform:uppercase;margin-bottom:6px">⏰ Time of Day</div>
+      <div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);letter-spacing:1px;text-transform:uppercase;margin-bottom:6px">⏰ Time of Day</div>
       <div style="display:flex;flex-direction:column;gap:5px">${bars}</div>
     </div>`;
   }
@@ -533,12 +533,12 @@ function renderAppDNA() {
       const pct = Math.round(topMins / totalCatMins * 100);
       const icon = CAT_ICONS[topCat] || '📱';
       topCatHtml = `<div style="padding:10px 12px;background:rgba(108,99,255,.07);border:1px solid rgba(108,99,255,.18);border-radius:10px;margin-bottom:8px">
-        <div style="font-family:var(--ff-m);font-size:9px;color:var(--t3);letter-spacing:1px;text-transform:uppercase;margin-bottom:5px">📂 TOP CATEGORY</div>
+        <div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);letter-spacing:1px;text-transform:uppercase;margin-bottom:5px">📂 TOP CATEGORY</div>
         <div style="display:flex;align-items:center;gap:8px">
           <span style="font-size:20px">${icon}</span>
           <div style="flex:1">
             <div style="font-size:13px;font-weight:700;color:var(--t1)">${topCat}</div>
-            <div style="font-family:var(--ff-m);font-size:10px;color:var(--t2);margin-top:1px">${fmtM(topMins)} · ${pct}% of total ${isMonthly ? 'this month' : 'this week'}</div>
+            <div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t2);margin-top:1px">${fmtM(topMins)} · ${pct}% of total ${isMonthly ? 'this month' : 'this week'}</div>
           </div>
         </div>
       </div>`;
@@ -548,7 +548,7 @@ function renderAppDNA() {
   card.innerHTML = `
     <div class="dna-pro-hdr" style="display:flex;align-items:center;justify-content:space-between">
       <div class="dna-pro-title">${monthName} ${year} · Patterns</div>
-      <button type="button" onclick="shareCard('appdna')" style="background:rgba(108,99,255,.10);border:1px solid rgba(108,99,255,.25);color:var(--p2);font-family:var(--ff-m);font-size:11px;font-weight:600;padding:5px 11px;border-radius:8px;cursor:pointer;white-space:nowrap;flex-shrink:0">📤 Share</button>
+      <button type="button" onclick="shareCard('appdna')" style="background:rgba(108,99,255,.10);border:1px solid rgba(108,99,255,.25);color:var(--p2);font-family:var(--ff-m);font-size:var(--text-2xs);font-weight:600;padding:5px 11px;border-radius:8px;cursor:pointer;white-space:nowrap;flex-shrink:0">📤 Share</button>
     </div>
     <div class="dna-period">${isMonthly ? dataPoints.length + ' days tracked' : 'This week · monthly data loading…'}</div>
     ${trendHtml}
@@ -605,9 +605,9 @@ function renderMonthStreakGrid() {
   const legend = document.createElement('div');
   legend.style.cssText = 'display:flex;gap:10px;margin-top:8px;flex-wrap:wrap';
   legend.innerHTML =
-    '<div style="display:flex;align-items:center;gap:4px;font-family:var(--ff-m);font-size:9px;color:var(--t3)"><div style="width:10px;height:10px;border-radius:2px;background:rgba(0,200,100,0.28);border:1px solid rgba(0,200,100,0.85)"></div>Under goal</div>'
-    + '<div style="display:flex;align-items:center;gap:4px;font-family:var(--ff-m);font-size:9px;color:var(--t3)"><div style="width:10px;height:10px;border-radius:2px;background:rgba(230,50,80,0.28);border:1px solid rgba(230,50,80,0.85)"></div>Over goal</div>'
-    + '<div style="display:flex;align-items:center;gap:4px;font-family:var(--ff-m);font-size:9px;color:var(--t3)"><div style="width:10px;height:10px;border-radius:2px;border:2px solid var(--p);box-shadow:0 0 0 1px rgba(108,99,255,0.4)"></div>Today</div>';
+    '<div style="display:flex;align-items:center;gap:4px;font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3)"><div style="width:10px;height:10px;border-radius:2px;background:rgba(0,200,100,0.28);border:1px solid rgba(0,200,100,0.85)"></div>Under goal</div>'
+    + '<div style="display:flex;align-items:center;gap:4px;font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3)"><div style="width:10px;height:10px;border-radius:2px;background:rgba(230,50,80,0.28);border:1px solid rgba(230,50,80,0.85)"></div>Over goal</div>'
+    + '<div style="display:flex;align-items:center;gap:4px;font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3)"><div style="width:10px;height:10px;border-radius:2px;border:2px solid var(--p);box-shadow:0 0 0 1px rgba(108,99,255,0.4)"></div>Today</div>';
   grid.appendChild(legend);
 }
 
@@ -618,7 +618,7 @@ function renderMonthTopApps() {
   // Single source of truth: MONTHLY_APPS (getMonthlyAppUsage) — already sorted by
   // monthlyMinutes desc, already user-apps only. Top 5 here = top 5 in All Apps → Month sort.
   if (!MONTHLY_APPS.length) {
-    list.innerHTML = `<div style="padding:20px;font-family:var(--ff-m);font-size:11px;color:var(--t3);text-align:center">Loading monthly data…</div>`;
+    list.innerHTML = `<div style="padding:20px;font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);text-align:center">Loading monthly data…</div>`;
     return;
   }
 
@@ -632,6 +632,6 @@ function renderMonthTopApps() {
         <div class="ta-name">${escHtml(a.name)}</div>
         <div class="ta-bar"><div class="ta-bar-fill" style="width:${Math.round(((a.monthlyMinutes||0)/max)*100)}%;background:${colors[i]||'var(--p)'}"></div></div>
       </div>
-      <div class="ta-time">${fmtM(a.monthlyMinutes||0)}<span style="font-size:8px;opacity:.6"> /mo</span></div>
+      <div class="ta-time">${fmtM(a.monthlyMinutes||0)}<span style="font-size:var(--text-2xs);opacity:.6"> /mo</span></div>
     </div>`).join('');
 }

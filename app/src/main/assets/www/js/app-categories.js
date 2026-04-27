@@ -195,7 +195,7 @@ function renderCategoryList(){
       <div style="font-size:22px;flex-shrink:0">${ico}</div>
       <div style="flex:1">
         <div style="font-size:14px;font-weight:600">${cat}</div>
-        <div style="font-family:var(--ff-m);font-size:10px;color:var(--t3);margin-top:2px">${apps.length} apps</div>
+        <div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);margin-top:2px">${apps.length} apps</div>
       </div>
       <span style="color:var(--t3)">›</span>
     </div>`;
@@ -353,10 +353,10 @@ function renderCatPopupContent(cat){
       <div class="cp-app-time">${ts}</div>
       <div class="cp-drag-hint">⠿</div>
     </div>`;
-  }).join('') || `<div style="grid-column:1/-1;font-family:var(--ff-m);font-size:11px;color:var(--t3);text-align:center;padding:20px">No apps in this category.</div>`;
+  }).join('') || `<div style="grid-column:1/-1;font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);text-align:center;padding:20px">No apps in this category.</div>`;
   const addTile = `<div class="cp-card" onclick="openAddAppsToCat('${cat}')" style="border:1px dashed var(--border2);background:transparent;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px">
     <div style="font-size:22px;color:var(--t3)">＋</div>
-    <div style="font-family:var(--ff-m);font-size:10px;color:var(--t3)">Add apps</div>
+    <div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3)">Add apps</div>
   </div>`;
   document.getElementById('cp-grid').innerHTML = appsHtml + addTile;
 
@@ -734,10 +734,10 @@ function renderManageCats(){
     return `<div class="cat-list-row" draggable="true" data-cat="${cat}" style="cursor:grab">
       <span class="mcp-handle" style="color:var(--t3);font-size:22px;flex-shrink:0;padding:4px 8px 4px 0;touch-action:none">⠿</span>
       <div style="font-size:20px;flex-shrink:0">${ico}</div>
-      <div style="flex:1"><div style="font-size:13px;font-weight:600">${cat}</div><div style="font-family:var(--ff-m);font-size:10px;color:var(--t3);margin-top:2px">${apps.length} apps</div></div>
+      <div style="flex:1"><div style="font-size:13px;font-weight:600">${cat}</div><div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);margin-top:2px">${apps.length} apps</div></div>
       <div style="display:flex;gap:5px">
-        <button style="padding:5px 8px;border-radius:8px;border:1px solid var(--border2);background:var(--s2);font-family:var(--ff-m);font-size:11px;color:var(--t3);cursor:pointer" onclick="openEditCat('${cat}')">✎</button>
-        <button style="padding:5px 8px;border-radius:8px;border:1px solid var(--border2);background:var(--s2);font-family:var(--ff-m);font-size:11px;cursor:pointer;color:var(--r)" onclick="confirmDelCatByName('${cat}')">🗑</button>
+        <button style="padding:5px 8px;border-radius:8px;border:1px solid var(--border2);background:var(--s2);font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);cursor:pointer" onclick="openEditCat('${cat}')">✎</button>
+        <button style="padding:5px 8px;border-radius:8px;border:1px solid var(--border2);background:var(--s2);font-family:var(--ff-m);font-size:var(--text-2xs);cursor:pointer;color:var(--r)" onclick="confirmDelCatByName('${cat}')">🗑</button>
       </div>
     </div>`;
   }).join('');

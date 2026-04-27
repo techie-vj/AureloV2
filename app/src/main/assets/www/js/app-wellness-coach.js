@@ -77,12 +77,12 @@
 
     var ctaQuery = followUpQuery || (insight.followUps && insight.followUps[0]) || null;
     var ctaHtml  = ctaQuery
-      ? '<div class="twc-cta" style="cursor:pointer;font-family:var(--ff-m);font-size:11px;font-weight:700;color:var(--p2);letter-spacing:.3px">'
+      ? '<div class="twc-cta" style="cursor:pointer;font-family:var(--ff-m);font-size:var(--text-2xs);font-weight:700;color:var(--p2);letter-spacing:.3px">'
         + 'Ask follow&#8209;up &#x2192;</div>'
       : '';
 
     var fallbackNote = insight.usedFallback
-      ? '<span style="color:var(--t3);font-size:9px;opacity:.7"> · offline</span>'
+      ? '<span style="color:var(--t3);font-size:var(--text-2xs);opacity:.7"> · offline</span>'
       : '';
 
     container.innerHTML =

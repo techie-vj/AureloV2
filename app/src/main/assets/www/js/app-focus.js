@@ -595,7 +595,7 @@ window.FocusTab = (function () {
       panel.innerHTML =
         '<div style="background:var(--s1);border:1px solid var(--border2);border-radius:22px;' +
         'padding:24px 20px;width:280px;box-sizing:border-box">' +
-          '<div style="font-family:var(--ff-m);font-size:10px;letter-spacing:2.5px;' +
+          '<div style="font-family:var(--ff-m);font-size:var(--text-2xs);letter-spacing:2.5px;' +
           'text-transform:uppercase;color:var(--t3);text-align:center;margin-bottom:20px">Set Duration</div>' +
           '<div style="display:flex;align-items:center;justify-content:center;gap:16px;' +
           'margin-bottom:6px;position:relative">' +
@@ -607,7 +607,7 @@ window.FocusTab = (function () {
             '<div style="font-family:var(--ff-m);font-size:20px;color:var(--t3);font-weight:400;flex-shrink:0;margin-bottom:2px">:</div>' +
             '<div class="focus-drum-col" id="dur-drum-mins"></div>' +
           '</div>' +
-          '<div style="font-family:var(--ff-m);font-size:9px;color:var(--t3);' +
+          '<div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);' +
           'text-align:center;margin-bottom:20px;letter-spacing:.5px;opacity:.6">hours · minutes</div>' +
           '<div style="display:flex;gap:10px">' +
             '<button type="button" onclick="FocusTab.closeCustomDurPicker()" style="flex:1;padding:13px;border-radius:12px;' +

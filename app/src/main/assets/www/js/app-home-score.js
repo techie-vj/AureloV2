@@ -102,7 +102,7 @@ function _ensureAureloScoreStyles() {
 }
 .aurelo-score-ring-label {
   font-family: var(--ff-m);
-  font-size: 8px;
+  font-size: var(--text-2xs);
   color: var(--aurelo-score-subtitle);
   text-transform: uppercase;
   letter-spacing: .55px; margin-top: 2px; line-height: 1;
@@ -167,7 +167,7 @@ function _ensureAureloScoreStyles() {
   color: var(--aurelo-score-tile-muted); margin-top: 2px; line-height: 1.25;
 }
 .aurelo-hc-badge {
-  font-family: var(--ff-m); font-size: 8px;
+  font-family: var(--ff-m); font-size: var(--text-2xs);
   color: var(--aurelo-home-hc-text);
   background: var(--aurelo-home-hc-bg);
   border: 1px solid var(--aurelo-home-hc-border);
@@ -253,7 +253,7 @@ function _ensureAureloScoreStyles() {
   font-family: var(--ff-m); font-size: var(--text-2xs); color: var(--t3); margin-top: 2px;
 }
 .aurelo-sheet-hc-badge {
-  font-family: var(--ff-m); font-size: 8px;
+  font-family: var(--ff-m); font-size: var(--text-2xs);
   color: var(--aurelo-home-hc-text); background: var(--aurelo-home-hc-bg);
   border: 1px solid var(--aurelo-home-hc-border);
   border-radius: 999px; padding: 1px 6px; font-weight: 700; letter-spacing: .4px;
