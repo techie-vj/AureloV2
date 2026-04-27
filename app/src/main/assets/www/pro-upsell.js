@@ -225,6 +225,27 @@
       cta: 'Unlock Score Breakdown',
       dismiss: 'Not now',
     },
+    health_connect: {
+      tag: 'Body Pillar · Pro',
+      headline: 'Your Aurelo Score is missing a piece.',
+      body: 'Health Connect adds a fourth pillar — Body — built from your real steps, HRV, and resting heart rate. It\'s the only signal that tells you whether a high screen day is paired with a healthy body or a depleted one.',
+      bullets: [
+        'Body Score from daily steps, HRV, and resting heart rate',
+        'Sleep Score enhanced with overnight HRV from your wearable',
+        'Focus Score boosted by mindfulness sessions from Calm or Headspace',
+      ],
+      dataStat: 'pickups',
+      cta: 'Go Pro · Connect Health Connect',
+      dismiss: 'Not now',
+    },
+    coach_upgrade: {
+      tag: 'Aurelo Coach',
+      headline: 'You\'ve used your 3 free questions today.',
+      body: 'Coach analyses your screen time, pickups, focus sessions, and sleep patterns to give answers specific to your data — not generic tips. Pro removes the daily limit entirely.',
+      dataStat: 'screen_time',
+      cta: 'Unlock Unlimited Coach',
+      dismiss: 'Maybe later',
+    },
     upgrade_pro: {
       tag: 'Aurelo Pro',
       headline: 'Master your time, without limits.',

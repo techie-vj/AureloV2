@@ -847,6 +847,10 @@ window.FocusScore = (function () {
    *       (previously said "today" but data was weekly cumulative).
    * ════════════════════════════════════════════════════════════ */
   function openFocusScoreSheet() {
+    if (typeof ProTier !== 'undefined' && !ProTier.isPro) {
+        if (typeof ProTier.triggerUpsell === 'function') ProTier.triggerUpsell('TIDY_SCORE_PILLARS');
+        return;
+      }
     var d   = typeof FocusTab !== 'undefined' ? FocusTab.loadStripData() : {};
     var res = calculateFocus(d);
     if (res.score < 0) { toast('No focus data yet — start a session to build your score', 'info'); return; }

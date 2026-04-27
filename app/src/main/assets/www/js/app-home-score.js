@@ -662,7 +662,11 @@ function _onAureloPillarTap(pillar) {
 let _scoreSheetOpen = false;
 
 function openAureloScoreSheet() {
-  if (_scoreSheetOpen) return;
+  if (typeof ProTier !== 'undefined' && !ProTier.isPro) {
+      if (typeof ProTier.triggerUpsell === 'function') ProTier.triggerUpsell('TIDY_SCORE_PILLARS');
+      return;
+    }
+    if (_scoreSheetOpen) return;
   _scoreSheetOpen = true;
 
   const scores   = _computeAureloScore();
