@@ -138,6 +138,55 @@ class HealthConnectBridge(
         }.toString()
     }
 
+    /**
+     * F-14: Variant of getHCSleepData that filters the sleep session to only
+     * those overlapping the user's configured bedtime window (bedHour–wakeHour).
+     * Prevents afternoon naps from inflating the bedtime sleep duration component.
+     *
+     * If the cached data has no sleepSessionStart/End metadata (older data or
+     * wearable types that don't track session timestamps), falls back to the
+     * unfiltered getHCSleepData() so the score degrades gracefully.
+     *
+     * @param bedHour  decimal hour of bedtime (e.g. 22.5 = 10:30 PM)
+     * @param wakeHour decimal hour of wake time (e.g. 7.0 = 7:00 AM)
+     */
+    @JavascriptInterface
+    fun getHCSleepDataForWindow(bedHour: Double, wakeHour: Double): String {
+        val d = _cachedData
+        if (!d.isAvailable) return JSONObject().put("available", false).toString()
+
+        // If the cached data carries session timing, filter by overlap with the window.
+        // sleepSessionStartHour and sleepSessionEndHour are decimal hours (0-24 range).
+        val sessionStart = d.sleepSessionStartHour
+        val sessionEnd   = d.sleepSessionEndHour
+        if (sessionStart != null && sessionEnd != null) {
+            // Normalise overnight window: bedHour may be > wakeHour (e.g. 22 → 7)
+            val windowSpansMidnight = bedHour > wakeHour
+            val sessionSpansMidnight = sessionStart > sessionEnd
+            // A session overlaps the window if they share any hour range.
+            val overlaps = if (!windowSpansMidnight && !sessionSpansMidnight) {
+                sessionStart < wakeHour && sessionEnd > bedHour
+            } else {
+                // At least one spans midnight — use complement logic
+                !(sessionEnd <= bedHour && sessionStart >= wakeHour)
+            }
+            if (!overlaps) {
+                // Session does not overlap bedtime window — return no duration data
+                // but still include overnight HRV if available.
+                return JSONObject().apply {
+                    put("available",     true)
+                    put("sleepDuration", JSONObject.NULL)   // filtered out
+                    put("durScore",      JSONObject.NULL)
+                    put("overnightHrv",  d.overnightHrvMs     ?: JSONObject.NULL)
+                    put("avgOHrv",       d.avgOvernightHrv7d  ?: JSONObject.NULL)
+                    put("oHrvScore",     SleepScoreEnhancer.overnightHrvScore(d)  ?: JSONObject.NULL)
+                }.toString()
+            }
+        }
+        // No session metadata or session overlaps — fall through to standard data
+        return getHCSleepData()
+    }
+
     /** Full merged UsageSummary as JSON — used by Coach JS pipeline. */
     @JavascriptInterface
     fun getHCUsageSummary(): String {

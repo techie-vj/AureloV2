@@ -117,26 +117,50 @@ const HealthConnect = (function () {
     var steps = _getMockData().steps;
     if (steps >= 10000) return { modifier: +5, label: '+5 pts · very active day', steps: steps };
     if (steps >= 8000)  return { modifier: +3, label: '+3 pts · active day bonus', steps: steps };
-    if (steps <  3000)  return { modifier: -3, label: '−3 pts · sedentary day',   steps: steps };
-    return { modifier: 0, label: null, steps: steps };
+    if (steps >= 5000)  return { modifier: 0,  label: null,                        steps: steps };
+    // F-17: smooth linear gradient from -3 at ≤2000 to 0 at 5000 (removes the dead zone)
+    var gradient = Math.max(0, Math.min(1, (steps - 2000) / 3000));
+    var mod = Math.round(gradient * 3) - 3; // -3 at 2000, 0 at 5000
+    mod = Math.max(-3, Math.min(0, mod));
+    var label2 = mod <= -2 ? (mod + ' pts · low activity today')
+               : mod === -1 ? (mod + ' pt · low activity today')
+               : null;
+    return { modifier: mod, label: label2, steps: steps };
   }
 
   /* ── Sleep HC data — sleep duration + overnight HRV ────────── */
   // Spec §7.1: computed by SleepScoreEnhancer.kt on device.
 
-  function getSleepData() {
+  // F-14: getSleepData now accepts an optional bedtime window so that sessions
+  // are filtered to those overlapping the user's configured bedtime window.
+  // This prevents afternoon naps from inflating the sleep duration component.
+  // F-16 (JS fallback): oversleep ceiling extended from 10h to 11h.
+  function getSleepData(bedHour, wakeHour) {
     if (!isConnected()) return null;
     try {
-      var raw = window.AppBridge.getHCSleepData();
+      // Pass bedtime window to native so Kotlin can filter HC sessions server-side
+      var raw;
+      if (bedHour != null && wakeHour != null &&
+          typeof window.AppBridge.getHCSleepDataForWindow === 'function') {
+        raw = window.AppBridge.getHCSleepDataForWindow(bedHour, wakeHour);
+      } else {
+        raw = window.AppBridge.getHCSleepData();
+      }
       if (raw) { var s = JSON.parse(raw); if (s && s.available) return s; }
     } catch (_) {}
-    // JS fallback
+    // JS fallback (browser/demo)
     var d = _getMockData();
     var durScore;
-    if (d.sleepDuration >= 7 && d.sleepDuration <= 9) { durScore = 100; }
-    else if (d.sleepDuration < 7) { durScore = Math.max(0, Math.round((d.sleepDuration - 4) / 3 * 100)); }
-    else { durScore = Math.max(0, Math.round((1 - (d.sleepDuration - 9)) * 100)); }
-    var avgO = d.avgOvernightHrv7d, oFloor = avgO * 0.6;
+    if (d.sleepDuration >= 7 && d.sleepDuration <= 9) {
+      durScore = 100;
+    } else if (d.sleepDuration < 7) {
+      durScore = Math.max(0, Math.round((d.sleepDuration - 4) / 3 * 100));
+    } else {
+      // F-16: (1 - (h-9)/2) * 100 → 100 at 9h, 50 at 10h, 0 at 11h
+      durScore = Math.max(0, Math.round((1 - (d.sleepDuration - 9) / 2) * 100));
+    }
+    // F-25: overnight HRV floor tightened to 70% (30% below avg)
+    var avgO = d.avgOvernightHrv7d, oFloor = avgO * 0.70;
     var oHrvScore = d.overnightHrv >= avgO ? 100
       : Math.max(0, Math.round((d.overnightHrv - oFloor) / (avgO - oFloor) * 100));
     return { sleepDuration: d.sleepDuration, overnightHrv: d.overnightHrv,

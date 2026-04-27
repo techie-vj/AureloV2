@@ -16,6 +16,16 @@ import java.util.*
  * FocusSessionBridge — owns focus session lifecycle, state persistence,
  * weekly stats, and session outcome recording.
  * Phase 3: extracted from AppBridge.kt.
+ *
+ * FIX F-06: Added daily session counters (KEY_FOCUS_COMPLETED_TODAY,
+ *           KEY_FOCUS_INTERRUPTED_TODAY, KEY_FOCUS_PLANNED_MINS_TODAY,
+ *           KEY_FOCUS_ELAPSED_MINS_TODAY, KEY_FOCUS_DATE) so that the Focus
+ *           Score's daily Aurelo composite uses today's data, not weekly data.
+ *
+ * FIX F-07: getFocusDailyStats() now returns plannedMins and elapsedMins so
+ *           the JS layer can compute duration-weighted, partial-credit scores.
+ *           A session interrupted at 89/90 min now contributes proportionally
+ *           rather than being treated identically to a 2-minute bail.
  */
 class FocusSessionBridge(
     private val context: Context,
@@ -38,9 +48,14 @@ class FocusSessionBridge(
             val existingOutcome = prefs.getString(KEY_FOCUS_LAST_OUTCOME, "") ?: ""
             if (existingOutcome != "completed") {
                 _maybeResetWeeklyFocusStats()
+                _maybeResetDailyFocusStats()
                 prefs.edit()
                     .putInt(KEY_FOCUS_COMPLETED_WEEK, prefs.getInt(KEY_FOCUS_COMPLETED_WEEK,0)+1)
                     .putLong(KEY_FOCUS_TIME_WEEK_MINS, prefs.getLong(KEY_FOCUS_TIME_WEEK_MINS,0L)+plannedMins)
+                    // F-06: also update daily counters
+                    .putInt(KEY_FOCUS_COMPLETED_TODAY, prefs.getInt(KEY_FOCUS_COMPLETED_TODAY,0)+1)
+                    .putInt(KEY_FOCUS_PLANNED_MINS_TODAY, prefs.getInt(KEY_FOCUS_PLANNED_MINS_TODAY,0)+plannedMins)
+                    .putInt(KEY_FOCUS_ELAPSED_MINS_TODAY, prefs.getInt(KEY_FOCUS_ELAPSED_MINS_TODAY,0)+plannedMins)
                     .putString(KEY_FOCUS_LAST_OUTCOME, "completed")
                     .putInt(KEY_FOCUS_LAST_ELAPSED, plannedMins).apply()
                 runCatching {
@@ -69,7 +84,6 @@ class FocusSessionBridge(
         val pm = context.packageManager
         val appsArr = JSONArray()
         for (i in 0 until pkgArr.length()) {
-            // Each element may be a JSONObject {packageName, name} or a bare string
             val obj = pkgArr.optJSONObject(i)
             val pkg = (obj?.optString("packageName") ?: pkgArr.optString(i))
                 .takeIf { it.isNotBlank() } ?: continue
@@ -105,10 +119,15 @@ class FocusSessionBridge(
         val routineId = prefs.getString(KEY_FOCUS_ACTIVE_ROUTINE,"") ?: ""
         if (existing != "completed" && existing != "interrupted") {
             _maybeResetWeeklyFocusStats()
+            _maybeResetDailyFocusStats()
             if (endTs > 0 && now >= endTs) {
                 prefs.edit()
                     .putInt(KEY_FOCUS_COMPLETED_WEEK, prefs.getInt(KEY_FOCUS_COMPLETED_WEEK,0)+1)
                     .putLong(KEY_FOCUS_TIME_WEEK_MINS, prefs.getLong(KEY_FOCUS_TIME_WEEK_MINS,0L)+plannedMins)
+                    // F-06: daily counters
+                    .putInt(KEY_FOCUS_COMPLETED_TODAY, prefs.getInt(KEY_FOCUS_COMPLETED_TODAY,0)+1)
+                    .putInt(KEY_FOCUS_PLANNED_MINS_TODAY, prefs.getInt(KEY_FOCUS_PLANNED_MINS_TODAY,0)+plannedMins)
+                    .putInt(KEY_FOCUS_ELAPSED_MINS_TODAY, prefs.getInt(KEY_FOCUS_ELAPSED_MINS_TODAY,0)+plannedMins)
                     .putString(KEY_FOCUS_LAST_OUTCOME,"completed").putInt(KEY_FOCUS_LAST_ELAPSED, plannedMins).apply()
                 runCatching {
                     val dayIdx = Calendar.getInstance().get(Calendar.DAY_OF_WEEK)-1
@@ -120,6 +139,10 @@ class FocusSessionBridge(
                 prefs.edit()
                     .putInt(KEY_FOCUS_INTERRUPTED_WEEK, prefs.getInt(KEY_FOCUS_INTERRUPTED_WEEK,0)+1)
                     .putLong(KEY_FOCUS_TIME_WEEK_MINS, prefs.getLong(KEY_FOCUS_TIME_WEEK_MINS,0L)+elapsedMins)
+                    // F-06: daily counters for interrupted sessions
+                    .putInt(KEY_FOCUS_INTERRUPTED_TODAY, prefs.getInt(KEY_FOCUS_INTERRUPTED_TODAY,0)+1)
+                    .putInt(KEY_FOCUS_PLANNED_MINS_TODAY, prefs.getInt(KEY_FOCUS_PLANNED_MINS_TODAY,0)+plannedMins)
+                    .putInt(KEY_FOCUS_ELAPSED_MINS_TODAY, prefs.getInt(KEY_FOCUS_ELAPSED_MINS_TODAY,0)+elapsedMins)
                     .putString(KEY_FOCUS_LAST_OUTCOME,"interrupted").putInt(KEY_FOCUS_LAST_ELAPSED, elapsedMins).apply()
             }
         }
@@ -167,6 +190,26 @@ class FocusSessionBridge(
         }.toString()
     }
 
+    // ── Daily stats — F-06, F-07 ─────────────────────────────────────────────
+    // Returns today-only session data for use in the daily Aurelo Score Focus pillar.
+    // Includes plannedMins and elapsedMins for duration-weighted scoring (F-07).
+    @JavascriptInterface
+    fun getFocusDailyStats(): String {
+        _maybeResetDailyFocusStats()
+        val completedToday   = prefs.getInt(KEY_FOCUS_COMPLETED_TODAY, 0)
+        val interruptedToday = prefs.getInt(KEY_FOCUS_INTERRUPTED_TODAY, 0)
+        val plannedMins      = prefs.getInt(KEY_FOCUS_PLANNED_MINS_TODAY, 0)
+        val elapsedMins      = prefs.getInt(KEY_FOCUS_ELAPSED_MINS_TODAY, 0)
+        val totalSessions    = completedToday + interruptedToday
+        return JSONObject().apply {
+            put("completedToday",   completedToday)
+            put("interruptedToday", interruptedToday)
+            put("totalSessions",    totalSessions)
+            put("plannedMins",      plannedMins)
+            put("elapsedMins",      elapsedMins)
+        }.toString()
+    }
+
     @JavascriptInterface
     fun getFocusWeekDays(): String {
         _maybeResetWeeklyFocusStats()
@@ -183,8 +226,12 @@ class FocusSessionBridge(
             outcome = if (endTs == 0L || now >= endTs) "completed" else "interrupted"
             if (outcome == "completed" && total > 0) {
                 _maybeResetWeeklyFocusStats()
+                _maybeResetDailyFocusStats()
                 prefs.edit().putInt(KEY_FOCUS_COMPLETED_WEEK,prefs.getInt(KEY_FOCUS_COMPLETED_WEEK,0)+1)
                     .putLong(KEY_FOCUS_TIME_WEEK_MINS,prefs.getLong(KEY_FOCUS_TIME_WEEK_MINS,0L)+total)
+                    .putInt(KEY_FOCUS_COMPLETED_TODAY,prefs.getInt(KEY_FOCUS_COMPLETED_TODAY,0)+1)
+                    .putInt(KEY_FOCUS_PLANNED_MINS_TODAY,prefs.getInt(KEY_FOCUS_PLANNED_MINS_TODAY,0)+total)
+                    .putInt(KEY_FOCUS_ELAPSED_MINS_TODAY,prefs.getInt(KEY_FOCUS_ELAPSED_MINS_TODAY,0)+total)
                     .putInt(KEY_FOCUS_LAST_ELAPSED,total).apply()
             }
         }
@@ -195,17 +242,26 @@ class FocusSessionBridge(
 
     @JavascriptInterface fun recordFocusComplete(durationMins: Int) {
         _maybeResetWeeklyFocusStats()
+        _maybeResetDailyFocusStats()
         prefs.edit()
             .putInt(KEY_FOCUS_COMPLETED_WEEK, prefs.getInt(KEY_FOCUS_COMPLETED_WEEK,0)+1)
             .putLong(KEY_FOCUS_TIME_WEEK_MINS, prefs.getLong(KEY_FOCUS_TIME_WEEK_MINS,0L)+durationMins)
+            .putInt(KEY_FOCUS_COMPLETED_TODAY, prefs.getInt(KEY_FOCUS_COMPLETED_TODAY,0)+1)
+            .putInt(KEY_FOCUS_PLANNED_MINS_TODAY, prefs.getInt(KEY_FOCUS_PLANNED_MINS_TODAY,0)+durationMins)
+            .putInt(KEY_FOCUS_ELAPSED_MINS_TODAY, prefs.getInt(KEY_FOCUS_ELAPSED_MINS_TODAY,0)+durationMins)
             .putString(KEY_FOCUS_LAST_OUTCOME,"completed").putInt(KEY_FOCUS_LAST_ELAPSED,durationMins).putInt(KEY_FOCUS_LAST_TOTAL,durationMins).apply()
     }
 
     @JavascriptInterface fun recordFocusInterrupt(elapsedMins: Int) {
+        val plannedMins = prefs.getInt(KEY_FOCUS_LAST_TOTAL, elapsedMins)
         _maybeResetWeeklyFocusStats()
+        _maybeResetDailyFocusStats()
         prefs.edit()
             .putInt(KEY_FOCUS_INTERRUPTED_WEEK, prefs.getInt(KEY_FOCUS_INTERRUPTED_WEEK,0)+1)
             .putLong(KEY_FOCUS_TIME_WEEK_MINS, prefs.getLong(KEY_FOCUS_TIME_WEEK_MINS,0L)+elapsedMins)
+            .putInt(KEY_FOCUS_INTERRUPTED_TODAY, prefs.getInt(KEY_FOCUS_INTERRUPTED_TODAY,0)+1)
+            .putInt(KEY_FOCUS_PLANNED_MINS_TODAY, prefs.getInt(KEY_FOCUS_PLANNED_MINS_TODAY,0)+plannedMins)
+            .putInt(KEY_FOCUS_ELAPSED_MINS_TODAY, prefs.getInt(KEY_FOCUS_ELAPSED_MINS_TODAY,0)+elapsedMins)
             .putString(KEY_FOCUS_LAST_OUTCOME,"interrupted").putInt(KEY_FOCUS_LAST_ELAPSED,elapsedMins).apply()
     }
 
@@ -225,6 +281,21 @@ class FocusSessionBridge(
             .putString(KEY_FOCUS_WEEK_DAYS,"[false,false,false,false,false,false,false]").apply()
     }
 
+    // F-06: Reset daily stats at midnight (date change)
+    internal fun _maybeResetDailyFocusStats() {
+        val today = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
+        val stored = prefs.getString(KEY_FOCUS_DATE, "") ?: ""
+        if (stored != today) {
+            prefs.edit()
+                .putString(KEY_FOCUS_DATE, today)
+                .putInt(KEY_FOCUS_COMPLETED_TODAY, 0)
+                .putInt(KEY_FOCUS_INTERRUPTED_TODAY, 0)
+                .putInt(KEY_FOCUS_PLANNED_MINS_TODAY, 0)
+                .putInt(KEY_FOCUS_ELAPSED_MINS_TODAY, 0)
+                .apply()
+        }
+    }
+
     private fun _clearFocusSession() {
         prefs.edit()
             .putBoolean(KEY_FOCUS_ACTIVE,false).putLong(KEY_FOCUS_END_TS,0L)
@@ -233,4 +304,13 @@ class FocusSessionBridge(
     }
 
     internal fun currentWeekId(): String = SimpleDateFormat("yyyy-'W'ww", Locale.US).format(Date())
+
+    companion object {
+        // F-06: new daily stat keys
+        const val KEY_FOCUS_DATE              = "focus_date_v1"
+        const val KEY_FOCUS_COMPLETED_TODAY   = "focus_completed_today"
+        const val KEY_FOCUS_INTERRUPTED_TODAY = "focus_interrupted_today"
+        const val KEY_FOCUS_PLANNED_MINS_TODAY = "focus_planned_mins_today"
+        const val KEY_FOCUS_ELAPSED_MINS_TODAY = "focus_elapsed_mins_today"
+    }
 }

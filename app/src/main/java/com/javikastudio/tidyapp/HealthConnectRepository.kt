@@ -39,6 +39,10 @@ data class HCDailyData(
     // Sleep — last night
     val sleepDurationHours: Float? = null,
     val overnightHrvMs: Float? = null,     // avg RMSSD during last sleep session
+    // F-14: Session window metadata for bedtime-window filtering in HealthConnectBridge.
+    // Decimal hours (0-24 range). Null when the wearable doesn't provide session timestamps.
+    val sleepSessionStartHour: Float? = null,
+    val sleepSessionEndHour: Float? = null,
     // 7-day personal averages
     val avgHrv7d: Float? = null,
     val avgRhr7d: Float? = null,

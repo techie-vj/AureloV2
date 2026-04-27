@@ -293,11 +293,15 @@ function _ensureAureloScoreStyles() {
 
 /* ── Grade helper ─────────────────────────────────────── */
 function _aureloGrade(score) {
-  if (score >= 90) return { label: 'Excellent',  color: 'var(--g)'  };
-  if (score >= 75) return { label: 'Great Day',  color: 'var(--c)'  };
-  if (score >= 60) return { label: 'Good Day',   color: 'var(--p2)' };
-  if (score >= 45) return { label: 'Fair',        color: 'var(--a)'  };
-  return               { label: 'Needs Work',  color: 'var(--r)'  };
+  // F-18: unified grade system — all four score surfaces share identical labels.
+  // Delegates to FocusScore._unifiedGrade when available (single source of truth).
+  if (typeof FocusScore !== 'undefined' && typeof FocusScore.unifiedGrade === 'function') {
+    return FocusScore.unifiedGrade(score);
+  }
+  if (score >= 85) return { label: 'Excellent', color: 'var(--g)' };
+  if (score >= 70) return { label: 'Good',      color: 'var(--c)' };
+  if (score >= 55) return { label: 'Fair',      color: 'var(--a)' };
+  return               { label: 'Start',      color: 'var(--r)' };
 }
 
 /* ── Score → ring color pair ──────────────────────────── */
@@ -393,19 +397,28 @@ function _computeAureloScore() {
   const focus  = _focusPillarScore();
   const sleep  = _sleepPillarScore();
   const body   = _bodyPillarScore();
+  // F-01: weights now match FocusScore.calculateAurelo() canonical weights.
+  // Without HC: Screen 40%, Focus 35%, Sleep 25%.
+  // With HC body: Screen 35%, Focus 30%, Sleep 20%, Body 15% (F-23).
+  const hcBodyAvail = body !== null;
+  const sleepAvail  = sleep !== null;
+  const _sw = hcBodyAvail
+    ? { screen: 35, focus: 30, sleep: sleepAvail ? 20 : 0, body: 15 }
+    : { screen: sleepAvail ? 40 : 55, focus: sleepAvail ? 35 : 45, sleep: sleepAvail ? 25 : 0, body: 0 };
   const weights = [
-    { score: screen, weight: 40 },
-    { score: focus,  weight: 20 },
-    { score: sleep,  weight: 25 },
-    { score: body,   weight: 15 },
+    { score: screen, weight: _sw.screen },
+    { score: focus,  weight: _sw.focus  },
+    { score: sleep,  weight: _sw.sleep  },
+    { score: body,   weight: _sw.body   },
   ];
-  const available = weights.filter(p => p.score !== null);
+  const available = weights.filter(p => p.score !== null && p.weight > 0);
   if (!available.length) return { overall: screen, screen, focus, sleep, body };
   const totalWeight = available.reduce((s, p) => s + p.weight, 0);
   const weightedSum = available.reduce((s, p) => s + p.score * p.weight, 0);
   const overall     = Math.round(weightedSum / totalWeight);
   return { overall, screen, focus, sleep, body,
-           swScreen: 40, swFocus: 20, swSleep: 25, swBody: 15, hcActive: false };
+           swScreen: _sw.screen, swFocus: _sw.focus, swSleep: _sw.sleep, swBody: _sw.body,
+           hcActive: hcBodyAvail };
 }
 
 /* ── Ring SVG helper ──────────────────────────────────── */
@@ -490,6 +503,13 @@ function renderAureloScore() {
     N.setStringPref('cached_tidy_score_date', new Date().toISOString().slice(0, 10));
   }
 
+  // F-09: Persist Aurelo Score to history so delta ("↑3 vs yesterday") is accurate.
+  // Without this save, yesterdayScore never has a real stored value to diff against.
+  if (overall >= 0 && typeof FocusScore !== 'undefined' &&
+      typeof FocusScore.saveScoreForToday === 'function') {
+    FocusScore.saveScoreForToday(FocusScore.AURELO_SCORE_KEY, overall);
+  }
+
   const goalMins    = (typeof S !== 'undefined' && S.streakGoalMins) || 240;
   const usedMins    = (typeof TODAY_MINS !== 'undefined' ? TODAY_MINS : 0);
   const hcConnected = (typeof HealthConnect !== 'undefined' &&
@@ -497,15 +517,19 @@ function renderAureloScore() {
                        HealthConnect.isConnected());
   const isPro = typeof ProTier !== 'undefined' && ProTier.isPro;
 
-  // Trend delta (optional — surfaced if available)
+  // F-09: Trend delta — now reads from persisted Aurelo Score history (accurate).
+  // Was: relied on S.yesterdayScore which is a runtime prop never reliably populated.
   let trendHTML = '';
   try {
-    if (typeof S !== 'undefined' && S.yesterdayScore != null) {
-      const delta = overall - S.yesterdayScore;
-      const sign  = delta >= 0 ? '+' : '';
-      const col   = delta >= 0 ? 'var(--g)' : 'var(--r)';
-      trendHTML   = `<span class="aurelo-score-dot">·</span>
-                     <span style="color:${col};font-weight:700">${sign}${delta} vs yesterday</span>`;
+    if (typeof FocusScore !== 'undefined' && typeof FocusScore.getYesterdayScore === 'function') {
+      const yScore = FocusScore.getYesterdayScore(FocusScore.AURELO_SCORE_KEY);
+      if (yScore !== null && overall >= 0) {
+        const delta = overall - yScore;
+        const sign  = delta >= 0 ? '+' : '';
+        const col   = delta >= 0 ? 'var(--g)' : 'var(--r)';
+        trendHTML   = `<span class="aurelo-score-dot">·</span>
+                       <span style="color:${col};font-weight:700">${sign}${delta} vs yesterday</span>`;
+      }
     }
   } catch (_) {}
 

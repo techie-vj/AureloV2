@@ -207,18 +207,30 @@ function calculateScreenScore() {
   }
 
   // ── Component 2: Pickup frequency (30%) ─────────────────────────
+  // F-20: new-user guard — avgPickups=0 with real pickups should not silently score 100.
+  // If we have no history yet, treat today as the baseline (scores 100 day 1, tracks from day 2).
+  var effectiveAvg = avgPickups;
+  if (avgPickups <= 0 && todayPickups > 0) effectiveAvg = todayPickups;
+
+  // F-21: steeper decay — 1.3× average now noticeably dents score (was 1.5×).
   var pickupScore;
-  if (avgPickups <= 0 || todayPickups <= avgPickups) {
+  if (effectiveAvg <= 0 || todayPickups <= effectiveAvg) {
     pickupScore = 100;
-  } else if (todayPickups <= avgPickups * 1.5) {
-    pickupScore = Math.max(0, Math.round(100 - ((todayPickups - avgPickups) / (avgPickups * 0.5)) * 50));
+  } else if (todayPickups <= effectiveAvg * 1.3) {
+    // 1.0–1.3×: linear 100→60
+    pickupScore = Math.max(60, Math.round(100 - ((todayPickups - effectiveAvg) / (effectiveAvg * 0.3)) * 40));
+  } else if (todayPickups <= effectiveAvg * 2.0) {
+    // 1.3–2.0×: linear 60→0
+    pickupScore = Math.max(0, Math.round(60 - ((todayPickups - effectiveAvg * 1.3) / (effectiveAvg * 0.7)) * 60));
   } else {
-    var excess = todayPickups - avgPickups * 1.5;
-    var range  = Math.max(1, avgPickups * 1.5);
-    pickupScore = Math.max(0, Math.round(50 - (excess / range) * 50));
+    pickupScore = 0;
   }
 
   // ── Component 3: First use of day (20%) ─────────────────────────
+  // F-13: Fully graduated first-use scoring (midnight=0 → 9am=100).
+  // Old: midnight/3am/6am all returned 25 — no differentiation before 7am.
+  // F-27: Weekend-aware — Sat/Sun full-score threshold relaxed to 9:30am.
+  var isWeekend = [0, 6].indexOf(new Date().getDay()) !== -1;
   var firstUseScore = 100; // default: no pickup yet = day not started
   var firstUseHour  = -1;
   if (firstUseStr && firstUseStr !== '–' && firstUseStr !== '--') {
@@ -233,10 +245,14 @@ function calculateScreenScore() {
       }
     } catch(_) {}
     if (firstUseHour >= 0) {
-      firstUseScore = firstUseHour >= 9 ? 100
-                    : firstUseHour >= 8 ? 75
-                    : firstUseHour >= 7 ? 50
-                    : 25;
+      var fullScoreH = isWeekend ? 9.5 : 9.0; // F-27: weekend relaxed threshold
+      if      (firstUseHour >= fullScoreH) firstUseScore = 100;
+      else if (firstUseHour >= 8)          firstUseScore = Math.round(75 + ((firstUseHour - 8) / (fullScoreH - 8)) * 25);
+      else if (firstUseHour >= 7)          firstUseScore = 50;
+      else if (firstUseHour >= 6)          firstUseScore = 30;
+      else if (firstUseHour >= 5)          firstUseScore = 20;
+      else if (firstUseHour >= 3)          firstUseScore = 10;
+      else                                 firstUseScore = 0;
     }
   }
 
@@ -281,11 +297,11 @@ window.calculateScreenScoreWithHealthConnect = _getScreenScoreWithHealthConnect;
 
 /** Grade label + colour for a screen score value. */
 function _screenScoreGrade(score) {
-  if (score >= 90) return { label: 'Excellent', color: '#6ec97a' };
-  if (score >= 75) return { label: 'Good',      color: '#05c8e8' };
-  if (score >= 60) return { label: 'Fair',       color: '#f7c948' };
-  if (score >= 40) return { label: 'Low',        color: '#ffaa50' };
-  return                  { label: 'Poor',       color: '#ff6a6a' };
+  // F-18: unified grade labels across all score surfaces
+  if (score >= 85) return { label: 'Excellent', color: 'var(--g)'  };
+  if (score >= 70) return { label: 'Good',      color: 'var(--c)'  };
+  if (score >= 55) return { label: 'Fair',       color: 'var(--a)'  };
+  return                  { label: 'Start',     color: 'var(--r)'  };
 }
 
 /**
@@ -447,7 +463,9 @@ function renderStatsScreenScoreRow() {
   var hcMod = screenVm.hcMod;
   var hcConnected = screenVm.hcConnected;
   var displayScore = screenVm.effectiveScore;
-  _saveScoreForToday(_SCREEN_SCORE_KEY, displayScore);
+  // F-10: removed duplicate _saveScoreForToday call here.
+  // renderScreenScoreSheet() already saves on every full sheet open.
+  // Saving here too causes a race when both paths fire in the same session.
 
   var grade = _screenScoreGrade(displayScore);
 
@@ -1353,7 +1371,7 @@ function openDigest(initialMode){
   if(bestDay?.day&&validDays.length>1) tips.push(`✅ ${bestDay.day} was your best day at just ${fmtM(bestDay.minutes)} — ${avg>0?Math.round((avg-bestDay.minutes)/avg*100)+'% below average':''}.`);
   if(total>0&&avg>0) tips.push(`📈 ${avg<180?'Great discipline':'Room to improve'}: your 7-day average is ${fmtM(avg)}/day. Goal: stay under ${fmtM(240)}.`);
   if(!tips.length) tips.push('Grant Usage Access to unlock weekly insights.');
-  document.getElementById('dg-tips').innerHTML=tips.map((t,i)=>`<div style="display:flex;gap:10px;padding:10px 0;border-bottom:1px solid ${i===tips.length-1?'transparent':'var(--border)'}"><div style="width:22px;height:22px;border-radius:7px;flex-shrink:0;background:rgba(108,99,255,.15);border:1px solid rgba(108,99,255,.3);display:flex;align-items:center;justify-content:center;font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--p2);margin-top:2px">${i+1}</div><div style="font-size:13px;color:var(--t2);line-height:1.6">${t}</div></div>`).join('');
+  document.getElementById('dg-tips').innerHTML=tips.map((t,i)=>`<div style="display:flex;gap:10px;padding:10px 0;border-bottom:1px solid ${i===tips.length-1?'transparent':'var(--border)'}"><div style="width:22px;height:22px;border-radius:7px;flex-shrink:0;background:rgba(108,99,255,.15);border:1px solid rgba(108,99,255,.3);display:flex;align-items:center;justify-content:center;font-family:var(--ff-m);font-size:10px;color:var(--p2);margin-top:2px">${i+1}</div><div style="font-size:13px;color:var(--t2);line-height:1.6">${t}</div></div>`).join('');
 
   document.getElementById('digest').classList.add('open');
 }
