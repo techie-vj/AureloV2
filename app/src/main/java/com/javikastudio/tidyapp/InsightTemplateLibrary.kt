@@ -1299,6 +1299,215 @@ object InsightTemplateLibrary {
             )
         ),
 
+        // ── 17. FOCUS_PEAK_TIME [NEW v1.2.1] ─────────────────────────────
+        "FOCUS_PEAK_TIME" to mapOf(
+            TemplateVariant.ENCOURAGING to listOf(
+                InsightText(
+                    title = "⏱ Your best focus window",
+                    body  = "Based on your usage pattern, your lowest-distraction window is typically 10 AM–12 PM — " +
+                            "that's when pickups are fewest and screen time hasn't built up yet. " +
+                            "Your first use today was at {first_use_hour}:00. " +
+                            "Schedule your most demanding focus sessions here for best results."
+                ),
+                InsightText(
+                    title = "⏱ When focus is easiest",
+                    body  = "Morning hours — before your pickup rate climbs — are your clearest window. " +
+                            "First use at {first_use_hour}:00 sets the baseline. " +
+                            "Every hour you delay opening your phone extends that focused window. " +
+                            "Try a Deep session between 9–11 AM tomorrow."
+                )
+            ),
+            TemplateVariant.CAUTIONARY to listOf(
+                InsightText(
+                    title = "⏱ Finding your focus window",
+                    body  = "Your pickup count climbs through the day — today {pickups_today} pickups suggests attention " +
+                            "has been scattered. Your clearest window is usually first thing in the morning before social apps pull you in. " +
+                            "First use was at {first_use_hour}:00. " +
+                            "Tomorrow: delay first use to 9 AM and start a focus session before checking anything else."
+                )
+            ),
+            TemplateVariant.CELEBRATORY to listOf(
+                InsightText(
+                    title = "⏱ You've found your rhythm",
+                    body  = "First use at {first_use_hour}:00 and {focus_score} focus score — your morning window is working. " +
+                            "Your {streak_days}-day streak shows consistency in protecting that early focus time. " +
+                            "Keep scheduling your hardest tasks in the 9 AM–12 PM slot."
+                )
+            ),
+            TemplateVariant.NEW_USER to listOf(
+                InsightText(
+                    title = "⏱ Finding your focus window",
+                    body  = "Aurelo is still learning your patterns — after a few more days it can pinpoint your sharpest hours. " +
+                            "A good starting point: try your first focus session before 10 AM tomorrow and see how it feels."
+                )
+            ),
+            TemplateVariant.ESTABLISHED to listOf(
+                InsightText(
+                    title = "⏱ Your peak focus window",
+                    body  = "Over {data_window_days} days your data shows your lowest-distraction hours are in the late morning. " +
+                            "Pickups hit their daily minimum between 9–11 AM for you. " +
+                            "Block that window for deep work — your Focus Score of {focus_score} will benefit most from protecting it."
+                )
+            )
+        ),
+
+        // ── 18. FEATURE_EXPLANATION [NEW v1.2.1] ──────────────────────────
+        "FEATURE_EXPLANATION" to mapOf(
+            TemplateVariant.ENCOURAGING to listOf(
+                InsightText(
+                    title = "✦ How Aurelo works",
+                    body  = "Aurelo Score (0–100) combines three pillars: Screen (40%) + Focus (35%) + Sleep (25%). " +
+                            "Excellent = 85+, Good = 70+, Fair = 55+. " +
+                            "Screen Score: goal adherence (50%), pickup count (30%), first-use time (20%). " +
+                            "Focus Score: sessions completed, app timers, mindful pauses. " +
+                            "Sleep Score (Pro): bedtime adherence minus snoozes and blocked-app attempts. " +
+                            "Streak: consecutive days under your daily goal. " +
+                            "Mindful Pause: a 10-second intention check before a chosen app opens. " +
+                            "Ask me about any specific feature for more detail."
+                )
+            ),
+            TemplateVariant.CAUTIONARY to listOf(
+                InsightText(
+                    title = "✦ Aurelo features explained",
+                    body  = "Your Aurelo Score ({aurelo_score}) combines Screen ({screen_score}), Focus ({focus_score}), and Sleep ({sleep_score}). " +
+                            "The fastest way to move your score: " +
+                            "delay morning first-use to 9 AM (+20 Screen pts), " +
+                            "complete one focus session (+Focus), " +
+                            "and keep Bedtime Mode on tonight (+Sleep). " +
+                            "Ask me anything about how a specific part works."
+                )
+            ),
+            TemplateVariant.NEW_USER to listOf(
+                InsightText(
+                    title = "✦ Welcome to Aurelo Coach",
+                    body  = "Aurelo tracks your screen time, pickup count, focus sessions, and bedtime routine — " +
+                            "then combines them into a single Aurelo Score (0–100). " +
+                            "Excellent = 85+. Your goal right now: set a daily screen time goal, try one focus session, " +
+                            "and let Aurelo build a {data_window_days}-day baseline. Ask me anything along the way."
+                )
+            ),
+            TemplateVariant.ESTABLISHED to listOf(
+                InsightText(
+                    title = "✦ Your Aurelo system",
+                    body  = "After {data_window_days} days Aurelo has a complete picture. " +
+                            "Your Aurelo Score ({aurelo_score}) is driven most by your Screen pillar ({screen_score}) right now. " +
+                            "Revenge procrastination = using your phone late at night to reclaim personal time, at the cost of sleep. " +
+                            "HRV = Heart Rate Variability, a Health Connect signal that reflects recovery quality. " +
+                            "Any other concept you'd like explained?"
+                )
+            )
+        ),
+
+        // ── 19. GOAL_SETTING_ADVICE [NEW v1.2.1] ──────────────────────────
+        "GOAL_SETTING_ADVICE" to mapOf(
+            TemplateVariant.ENCOURAGING to listOf(
+                InsightText(
+                    title = "🎯 Your goal looks well-matched",
+                    body  = "Your current goal is {goal_minutes} min/day and your 7-day average is {avg_minutes} min — " +
+                            "that's a healthy margin. Staying 10–20% under goal is the sweet spot: challenging enough to build the habit, " +
+                            "achievable enough to protect the streak. " +
+                            "You can tighten it in Settings → Daily Goal when you're ready for the next level."
+                )
+            ),
+            TemplateVariant.CAUTIONARY to listOf(
+                InsightText(
+                    title = "🎯 Your goal may need adjusting",
+                    body  = "Your 7-day average ({avg_minutes} min) is significantly above your {goal_minutes} min goal — " +
+                            "that gap makes it hard to build a consistent streak. " +
+                            "Consider stepping up to a more achievable goal first, then tightening it over 2–3 weeks. " +
+                            "Change it in Settings → Daily Goal. Small wins compound."
+                ),
+                InsightText(
+                    title = "🎯 Goal gap is wide",
+                    body  = "Your goal ({goal_minutes} min) vs average ({avg_minutes} min) suggests the current target is too aggressive. " +
+                            "A goal you hit 80% of days builds better habits than one you miss 80% of days. " +
+                            "Try raising it 20% and tightening it monthly as your streak grows."
+                )
+            ),
+            TemplateVariant.CELEBRATORY to listOf(
+                InsightText(
+                    title = "🎯 Time to raise the bar",
+                    body  = "You're consistently under your {goal_minutes} min goal — {streak_days}-day streak proves it. " +
+                            "Your 7-day average ({avg_minutes} min) is well below goal. " +
+                            "You're ready to tighten the goal. Drop it by 15–20 min and see if the streak holds. " +
+                            "Settings → Daily Goal."
+                )
+            ),
+            TemplateVariant.NEW_USER to listOf(
+                InsightText(
+                    title = "🎯 Choosing your first goal",
+                    body  = "A good starting goal is your current average minus 10%. " +
+                            "After {data_window_days} days Aurelo has a rough baseline: {avg_minutes} min/day. " +
+                            "Start with {goal_minutes} min and review it in 2 weeks once you've built the habit. " +
+                            "Settings → Daily Goal."
+                )
+            ),
+            TemplateVariant.ESTABLISHED to listOf(
+                InsightText(
+                    title = "🎯 Goal review after {data_window_days} days",
+                    body  = "{data_window_days} days of data shows your average is {avg_minutes} min/day vs your {goal_minutes} min goal. " +
+                            "Recommendation: " +
+                            "if your streak is 7+ days, tighten by 15 min. " +
+                            "If you've broken the streak 3+ times this month, loosen by 15 min. " +
+                            "The goal should feel just slightly out of reach — not impossible."
+                )
+            )
+        ),
+
+        // ── 20. APP_DEEP_DIVE [NEW v1.2.1] ────────────────────────────────
+        "APP_DEEP_DIVE" to mapOf(
+            TemplateVariant.ENCOURAGING to listOf(
+                InsightText(
+                    title = "📱 Your top app: {top_app}",
+                    body  = "{top_app} is your most-used app this period in the {top_category} category. " +
+                            "Total screen time today: {today_minutes} min. " +
+                            "For a full per-app breakdown, go to Wellness → Today → All Apps. " +
+                            "Adding a Mindful Pause or App Timer on {top_app} is the fastest way to directly cut time on it."
+                )
+            ),
+            TemplateVariant.CAUTIONARY to listOf(
+                InsightText(
+                    title = "📱 {top_app} is leading your usage",
+                    body  = "{top_app} ({top_category}) is your most-used app this period — " +
+                            "it's contributing a significant share of your {today_minutes} min total. " +
+                            "An App Timer limits it to a daily cap; a Mindful Pause adds a 10-second intention check before it opens. " +
+                            "Go to Focus → App Timers or Focus → Mindful Pause to set one up."
+                ),
+                InsightText(
+                    title = "📱 Breaking down your {top_category} time",
+                    body  = "Your top category is {top_category}, led by {top_app}. " +
+                            "You've done {pickups_today} pickups today — many of these likely land on {top_app}. " +
+                            "A Mindful Pause on {top_app} adds friction before the auto-open loop kicks in. " +
+                            "Find it in Focus → Mindful Pause."
+                )
+            ),
+            TemplateVariant.CELEBRATORY to listOf(
+                InsightText(
+                    title = "📱 Your app usage is balanced",
+                    body  = "Your top app ({top_app}) is in the {top_category} category, and with only {today_minutes} min today " +
+                            "you're well under goal. Your {streak_days}-day streak shows you've got a healthy relationship with your apps. " +
+                            "Keep an eye on the Wellness → All Apps panel to catch any creeping usage."
+                )
+            ),
+            TemplateVariant.NEW_USER to listOf(
+                InsightText(
+                    title = "📱 Getting to know your apps",
+                    body  = "Aurelo is tracking your app usage — after {data_window_days} more days it'll have a clearer per-app breakdown. " +
+                            "Your top app so far is {top_app}. " +
+                            "Check Wellness → Today → All Apps for the full list."
+                )
+            ),
+            TemplateVariant.ESTABLISHED to listOf(
+                InsightText(
+                    title = "📱 {data_window_days}-day app pattern",
+                    body  = "Over {data_window_days} days {top_app} has consistently led your {top_category} usage. " +
+                            "For the full monthly breakdown — including peak days and morning/afternoon/evening/late-night splits — " +
+                            "check Wellness → Month → App DNA. " +
+                            "Your App DNA share card is also available there."
+                )
+            )
+        ),
+
         // ── 16. GENERAL_SUMMARY ───────────────────────────────────────────
         "GENERAL_SUMMARY" to mapOf(
             TemplateVariant.ENCOURAGING to listOf(
@@ -1513,22 +1722,22 @@ object InsightTemplateLibrary {
 
         val mentionsHrv = text.contains("hrv") || text.contains("heart rate variability") || text.contains("{hrv_")
         val lowHrvClaim = mentionsHrv && (
-            text.contains("low hrv") ||
-            text.contains("hrv low") ||
-            text.contains("below your average") ||
-            text.contains("below average") ||
-            text.contains("below your 7-day average") ||
-            text.contains("suppresses recovery") ||
-            text.contains("confirms the strain") ||
-            text.contains("recovery is needed")
-        )
+                text.contains("low hrv") ||
+                        text.contains("hrv low") ||
+                        text.contains("below your average") ||
+                        text.contains("below average") ||
+                        text.contains("below your 7-day average") ||
+                        text.contains("suppresses recovery") ||
+                        text.contains("confirms the strain") ||
+                        text.contains("recovery is needed")
+                )
         val normalHrvClaim = mentionsHrv && (
-            text.contains("near your") ||
-            text.contains("within your") ||
-            text.contains("all within") ||
-            text.contains("strong hrv") ||
-            text.contains("everything aligned")
-        )
+                text.contains("near your") ||
+                        text.contains("within your") ||
+                        text.contains("all within") ||
+                        text.contains("strong hrv") ||
+                        text.contains("everything aligned")
+                )
         if (lowHrvClaim) out += TemplateCondition.HRV_LOW
         if (normalHrvClaim) out += TemplateCondition.HRV_NORMAL
 
@@ -1548,12 +1757,28 @@ object InsightTemplateLibrary {
      * Infer the best TemplateVariant given the current UsageSummary.
      * Callers may override this and pass a variant directly to [select].
      */
-    fun inferVariant(summary: UsageSummary): TemplateVariant = when {
-        summary.dataWindowDays < 7                                    -> TemplateVariant.NEW_USER
-        summary.dataWindowDays >= 30                                  -> TemplateVariant.ESTABLISHED
-        summary.streakDays in listOf(7, 14, 21, 30)                  -> TemplateVariant.CELEBRATORY
-        summary.todayMinutes < summary.dailyGoalMinutes               -> TemplateVariant.ENCOURAGING
-        else                                                           -> TemplateVariant.CAUTIONARY
+    fun inferVariant(summary: UsageSummary): TemplateVariant {
+        // FIX: if streak > 7, the user is established regardless of dataWindowDays
+        // (covers reinstalls, data migrations — avoids patronising "first week" copy)
+        val effectivelyEstablished = summary.dataWindowDays >= 30 || summary.streakDays > 7
+
+        return when {
+            summary.dataWindowDays < 3                                    -> TemplateVariant.NEW_USER
+            effectivelyEstablished && summary.dataWindowDays >= 30        -> TemplateVariant.ESTABLISHED
+            summary.streakDays in listOf(7, 14, 21, 30)                  -> TemplateVariant.CELEBRATORY
+            // FIX: worsening 3-day trend overrides ENCOURAGING even if today is under goal
+            summary.todayMinutes < summary.dailyGoalMinutes &&
+                    !isWorseningTrend(summary)                            -> TemplateVariant.ENCOURAGING
+            summary.dataWindowDays < 7                                    -> TemplateVariant.NEW_USER
+            else                                                           -> TemplateVariant.CAUTIONARY
+        }
+    }
+
+    /** Returns true if the last 3 days of screen time are trending upward. */
+    private fun isWorseningTrend(summary: UsageSummary): Boolean {
+        val days = summary.screenTime7Day.filter { it.minutes > 0 }.takeLast(3)
+        if (days.size < 3) return false
+        return days[2].minutes > days[1].minutes && days[1].minutes > days[0].minutes
     }
 
     /**
