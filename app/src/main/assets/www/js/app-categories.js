@@ -188,8 +188,10 @@ function dropAppOnCat(cat, event){
 }
 
 function renderCategoryList(){
+  const el = document.getElementById('cat-list-view');
+  if (!el) return;
   const cats = getEffectiveCatOrder();
-  document.getElementById('cat-list-view').innerHTML = cats.map(cat => {
+  el.innerHTML = cats.map(cat => {
     const apps = CATS_MAP[cat], ico = CAT_ICONS[cat] || '📱';
     return `<div class="cat-list-row" onclick="openCatPopup('${cat}')">
       <div style="font-size:22px;flex-shrink:0">${ico}</div>

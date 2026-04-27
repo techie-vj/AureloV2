@@ -908,7 +908,7 @@ function _showBodyScoreSheet() {
       <div id="body-score-sheet"
            style="width:100%;max-width:480px;background:var(--s0);border-radius:24px 24px 0 0;
                   border:1px solid var(--border2);border-bottom:none;
-                  padding:12px 20px max(44px,calc(env(safe-area-inset-bottom,0px)+24px));
+                  padding:12px 20px 44px;
                   box-sizing:border-box;transform:translate3d(0,100%,0);will-change:transform;
                   transition:transform .3s cubic-bezier(.32,.72,0,1);max-height:88vh;overflow-y:auto">
         <div style="width:40px;height:4px;background:var(--border2);border-radius:2px;margin:0 auto 18px"></div>

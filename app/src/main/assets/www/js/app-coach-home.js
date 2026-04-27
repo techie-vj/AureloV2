@@ -116,7 +116,7 @@
     };
 
     card.style.display = '';
-    if (coachCard && coachCard.style.display !== 'none') {
+    if (card && card.style.display !== 'none') {
         _ensureSectionLabel(
           'coach-home-insight',
           'home-coach-sec-label',
