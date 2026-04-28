@@ -121,8 +121,8 @@ class AureloWidgetProvider : AppWidgetProvider() {
             }
             val launchIntent = context.packageManager.getLaunchIntentForPackage(pkg) ?: return
             val widgetApps = runCatching {
-                buildWidgetAppPackages(context, widgetId).take(5)
-            }.getOrElse { emptyList() }
+                resolveApps(context, currentTimeSlot()).take(5)
+            }.getOrElse { emptyList<String>() }
             if (widgetApps.isNotEmpty() && pkg !in widgetApps) return
             // Haptic feedback — short click-style vibration on app slot tap
             runCatching {
@@ -200,7 +200,7 @@ class AureloWidgetProvider : AppWidgetProvider() {
         // even when the app is fully in the background.
         executor.execute {
             runCatching {
-                if (RefreshCoordinator.tryBegin(context, "widget_alarm", minIntervalMs = 2 * 60_000L)) {
+                if (RefreshCoordinator.shouldRefreshWidgetCaches(context)) {
                     AureloWidgetUpdateWorker.refreshCachesStatic(context)
                 }
             }

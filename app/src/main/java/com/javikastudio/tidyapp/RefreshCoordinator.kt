@@ -17,6 +17,19 @@ object RefreshCoordinator {
     fun shouldRefreshUsage(now: Long = System.currentTimeMillis()): Boolean =
         shouldRun(lastUsageRefreshMs, now, MIN_USAGE_REFRESH_MS)
 
+    fun tryBeginRefresh(name: String, minIntervalMs: Long, now: Long = System.currentTimeMillis()): Boolean =
+        shouldRun(lastUsageRefreshMs, now, minIntervalMs)
+
+    fun tryBegin(context: Context, name: String, minIntervalMs: Long, now: Long = System.currentTimeMillis()): Boolean {
+        val prefs = context.getSharedPreferences(PREFS_FILE, Context.MODE_PRIVATE)
+        val key = "refresh_${name}_ts"
+        val persistedLast = prefs.getLong(key, 0L)
+        if (now - persistedLast < minIntervalMs) return false
+        if (!shouldRun(lastWidgetCacheRefreshMs, now, minIntervalMs)) return false
+        prefs.edit().putLong(key, now).apply()
+        return true
+    }
+
     fun shouldRefreshWidgetCaches(context: Context, now: Long = System.currentTimeMillis()): Boolean {
         val prefs = context.getSharedPreferences(PREFS_FILE, Context.MODE_PRIVATE)
         val persistedLast = prefs.getLong("widget_cache_refresh_ts", 0L)

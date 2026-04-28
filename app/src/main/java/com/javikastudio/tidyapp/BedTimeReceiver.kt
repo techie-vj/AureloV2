@@ -336,7 +336,7 @@ class BedtimeReceiver : BroadcastReceiver() {
         )
 
         val am = ctx.getSystemService(Context.ALARM_SERVICE) as android.app.AlarmManager
-        if (!ExactAlarmHelper.scheduleExact(ctx, am, cal.timeInMillis, pi, "bedtime-reschedule")) {
+        if (!BedtimePrefs.setExactSafely(ctx, am, android.app.AlarmManager.RTC_WAKEUP, cal.timeInMillis, pi)) {
             android.util.Log.w("BedtimeReceiver", "Skipping bedtime reschedule; exact alarms unavailable")
         }
     }
