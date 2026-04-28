@@ -162,21 +162,60 @@ class HealthConnectRepository(private val manager: HealthConnectManager) {
             val sessions = client.readRecords(
                 ReadRecordsRequest(SleepSessionRecord::class, timeRangeFilter = sleepWindow)
             ).records
-            val latest = sessions.maxByOrNull { it.endTime } ?: return@runCatching Pair(null, null)
-            val durationHours = Duration.between(latest.startTime, latest.endTime).toMinutes() / 60f
-            val clamped = durationHours.coerceIn(0f, 24f)
+            val latest = sessions.maxByOrNull { it.endTime }
 
-            // Overnight HRV: average HRV during the sleep session window
-            val sleepHrvRecords = client.readRecords(
-                ReadRecordsRequest(
-                    HeartRateVariabilityRmssdRecord::class,
-                    timeRangeFilter = TimeRangeFilter.between(latest.startTime, latest.endTime),
-                )
-            ).records
-            val avgOvernight = if (sleepHrvRecords.isEmpty()) null
-            else sleepHrvRecords.map { it.heartRateVariabilityMillis.toFloat().coerceIn(5f, 200f) }
-                .average().toFloat()
-            Pair(clamped, avgOvernight)
+            if (latest != null) {
+                // Primary path: sleep session exists — read duration and HRV from within it
+                val durationHours = Duration.between(latest.startTime, latest.endTime).toMinutes() / 60f
+                val clamped = durationHours.coerceIn(0f, 24f)
+                val sleepHrvRecords = client.readRecords(
+                    ReadRecordsRequest(
+                        HeartRateVariabilityRmssdRecord::class,
+                        timeRangeFilter = TimeRangeFilter.between(latest.startTime, latest.endTime),
+                    )
+                ).records
+                val avgOvernight = if (sleepHrvRecords.isEmpty()) null
+                else sleepHrvRecords
+                    .map { it.heartRateVariabilityMillis.toFloat().coerceIn(5f, 200f) }
+                    .average().toFloat()
+                Pair(clamped, avgOvernight)
+            } else {
+                // Fallback path: no sleep session record exists.
+                // Read standalone HRV records within the overnight window (9pm–9am).
+                // Covers wearables that log HRV continuously without a SleepSessionRecord
+                // e.g. a manual 3am HRV entry added directly in Health Connect.
+                val cal = java.util.Calendar.getInstance()
+                val currentHour = cal.get(java.util.Calendar.HOUR_OF_DAY)
+
+                // Only attempt if we're past wake-up time (before noon) so "last night"
+                // is well-defined. Before 9am or after noon we skip to avoid ambiguity.
+                if (currentHour !in 6..11) return@runCatching Pair(null, null)
+
+                val overnightEnd   = now
+                val overnightStart = run {
+                    val c = java.util.Calendar.getInstance()
+                    c.add(java.util.Calendar.DAY_OF_YEAR, -1)
+                    c.set(java.util.Calendar.HOUR_OF_DAY, 21)
+                    c.set(java.util.Calendar.MINUTE, 0)
+                    c.set(java.util.Calendar.SECOND, 0)
+                    c.set(java.util.Calendar.MILLISECOND, 0)
+                    c.toInstant()
+                }
+
+                val standaloneHrv = client.readRecords(
+                    ReadRecordsRequest(
+                        HeartRateVariabilityRmssdRecord::class,
+                        timeRangeFilter = TimeRangeFilter.between(overnightStart, overnightEnd),
+                    )
+                ).records
+                    .map { it.heartRateVariabilityMillis.toFloat().coerceIn(5f, 200f) }
+
+                // No sleep duration available without a session — duration stays null.
+                // overnightHrvMs populated from standalone records if any exist.
+                val avgOvernight = if (standaloneHrv.isEmpty()) null
+                else standaloneHrv.average().toFloat()
+                Pair(null, avgOvernight)
+            }
         }.getOrElse { Pair(null, null) }
 
         // ── 7-day average sleep duration ──────────────────────────────────
@@ -194,14 +233,37 @@ class HealthConnectRepository(private val manager: HealthConnectManager) {
             val sessions = client.readRecords(
                 ReadRecordsRequest(SleepSessionRecord::class, timeRangeFilter = weekRange)
             ).records
-            val allOvernightHrv = sessions.flatMap { session ->
+
+            val allOvernightHrv = if (sessions.isNotEmpty()) {
+                // Primary: HRV within sleep sessions
+                sessions.flatMap { session ->
+                    client.readRecords(
+                        ReadRecordsRequest(
+                            HeartRateVariabilityRmssdRecord::class,
+                            timeRangeFilter = TimeRangeFilter.between(session.startTime, session.endTime),
+                        )
+                    ).records.map { it.heartRateVariabilityMillis.toFloat().coerceIn(5f, 200f) }
+                }
+            } else {
+                // Fallback: no sleep sessions in the week — use all HRV records that
+                // fall within overnight hours (9pm–9am) across the past 7 days.
+                // Ensures avgOvernightHrv7d is populated for standalone-HRV users so
+                // the overnight HRV sub-score has a personal baseline to compare against.
                 client.readRecords(
                     ReadRecordsRequest(
                         HeartRateVariabilityRmssdRecord::class,
-                        timeRangeFilter = TimeRangeFilter.between(session.startTime, session.endTime),
+                        timeRangeFilter = weekRange,
                     )
-                ).records.map { it.heartRateVariabilityMillis.toFloat().coerceIn(5f, 200f) }
+                ).records
+                    .filter { record ->
+                        val hour = record.time
+                            .atZone(ZoneId.systemDefault())
+                            .hour
+                        hour >= 21 || hour < 9   // overnight hours only
+                    }
+                    .map { it.heartRateVariabilityMillis.toFloat().coerceIn(5f, 200f) }
             }
+
             if (allOvernightHrv.isEmpty()) null else allOvernightHrv.average().toFloat()
         }.getOrElse { null }
 

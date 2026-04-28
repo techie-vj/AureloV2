@@ -939,118 +939,223 @@ window.FocusScore = (function () {
     var cfg = typeof FocusBedtime !== 'undefined' ? FocusBedtime.getCfg() : {};
     var bedtimeEnabled = !!(cfg.enabled || (S.settings && S.settings.bedtime));
 
-    // F-22: pre-wake-time state — show informative sheet instead of toast
-    if (res.score < 0 && res.preWakeReason) {
-      var preWakeHtml = _buildScoreSheet({title:'Sleep Score', score:-1, scoreKey:_SLEEP_SCORE_KEY, components:[], improvements:[]});
-      preWakeHtml = preWakeHtml.replace('HOW THIS IS CALCULATED',
-        '<div style="font-family:var(--ff-m);font-size:var(--text-sm);color:var(--t3);padding:10px 2px;text-align:center">'
-        + '🌙 '+res.preWakeReason+'<br><span style="font-size:var(--text-2xs)">Your Sleep Score will be ready after you wake up.</span>'
-        + '</div>HOW THIS IS CALCULATED');
-      _openScoreSheet(preWakeHtml); return;
+    if (res.score < 0 && !bedtimeEnabled) {
+      toast('Enable Bedtime Mode to start tracking your sleep score', 'info');
+      return;
     }
-
-    if (res.score < 0 && !bedtimeEnabled) { toast('Enable Bedtime Mode to start tracking your sleep score','info'); return; }
     if (res.score < 0 && bedtimeEnabled) {
       var noDataComponents = [
-        {label:'Bedtime Adherence',weight:50,pts:0,maxPts:50,dataLine:'No bedtime session recorded yet'},
-        {label:'Snooze Count',weight:30,pts:0,maxPts:30,dataLine:'No data'},
-        {label:'App Attempts Blocked',weight:20,pts:0,maxPts:20,dataLine:'No data'},
+        {label:'Bedtime Adherence',       weight:50, pts:0, maxPts:50, dataLine:'No bedtime session recorded yet'},
+        {label:'Snooze Count',            weight:30, pts:0, maxPts:30, dataLine:'No data'},
+        {label:'App Attempts Blocked',    weight:20, pts:0, maxPts:20, dataLine:'No data'},
       ];
       _openScoreSheet(_buildScoreSheet({title:'Sleep Score',score:-1,scoreKey:_SLEEP_SCORE_KEY,components:noDataComponents,improvements:[]}));
       return;
     }
 
-    var ln = res.lastNight, improvements = [];
+    var ln = res.lastNight;
+    var improvements = [];
     if (res.adherePts === 0) improvements.push({text:'Respect your bedtime window tonight — no manual disable', impact:50});
-    if (res.snoozePts < 30) improvements.push({text:'Avoid snoozing — each snooze costs 10–20 pts (graduated)', impact:30-res.snoozePts});
-    if (res.attemptPts < 20) improvements.push({text:'Keep your blocked apps closed during the bedtime window', impact:20-res.attemptPts});
+    if (res.snoozePts < 30)  improvements.push({text:'Avoid snoozing — 0 snoozes earns 30 pts, 2+ earns 0', impact:30 - res.snoozePts});
+    if (res.attemptPts < 20) improvements.push({text:'Keep blocked apps closed during the bedtime window', impact:20 - res.attemptPts});
 
-    // F-04 / F-08: null-safe HC blend + Aurelo window proxy
+    // ── HC sleep data ───────────────────────────────────────────────────────────
+    // F-14: pass bedtime window so Kotlin filters HC sessions to those overlapping
+    // the configured window (prevents afternoon naps inflating the duration score).
+    var hcActive = !!(typeof HealthConnect !== 'undefined' &&
+                      HealthConnect.isConnected && HealthConnect.isConnected());
     var hcSleep = null;
-    if (typeof HealthConnect !== 'undefined' && HealthConnect.isConnected && HealthConnect.isConnected() && typeof HealthConnect.getSleepData === 'function') {
-      try { hcSleep = HealthConnect.getSleepData(); } catch(_) {}
+    if (hcActive && typeof HealthConnect.getSleepData === 'function') {
+      try {
+        var _bHp = cfg.bedHour  != null ? cfg.bedHour  + (cfg.bedMinute  || 0) / 60 : null;
+        var _wHp = cfg.wakeHour != null ? cfg.wakeHour + (cfg.wakeMinute || 0) / 60 : null;
+        hcSleep = (_bHp != null && _wHp != null && HealthConnect.getSleepData.length >= 2)
+          ? HealthConnect.getSleepData(_bHp, _wHp)
+          : HealthConnect.getSleepData();
+      } catch (_) {}
     }
 
-    // F-08: Aurelo window proxy
+    // ── Aurelo bedtime window proxy (F-08) ─────────────────────────────────────
+    // Always compute the window duration — do NOT gate on bedtimeKept here.
+    // bedtimeKept is applied in the tier selection below, not to block computation.
+    // This was the root cause of Bug 3: cfg.bedHour was valid but the old code
+    // also required ln.bedtimeKept before even computing aureloWindowHours, so
+    // when the HC path ran first and bedtimeKept was false, window was never set
+    // and Tier 3 fired with "no bedtime target" even when bedtime mode was active.
     var aureloWindowHours = null;
-    if (ln && ln.bedtimeKept && cfg.bedHour != null && cfg.wakeHour != null) {
-      var bedH_s  = cfg.bedHour  + (cfg.bedMinute  || 0)/60;
-      var wakeH_s = cfg.wakeHour + (cfg.wakeMinute || 0)/60;
-      var windowH = wakeH_s > bedH_s ? wakeH_s - bedH_s : (24 - bedH_s) + wakeH_s;
-      if (windowH >= 3 && windowH <= 14) aureloWindowHours = windowH;
+    var aureloWindowKept  = !!(ln && ln.bedtimeKept);
+    if (cfg.bedHour != null && cfg.wakeHour != null) {
+      var _bHw  = cfg.bedHour  + (cfg.bedMinute  || 0) / 60;
+      var _wHw  = cfg.wakeHour + (cfg.wakeMinute || 0) / 60;
+      var _winH = _wHw > _bHw ? _wHw - _bHw : (24 - _bHw) + _wHw;
+      if (_winH >= 3 && _winH <= 14) aureloWindowHours = _winH;
     }
 
-    // Choose best duration source
-    var durScore = null, durLabel = 'No data', durHoursLabel = null;
-    if (hcSleep && hcSleep.durScore != null && aureloWindowHours != null) {
-      // Tier 1: HC + bedtime kept
-      durScore = hcSleep.durScore;
-      var durH = hcSleep.sleepDuration != null ? Math.floor(hcSleep.sleepDuration) : null;
-      var durM = hcSleep.sleepDuration != null ? Math.round((hcSleep.sleepDuration%1)*60) : null;
-      durLabel = durH != null ? durH+'h'+(durM>0?' '+durM+'m':'')+' · from Health Connect' : 'HC data';
-    } else if (aureloWindowHours != null) {
-      // Tier 2: Aurelo window proxy
-      durScore = _sleepDurationScore(aureloWindowHours);
-      var wHr = Math.floor(aureloWindowHours), wMin = Math.round((aureloWindowHours%1)*60);
-      durLabel = wHr+'h'+(wMin>0?' '+wMin+'m':'')+' · from bedtime window ('+wHr+'h target)';
+    // ── Duration source: three-tier priority hierarchy (F-08) ──────────────────
+    // durSource:     'hc-verified' | 'aurelo-window' | 'hc-only' | null
+    // hcContributed: true ONLY when HC actually supplied a value.
+    //                Controls the badge — Tier 2 Aurelo-window gets NO badge.
+    var durScore = null, durLabel = 'No data', durSource = null, hcContributed = false;
+
+    if (hcSleep && hcSleep.durScore != null && aureloWindowHours != null && aureloWindowKept) {
+      // Tier 1: HC session overlapping bedtime window AND bedtime was kept.
+      // HC provides precise measurement; window provides the target label.
+      durScore = hcSleep.durScore;  durSource = 'hc-verified';  hcContributed = true;
+      var _dH = hcSleep.sleepDuration != null ? Math.floor(hcSleep.sleepDuration) : null;
+      var _dM = hcSleep.sleepDuration != null ? Math.round((hcSleep.sleepDuration % 1) * 60) : null;
+      durLabel = (_dH != null ? _dH + 'h' + (_dM > 0 ? ' ' + _dM + 'm' : '') : 'HC data')
+               + ' from Health Connect (target ' + Math.floor(aureloWindowHours) + 'h)';
+
+    } else if (aureloWindowHours != null && aureloWindowKept) {
+      // Tier 2: Bedtime kept but NO matching HC sleep session.
+      // Use the configured window as a duration proxy.
+      // hcContributed stays false — HC played no role — no badge shown.
+      durScore = _sleepDurationScore(aureloWindowHours);  durSource = 'aurelo-window';
+      var _wHr  = Math.floor(aureloWindowHours);
+      var _wMin = Math.round((aureloWindowHours % 1) * 60);
+      durLabel  = _wHr + 'h' + (_wMin > 0 ? ' ' + _wMin + 'm' : '')
+                + ' from your bedtime window';
+
     } else if (hcSleep && hcSleep.durScore != null) {
-      // Tier 3: HC only
-      durScore = hcSleep.durScore;
-      var dh = hcSleep.sleepDuration != null ? Math.floor(hcSleep.sleepDuration) : null;
-      var dm = hcSleep.sleepDuration != null ? Math.round((hcSleep.sleepDuration%1)*60) : null;
-      durLabel = dh != null ? dh+'h'+(dm>0?' '+dm+'m':'')+' · from Health Connect (no bedtime target)' : 'HC data';
+      // Tier 3: HC session exists but bedtime not kept or not configured.
+      durScore = hcSleep.durScore;  durSource = 'hc-only';  hcContributed = true;
+      var _dH3 = hcSleep.sleepDuration != null ? Math.floor(hcSleep.sleepDuration) : null;
+      var _dM3 = hcSleep.sleepDuration != null ? Math.round((hcSleep.sleepDuration % 1) * 60) : null;
+      var _note = !aureloWindowKept ? ' (bedtime not kept)' : ' (bedtime mode off)';
+      durLabel  = (_dH3 != null ? _dH3 + 'h' + (_dM3 > 0 ? ' ' + _dM3 + 'm' : '') : 'HC data')
+                + ' from Health Connect' + _note;
     }
 
-    var oHrvScore  = (hcSleep && hcSleep.oHrvScore != null) ? hcSleep.oHrvScore : null;
-    var oHrvLabel  = oHrvScore != null
-      ? (hcSleep.overnightHrv!=null?hcSleep.overnightHrv+'ms':'')+' overnight · avg '+(hcSleep.avgOHrv!=null?hcSleep.avgOHrv+'ms':'–')
-      : 'No overnight HRV data';
+    // Overnight HRV always comes from HC
+    var oHrvScore = (hcSleep && hcSleep.oHrvScore != null) ? hcSleep.oHrvScore : null;
+    if (oHrvScore != null) hcContributed = true;
+    var oHrvLabel = oHrvScore != null
+      ? (hcSleep.overnightHrv != null ? hcSleep.overnightHrv + 'ms overnight' : 'HC data')
+        + ' · avg ' + (hcSleep.avgOHrv != null ? hcSleep.avgOHrv + 'ms' : '–')
+      : 'Not available · no wearable HRV data';
 
-    // F-04: null-safe renormalized blend
-    var _totalW   = 0.60, _weighted = res.score * 0.60;
-    if (durScore  != null) { _weighted += durScore  * 0.25; _totalW += 0.25; }
-    if (oHrvScore != null) { _weighted += oHrvScore * 0.15; _totalW += 0.15; }
-    var effectiveScore = Math.min(100, Math.max(0, Math.round(_weighted / _totalW)));
+    // ── F-04: renormalized blend ────────────────────────────────────────────────
+    // Accumulate totalNomW ONLY for signals that have data.
+    // Max achievable score always stays 100 regardless of which signals are present.
+    // Old formula substituted 0 for null — silently capped users at ~85% with no HRV.
+    var _totalNomW = 0.60;
+    if (durScore  != null) _totalNomW += 0.25;
+    if (oHrvScore != null) _totalNomW += 0.15;
 
-    var durSource = null; // 'hc' | 'aurelo-window' | null
-    var hcEnhanced = false; // true only when HC actually provided data
+    var _wgtSum = res.score * 0.60;
+    if (durScore  != null) _wgtSum += durScore  * 0.25;
+    if (oHrvScore != null) _wgtSum += oHrvScore * 0.15;
+    var effectiveScore = Math.min(100, Math.max(0, Math.round(_wgtSum / _totalNomW)));
 
-    if (hcSleep && hcSleep.durScore != null && aureloWindowHours != null) {
-      durScore = hcSleep.durScore;
-      durSource = 'hc';            // Tier 1: HC wins, HC contributed
-      hcEnhanced = true;
-    } else if (aureloWindowHours != null) {
-      durScore = _sleepDurationScore(aureloWindowHours);
-      durSource = 'aurelo-window'; // Tier 2: Aurelo only, HC contributed nothing
-    } else if (hcSleep && hcSleep.durScore != null) {
-      durScore = hcSleep.durScore;
-      durSource = 'hc';            // Tier 3: HC only, HC contributed
-      hcEnhanced = true;
-    }
+    // ── Bug 1 fix: renormalized display weights ─────────────────────────────────
+    // Sheet shows the ACTUAL weight each row carries after renormalization,
+    // not the nominal design weight. Example with no HRV (totalNomW = 0.85):
+    //   Bedtime = round(60/85*100) = 71%
+    //   Duration = round(25/85*100) = 29%
+    //   HRV = 0% (excluded)
+    // This makes "+70 pts · weighted 71%" consistent. Old "+70 pts · weighted 60%" was not.
+    var _effW_bed = Math.round((0.60 / _totalNomW) * 100);
+    var _effW_dur = durScore  != null ? Math.round((0.25 / _totalNomW) * 100) : 0;
+    var _effW_hrv = oHrvScore != null ? Math.round((0.15 / _totalNomW) * 100) : 0;
 
-    if (oHrvScore != null) hcEnhanced = true; // HRV always comes from HC
+    // Points each component contributes toward effectiveScore
+    var _pts_bed = Math.round(res.score * (0.60 / _totalNomW));
+    var _pts_dur = durScore  != null ? Math.round(durScore  * (0.25 / _totalNomW)) : 0;
+    var _pts_hrv = oHrvScore != null ? Math.round(oHrvScore * (0.15 / _totalNomW)) : 0;
+
+    // ── Component rows ──────────────────────────────────────────────────────────
     var components;
-    if (hcEnhanced) {
+    if (hcActive) {
+      // HC connected: three-row layout with renormalized effective weights.
+      // Bug 2 fix: excluded rows show weight=0 and a clear "not included" note
+      // so users understand why the bar is empty, not just confused by "+0 pts".
+      var _durDataLine = durScore != null
+        ? durLabel + ' · goal: 7–9 hours'
+        : aureloWindowHours != null && !aureloWindowKept
+          ? 'Bedtime not kept last night · not scored [not included]'
+          : 'No wearable data · keep bedtime for window estimate [not included]';
+
+      var _hrvDataLine = oHrvScore != null
+        ? oHrvLabel
+        : oHrvLabel + ' [not included]';
+
       components = [
-        {label:'Bedtime Mode',     weight:60, pts:Math.round(res.score*0.60/_totalW*100)/100|0, maxPts:60,
-          dataLine: ln&&ln.hasData ? (ln.bedtimeKept?'Bedtime kept ✓':'Bedtime missed') : 'No data'},
-        {label:'Sleep Duration',   weight:25, pts: durScore != null ? Math.round(durScore*0.25/_totalW*100)/100|0 : 0, maxPts:25, dataLine: durLabel+' · goal: 7–9 hours'},
-        {label:'Overnight HRV',    weight:15, pts: oHrvScore != null ? Math.round(oHrvScore*0.15/_totalW*100)/100|0 : 0, maxPts:15, dataLine: oHrvLabel},
+        {
+          label:   'Bedtime Mode',
+          weight:  _effW_bed,
+          pts:     _pts_bed,
+          maxPts:  _effW_bed,
+          dataLine: ln && ln.hasData
+            ? (ln.bedtimeKept ? 'Bedtime kept ✓' : 'Bedtime missed')
+            : 'No data',
+        },
+        {
+          label:   'Sleep Duration',
+          weight:  _effW_dur,
+          pts:     _pts_dur,
+          maxPts:  Math.max(_effW_dur, 1),
+          dataLine: _durDataLine,
+        },
+        {
+          label:   'Overnight HRV',
+          weight:  _effW_hrv,
+          pts:     _pts_hrv,
+          maxPts:  Math.max(_effW_hrv, 1),
+          dataLine: _hrvDataLine,
+        },
       ];
     } else {
+      // No HC — base bedtime formula (adherence + snooze + attempts)
       components = [
-        {label:'Bedtime Adherence',weight:50,pts:res.adherePts,maxPts:50,dataLine:ln&&ln.hasData?(ln.bedtimeKept?'Bedtime window respected last night':'Bedtime window was not respected'):'No data yet'},
-        {label:'Snooze Count',     weight:30,pts:res.snoozePts,maxPts:30,dataLine:ln&&ln.hasData?(ln.snoozeCount+' snooze'+(ln.snoozeCount!==1?'s':'')+' last night'):'No data'},
-        {label:'App Attempts Blocked',     weight:20,pts:res.attemptPts,maxPts:20,dataLine:ln&&ln.hasData?((ln.appAttemptsTotal||0)+' blocked app attempt'+((ln.appAttemptsTotal||0)!==1?'s':'')+' last night'):'No data'},
+        {label:'Bedtime Adherence',    weight:50, pts:res.adherePts, maxPts:50,
+          dataLine: ln && ln.hasData
+            ? (ln.bedtimeKept ? 'Bedtime window respected last night' : 'Bedtime window was not respected')
+            : 'No data yet'},
+        {label:'Snooze Count',         weight:30, pts:res.snoozePts, maxPts:30,
+          dataLine: ln && ln.hasData
+            ? (ln.snoozeCount + ' snooze' + (ln.snoozeCount !== 1 ? 's' : '') + ' last night')
+            : 'No data'},
+        {label:'App Attempts Blocked', weight:20, pts:res.attemptPts, maxPts:20,
+          dataLine: ln && ln.hasData
+            ? ((ln.appAttemptsTotal || 0) + ' blocked app attempt'
+               + ((ln.appAttemptsTotal || 0) !== 1 ? 's' : '') + ' last night')
+            : 'No data'},
       ];
     }
 
-    var sheetHtml = _buildScoreSheet({title:'Sleep Score', score:effectiveScore, scoreKey:_SLEEP_SCORE_KEY, components, improvements:improvements.slice(0,3)});
+    var sheetHtml = _buildScoreSheet({
+      title:'Sleep Score', score:effectiveScore, scoreKey:_SLEEP_SCORE_KEY,
+      components:components, improvements:improvements.slice(0,3),
+    });
 
-    if (hcEnhanced) {
-      var hcBadge = '<span style="font-size:var(--text-2xs);color:var(--hc);background:var(--hc-dim);border:1px solid var(--hc-border);border-radius:5px;padding:1px 6px;font-weight:700;letter-spacing:.3px;margin-left:8px;vertical-align:middle">HC Enhanced</span>';
-      sheetHtml = sheetHtml.replace('Sleep Score</div>', 'Sleep Score'+hcBadge+'</div>');
+    // ── Bug 3 fix: three-state badge ────────────────────────────────────────────
+    // "HC Enhanced"  HC contributed duration AND/OR HRV actual data
+    // "HC · HRV"     HC contributed only overnight HRV (no matching sleep session)
+    // No badge       Tier 2 Aurelo-window only — HC connected but contributed nothing
+    var hcBadgeText = null;
+    if (hcContributed) {
+      hcBadgeText = (oHrvScore != null && durSource !== 'hc-verified' && durSource !== 'hc-only')
+        ? 'HC · HRV'
+        : 'HC Enhanced';
     }
+    if (hcBadgeText) {
+      var hcBadge = '<span style="font-size:var(--text-2xs);color:var(--hc);background:var(--hc-dim);'
+        + 'border:1px solid var(--hc-border);border-radius:5px;padding:1px 6px;font-weight:700;'
+        + 'letter-spacing:.3px;margin-left:8px;vertical-align:middle">' + hcBadgeText + '</span>';
+      sheetHtml = sheetHtml.replace('Sleep Score</div>', 'Sleep Score' + hcBadge + '</div>');
+    }
+
+    // Nudge non-HC users to connect
+    if (!hcActive) {
+      var nudge = '<div style="background:var(--s2);border:1px solid var(--border2);border-radius:12px;'
+        + 'padding:10px 13px;font-family:var(--ff-m);font-size:var(--text-xs);color:var(--t3);'
+        + 'line-height:1.5;margin-bottom:16px">'
+        + 'Connect Health Connect to add Sleep Duration and Overnight HRV '
+        + 'to your Sleep Score for a richer picture of last night.'
+        + '</div>';
+      sheetHtml = sheetHtml.replace('HOW THIS IS CALCULATED', nudge + 'HOW THIS IS CALCULATED');
+    }
+
     _openScoreSheet(sheetHtml);
   }
 
