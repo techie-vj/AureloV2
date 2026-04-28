@@ -263,7 +263,7 @@ window.FocusMindful = (function () {
               appResists + ' resist' + (appResists !== 1 ? 's' : '') + '</span>';
           }
         } else if (enabled) {
-          statStr = '<span style="color:var(--g);font-size:9px">●</span> monitoring';
+          statStr = '<span style="color:var(--g);font-size:var(--text-2xs)">●</span> monitoring';
         }
 
         return '<div style="display:flex;align-items:center;gap:10px;padding:9px 0;' +

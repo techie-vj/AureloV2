@@ -89,7 +89,7 @@ function renderDonutChart(){
     <div style="display:flex;align-items:center;gap:5px;white-space:nowrap;overflow:hidden">
       <div style="width:8px;height:8px;border-radius:2px;flex-shrink:0;background:${li.color}"></div>
       <span style="font-size:12px;color:var(--t2);overflow:hidden;text-overflow:ellipsis;max-width:80px">${li.name}</span>
-      <span style="font-family:var(--ff-m);font-size:11px;color:var(--t3);flex-shrink:0">${fmtM(li.mins)}</span>
+      <span style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);flex-shrink:0">${fmtM(li.mins)}</span>
     </div>`).join('');
 
   wrap.innerHTML=`
@@ -207,18 +207,30 @@ function calculateScreenScore() {
   }
 
   // ── Component 2: Pickup frequency (30%) ─────────────────────────
+  // F-20: new-user guard — avgPickups=0 with real pickups should not silently score 100.
+  // If we have no history yet, treat today as the baseline (scores 100 day 1, tracks from day 2).
+  var effectiveAvg = avgPickups;
+  if (avgPickups <= 0 && todayPickups > 0) effectiveAvg = todayPickups;
+
+  // F-21: steeper decay — 1.3× average now noticeably dents score (was 1.5×).
   var pickupScore;
-  if (avgPickups <= 0 || todayPickups <= avgPickups) {
+  if (effectiveAvg <= 0 || todayPickups <= effectiveAvg) {
     pickupScore = 100;
-  } else if (todayPickups <= avgPickups * 1.5) {
-    pickupScore = Math.max(0, Math.round(100 - ((todayPickups - avgPickups) / (avgPickups * 0.5)) * 50));
+  } else if (todayPickups <= effectiveAvg * 1.3) {
+    // 1.0–1.3×: linear 100→60
+    pickupScore = Math.max(60, Math.round(100 - ((todayPickups - effectiveAvg) / (effectiveAvg * 0.3)) * 40));
+  } else if (todayPickups <= effectiveAvg * 2.0) {
+    // 1.3–2.0×: linear 60→0
+    pickupScore = Math.max(0, Math.round(60 - ((todayPickups - effectiveAvg * 1.3) / (effectiveAvg * 0.7)) * 60));
   } else {
-    var excess = todayPickups - avgPickups * 1.5;
-    var range  = Math.max(1, avgPickups * 1.5);
-    pickupScore = Math.max(0, Math.round(50 - (excess / range) * 50));
+    pickupScore = 0;
   }
 
   // ── Component 3: First use of day (20%) ─────────────────────────
+  // F-13: Fully graduated first-use scoring (midnight=0 → 9am=100).
+  // Old: midnight/3am/6am all returned 25 — no differentiation before 7am.
+  // F-27: Weekend-aware — Sat/Sun full-score threshold relaxed to 9:30am.
+  var isWeekend = [0, 6].indexOf(new Date().getDay()) !== -1;
   var firstUseScore = 100; // default: no pickup yet = day not started
   var firstUseHour  = -1;
   if (firstUseStr && firstUseStr !== '–' && firstUseStr !== '--') {
@@ -233,10 +245,14 @@ function calculateScreenScore() {
       }
     } catch(_) {}
     if (firstUseHour >= 0) {
-      firstUseScore = firstUseHour >= 9 ? 100
-                    : firstUseHour >= 8 ? 75
-                    : firstUseHour >= 7 ? 50
-                    : 25;
+      var fullScoreH = isWeekend ? 9.5 : 9.0; // F-27: weekend relaxed threshold
+      if      (firstUseHour >= fullScoreH) firstUseScore = 100;
+      else if (firstUseHour >= 8)          firstUseScore = Math.round(75 + ((firstUseHour - 8) / (fullScoreH - 8)) * 25);
+      else if (firstUseHour >= 7)          firstUseScore = 50;
+      else if (firstUseHour >= 6)          firstUseScore = 30;
+      else if (firstUseHour >= 5)          firstUseScore = 20;
+      else if (firstUseHour >= 3)          firstUseScore = 10;
+      else                                 firstUseScore = 0;
     }
   }
 
@@ -248,13 +264,44 @@ function calculateScreenScore() {
            firstUseStr: firstUseStr || null };
 }
 
+
+
+/**
+ * Shared Screen Score view-model.
+ * Keeps compact rows, Aurelo composite, and the detail sheet on the same
+ * Health Connect-adjusted number.
+ */
+function _getScreenScoreWithHealthConnect() {
+  var res = calculateScreenScore();
+  var hcConnected = typeof HealthConnect !== 'undefined' && HealthConnect.isConnected();
+  var hcMod = { modifier: 0, label: null };
+  if (hcConnected && typeof HealthConnect.getActivityModifier === 'function') {
+    try { hcMod = HealthConnect.getActivityModifier() || hcMod; } catch (_) {}
+  }
+  var effectiveScore = Math.min(100, Math.max(0, res.score + (hcMod.modifier || 0)));
+  return { res: res, hcConnected: hcConnected, hcMod: hcMod, effectiveScore: effectiveScore };
+}
+
+function _readHealthConnectScreenData() {
+  var raw = {};
+  try {
+    var str = (window.AppBridge && typeof window.AppBridge.getHCData === 'function')
+      ? window.AppBridge.getHCData()
+      : null;
+    if (str) raw = JSON.parse(str) || {};
+  } catch (_) {}
+  return raw;
+}
+
+window.calculateScreenScoreWithHealthConnect = _getScreenScoreWithHealthConnect;
+
 /** Grade label + colour for a screen score value. */
 function _screenScoreGrade(score) {
-  if (score >= 90) return { label: 'Excellent', color: '#6ec97a' };
-  if (score >= 75) return { label: 'Good',      color: '#05c8e8' };
-  if (score >= 60) return { label: 'Fair',       color: '#f7c948' };
-  if (score >= 40) return { label: 'Low',        color: '#ffaa50' };
-  return                  { label: 'Poor',       color: '#ff6a6a' };
+  // F-18: unified grade labels across all score surfaces
+  if (score >= 85) return { label: 'Excellent', color: 'var(--g)'  };
+  if (score >= 70) return { label: 'Good',      color: 'var(--c)'  };
+  if (score >= 55) return { label: 'Fair',       color: 'var(--a)'  };
+  return                  { label: 'Start',     color: 'var(--r)'  };
 }
 
 /**
@@ -264,8 +311,12 @@ function _screenScoreGrade(score) {
  * openFocusScoreSheet() and openHabitsScoreSheet().
  */
 function renderScreenScoreSheet() {
-  var res = calculateScreenScore();
-  _saveScoreForToday(_SCREEN_SCORE_KEY, res.score);
+  var screenVm = _getScreenScoreWithHealthConnect();
+  var res = screenVm.res;
+  var hcMod = screenVm.hcMod;
+  var hcConnected = screenVm.hcConnected;
+  var effectiveScore = screenVm.effectiveScore;
+  _saveScoreForToday(_SCREEN_SCORE_KEY, effectiveScore);
 
   var fmtGoal    = fmtM(res.goalMins);
   var fmtToday   = fmtM(res.todayMins);
@@ -334,13 +385,69 @@ function renderScreenScoreSheet() {
 
   // BUG-06 fix: _openScoreSheet and _buildScoreSheet are private to the FocusScore
   // IIFE. Call them through the public API instead of as bare globals.
-  FocusScore.openScoreSheet(FocusScore.buildScoreSheet({
+  var sheetHtml = FocusScore.buildScoreSheet({
     title:        'Screen score',
-    score:        res.score,
+    score:        effectiveScore,
     scoreKey:     _SCREEN_SCORE_KEY,
     components:   components,
     improvements: improvements,
-  }));
+  });
+
+  if (hcConnected) {
+    var hcTitleBadge =
+      '<span style="font-size:var(--text-2xs);color:var(--hc);background:var(--hc-dim);' +
+      'border:1px solid var(--hc-border);border-radius:5px;padding:1px 6px;' +
+      'font-weight:700;letter-spacing:.3px;margin-left:8px;vertical-align:middle">HC</span>';
+    sheetHtml = sheetHtml.replace('Screen score</div>', 'Screen score' + hcTitleBadge + '</div>');
+
+    var hcRaw = _readHealthConnectScreenData();
+    var hasSteps = hcRaw && hcRaw.steps != null && hcRaw.steps >= 0;
+    var hcScreenRows = hasSteps
+      ? '<div style="display:flex;align-items:center;gap:10px;padding:8px 0">' +
+          '<div style="flex:1">' +
+            '<div style="font-size:var(--text-sm);font-weight:600;color:var(--t1)">Daily Steps</div>' +
+            '<div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3)">' +
+              Number(hcRaw.steps).toLocaleString() + ' steps from Health Connect' +
+            '</div>' +
+          '</div>' +
+          '<div style="font-family:var(--ff-m);font-size:var(--text-xs);font-weight:700;color:' +
+            ((hcMod.modifier || 0) >= 0 ? 'var(--g)' : 'var(--r)') + '">' +
+            ((hcMod.modifier || 0) > 0 ? '+' : '') + (hcMod.modifier || 0) + ' pts' +
+          '</div>' +
+        '</div>'
+      : '<div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);padding:10px 2px">No Health Connect screen-time activity data recorded today.</div>';
+    var hcScreenSection =
+      '<div style="margin-bottom:16px">' +
+        '<div style="display:flex;align-items:center;gap:7px;margin-bottom:10px">' +
+          '<span style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);letter-spacing:.8px">HEALTH CONNECT · ACTIVITY</span>' +
+          '<span style="font-size:var(--text-2xs);color:var(--hc);background:var(--hc-dim);border:1px solid var(--hc-border);border-radius:5px;padding:1px 5px;font-weight:600;letter-spacing:.3px">HC</span>' +
+        '</div>' +
+        '<div style="background:var(--s2);border:1px solid var(--border2);border-radius:14px;padding:4px 14px;margin-bottom:8px">' +
+          hcScreenRows +
+        '</div>' +
+      '</div>';
+    sheetHtml = sheetHtml.replace('HOW THIS IS CALCULATED', hcScreenSection + 'HOW THIS IS CALCULATED');
+  }
+
+  // ── Inject HC modifier banner into sheet HTML if applicable ──────
+  if (hcConnected && hcMod.label) {
+    var bannerColor = hcMod.modifier > 0 ? 'var(--g)' : 'var(--r)';
+    var bannerBg    = hcMod.modifier > 0 ? 'rgba(18,212,138,.07)' : 'rgba(240,78,122,.07)';
+    var bannerBorder= hcMod.modifier > 0 ? 'rgba(18,212,138,.25)' : 'rgba(240,78,122,.25)';
+    var hcBanner =
+      '<div style="background:' + bannerBg + ';border:1px solid ' + bannerBorder + ';' +
+      'border-radius:12px;padding:10px 13px;margin-bottom:14px;display:flex;align-items:center;gap:8px">' +
+      '<span style="font-size:var(--text-2xs);color:var(--hc);background:var(--hc-dim);border:1px solid var(--hc-border);' +
+      'border-radius:5px;padding:1px 6px;font-weight:700;letter-spacing:.3px;flex-shrink:0">HC</span>' +
+      '<span style="font-family:var(--ff-m);font-size:var(--text-xs);color:' + bannerColor + ';font-weight:600">' +
+      hcMod.label + '</span>' +
+      '<span style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);margin-left:auto">Includes Health Connect step data</span>' +
+      '</div>';
+    // Inject just before the HOW THIS IS CALCULATED label
+    sheetHtml = sheetHtml.replace('HOW THIS IS CALCULATED', hcBanner + 'HOW THIS IS CALCULATED');
+  }
+
+  FocusScore.openScoreSheet(sheetHtml);
 }
 
 /**
@@ -351,32 +458,54 @@ function renderScreenScoreSheet() {
 function renderStatsScreenScoreRow() {
   var el = document.getElementById('stats-screen-score-row');
   if (!el) return;
-  var res   = calculateScreenScore();
-  _saveScoreForToday(_SCREEN_SCORE_KEY, res.score);
-  var grade = _screenScoreGrade(res.score);
+  var screenVm = _getScreenScoreWithHealthConnect();
+  var res = screenVm.res;
+  var hcMod = screenVm.hcMod;
+  var hcConnected = screenVm.hcConnected;
+  var displayScore = screenVm.effectiveScore;
+  // F-10: removed duplicate _saveScoreForToday call here.
+  // renderScreenScoreSheet() already saves on every full sheet open.
+  // Saving here too causes a race when both paths fire in the same session.
+
+  var grade = _screenScoreGrade(displayScore);
 
   var yScore   = _getYesterdayScore(_SCREEN_SCORE_KEY);
   var deltaHtml = '';
   if (yScore !== null) {
-    var diff = res.score - yScore;
+    var diff = displayScore - yScore;
     if (diff !== 0) {
       var dCol  = diff > 0 ? '#6ec97a' : '#ff6a6a';
       var dSign = diff > 0 ? '↑' : '↓';
-      deltaHtml = '<div style="font-size:10px;color:' + dCol + ';flex-shrink:0">'
+      deltaHtml = '<div style="font-size:var(--text-2xs);color:' + dCol + ';flex-shrink:0">'
                 + dSign + Math.abs(diff) + '</div>';
     }
   }
+
+  var hcChipHtml = hcConnected
+    ? '<div style="display:flex;align-items:center;gap:4px;flex-shrink:0">'
+        + '<span style="font-size:var(--text-2xs);color:var(--hc);background:var(--hc-dim);'
+        + 'border:1px solid var(--hc-border);border-radius:4px;padding:1px 5px;'
+        + 'font-weight:700;letter-spacing:.3px;font-family:var(--ff-m)">HC</span>'
+        + ((hcMod.modifier || 0) !== 0
+          ? '<span style="font-family:var(--ff-m);font-size:var(--text-2xs);font-weight:600;color:'
+            + (hcMod.modifier > 0 ? 'var(--g)' : 'var(--r)') + '">'
+            + (hcMod.modifier > 0 ? '+' : '') + hcMod.modifier
+            + '</span>'
+          : '')
+      + '</div>'
+    : '';
 
   el.innerHTML =
     '<div onclick="renderScreenScoreSheet()"'
     + ' style="background:var(--s2);border:0.5px solid var(--border2);border-radius:14px;'
     + 'padding:10px 14px;display:flex;align-items:center;gap:10px;cursor:pointer">'
-    + '<div style="font-size:11px;color:var(--t3);flex-shrink:0">SCREEN SCORE</div>'
-    + '<div style="font-size:16px;font-weight:600;color:var(--p2);flex-shrink:0">' + res.score + '</div>'
+    + '<div style="font-size:var(--text-2xs);color:var(--t3);flex-shrink:0">SCREEN SCORE</div>'
+    + '<div style="font-size:16px;font-weight:600;color:var(--p2);flex-shrink:0">' + displayScore + '</div>'
     + '<div style="flex:1;height:3px;background:var(--border2);border-radius:99px;overflow:hidden">'
-    + '<div style="height:100%;width:' + res.score + '%;background:linear-gradient(90deg,var(--p),var(--c));border-radius:99px"></div>'
+    + '<div style="height:100%;width:' + displayScore + '%;background:linear-gradient(90deg,var(--p),var(--c));border-radius:99px"></div>'
     + '</div>'
-    + '<div style="font-size:11px;font-weight:500;color:' + grade.color + ';flex-shrink:0">' + grade.label + '</div>'
+    + hcChipHtml
+    + '<div style="font-size:var(--text-2xs);font-weight:500;color:' + grade.color + ';flex-shrink:0">' + grade.label + '</div>'
     + deltaHtml
     + '</div>';
 }
@@ -456,8 +585,11 @@ function renderWellness(){
   const adSlot = document.getElementById('wellness-ad-slot');
   if(adSlot) adSlot.style.display = 'none';
 
-  // Smart tips
+  // Smart tips (rule-based, shown to free users; hidden for Pro by renderTodayCoachInsight)
   renderSmartTips();
+
+  // Coach insight card (Pro only) — replaces smart-tips section
+  if (typeof renderTodayCoachInsight === 'function') renderTodayCoachInsight();
 }
 
 // ── Native Recommendations — Persona-driven + Country-aware ─────────────────
@@ -739,9 +871,9 @@ function _renderWellnessFallback(){
       <div style="width:44px;height:44px;border-radius:12px;overflow:hidden;background:var(--s2);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:22px">${appIco(rec.pkg,44,11)}</div>
       <div style="font-size:14px;font-weight:700;line-height:1.25;color:var(--t1)">${titleText}</div>
     </div>
-    <div style="font-family:var(--ff-m);font-size:11px;color:var(--t2);line-height:1.55;margin-bottom:12px">${bodyText}</div>
-    <button style="display:inline-flex;align-items:center;gap:5px;padding:9px 18px;border-radius:999px;background:var(--t1);border:none;font-family:var(--ff-m);font-size:11px;font-weight:700;color:var(--bg);cursor:pointer">${rec.cta} →</button>
-    <div style="position:absolute;bottom:10px;right:12px;font-family:var(--ff-m);font-size:9px;color:var(--t3);letter-spacing:.5px">Based on your usage</div>
+    <div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t2);line-height:1.55;margin-bottom:12px">${bodyText}</div>
+    <button style="display:inline-flex;align-items:center;gap:5px;padding:9px 18px;border-radius:999px;background:var(--t1);border:none;font-family:var(--ff-m);font-size:var(--text-2xs);font-weight:700;color:var(--bg);cursor:pointer">${rec.cta} →</button>
+    <div style="position:absolute;bottom:10px;right:12px;font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);letter-spacing:.5px">Based on your usage</div>
   </div>`;
   slot.style.display = '';
 }
@@ -805,7 +937,7 @@ function renderWeeklyBars(container){
     const borderTop = isToday ? `border-top:2px solid ${col}` : '';
     // Time label: inside bar if bar >= 28px, rotated text
     const timeEl = labelH ? (barH >= 28
-      ? `<span style="font-family:var(--ff-m);font-size:8px;font-weight:700;color:#fff;opacity:.95;writing-mode:horizontal-tb;line-height:1;padding:0 1px;white-space:nowrap;text-shadow:0 1px 2px rgba(0,0,0,.4)">${labelH}</span>`
+      ? `<span style="font-family:var(--ff-m);font-size:var(--text-2xs);font-weight:700;color:#fff;opacity:.95;writing-mode:horizontal-tb;line-height:1;padding:0 1px;white-space:nowrap;text-shadow:0 1px 2px rgba(0,0,0,.4)">${labelH}</span>`
       : '') : '';
     return `<div style="flex:1;display:flex;flex-direction:column;align-items:center">
       <div style="height:${BAR_H}px;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;width:100%">
@@ -813,7 +945,7 @@ function renderWeeklyBars(container){
           ${timeEl}
         </div>
       </div>
-      <div style="font-family:var(--ff-m);font-size:9px;color:${isToday?col:'var(--t3)'};font-weight:${isToday?700:400};margin-top:4px;text-align:center">${d.day.slice?d.day.slice(0,3):d.day}</div>
+      <div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:${isToday?col:'var(--t3)'};font-weight:${isToday?700:400};margin-top:4px;text-align:center">${d.day.slice?d.day.slice(0,3):d.day}</div>
     </div>`;
   }).join('');
 
@@ -846,7 +978,7 @@ function renderHourlyBars(container){
 
   container.innerHTML=`
     <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:10px">
-      ${[['#6C63FF','12am–5am'],['#F7A623','6am–11am'],['#5DD6F8','12pm–4pm'],['#12D48A','5pm–8pm'],['#A89CFF','9pm+']].map(([c,l])=>`<div style="display:flex;align-items:center;gap:4px;font-family:var(--ff-m);font-size:9px;color:var(--t3)"><div style="width:8px;height:8px;border-radius:2px;background:${c}"></div>${l}</div>`).join('')}
+      ${[['#6C63FF','12am–5am'],['#F7A623','6am–11am'],['#5DD6F8','12pm–4pm'],['#12D48A','5pm–8pm'],['#A89CFF','9pm+']].map(([c,l])=>`<div style="display:flex;align-items:center;gap:4px;font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3)"><div style="width:8px;height:8px;border-radius:2px;background:${c}"></div>${l}</div>`).join('')}
     </div>
     <div class="hour-chart"><div class="hc-bars">${active.map(d=>{
       const barH=Math.max(d.minutes>0?3:1,Math.round((d.minutes/max)*68));
@@ -855,13 +987,13 @@ function renderHourlyBars(container){
       return `<div class="hc-bar-wrap" title="${d.minutes>0?d.minutes+'m at '+hrStr(d.hour):'No usage at '+hrStr(d.hour)}">
         <div class="hc-bar-area">
           <div class="hc-bar" style="height:${barH}px;background:${d.minutes>0?barColor(d.hour):'rgba(255,255,255,.05)'}">
-            ${isPeak?`<div style="position:absolute;bottom:calc(100%+2px);left:50%;transform:translateX(-50%);background:var(--p);color:#fff;font-family:var(--ff-m);font-size:8px;padding:2px 5px;border-radius:4px;white-space:nowrap;z-index:5">${d.minutes}m ▲</div>`:''}
+            ${isPeak?`<div style="position:absolute;bottom:calc(100%+2px);left:50%;transform:translateX(-50%);background:var(--p);color:#fff;font-family:var(--ff-m);font-size:var(--text-2xs);padding:2px 5px;border-radius:4px;white-space:nowrap;z-index:5">${d.minutes}m ▲</div>`:''}
           </div>
         </div>
-        <div class="hc-lbl" style="${lbl?'color:var(--t2);font-weight:600;font-size:9px':'opacity:.25'}">${lbl||'·'}</div>
+        <div class="hc-lbl" style="${lbl?'color:var(--t2);font-weight:600;font-size:var(--text-2xs)':'opacity:.25'}">${lbl||'·'}</div>
       </div>`;
     }).join('')}</div></div>
-    <div style="font-family:var(--ff-m);font-size:10px;color:var(--t3);margin-top:6px;text-align:center">
+    <div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);margin-top:6px;text-align:center">
       ${peakEntry.minutes>0?`📍 Peak usage at <strong style="color:var(--t2)">${hrStr(peakEntry.hour)}</strong> — ${fmtM(peakEntry.minutes)}`:'No usage recorded yet today'}
     </div>`;
 }
@@ -898,7 +1030,7 @@ function renderTopApps(){
   if(!DAILY_USE.length){
     // Distinguish: permission missing vs permission granted but no data yet
     const hasPermission = IS_NATIVE && N.hasUsagePermission && N.hasUsagePermission();
-    list.innerHTML=`<div style="padding:20px;font-family:var(--ff-m);font-size:11px;color:var(--t3);text-align:center">${
+    list.innerHTML=`<div style="padding:20px;font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);text-align:center">${
       hasPermission
         ? '📭 No app usage recorded yet today'
         : 'Grant Usage Access to see real screen time.'
@@ -1113,22 +1245,22 @@ function renderAllAppsPanel(){
     const hasLim  = !!limits[a.packageName];
     const suffix  = isMonth ? (hasMonthData ? ' /mo' : ' ~est') : isWeek ? ' /wk' : '';
     const timeLabel = mins>0
-      ? `${fmtM(mins)}<span style="font-size:9px;opacity:.6">${suffix}</span> · ${pct}%`
+      ? `${fmtM(mins)}<span style="font-size:var(--text-2xs);opacity:.6">${suffix}</span> · ${pct}%`
       : `<span style="color:var(--t3)">–</span>`;
     return `<div style="display:flex;align-items:center;gap:12px;padding:11px 16px;border-bottom:1px solid var(--border)">
       <div style="width:38px;height:38px;border-radius:11px;overflow:hidden;background:var(--s2);display:flex;align-items:center;justify-content:center;font-size:19px;flex-shrink:0">${appIco(a.packageName,38,11)}</div>
       <div style="flex:1;min-width:0">
         <div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${a.name}</div>
         <div style="margin-top:2px">${cat
-          ?`<span style="font-family:var(--ff-m);font-size:9px;background:var(--s2);border:1px solid var(--border2);border-radius:5px;padding:1px 5px;color:var(--t3)">${CAT_ICONS[cat]||''} ${cat}</span>`
-          :`<span style="font-family:var(--ff-m);font-size:9px;color:var(--t3);opacity:.45">Uncategorised</span>`}
+          ?`<span style="font-family:var(--ff-m);font-size:var(--text-2xs);background:var(--s2);border:1px solid var(--border2);border-radius:5px;padding:1px 5px;color:var(--t3)">${CAT_ICONS[cat]||''} ${cat}</span>`
+          :`<span style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);opacity:.45">Uncategorised</span>`}
         </div>
         ${mins>0?`<div style="margin-top:5px;height:3px;background:var(--s2);border-radius:2px;overflow:hidden"><div style="height:100%;width:${barPct}%;background:${barCol};border-radius:2px"></div></div>`:''}
       </div>
       <div style="text-align:right;flex-shrink:0;min-width:62px">
-        <div style="font-family:var(--ff-m);font-size:11px;color:var(--t2)">${timeLabel}</div>
+        <div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t2)">${timeLabel}</div>
         <button type="button" onclick="openTimerForApp('${a.packageName}','${a.name.replace(/'/g,"\\'")}',${a.todayMins})"
-          style="margin-top:4px;padding:3px 8px;border-radius:7px;border:1px solid ${hasLim?'rgba(247,166,35,.3)':'var(--border2)'};background:${hasLim?'rgba(247,166,35,.1)':'var(--s2)'};font-family:var(--ff-m);font-size:9px;color:${hasLim?'var(--a)':'var(--t3)'};cursor:pointer">
+          style="margin-top:4px;padding:3px 8px;border-radius:7px;border:1px solid ${hasLim?'rgba(247,166,35,.3)':'var(--border2)'};background:${hasLim?'rgba(247,166,35,.1)':'var(--s2)'};font-family:var(--ff-m);font-size:var(--text-2xs);color:${hasLim?'var(--a)':'var(--t3)'};cursor:pointer">
           ${hasLim?fmtM(limits[a.packageName])+'✓':'Limit'}
         </button>
       </div>

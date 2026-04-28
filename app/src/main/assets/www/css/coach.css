@@ -1,0 +1,883 @@
+/* ═══════════════════════════════════════════════════════════════
+   coach.css  —  Aurelo Coach Phase 1 Styles
+   Integrates with tokens.css design system.
+   Load AFTER panels.css in index.html.
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── FAB ──────────────────────────────────────────────────────── */
+#coach-fab {
+  position: fixed;
+  bottom: 96px;
+  right: 16px;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--p) 0%, #4C1D95 100%);
+  box-shadow: 0 8px 24px rgba(108,99,255,0.45), 0 2px 6px rgba(0,0,0,0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 50;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  transition: box-shadow 0.2s, transform 0.15s;
+}
+#coach-fab:active { transform: scale(0.94); }
+#coach-fab.hidden { opacity: 0; pointer-events: none; transition: opacity 0.2s; }
+
+#coach-fab-ring {
+  position: absolute;
+  inset: -6px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(108,99,255,0.35);
+  animation: coachFabPulse 2.8s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes coachFabPulse {
+  0%, 100% { transform: scale(1); opacity: 0.7; }
+  50%       { transform: scale(1.2); opacity: 0; }
+}
+
+/* ── Coach Modal Overlay ──────────────────────────────────────── */
+#coach-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.72);
+  z-index: 65;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.22s ease, visibility 0.22s ease;
+}
+#coach-modal.open {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+
+/* ── Coach Bottom Sheet ───────────────────────────────────────── */
+#coach-sheet {
+  width: 100%;
+  max-width: 480px;
+  background: var(--s0);
+  border-radius: 24px 24px 0 0;
+  border-top: 1px solid var(--border2);
+  max-height: 88vh;
+  display: flex;
+  flex-direction: column;
+  animation: coachSlideUp 0.3s cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+@keyframes coachSlideUp {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+
+/* ── Handle ───────────────────────────────────────────────────── */
+.coach-handle {
+  width: 40px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--border2);
+  margin: 12px auto 0;
+  flex-shrink: 0;
+}
+
+/* ── Sheet Header — matches .coach-shdr in modals.html ───────── */
+.coach-shdr {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 13px 16px 12px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+/* matches .coach-title-wrap */
+.coach-title-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.coach-title {
+  font-family: var(--ff-d);
+  font-size: var(--text-xl);
+  font-weight: var(--fw-regular);
+  color: var(--t1);
+}
+
+.coach-beta-badge {
+  display: inline-flex;
+  align-items: center;
+  height: 18px;
+  padding: 0 7px;
+  border-radius: 999px;
+  background: rgba(108, 99, 255, 0.14);
+  border: 1px solid rgba(108, 99, 255, 0.28);
+  color: var(--p);
+  font-family: var(--ff-m);
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  letter-spacing: 0.9px;
+  line-height: 1;
+}
+
+/* matches .coach-phase-row */
+.coach-phase-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.coach-phase-badge {
+  font-size: var(--text-2xs);
+  color: var(--g);
+  background: rgba(18,212,138,0.1);
+  border: 1px solid rgba(18,212,138,0.25);
+  border-radius: var(--rad-xs);
+  padding: 2px 6px;
+  font-weight: var(--fw-semibold);
+  letter-spacing: 0.3px;
+}
+
+/* matches .coach-priv */
+.coach-priv {
+  font-size: var(--text-2xs);
+  color: var(--t3);
+}
+
+/* matches .coach-hdr-btns */
+.coach-hdr-btns {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.coach-what-btn {
+  background: var(--s1);
+  border: 1px solid var(--border);
+  border-radius: var(--rad-sm);
+  padding: 5px 9px;
+  font-size: var(--text-2xs);
+  color: var(--t2);
+  cursor: pointer;
+  font-family: var(--ff-b);
+  white-space: nowrap;
+  transition: border-color 0.15s, color 0.15s;
+}
+.coach-what-btn:hover { border-color: var(--p2); color: var(--p2); }
+
+/* matches .coach-close (used in modals.html) */
+.coach-close {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--s1);
+  border: none;
+  color: var(--t3);
+  font-size: var(--text-sm);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s, color 0.15s;
+}
+.coach-close:hover { background: var(--s2); color: var(--t1); }
+
+/* also keep .coach-close-btn alias for transparency sheet */
+.coach-close-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--s1);
+  border: none;
+  color: var(--t3);
+  font-size: var(--text-sm);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s, color 0.15s;
+}
+.coach-close-btn:hover { background: var(--s2); color: var(--t1); }
+
+/* ── Intro framing text ───────────────────────────────────────── */
+.coach-intro {
+  padding: 10px 16px 8px;
+  font-size: var(--text-sm);
+  color: var(--t3);
+  line-height: 1.55;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+/* ── Scrollable chat area ─────────────────────────────────────── */
+.coach-chat {
+  flex: 1;
+  overflow-y: auto;
+  scrollbar-width: none;
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+  min-height: 60px;
+}
+.coach-chat::-webkit-scrollbar { display: none; }
+
+/* ── Chips section wrapper ────────────────────────────────────── */
+#coach-chips-section {
+  flex-shrink: 0;
+}
+
+/* matches .section-lbl used in modals.html */
+.section-lbl {
+  font-size: var(--text-2xs);
+  color: var(--t3);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 10px 16px 6px;
+}
+
+.coach-chips {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 0 16px 8px;
+}
+
+.coach-chip {
+  background: var(--s1);
+  border: 1px solid var(--border2);
+  border-radius: var(--rad-md);
+  padding: 10px 14px;
+  font-size: var(--text-sm);
+  color: var(--t1);
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: border-color 0.15s, background 0.15s;
+  text-align: left;
+  font-family: var(--ff-b);
+  width: 100%;
+}
+.coach-chip:active { background: var(--s2); border-color: var(--p); }
+
+.coach-chip-arr {
+  color: var(--t3);
+  font-size: var(--text-md);
+  margin-left: 8px;
+  flex-shrink: 0;
+}
+
+/* ── Category tabs — matches .cat-tabs-wrap / .cat-tab ───────── */
+.cat-tabs-wrap {
+  display: flex;
+  gap: 4px;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.cat-tab {
+  flex: 1;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  padding: 8px 4px 9px;
+  font-size: var(--text-2xs);
+  color: var(--t3);
+  cursor: pointer;
+  font-family: var(--ff-b);
+  font-weight: var(--fw-medium);
+  transition: color 0.15s, border-color 0.15s;
+  white-space: nowrap;
+  text-align: center;
+  margin-bottom: -1px;
+}
+.cat-tab.active { color: var(--p2); border-bottom-color: var(--p2); }
+
+/* matches .cat-questions used in modals.html */
+.cat-questions {
+  display: flex;
+  flex-direction: column;
+  padding: 4px 16px 8px;
+  flex-shrink: 0;
+}
+
+.cat-q {
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  padding: 10px 0;
+  font-size: var(--text-sm);
+  color: var(--t2);
+  cursor: pointer;
+  text-align: left;
+  font-family: var(--ff-b);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: color 0.15s;
+  width: 100%;
+}
+.cat-q:last-child { border-bottom: none; }
+.cat-q:active { color: var(--t1); }
+.cat-q::before {
+  content: '';
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--border2);
+  flex-shrink: 0;
+}
+
+/* ── Privacy footer ───────────────────────────────────────────── */
+.coach-privacy-footer {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 16px 4px;
+  font-size: var(--text-2xs);
+  color: var(--t3);
+  flex-shrink: 0;
+}
+
+/* ── Input bar ────────────────────────────────────────────────── */
+.coach-input-bar {
+  padding: 8px 16px;
+  padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  border-top: 1px solid var(--border);
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  background: var(--s0);
+  flex-shrink: 0;
+}
+
+.coach-input {
+  flex: 1;
+  background: var(--s1);
+  border: 1px solid var(--border2);
+  border-radius: var(--rad-lg);
+  padding: 10px 14px;
+  font-size: var(--text-sm);
+  color: var(--t1);
+  font-family: var(--ff-b);
+  outline: none;
+  resize: none;
+  line-height: 1.4;
+  transition: border-color 0.15s;
+  height: 42px;
+  max-height: 100px;
+  overflow-y: auto;
+}
+.coach-input::placeholder { color: var(--t3); }
+.coach-input:focus { border-color: var(--p2); }
+
+.coach-send-btn {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: var(--p);
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.15s, transform 0.1s;
+}
+.coach-send-btn:active { transform: scale(0.92); }
+.coach-send-btn:disabled { background: var(--border2); cursor: not-allowed; }
+
+/* ── Chat messages — generated by CoachUI JS ─────────────────── */
+/* User bubble — JS uses .msg-user */
+.msg-user {
+  align-self: flex-end;
+  max-width: 82%;
+  background: linear-gradient(135deg, var(--p) 0%, #4C1D95 100%);
+  border-radius: 16px 16px 4px 16px;
+  padding: 10px 13px;
+  font-size: var(--text-sm);
+  color: #fff;
+  line-height: 1.55;
+  animation: coachMsgIn 0.2s ease both;
+}
+
+/* Coach message wrapper — JS uses .msg-coach */
+.msg-coach {
+  align-self: flex-start;
+  max-width: 92%;
+  position: relative;
+  animation: coachMsgIn 0.25s ease 0.05s both;
+  padding-top: 8px;
+  padding-left: 8px;
+}
+
+/* Avatar — JS uses .msg-coach-avatar */
+.msg-coach-avatar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--p) 0%, #4C1D95 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1;
+  flex-shrink: 0;
+}
+
+/* Bubble — JS uses .msg-coach-bubble */
+.msg-coach-bubble {
+  background: var(--s1);
+  border: 1px solid var(--border2);
+  border-radius: 4px 16px 16px 16px;
+  padding: 11px 13px;
+  font-size: var(--text-sm);
+  color: var(--t1);
+  line-height: 1.65;
+}
+.msg-coach-bubble strong { color: var(--c); font-weight: var(--fw-semibold); }
+
+@keyframes coachMsgIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Follow-up chips — JS uses .msg-followups / .msg-fu-chip */
+.msg-followups {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 9px;
+}
+.msg-fu-chip {
+  background: rgba(108,99,255,0.1);
+  border: 1px solid rgba(108,99,255,0.25);
+  border-radius: 20px;
+  padding: 4px 10px;
+  font-size: var(--text-2xs);
+  color: var(--p2);
+  cursor: pointer;
+  font-family: var(--ff-b);
+  font-weight: var(--fw-medium);
+  transition: background 0.15s;
+  white-space: nowrap;
+}
+.msg-fu-chip:active { background: rgba(108,99,255,0.2); }
+
+/* Typing indicator — JS uses .typing-wrap / .typing-dot */
+.typing-wrap {
+  align-self: flex-start;
+  background: var(--s1);
+  border: 1px solid var(--border2);
+  border-radius: 4px 16px 16px 16px;
+  padding: 11px 16px;
+  display: flex;
+  gap: 5px;
+  align-items: center;
+}
+.typing-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--t3);
+  animation: coachTypingBounce 1.2s ease-in-out infinite;
+}
+.typing-dot:nth-child(2) { animation-delay: 0.2s; }
+.typing-dot:nth-child(3) { animation-delay: 0.4s; }
+@keyframes coachTypingBounce {
+  0%, 60%, 100% { transform: translateY(0); }
+  30%            { transform: translateY(-5px); }
+}
+
+/* ── Transparency overlay ─────────────────────────────────────── */
+#coach-transparency {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.82);
+  z-index: 70;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.2s, visibility 0.2s;
+}
+#coach-transparency.open {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+
+.coach-transparency-sheet {
+  width: 100%;
+  max-width: 480px;
+  background: var(--s0);
+  border-radius: 24px 24px 0 0;
+  border-top: 1px solid var(--border2);
+  padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+  animation: coachSlideUp 0.3s cubic-bezier(0.32, 0.72, 0, 1) both;
+  max-height: 75vh;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+.coach-transparency-sheet::-webkit-scrollbar { display: none; }
+
+.coach-trans-hdr {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 16px 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.coach-trans-title {
+  font-family: var(--ff-d);
+  font-size: var(--text-lg);
+  color: var(--t1);
+}
+
+.coach-data-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 16px;
+  border-bottom: 1px solid var(--border);
+}
+.coach-data-row:last-of-type { border-bottom: none; }
+
+.coach-data-check {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: rgba(18,212,138,0.1);
+  border: 1px solid rgba(18,212,138,0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-size: var(--text-2xs);
+  color: var(--g);
+}
+
+.coach-data-label {
+  font-size: var(--text-sm);
+  color: var(--t1);
+  flex: 1;
+}
+
+.coach-data-meta {
+  font-size: var(--text-2xs);
+  color: var(--t3);
+}
+
+.coach-trans-privacy {
+  margin: 12px 16px 0;
+  background: var(--s1);
+  border-radius: var(--rad-md);
+  padding: 12px 14px;
+  font-size: var(--text-2xs);
+  color: var(--t2);
+  line-height: 1.6;
+  border: 1px solid var(--border);
+}
+
+/* ── Health Connect row styles in transparency sheet ──────────────────── */
+.hc-row .hc-check {
+  background: rgba(108,99,255,0.12) !important;
+  border-color: rgba(108,99,255,0.3) !important;
+  color: var(--p) !important;
+}
+
+.hc-badge-inline {
+  display: inline-block;
+  font-size: var(--text-2xs);
+  font-family: var(--ff-m);
+  font-weight: var(--fw-semibold);
+  letter-spacing: 0.4px;
+  color: var(--p);
+  background: rgba(108,99,255,0.12);
+  border: 1px solid rgba(108,99,255,0.25);
+  border-radius: 4px;
+  padding: 1px 5px;
+  vertical-align: middle;
+  margin-left: 5px;
+}
+
+/* ── Home tab coach insight card ────────────────────────────────────────
+   Uses global Aurelo theme hooks from app.css. No mock font imports or
+   mock-specific palette values here — it follows the active app theme. */
+#coach-home-insight {
+  margin: 0 16px 14px;
+  border-radius: var(--rad-lg);
+  background: var(--aurelo-home-card-bg, var(--s1));
+  border: 1px solid var(--aurelo-home-card-border, var(--border));
+  box-shadow: var(--aurelo-home-card-shadow, none);
+  overflow: hidden;
+  position: relative;
+  cursor: pointer;
+  transition: opacity 0.15s, transform 0.15s, border-color 0.15s;
+  padding: 0;
+}
+#coach-home-insight:active {
+  opacity: 0.9;
+  transform: scale(0.985);
+}
+#coach-home-insight:focus-visible {
+  outline: 2px solid var(--p);
+  outline-offset: 2px;
+}
+#coach-home-insight::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: linear-gradient(180deg, var(--aurelo-home-accent, var(--p)), var(--aurelo-home-accent-2, var(--c)));
+  border-radius: 3px 0 0 3px;
+  pointer-events: none;
+}
+#coach-home-insight::after {
+  content: '';
+  position: absolute;
+  right: -34px;
+  top: -34px;
+  width: 112px;
+  height: 112px;
+  border-radius: 50%;
+  background: var(--s2);
+  opacity: .28;
+  pointer-events: none;
+}
+.coach-home-insight-inner {
+  padding: 14px 15px 14px 18px;
+  position: relative;
+  z-index: 1;
+}
+.coach-home-insight-hdr {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.coach-home-insight-hdr-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.coach-home-insight-icon {
+  width: 26px;
+  height: 26px;
+  border-radius: 10px;
+  background: var(--aurelo-home-chip-bg, var(--s2));
+  border: 1px solid var(--aurelo-home-chip-border, var(--border2));
+  color: var(--aurelo-home-chip-text, var(--p2));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.coach-home-insight-label {
+  font-family: var(--ff-m);
+  font-size: var(--text-2xs);
+  color: var(--p2);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  font-weight: var(--fw-semibold);
+  white-space: nowrap;
+}
+.coach-home-insight-timestamp {
+  font-family: var(--ff-m);
+  font-size: var(--text-2xs);
+  color: var(--aurelo-home-muted, var(--t3));
+  flex-shrink: 0;
+}
+.coach-home-insight-hc-badge {
+  font-family: var(--ff-m);
+  font-size: var(--text-2xs);
+  color: var(--aurelo-home-hc-text, var(--c));
+  background: var(--aurelo-home-hc-bg, var(--s2));
+  border: 1px solid var(--aurelo-home-hc-border, var(--border2));
+  border-radius: var(--rad-xs);
+  padding: 2px 6px;
+  font-weight: var(--fw-semibold);
+  letter-spacing: 0.3px;
+  margin-left: 4px;
+}
+.coach-home-insight-title {
+  font-family: var(--ff-b);
+  font-size: var(--text-xs);
+  font-weight: var(--fw-semibold);
+  color: var(--p2);
+  text-transform: none;
+  letter-spacing: 0;
+  margin-bottom: 5px;
+  line-height: 1.35;
+}
+.coach-home-insight-body {
+  font-family: var(--ff-b);
+  font-size: var(--text-sm);
+  color: var(--t1);
+  line-height: 1.55;
+  margin-bottom: 12px;
+}
+.coach-home-insight-body strong,
+.coach-home-insight-body b {
+  color: var(--g);
+  font-weight: var(--fw-semibold);
+}
+.coach-home-insight-actions {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.coach-home-insight-cta {
+  background: var(--aurelo-home-chip-bg, var(--s2));
+  border: 1px solid var(--aurelo-home-chip-border, var(--border2));
+  border-radius: 999px;
+  padding: 7px 13px;
+  font-family: var(--ff-b);
+  font-size: var(--text-xs);
+  font-weight: var(--fw-semibold);
+  color: var(--aurelo-home-chip-text, var(--p2));
+  cursor: pointer;
+  white-space: nowrap;
+  min-height: 32px;
+  display: inline-flex;
+  align-items: center;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.coach-home-insight-cta:active {
+  background: var(--s1);
+  border-color: var(--p);
+}
+.coach-home-insight-dismiss {
+  background: transparent;
+  border: 1px solid var(--border2);
+  border-radius: 999px;
+  padding: 7px 13px;
+  font-family: var(--ff-b);
+  font-size: var(--text-xs);
+  color: var(--t3);
+  cursor: pointer;
+  white-space: nowrap;
+  min-height: 32px;
+  display: inline-flex;
+  align-items: center;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+.coach-home-insight-dismiss:active {
+  color: var(--t2);
+  border-color: var(--border);
+  background: var(--s1);
+}
+.coach-home-insight-source {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--ff-b);
+  font-size: var(--text-2xs);
+  color: var(--aurelo-home-muted, var(--t3));
+  padding-top: 2px;
+}
+.coach-home-insight-source::before {
+  content: '✓';
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--aurelo-home-hc-bg, var(--s2));
+  border: 1px solid var(--aurelo-home-hc-border, var(--border2));
+  color: var(--g);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--text-2xs);
+  flex-shrink: 0;
+}
+
+
+/* v16: Home card is a compact preview; full text opens in Coach sheet. */
+#coach-home-insight,
+.coach-home-insight-inner{
+  height:auto !important;
+  max-height:none !important;
+}
+.coach-home-insight-title,
+.coach-home-insight-body,
+.coach-home-insight-source{
+  white-space:normal !important;
+  text-overflow:clip !important;
+  -webkit-line-clamp:unset !important;
+  -webkit-box-orient:unset !important;
+  overflow-wrap:break-word;
+}
+
+/* v18: compact Home preview; tap card for full text in Coach sheet */
+#coach-home-insight{
+  margin:0 16px 16px !important;
+  border-color:rgba(108,99,255,.24) !important;
+  box-shadow:0 10px 24px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.035) !important;
+}
+.coach-home-insight-inner{padding:11px 14px 12px 18px !important}
+.coach-home-insight-hdr{margin-bottom:7px !important}
+.coach-home-insight-title{
+  font-family:var(--ff-b) !important;
+  font-size:var(--text-xs) !important;
+  color:var(--p2) !important;
+  text-transform:none !important;
+  letter-spacing:0 !important;
+  margin-bottom:4px !important;
+}
+/* Home card body — 2-line compact teaser */
+#coach-home-insight .coach-home-insight-body{
+  font-family:var(--ff-b) !important;
+  font-size:var(--text-sm) !important;
+  line-height:1.45 !important;
+  margin-bottom:8px !important;
+  display:-webkit-box !important;
+  -webkit-line-clamp:2 !important;
+  -webkit-box-orient:vertical !important;
+  overflow:hidden !important;
+  text-overflow:ellipsis !important;
+  overflow-wrap:break-word !important;
+}
+
+/* Wellness tab cards — full text, no truncation */
+#wt-coach-insight .coach-home-insight-body,
+#ww-insights .coach-home-insight-body,
+#wm-coach-insight .coach-home-insight-body{
+  font-family:var(--ff-b) !important;
+  font-size:var(--text-sm) !important;
+  line-height:1.55 !important;
+  margin-bottom:8px !important;
+  display:block !important;
+  -webkit-line-clamp:unset !important;
+  -webkit-box-orient:unset !important;
+  overflow:visible !important;
+  text-overflow:clip !important;
+  overflow-wrap:break-word !important;
+}
+.coach-home-insight-actions{margin-bottom:0 !important;gap:8px !important}
+.coach-home-insight-cta,.coach-home-insight-dismiss{
+  min-height:30px !important;
+  padding:6px 12px !important;
+  font-family:var(--ff-b) !important;
+}
+.coach-home-insight-source{display:none !important}

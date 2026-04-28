@@ -275,10 +275,10 @@ window.FocusPicker = (function () {
       filterRow.innerHTML =
         '<button id="fp-filter-all" onclick="FocusPicker.setFilter(\'all\')"' +
         ' style="padding:5px 14px;border-radius:99px;border:1px solid var(--p);background:var(--p);' +
-        'color:#fff;font-family:var(--ff-m);font-size:11px;font-weight:700;cursor:pointer">All</button>' +
+        'color:#fff;font-family:var(--ff-m);font-size:var(--text-2xs);font-weight:700;cursor:pointer">All</button>' +
         '<button id="fp-filter-selected" onclick="FocusPicker.setFilter(\'selected\')"' +
         ' style="padding:5px 14px;border-radius:99px;border:1px solid var(--border2);background:transparent;' +
-        'color:var(--t3);font-family:var(--ff-m);font-size:11px;font-weight:700;cursor:pointer">Selected</button>';
+        'color:var(--t3);font-family:var(--ff-m);font-size:var(--text-2xs);font-weight:700;cursor:pointer">Selected</button>';
     }
 
     // Apply initial filter (updates pill styles + potentially filters list)

@@ -225,6 +225,27 @@
       cta: 'Unlock Score Breakdown',
       dismiss: 'Not now',
     },
+    health_connect: {
+      tag: 'Body Pillar · Pro',
+      headline: 'Your Aurelo Score is missing a piece.',
+      body: 'Health Connect adds a fourth pillar — Body — built from your real steps, HRV, and resting heart rate. It\'s the only signal that tells you whether a high screen day is paired with a healthy body or a depleted one.',
+      bullets: [
+        'Body Score from daily steps, HRV, and resting heart rate',
+        'Sleep Score enhanced with overnight HRV from your wearable',
+        'Focus Score boosted by mindfulness sessions from Calm or Headspace',
+      ],
+      dataStat: 'pickups',
+      cta: 'Go Pro · Connect Health Connect',
+      dismiss: 'Not now',
+    },
+    coach_upgrade: {
+      tag: 'Aurelo Coach',
+      headline: 'You\'ve used your 3 free questions today.',
+      body: 'Coach analyses your screen time, pickups, focus sessions, and sleep patterns to give answers specific to your data — not generic tips. Pro removes the daily limit entirely.',
+      dataStat: 'screen_time',
+      cta: 'Unlock Unlimited Coach',
+      dismiss: 'Maybe later',
+    },
     upgrade_pro: {
       tag: 'Aurelo Pro',
       headline: 'Master your time, without limits.',
@@ -280,7 +301,7 @@
       background: rgba(247,201,72,0.12);
       border: 1px solid rgba(247,201,72,0.25);
       color: #f7c948;
-      font-size: 10px; font-weight: 700;
+      font-size: var(--text-2xs); font-weight: 700;
       letter-spacing: 0.08em; font-family: var(--ff-m);
       margin-bottom: 14px;
     }
@@ -322,7 +343,7 @@
       display: inline-flex; align-items: center; justify-content: center;
       width: 18px; height: 18px; border-radius: 50%;
       background: rgba(78,205,196,0.15); color: #4ecdc4;
-      font-size: 10px; font-weight: 700; flex-shrink: 0;
+      font-size: var(--text-2xs); font-weight: 700; flex-shrink: 0;
     }
     /* Footer */
     .pu-footer {
@@ -330,7 +351,7 @@
       display: flex; flex-direction: column; gap: 6px;
     }
     .pu-privacy {
-      font-size: 11.5px; color: var(--t3);
+      font-size: var(--text-2xs); color: var(--t3);
       padding: 9px 14px;
       background: var(--s2);
       border-radius: 8px 8px 0 0;
@@ -338,7 +359,7 @@
       font-family: var(--ff-m);
     }
     .pu-social-proof {
-      font-size: 11.5px; color: var(--t3);
+      font-size: var(--text-2xs); color: var(--t3);
       padding: 9px 14px;
       background: var(--s2);
       border-radius: 0 0 8px 8px;
@@ -401,11 +422,11 @@
       position: absolute; top: -9px; left: 50%; transform: translateX(-50%);
       padding: 2px 8px; border-radius: 40px;
       background: linear-gradient(135deg, var(--p), var(--p2));
-      color: #fff; font-size: 9px; font-weight: 700;
+      color: #fff; font-size: var(--text-2xs); font-weight: 700;
       letter-spacing: 0.06em; white-space: nowrap; font-family: var(--ff-m);
     }
     .pu-plan-name {
-      font-size: 11px; font-weight: 700; color: var(--t2);
+      font-size: var(--text-2xs); font-weight: 700; color: var(--t2);
       text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 6px;
       font-family: var(--ff-m);
     }
@@ -414,9 +435,9 @@
       line-height: 1; letter-spacing: -0.5px; margin-bottom: 2px;
       font-family: var(--ff-d);
     }
-    .pu-plan-per { font-size: 10px; color: var(--t3); line-height: 1.3; font-family: var(--ff-m); }
+    .pu-plan-per { font-size: var(--text-2xs); color: var(--t3); line-height: 1.3; font-family: var(--ff-m); }
     .pu-plan-trial {
-      font-size: 9.5px; color: var(--g); font-weight: 700;
+      font-size: var(--text-2xs); color: var(--g); font-weight: 700;
       margin-top: 5px; font-family: var(--ff-m);
     }
     .pu-plan-selected .pu-plan-name  { color: var(--p2); }
@@ -426,7 +447,7 @@
     /* Subtext line below CTA */
     .pu-cta-sub {
       text-align: center;
-      font-size: 11px; color: var(--t3);
+      font-size: var(--text-2xs); color: var(--t3);
       margin-bottom: 4px; min-height: 16px;
       font-family: var(--ff-m);
     }
@@ -466,8 +487,8 @@
       color: #f7c948; margin-left: 8px; vertical-align: middle;
       animation: pgPillIn 0.35s ease;
     }
-    .pg-pill-star { font-size: 8px; opacity: 0.85; }
-    .pg-pill-text { font-family: var(--ff-m); font-size: 10.5px; font-weight: 700; letter-spacing: 0.08em; }
+    .pg-pill-star { font-size: var(--text-2xs); opacity: 0.85; }
+    .pg-pill-text { font-family: var(--ff-m); font-size: var(--text-2xs); font-weight: 700; letter-spacing: 0.08em; }
     /* pg-pro-badge: used by proBadge() helper */
     .pg-pro-badge {
       display: inline-flex; align-items: center;
@@ -647,13 +668,13 @@
 
       let priceDisplay, perLine;
       if (p.key === 'annual' && pd.perMonth) {
-        priceDisplay = _esc(pd.perMonth) + '<span style="font-size:11px;font-weight:500;color:#5c6070">/mo</span>';
+        priceDisplay = _esc(pd.perMonth) + '<span style="font-size:var(--text-2xs);font-weight:500;color:#5c6070">/mo</span>';
         perLine      = '<div class="pu-plan-per">' + _esc(pd.price) + '/year</div>';
       } else if (p.key === 'lifetime') {
         priceDisplay = _esc(pd.price);
         perLine      = '<div class="pu-plan-per">one-time</div>';
       } else {
-        priceDisplay = _esc(pd.price) + '<span style="font-size:11px;font-weight:500;color:#5c6070">/mo</span>';
+        priceDisplay = _esc(pd.price) + '<span style="font-size:var(--text-2xs);font-weight:500;color:#5c6070">/mo</span>';
         perLine      = '<div class="pu-plan-per">billed monthly</div>';
       }
 

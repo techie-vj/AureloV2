@@ -15,11 +15,11 @@
         @font-face{font-family:'Clash Display';src:url('assets/fonts/ClashDisplay-Medium.woff2') format('woff2');font-weight:500;font-display:swap;}
         @font-face{font-family:'Clash Display';src:url('assets/fonts/ClashDisplay-SemiBold.woff2') format('woff2');font-weight:600;font-display:swap;}
         @font-face{font-family:'Clash Display';src:url('assets/fonts/ClashDisplay-Bold.woff2') format('woff2');font-weight:700;font-display:swap;}
-        @font-face{font-family:'Bricolage Grotesque';src:url('assets/fonts/BricolageGrotesque-Light.ttf') format('woff2');font-weight:300;font-display:swap;}
-        @font-face{font-family:'Bricolage Grotesque';src:url('assets/fonts/BricolageGrotesque-Regular.ttf') format('woff2');font-weight:400;font-display:swap;}
-        @font-face{font-family:'Bricolage Grotesque';src:url('assets/fonts/BricolageGrotesque-Medium.ttf') format('woff2');font-weight:500;font-display:swap;}
-        @font-face{font-family:'Bricolage Grotesque';src:url('assets/fonts/BricolageGrotesque-SemiBold.ttf') format('woff2');font-weight:600;font-display:swap;}
-        @font-face{font-family:'Bricolage Grotesque';src:url('assets/fonts/BricolageGrotesque-Bold.ttf') format('woff2');font-weight:700;font-display:swap;}
+        @font-face{font-family:'Bricolage Grotesque';src:url('assets/fonts/BricolageGrotesque-Light.ttf') format('truetype');font-weight:300;font-display:swap;}
+        @font-face{font-family:'Bricolage Grotesque';src:url('assets/fonts/BricolageGrotesque-Regular.ttf') format('truetype');font-weight:400;font-display:swap;}
+        @font-face{font-family:'Bricolage Grotesque';src:url('assets/fonts/BricolageGrotesque-Medium.ttf') format('truetype');font-weight:500;font-display:swap;}
+        @font-face{font-family:'Bricolage Grotesque';src:url('assets/fonts/BricolageGrotesque-SemiBold.ttf') format('truetype');font-weight:600;font-display:swap;}
+        @font-face{font-family:'Bricolage Grotesque';src:url('assets/fonts/BricolageGrotesque-Bold.ttf') format('truetype');font-weight:700;font-display:swap;}
         @font-face{font-family:'JetBrains Mono';src:url('assets/fonts/JetBrainsMono-Regular.woff2') format('woff2');font-weight:400;font-display:swap;}
         @font-face{font-family:'JetBrains Mono';src:url('assets/fonts/JetBrainsMono-Medium.woff2') format('woff2');font-weight:500;font-display:swap;}
         @font-face{font-family:'Bodoni Moda';src:url('assets/fonts/BodoniModa_9pt-Regular.ttf') format('truetype');font-weight:300;font-display:swap;}
@@ -31,6 +31,7 @@
     <link rel="stylesheet" href="css/components.css"/>
     <link rel="stylesheet" href="css/panels.css"/>
     <link rel="stylesheet" href="css/home.css"/>
+    <link rel="stylesheet" href="css/coach.css">
     <link rel="stylesheet" href="css/wellness.css"/>
     <link rel="stylesheet" href="css/focus.css"/>
     <link rel="stylesheet" href="css/settings.css"/>
@@ -73,7 +74,7 @@
         @keyframes lsDotPop{0%{opacity:0;transform:scale(0);}60%{opacity:1;transform:scale(1.35);}100%{opacity:1;transform:scale(1);}}
         .ls-wordmark{display:flex!important;align-items:flex-end!important;gap:1px!important;justify-content:center!important;margin-bottom:5px!important;opacity:0!important;transform:translateY(10px)!important;transition:opacity .6s ease .3s,transform .6s ease .3s!important;}
         .ls-wordmark-text{font-family:'Bodoni Moda','Didot',Georgia,serif!important;font-size:clamp(22px,5vw,28px)!important;font-weight:400!important;letter-spacing:3px!important;background:linear-gradient(135deg,#FFE082 30%,#FFAA44 70%)!important;-webkit-background-clip:text!important;background-clip:text!important;-webkit-text-fill-color:transparent!important;color:transparent!important;line-height:1!important;padding-bottom:3px!important;}
-        .ls-sub-text{font-family:var(--ff-m,'system-ui')!important;font-size:10px!important;letter-spacing:2px!important;text-transform:uppercase!important;color:rgba(255,255,255,.45)!important;}
+        .ls-sub-text{font-family:var(--ff-m,'system-ui')!important;font-size:var(--text-2xs)!important;letter-spacing:2px!important;text-transform:uppercase!important;color:rgba(255,255,255,.45)!important;}
         .ls-bar-wrap{width:128px!important;height:2px!important;border-radius:999px!important;background:rgba(255,255,255,.06)!important;overflow:hidden!important;animation:none!important;opacity:1!important;}
         .ls-bar{height:100%!important;width:0!important;background:linear-gradient(90deg,#FF7020,#FFAA44 50%,#FFE082)!important;border-radius:999px!important;box-shadow:0 0 14px rgba(255,170,68,.45)!important;animation:none!important;transition:width .12s ease!important;}
 
@@ -178,8 +179,8 @@
             </svg>
             <span class="ls-wordmark-text">URELO</span>
         </div>
-        <div id="ls-sub" class="ls-sub-text" style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:2.2px;text-transform:uppercase;-webkit-text-fill-color:unset;margin-bottom:18px;opacity:0;transform:translateY(8px);transition:opacity .6s ease .18s,transform .6s ease .18s;">Screen Time · Focus · Habits</div>
-        <div id="ls-status" style="font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:1.8px;text-transform:uppercase;color:var(--t3,rgba(255,170,68,.45));-webkit-text-fill-color:unset;min-height:13px;margin-bottom:14px;opacity:0;transition:opacity .4s ease .35s;">Preparing your day…</div>
+        <div id="ls-sub" class="ls-sub-text" style="font-family:'JetBrains Mono',monospace;font-size:var(--text-2xs);letter-spacing:2.2px;text-transform:uppercase;-webkit-text-fill-color:unset;margin-bottom:18px;opacity:0;transform:translateY(8px);transition:opacity .6s ease .18s,transform .6s ease .18s;">Screen Time · Focus · Habits</div>
+        <div id="ls-status" style="font-family:'JetBrains Mono',monospace;font-size:var(--text-2xs);letter-spacing:1.8px;text-transform:uppercase;color:var(--t3,rgba(255,170,68,.45));-webkit-text-fill-color:unset;min-height:13px;margin-bottom:14px;opacity:0;transition:opacity .4s ease .35s;">Preparing your day…</div>
         <div id="ls-bar-wrap" style="width:128px;height:2px;border-radius:999px;background:var(--border,rgba(255,255,255,.06));overflow:hidden;opacity:0;transition:opacity .4s ease .4s;">
             <div id="ls-bar" style="height:100%;width:0;border-radius:999px;background:linear-gradient(90deg,#FF7020,#FFAA44 50%,#FFE082);box-shadow:0 0 14px rgba(255,170,68,.45);transition:width .12s ease;"></div>
         </div>
@@ -240,7 +241,11 @@
     (function(){var _real=window.hideLoading;window.__realHideLoading=_real;window.hideLoading=function(){if(window.__splashDone){_real&&_real();}else{window.__hideLoadingQueued=true;}};})();
 </script>
 <script src="js/app-share-utils.js"></script>
+<script src="js/app-coach.js"></script>
 <script src="js/app-share.js"></script>
+<script src="js/app-health-connect.js"></script>
+<script src="js/app-coach-home.js"></script>
+<script src="js/app-wellness-coach.js"></script>
 <script src="js/app-home.js"></script>
 <script src="js/app-home-score.js"></script>
 <script src="js/app-notifications.js"></script>

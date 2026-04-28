@@ -14,7 +14,7 @@ function renderGhostPanel(){
       <div class="ghost-ico">${appIco(g.packageName,46,13)}</div>
       <div style="flex:1;min-width:0">
         <div style="font-size:14px;font-weight:600">${g.name||''}</div>
-        <div style="font-family:var(--ff-m);font-size:10px;color:var(--t3);margin-top:2px">Last used ${g.daysSinceUse} days ago · ${g.sizeMB||0} MB</div>
+        <div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);margin-top:2px">Last used ${g.daysSinceUse} days ago · ${g.sizeMB||0} MB</div>
       </div>
       <button class="ghost-del" onclick="event.stopPropagation();window._ghostUninstall(this.closest('.ghost-row').dataset.pkg,this.closest('.ghost-row').dataset.name)">Uninstall</button>
     </div>`;
@@ -240,7 +240,7 @@ function renderNotifications(){
       <div style="flex:1;min-width:0">
         <div style="font-size:13px;font-weight:600;margin-bottom:3px">${n.title}</div>
         <div style="font-size:12px;color:var(--t2);line-height:1.5">${n.body}</div>
-        <div style="font-family:var(--ff-m);font-size:10px;color:var(--t3);margin-top:4px">${n.time}</div>
+        <div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);margin-top:4px">${n.time}</div>
       </div>
       <div onclick="dismissNotif('${getNotifHash(n).replace(/'/g,'')}')" style="flex-shrink:0;padding:8px;color:var(--t3);font-size:18px;cursor:pointer;border-radius:8px;transition:background .12s" onmouseenter="this.style.background='var(--s2)'" onmouseleave="this.style.background=''">×</div>
     </div>`;

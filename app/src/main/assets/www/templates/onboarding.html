@@ -1,7 +1,7 @@
 <!-- PERMISSION -->
 <div id="perm-screen" class="hidden">
     <div style="font-size:56px;margin-bottom:20px">📊</div>
-    <div style="font-family:var(--ff-d);font-size:26px;font-weight:700;margin-bottom:10px">Usage Access Required</div>
+    <div style="font-family:var(--ff-d);font-size:26px;font-weight:400;margin-bottom:10px">Usage Access Required</div>
     <p style="font-size:14px;color:var(--t2);line-height:1.7;max-width:290px;margin-bottom:28px">Aurelo needs Usage Access to show real screen time. Tap Grant, then find Aurelo in the list and enable it.</p>
     <button class="perm-btn" onclick="N&&N.requestUsagePermission();this.textContent='Opening Settings…';this.style.opacity='.7'">Grant Access →</button>
     <div class="perm-skip" onclick="skipPerm()">Use demo data instead</div>
@@ -18,7 +18,7 @@
         <div class="ob-dots" style="margin-top:24px"><div class="ob-dot on"></div><div class="ob-dot"></div><div class="ob-dot"></div><div class="ob-dot"></div></div>
         <button class="ob-btn" onclick="obNext()">Get Started →</button>
         <div class="ob-skip" onclick="quickStart()">Skip setup</div>
-        <p style="margin-top:18px;font-size:11px;color:var(--t3);text-align:center;line-height:1.6">
+        <p style="margin-top:18px;font-size:var(--text-2xs);color:var(--t3);text-align:center;line-height:1.6">
             By continuing you agree to our
             <a href="#" onclick="AppBridge.openUrl('https://sites.google.com/view/tidyapp-privacy-policy');return false;"
                style="color:var(--p);text-decoration:underline">Privacy Policy</a>
@@ -58,9 +58,9 @@
         <div class="ob-title">One permission<br/>unlocks <span class="grad">everything</span></div>
         <div style="width:100%;max-width:320px;background:var(--s2);border:1px solid var(--border2);border-radius:16px;padding:14px 16px;margin:16px 0;position:relative;overflow:hidden">
             <div style="display:flex;justify-content:space-between;margin-bottom:10px">
-                <div style="text-align:left"><div style="font-size:20px;font-weight:700;color:var(--g);filter:blur(6px)">2h 14m</div><div style="font-family:var(--ff-m);font-size:9px;color:var(--t3)">TODAY</div></div>
-                <div style="text-align:left"><div style="font-size:20px;font-weight:700;color:var(--a);filter:blur(6px)">18</div><div style="font-family:var(--ff-m);font-size:9px;color:var(--t3)">PICKUPS</div></div>
-                <div style="text-align:center"><div style="font-size:20px;font-weight:700;color:var(--p);filter:blur(6px)">5🔥</div><div style="font-family:var(--ff-m);font-size:9px;color:var(--t3)">STREAK</div></div>
+                <div style="text-align:left"><div style="font-size:20px;font-weight:700;color:var(--g);filter:blur(6px)">2h 14m</div><div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3)">TODAY</div></div>
+                <div style="text-align:left"><div style="font-size:20px;font-weight:700;color:var(--a);filter:blur(6px)">18</div><div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3)">PICKUPS</div></div>
+                <div style="text-align:center"><div style="font-size:20px;font-weight:700;color:var(--p);filter:blur(6px)">5🔥</div><div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3)">STREAK</div></div>
             </div>
             <div style="height:4px;background:var(--s3);border-radius:2px;overflow:hidden;margin-bottom:10px"><div style="width:68%;height:100%;background:linear-gradient(90deg,var(--p),var(--c));border-radius:2px;filter:blur(2px)"></div></div>
             <div style="display:flex;gap:4px">
@@ -71,29 +71,29 @@
                 <div style="flex:1;height:18px;background:rgba(247,166,35,.3);border-radius:3px;filter:blur(5px)"></div>
             </div>
             <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(6,6,16,.55);backdrop-filter:blur(1px);border-radius:16px">
-                <div style="text-align:center"><div style="font-size:24px;margin-bottom:4px">🔒</div><div style="font-family:var(--ff-m);font-size:11px;color:var(--t2)">Grant access to unlock</div></div>
+                <div style="text-align:center"><div style="font-size:24px;margin-bottom:4px">🔒</div><div style="font-family:var(--ff-b);font-size:var(--text-2xs);color:var(--t2)">Grant access to unlock</div></div>
             </div>
         </div>
         <div id="ob-perm-usage" style="background:rgba(108,99,255,.08);border:1px solid rgba(108,99,255,.2);border-radius:14px;padding:12px 14px;width:100%;max-width:320px;box-sizing:border-box;cursor:pointer" onclick="obGrantUsage()">
             <div style="display:flex;align-items:center;gap:10px">
                 <div style="font-size:22px">📊</div>
-                <div style="flex:1"><div style="font-size:13px;font-weight:700">Usage Access</div><div style="font-size:11px;color:var(--t2);margin-top:2px">Required for screen time tracking</div></div>
-                <div id="ob-usage-badge" style="font-family:var(--ff-m);font-size:10px;padding:3px 9px;border-radius:999px;background:rgba(240,78,122,.15);border:1px solid rgba(240,78,122,.3);color:var(--r);white-space:nowrap">Tap to grant</div>
+                <div style="flex:1"><div style="font-size:13px;font-weight:700">Usage Access</div><div style="font-size:var(--text-2xs);color:var(--t2);margin-top:2px">Required for screen time tracking</div></div>
+                <div id="ob-usage-badge" style="font-family:var(--ff-m);font-size:var(--text-2xs);padding:3px 9px;border-radius:999px;background:rgba(240,78,122,.15);border:1px solid rgba(240,78,122,.3);color:var(--r);white-space:nowrap">Tap to grant</div>
             </div>
         </div>
         <div class="ob-dots" style="margin:20px 0 16px"><div class="ob-dot"></div><div class="ob-dot"></div><div class="ob-dot on"></div><div class="ob-dot"></div></div>
         <div class="ob-privacy-pills" style="width:100%;max-width:320px;display:flex;flex-direction:column;gap:10px;margin-bottom:20px">
             <div class="ob-privacy-pill" style="display:flex;align-items:center;gap:12px;background:var(--s2);border:1px solid var(--border2);padding:12px;border-radius:12px;">
                 <span class="ob-privacy-pill-icon" style="font-size:18px;">🔒</span>
-                <div style="text-align:left;"><div class="ob-privacy-pill-text" style="font-size:13px;font-weight:700;color:var(--t1);">No account required</div><div class="ob-privacy-pill-sub" style="font-size:11px;color:var(--t2);">Nothing to sign up for, ever</div></div>
+                <div style="text-align:left;"><div class="ob-privacy-pill-text" style="font-size:13px;font-weight:700;color:var(--t1);">No account required</div><div class="ob-privacy-pill-sub" style="font-size:var(--text-2xs);color:var(--t2);">Nothing to sign up for, ever</div></div>
             </div>
             <div class="ob-privacy-pill" style="display:flex;align-items:center;gap:12px;background:var(--s2);border:1px solid var(--border2);padding:12px;border-radius:12px;">
                 <span class="ob-privacy-pill-icon" style="font-size:18px;">📱</span>
-                <div style="text-align:left;"><div class="ob-privacy-pill-text" style="font-size:13px;font-weight:700;color:var(--t1);">100% on-device</div><div class="ob-privacy-pill-sub" style="font-size:11px;color:var(--t2);">Your data never leaves your phone</div></div>
+                <div style="text-align:left;"><div class="ob-privacy-pill-text" style="font-size:13px;font-weight:700;color:var(--t1);">100% on-device</div><div class="ob-privacy-pill-sub" style="font-size:var(--text-2xs);color:var(--t2);">Your data never leaves your phone</div></div>
             </div>
             <div class="ob-privacy-pill" style="display:flex;align-items:center;gap:12px;background:var(--s2);border:1px solid var(--border2);padding:12px;border-radius:12px;">
                 <span class="ob-privacy-pill-icon" style="font-size:18px;">🛡️</span>
-                <div style="text-align:left;"><div class="ob-privacy-pill-text" style="font-size:13px;font-weight:700;color:var(--t1);">Not even us can see it</div><div class="ob-privacy-pill-sub" style="font-size:11px;color:var(--t2);">No servers, no uploads, no tracking</div></div>
+                <div style="text-align:left;"><div class="ob-privacy-pill-text" style="font-size:13px;font-weight:700;color:var(--t1);">Not even us can see it</div><div class="ob-privacy-pill-sub" style="font-size:var(--text-2xs);color:var(--t2);">No servers, no uploads, no tracking</div></div>
             </div>
         </div>
         <button class="ob-btn" id="ob3-grant-btn" onclick="obHandlePermStep()">Grant Access →</button>
@@ -108,8 +108,8 @@
         <div class="scan-txt" id="ob-scan-txt">Scanning 0 apps…</div>
         <div class="scan-rows" id="ob-scan-rows" style="display:none;max-height:340px;overflow-y:auto"></div>
         <div id="ob-first-insight" style="display:none;width:100%;max-width:320px;margin-top:12px;background:linear-gradient(135deg,rgba(108,99,255,.12),rgba(5,200,232,.06));border:1px solid rgba(108,99,255,.25);border-radius:14px;padding:13px 16px;text-align:center">
-            <div style="font-family:var(--ff-m);font-size:10px;color:var(--p2);letter-spacing:1px;margin-bottom:6px">YOUR FIRST INSIGHT</div>
-            <div id="ob-insight-text" style="font-size:14px;font-weight:600;color:var(--t1);line-height:1.5"></div>
+            <div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--p2);letter-spacing:1px;margin-bottom:6px">YOUR FIRST INSIGHT</div>
+            <div id="ob-insight-text" style="font-family:var(--ff-b);font-size:14px;font-weight:600;color:var(--t1);line-height:1.5"></div>
         </div>
         <div class="ob-dots" style="margin:16px 0 14px"><div class="ob-dot"></div><div class="ob-dot"></div><div class="ob-dot"></div><div class="ob-dot on"></div></div>
         <button class="ob-btn" id="ob4-done-btn" onclick="finishOb()" style="display:none">Enter Aurelo →</button>

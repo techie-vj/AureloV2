@@ -188,14 +188,16 @@ function dropAppOnCat(cat, event){
 }
 
 function renderCategoryList(){
+  const el = document.getElementById('cat-list-view');
+  if (!el) return;
   const cats = getEffectiveCatOrder();
-  document.getElementById('cat-list-view').innerHTML = cats.map(cat => {
+  el.innerHTML = cats.map(cat => {
     const apps = CATS_MAP[cat], ico = CAT_ICONS[cat] || '📱';
     return `<div class="cat-list-row" onclick="openCatPopup('${cat}')">
       <div style="font-size:22px;flex-shrink:0">${ico}</div>
       <div style="flex:1">
         <div style="font-size:14px;font-weight:600">${cat}</div>
-        <div style="font-family:var(--ff-m);font-size:10px;color:var(--t3);margin-top:2px">${apps.length} apps</div>
+        <div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);margin-top:2px">${apps.length} apps</div>
       </div>
       <span style="color:var(--t3)">›</span>
     </div>`;
@@ -227,6 +229,79 @@ function setCatView(mode){
   if(grid) grid.style.display=mode==='grid'?'':'none';
   if(list) list.style.display=mode==='list'?'':'none';
   if(S.catView!==mode){ S.catView=mode; saveS(); }
+}
+
+/* ═══ ALL CATEGORIES PANEL ═════════════════════════ */
+function openAllCatsPanel() {
+  renderAllCatsPanel();
+  openPanel('all-cats-panel');
+}
+
+function renderAllCatsPanel() {
+  const container = document.getElementById('all-cats-list');
+  const countEl   = document.getElementById('all-cats-count');
+  if (!container) return;
+
+  const usageMap = {};
+  DAILY_USE.forEach(u => { usageMap[u.packageName] = u.totalMinutes || 0; });
+  const totalScreenMins = Math.max(TODAY_MINS || 1, 1);
+  const hasUsageData    = DAILY_USE.length > 0 && TODAY_MINS > 0;
+
+  const allCats = getEffectiveCatOrder()
+    .map(cat => {
+      const apps    = CATS_MAP[cat] || [];
+      const catMins = apps.reduce((s, a) => s + (usageMap[a.packageName] || 0), 0);
+      return { cat, apps, catMins };
+    })
+    .filter(c => c.apps.length > 0);
+
+  const totalApps = allCats.reduce((s, c) => s + c.apps.length, 0);
+  if (countEl) countEl.textContent = totalApps + ' apps';
+
+  container.innerHTML = allCats.map(({ cat, apps, catMins }) => {
+    const ico     = CAT_ICONS[cat] || '📱';
+    const col     = CAT_COLOR[cat] || '6C63FF';
+    const rgb     = _hexToRgb(col);
+    const pct     = hasUsageData ? Math.round((catMins / totalScreenMins) * 100) : 0;
+    const barW    = Math.min(pct, 100);
+    const timeStr = hasUsageData && catMins > 0 ? fmtM(catMins) : '–';
+    const pctStr  = hasUsageData ? pct + '% of today' : '0% of today';
+
+    const topApps = [...apps]
+      .sort((a, b) => (usageMap[b.packageName] || 0) - (usageMap[a.packageName] || 0))
+      .slice(0, 5);
+
+    const iconStrip = topApps.map(a => {
+      const mins      = usageMap[a.packageName] || 0;
+      const timeLabel = mins > 0 ? fmtM(mins) : '–';
+      const timeCls   = mins > 0 ? 'cat-exp-app-time has-usage' : 'cat-exp-app-time';
+      return `<div class="cat-exp-app-wrap">
+        <div class="cat-exp-app-ico">${appIco(a.packageName, 34, 9)}</div>
+        <div class="${timeCls}">${timeLabel}</div>
+      </div>`;
+    }).join('');
+
+    const moreCount = apps.length > 5
+      ? `<div class="cat-exp-more">+${apps.length - 5}</div>` : '';
+
+    return `<div class="cat-exp-card" onclick="openCatPopup('${cat}')" style="margin-bottom:10px;cursor:pointer">
+      <div class="cat-exp-hdr">
+        <div class="cat-exp-ico" style="background:rgba(${rgb},.15)">${ico}</div>
+        <div class="cat-exp-meta">
+          <div class="cat-exp-name">${cat}</div>
+          <div class="cat-exp-count">${apps.length} app${apps.length !== 1 ? 's' : ''}</div>
+        </div>
+        <div class="cat-exp-time-col">
+          <div class="cat-exp-time">${timeStr}</div>
+          <div class="cat-exp-pct">${pctStr}</div>
+        </div>
+      </div>
+      <div class="cat-exp-bar-track">
+        <div class="cat-exp-bar-fill" style="width:${barW}%;background:#${col}"></div>
+      </div>
+      <div class="cat-exp-icons">${iconStrip}${moreCount}</div>
+    </div>`;
+  }).join('');
 }
 
 /* ═══ CAT POPUP ════════════════════════════════════ */
@@ -280,10 +355,10 @@ function renderCatPopupContent(cat){
       <div class="cp-app-time">${ts}</div>
       <div class="cp-drag-hint">⠿</div>
     </div>`;
-  }).join('') || `<div style="grid-column:1/-1;font-family:var(--ff-m);font-size:11px;color:var(--t3);text-align:center;padding:20px">No apps in this category.</div>`;
+  }).join('') || `<div style="grid-column:1/-1;font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);text-align:center;padding:20px">No apps in this category.</div>`;
   const addTile = `<div class="cp-card" onclick="openAddAppsToCat('${cat}')" style="border:1px dashed var(--border2);background:transparent;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px">
     <div style="font-size:22px;color:var(--t3)">＋</div>
-    <div style="font-family:var(--ff-m);font-size:10px;color:var(--t3)">Add apps</div>
+    <div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3)">Add apps</div>
   </div>`;
   document.getElementById('cp-grid').innerHTML = appsHtml + addTile;
 
@@ -661,10 +736,10 @@ function renderManageCats(){
     return `<div class="cat-list-row" draggable="true" data-cat="${cat}" style="cursor:grab">
       <span class="mcp-handle" style="color:var(--t3);font-size:22px;flex-shrink:0;padding:4px 8px 4px 0;touch-action:none">⠿</span>
       <div style="font-size:20px;flex-shrink:0">${ico}</div>
-      <div style="flex:1"><div style="font-size:13px;font-weight:600">${cat}</div><div style="font-family:var(--ff-m);font-size:10px;color:var(--t3);margin-top:2px">${apps.length} apps</div></div>
+      <div style="flex:1"><div style="font-size:13px;font-weight:600">${cat}</div><div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);margin-top:2px">${apps.length} apps</div></div>
       <div style="display:flex;gap:5px">
-        <button style="padding:5px 8px;border-radius:8px;border:1px solid var(--border2);background:var(--s2);font-family:var(--ff-m);font-size:11px;color:var(--t3);cursor:pointer" onclick="openEditCat('${cat}')">✎</button>
-        <button style="padding:5px 8px;border-radius:8px;border:1px solid var(--border2);background:var(--s2);font-family:var(--ff-m);font-size:11px;cursor:pointer;color:var(--r)" onclick="confirmDelCatByName('${cat}')">🗑</button>
+        <button style="padding:5px 8px;border-radius:8px;border:1px solid var(--border2);background:var(--s2);font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);cursor:pointer" onclick="openEditCat('${cat}')">✎</button>
+        <button style="padding:5px 8px;border-radius:8px;border:1px solid var(--border2);background:var(--s2);font-family:var(--ff-m);font-size:var(--text-2xs);cursor:pointer;color:var(--r)" onclick="confirmDelCatByName('${cat}')">🗑</button>
       </div>
     </div>`;
   }).join('');
@@ -861,8 +936,19 @@ function initDrag(){
   });
 }
 function updateCatsSub(){
-  const total=Object.keys(CATS_MAP).length, apps=Object.values(CATS_MAP).flat().length;
-  document.getElementById('cats-sub').textContent=`${total} categories · ${apps} apps`;
+  const total = Object.keys(CATS_MAP).length;
+  // Use N.getAllApps() for the real installed-app count (includes auto-categorised apps
+  // that may not yet appear in CATS_MAP). Falls back to CATS_MAP count in demo mode.
+  let apps = Object.values(CATS_MAP).flat().length;
+  if(IS_NATIVE && typeof N !== 'undefined' && typeof N.getAllApps === 'function'){
+    try{ apps = JSON.parse(N.getAllApps()||'[]').length; }catch(_){}
+  }
+  const text = `${total} categories · ${apps} apps`;
+  const el = document.getElementById('cats-sub');
+  if(el) el.textContent = text;
+  // Keep Settings > Organisation subtitle in sync
+  const orgEl = document.getElementById('org-cats-sub');
+  if(orgEl) orgEl.textContent = text;
 }
 
 /* ═══ EDIT CAT ═══════════════════════════════════════ */
@@ -911,6 +997,15 @@ function saveEditCat(){
 function confirmDelCat(){ if(editingCat) confirmDelCatByName(editingCat); }
 function confirmDelCatByName(name){
   showConfirm(`Delete "${name}"?`,'Apps will move back to auto-categorized groups.',()=>{
+    // ── Fix 3: record this category as user-deleted so Play Store sync never restores it ──
+    try{
+      let deleted=[];
+      if(IS_NATIVE && typeof N.getStringPref==='function') deleted=JSON.parse(N.getStringPref('deletedCategories')||'[]');
+      else deleted=JSON.parse(localStorage.getItem('deletedCategories')||'[]');
+      if(!deleted.includes(name)) deleted.push(name);
+      if(IS_NATIVE && typeof N.setStringPref==='function') N.setStringPref('deletedCategories',JSON.stringify(deleted));
+      else localStorage.setItem('deletedCategories',JSON.stringify(deleted));
+    }catch(_){}
     let acm={};
     if(IS_NATIVE){ try{ acm=JSON.parse(N.getAppCategoryMap()||'{}'); }catch(e){} }
     // Remap apps currently visible in CATS_MAP[name]

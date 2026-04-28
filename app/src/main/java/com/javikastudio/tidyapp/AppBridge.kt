@@ -72,6 +72,8 @@ class AppBridge(private val context: Context, private val webView: WebView) {
     private val settings = SettingsBridge(context,webView,prefs,securePrefs,bridgeScope,{ _secureStorageAvailable })
     private val permission = PermissionBridge(context,webView,prefs,securePrefs,bridgeScope)
     private val billing = BillingBridge(context,webView,prefs,securePrefs,bridgeScope,billingManager,entitlementRepo,PurchaseRestoreHandler(context,webView,billingManager,entitlementRepo))
+    internal val healthConnect = HealthConnectBridge(context,webView,prefs,securePrefs,bridgeScope)
+    internal val coach = CoachBridge(context,webView,prefs,securePrefs,bridgeScope)
 
     private val pendingLaunchActivity: Activity? = null
 
@@ -310,4 +312,24 @@ class AppBridge(private val context: Context, private val webView: WebView) {
     @JavascriptInterface fun getProPricing()                   = billing.getProPricing()
     @JavascriptInterface fun launchBillingFlow(plan: String)   = billing.launchBillingFlow(plan)
     @JavascriptInterface fun restorePurchase()                 = billing.restorePurchase()
+
+    // ── Health Connect ─────────────────────────────────────────────────────
+    @JavascriptInterface fun getHCStatus()                     = healthConnect.getHCStatus()
+    @JavascriptInterface fun getHCData()                       = healthConnect.getHCData()
+    @JavascriptInterface fun requestHCPermissions()            = healthConnect.requestHCPermissions()
+    @JavascriptInterface fun disconnectHC()                    = healthConnect.disconnectHC()
+    @JavascriptInterface fun syncHCData()                      = healthConnect.syncHCData()
+    @JavascriptInterface fun getHCBodyScore()                  = healthConnect.getHCBodyScore()
+    @JavascriptInterface fun getHCActivityModifier()           = healthConnect.getHCActivityModifier()
+    @JavascriptInterface fun getHCSleepData()                  = healthConnect.getHCSleepData()
+    @JavascriptInterface fun getHCUsageSummary()               = healthConnect.getHCUsageSummary()
+    @JavascriptInterface fun openHCPlayStore()                 = healthConnect.openHCPlayStore()
+
+    // ── Aurelo Coach ───────────────────────────────────────────────────────
+    @JavascriptInterface fun getCoachQueryCount()                              = coach.getCoachQueryCount()
+    @JavascriptInterface fun incrementCoachQueryCount()                        = coach.incrementCoachQueryCount()
+    @JavascriptInterface fun getDailyCoachInsight()                            = coach.getDailyCoachInsight()
+    @JavascriptInterface fun getCoachChips()                                   = coach.getCoachChips()
+    @JavascriptInterface fun askCoach(query: String)                           = coach.askCoach(query)
+    @JavascriptInterface fun getTabCoachInsight(tab: String, ctx: String)      = coach.getTabCoachInsight(tab, ctx)
 }

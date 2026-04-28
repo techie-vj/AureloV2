@@ -16,7 +16,7 @@
                 </svg>
                 <span class="aurelo-logo-txt" style="font-family:'Bodoni Moda',Georgia,serif;font-size:20px;font-weight:400;background:linear-gradient(135deg,#FFE082 30%,#FFAA44 70%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;letter-spacing:2px;line-height:1;padding-bottom:2px">URELO</span>
             </div>
-            <span class="pro-pill-clone" style="display:none;margin-left:7px;padding:2px 8px 2px 6px;border-radius:40px;background:rgba(247,201,72,0.12);border:1px solid rgba(247,201,72,0.25);color:#f7c948;font-size:10px;font-weight:700;font-family:var(--ff-m);letter-spacing:0.08em;vertical-align:middle">✦ PRO</span>
+            <span class="pro-pill-clone" style="display:none;margin-left:7px;padding:2px 8px 2px 6px;border-radius:40px;background:rgba(247,201,72,0.12);border:1px solid rgba(247,201,72,0.25);color:#f7c948;font-size:var(--text-2xs);font-weight:700;font-family:var(--ff-m);letter-spacing:0.08em;vertical-align:middle">✦ PRO</span>
         </div>
         <div style="cursor:pointer;width:36px;height:36px;border-radius:10px;background:var(--s1);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;flex-shrink:0" onclick="activateTab('settings')">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--t2)"><circle cx="12" cy="8" r="4"/><path d="M20 21a8 8 0 1 0-16 0"/></svg>
@@ -64,10 +64,12 @@
         <div class="section-label">Top Apps Today</div>
         <div class="top-apps-list" id="top-apps-list"></div>
         <div style="text-align:right;padding:0 16px 12px">
-            <span onclick="openAllApps()" style="font-family:var(--ff-m);font-size:11px;color:var(--p);cursor:pointer;letter-spacing:.3px">View all apps →</span>
+            <span onclick="openAllApps()" style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--p);cursor:pointer;letter-spacing:.3px">View all apps →</span>
         </div>
         <div id="wellness-ad-slot" style="padding:0 16px 4px"></div>
         <div class="smart-tips" id="smart-tips" style="margin-top:4px"></div>
+        <!-- Coach insight for today — visible to Pro users, replaces smart-tips -->
+        <div id="wt-coach-insight" style="display:none;margin:0 16px 16px"></div>
     </div>
 
     <!-- ── WEEK VIEW ──────────────────────────────────── -->
@@ -90,10 +92,10 @@
         <div class="section-label">Top Apps This Week</div>
         <div class="top-apps-list" id="ww-top-apps-list"></div>
         <div style="text-align:right;padding:0 16px 12px">
-            <span onclick="openAllApps()" style="font-family:var(--ff-m);font-size:11px;color:var(--p);cursor:pointer;letter-spacing:.3px">View all apps →</span>
+            <span onclick="openAllApps()" style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--p);cursor:pointer;letter-spacing:.3px">View all apps →</span>
         </div>
-        <div class="section-label">Weekly Insights</div>
-        <div class="smart-tips" id="ww-insights" style="margin-top:0"></div>
+        <div class="section-label" id="ww-insights-label">Weekly Insights</div>
+        <div id="ww-insights" style="margin:0 16px 16px"></div>
     </div>
 
     <!-- ── MONTH VIEW ─────────────────────────────────── -->
@@ -120,10 +122,13 @@
         <div id="wm-dna-card" class="wm-dna-card"></div>
         <div class="section-label">Goal Streak · This Month</div>
         <div id="wm-streak-grid" class="wm-streak-grid"></div>
+
         <div class="section-label">Top Apps This Month</div>
         <div class="top-apps-list" id="wm-top-apps-list"></div>
         <div style="text-align:right;padding:0 16px 12px">
-            <span onclick="openAllApps()" style="font-family:var(--ff-m);font-size:11px;color:var(--p);cursor:pointer;letter-spacing:.3px">View all apps →</span>
+            <span onclick="openAllApps()" style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--p);cursor:pointer;letter-spacing:.3px">View all apps →</span>
         </div>
+        <!-- Coach insight for month — visible to Pro users -->
+        <div id="wm-coach-insight" style="display:none;margin:0 16px 16px"></div>
     </div>
 </div>

@@ -66,6 +66,12 @@ const val KEY_FOCUS_TIME_WEEK_MINS   = "focus_time_week_mins"
 const val KEY_FOCUS_LAST_OUTCOME     = "focus_last_outcome"
 const val KEY_FOCUS_LAST_ELAPSED     = "focus_last_elapsed"
 const val KEY_FOCUS_LAST_TOTAL       = "focus_last_total_mins"
+// F-06: daily session counters (reset at midnight) for use in Focus Score daily Aurelo composite
+const val KEY_FOCUS_DATE              = "focus_date_v1"
+const val KEY_FOCUS_COMPLETED_TODAY   = "focus_completed_today"
+const val KEY_FOCUS_INTERRUPTED_TODAY = "focus_interrupted_today"
+const val KEY_FOCUS_PLANNED_MINS_TODAY = "focus_planned_mins_today"
+const val KEY_FOCUS_ELAPSED_MINS_TODAY = "focus_elapsed_mins_today" 
 
 // ── Intention prompt ──────────────────────────────────────────────────────
 // IMPORTANT: ALL key values here must match the literal strings used in
@@ -121,6 +127,9 @@ const val USER_SETTINGS_V5 = "user_settings_v5"
 const val STREAK_GOAL_MINS = "streak_goal_mins"
 const val ONBOARDING_DONE  = "onboarding_done"
 const val IS_PRO_USER      = "is_pro_user"
+
+// ── Health Connect ────────────────────────────────────────────────────────
+const val HC_CONNECTED = "hc_connected"   // "1" = connected, "0" / absent = disconnected
 
 // ── Rate-app prompt ───────────────────────────────────────────────────────
 const val KEY_RATE_INSTALL_MS    = "rate_install_ms"

@@ -320,25 +320,38 @@ class UsageStatsBridge(
         val events = usm().queryEvents(dayStart, now); val ev = UsageEvents.Event()
         val timeMap = mutableMapOf<String, Long>(); val fgStart = mutableMapOf<String, Long>()
         val hourMap = LongArray(24); var pickups = 0; var firstPickupTs = 0L
+        val MAX_SESSION_MS = 4 * 60 * 60_000L
+
         while (events.hasNextEvent()) {
             events.getNextEvent(ev)
             if (ev.packageName == context.packageName) continue
             when (ev.eventType) {
-                UsageEvents.Event.KEYGUARD_HIDDEN -> { pickups++; if (firstPickupTs == 0L) firstPickupTs = ev.timeStamp }
+                UsageEvents.Event.KEYGUARD_HIDDEN -> {
+                    pickups++; if (firstPickupTs == 0L) firstPickupTs = ev.timeStamp
+                }
                 UsageEvents.Event.MOVE_TO_FOREGROUND -> fgStart[ev.packageName] = ev.timeStamp
                 UsageEvents.Event.MOVE_TO_BACKGROUND -> {
                     val start = fgStart.remove(ev.packageName) ?: continue
-                    val ms = ev.timeStamp - start; timeMap[ev.packageName] = (timeMap[ev.packageName] ?: 0L) + ms
-                    val hour = Calendar.getInstance().apply { timeInMillis = start }.get(Calendar.HOUR_OF_DAY)
-                    hourMap[hour] += ms / 60_000L
+                    val ms = (ev.timeStamp - start).coerceAtMost(MAX_SESSION_MS)  // ← ADD CAP
+                    timeMap[ev.packageName] = (timeMap[ev.packageName] ?: 0L) + ms
+                    if (isKnownUserPackage(ev.packageName)) {   // ← FILTER hourMap
+                        val hour = Calendar.getInstance().apply { timeInMillis = start }
+                            .get(Calendar.HOUR_OF_DAY)
+                        hourMap[hour] += ms / 60_000L
+                    }
                 }
             }
         }
-        val MAX_SESSION_MS = 4 * 60 * 60_000L
+        // fgStart.forEach below stays as-is (already has the cap and already filters
+        // via isKnownUserPackage for totalMins, but hourMap here also needs filtering)
         fgStart.forEach { (pkg, start) ->
-            val ms = (now - start).coerceAtMost(MAX_SESSION_MS); timeMap[pkg] = (timeMap[pkg] ?: 0L) + ms
-            val hour = Calendar.getInstance().apply { timeInMillis = start }.get(Calendar.HOUR_OF_DAY)
-            hourMap[hour] += ms / 60_000L
+            val ms = (now - start).coerceAtMost(MAX_SESSION_MS)
+            timeMap[pkg] = (timeMap[pkg] ?: 0L) + ms
+            if (isKnownUserPackage(pkg)) {
+                val hour = Calendar.getInstance().apply { timeInMillis = start }
+                    .get(Calendar.HOUR_OF_DAY)
+                hourMap[hour] += ms / 60_000L
+            }
         }
         val totalMins = timeMap.filter { isKnownUserPackage(it.key) }.values.sum() / 60_000L
         val topApps = JSONArray()

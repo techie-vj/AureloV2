@@ -10,10 +10,10 @@
         <div class="sheet-hdr">
             <span id="cp-ico" style="font-size:22px">📱</span>
             <span class="sheet-title" id="cp-title">Category</span>
-            <span id="cp-cnt" style="font-family:var(--ff-m);font-size:10px;color:var(--t3)"></span>
+            <span id="cp-cnt" style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3)"></span>
             <div style="display:flex;gap:8px;margin-left:auto">
                 <button onclick="openEditCatFromPopup()"
-                        style="padding:6px 12px;border-radius:10px;border:1px solid var(--border2);background:var(--s2);color:var(--t2);font-family:var(--ff-m);font-size:11px;cursor:pointer">
+                        style="padding:6px 12px;border-radius:10px;border:1px solid var(--border2);background:var(--s2);color:var(--t2);font-family:var(--ff-m);font-size:var(--text-2xs);cursor:pointer">
                     Edit
                 </button>
                 <button onclick="closeModal('cat-popup')"
@@ -40,10 +40,10 @@
             </button>
         </div>
         <div class="sheet-body" style="padding:16px 18px 40px">
-            <div style="font-family:var(--ff-m);font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--t3);margin-bottom:8px">Name</div>
+            <div style="font-family:var(--ff-m);font-size:var(--text-2xs);letter-spacing:1.5px;text-transform:uppercase;color:var(--t3);margin-bottom:8px">Name</div>
             <input id="ecm-name" type="text" placeholder="Category name…" autocomplete="off"
                    style="width:100%;box-sizing:border-box;padding:11px 14px;border-radius:12px;border:1px solid var(--border2);background:var(--s1);color:var(--t1);font-family:var(--ff-m);font-size:14px;outline:none;margin-bottom:18px"/>
-            <div style="font-family:var(--ff-m);font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--t3);margin-bottom:10px">Icon</div>
+            <div style="font-family:var(--ff-m);font-size:var(--text-2xs);letter-spacing:1.5px;text-transform:uppercase;color:var(--t3);margin-bottom:10px">Icon</div>
             <div id="ecm-icons"
                  style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:22px;max-height:130px;overflow-y:auto;scrollbar-width:none"></div>
             <button onclick="saveEditCat()"
@@ -83,8 +83,8 @@
         </div>
         <div class="sheet-body" style="padding:14px 18px 40px">
             <div id="timer-modal-sub"
-                 style="font-family:var(--ff-m);font-size:11px;color:var(--t3);margin-bottom:14px;min-height:14px"></div>
-            <div style="font-family:var(--ff-m);font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--t3);margin-bottom:10px">Daily limit</div>
+                 style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);margin-bottom:14px;min-height:14px"></div>
+            <div style="font-family:var(--ff-m);font-size:var(--text-2xs);letter-spacing:1.5px;text-transform:uppercase;color:var(--t3);margin-bottom:10px">Daily limit</div>
             <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:20px">
                 <button class="dur-btn" data-mins="15" onclick="selDur(15,this)"
                         style="padding:12px 0;border-radius:11px;border:1px solid var(--border2);background:var(--s2);color:var(--t2);font-family:var(--ff-m);font-size:13px;cursor:pointer;transition:all .15s;text-align:center">
@@ -178,6 +178,81 @@
     </div>
 </div>
 
+<!-- In templates/modals.html — append after existing modals -->
+
+<!-- ── Aurelo Coach Modal ──────────────────────────── -->
+<!-- Aurelo Coach FAB -->
+<div id="coach-fab" aria-label="Open Aurelo Coach" onclick="CoachUI.open(null)">
+    <div id="coach-fab-ring"></div>
+    <svg width="20" height="20" viewBox="0 0 20 20" fill="white" aria-hidden="true"><path d="M10 2L11.8 7.6H17.6L12.9 10.9L14.7 16.5L10 13.2L5.3 16.5L7.1 10.9L2.4 7.6H8.2L10 2Z"/></svg>
+</div>
+
+<div id="coach-modal" role="dialog" aria-modal="true" aria-label="Aurelo Coach" onclick="if(event.target===this)CoachUI.close()">
+    <div id="coach-sheet">
+        <div class="coach-handle"></div>
+        <div class="coach-shdr">
+            <div class="coach-title-wrap">
+                <div class="coach-title">Aurelo Coach
+                    <span class="coach-beta-badge">BETA</span>
+                </div>
+                <div class="coach-phase-row">
+                    <span class="coach-phase-badge">AI · Model + Rules</span>
+                    <span class="coach-priv">On-device · Private</span>
+                </div>
+            </div>
+            <div class="coach-hdr-btns">
+                <button class="coach-what-btn" onclick="CoachUI.openTransparency()">What data? →</button>
+                <button class="coach-close" onclick="CoachUI.close()" aria-label="Close">✕</button>
+            </div>
+        </div>
+        <div class="coach-intro" id="coach-intro">
+            Aurelo Coach answers questions about your screen time, focus, sleep, and body data. Beta insights may miss context, so use them as guidance, not judgment.
+        </div>
+        <div class="coach-chat" id="coach-chat"></div>
+        <div id="coach-chips-section">
+            <div class="section-lbl">Suggested for you today</div>
+            <div class="coach-chips" id="coach-chips"></div>
+        </div>
+        <div class="cat-tabs-wrap">
+            <button class="cat-tab active" onclick="CoachUI.setCatTab('score', this)">Score</button>
+            <button class="cat-tab" onclick="CoachUI.setCatTab('habits', this)">Habits</button>
+            <button class="cat-tab" onclick="CoachUI.setCatTab('sleep', this)">Sleep &amp; Body</button>
+            <button class="cat-tab" onclick="CoachUI.setCatTab('focus', this)">Focus</button>
+        </div>
+        <div class="cat-questions" id="coach-cat-questions"></div>
+        <div class="coach-privacy-footer">
+            <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><rect x="1" y="4" width="8" height="5.5" rx="1" stroke="currentColor" stroke-width="1"/><path d="M3.5 4V3.2a1.5 1.5 0 013 0V4" stroke="currentColor" stroke-width="1" stroke-linecap="round"/></svg>
+            On-device only · Your data never leaves your phone
+        </div>
+        <div class="coach-input-bar">
+      <textarea class="coach-input" id="coach-input" placeholder="Ask about your data..."
+                rows="1" onkeydown="CoachUI.handleKey(event)" oninput="CoachUI.autoResize(this)"></textarea>
+            <button class="coach-send-btn" id="coach-send-btn" onclick="CoachUI.send()" aria-label="Send">
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 7h10M8 3l4 4-4 4" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- ── Coach Transparency Sheet ───────────────────── -->
+<div id="coach-transparency" onclick="if(event.target===this)CoachUI.closeTransparency()">
+    <div class="coach-transparency-sheet">
+        <div class="coach-handle"></div>
+        <div class="coach-trans-hdr">
+            <div class="coach-trans-title">What data powers this?</div>
+            <button class="coach-close-btn" onclick="CoachUI.closeTransparency()">✕</button>
+        </div>
+        <div class="coach-data-row"><div class="coach-data-check">✓</div><div class="coach-data-label">Screen time data</div><div class="coach-data-meta">7 days</div></div>
+        <div class="coach-data-row"><div class="coach-data-check">✓</div><div class="coach-data-label">App usage breakdown</div><div class="coach-data-meta">7 days</div></div>
+        <div class="coach-data-row"><div class="coach-data-check">✓</div><div class="coach-data-label">Focus sessions</div><div class="coach-data-meta">7 days</div></div>
+        <div class="coach-data-row"><div class="coach-data-check">✓</div><div class="coach-data-label">Pickup count &amp; timing</div><div class="coach-data-meta">7 days</div></div>
+        <div class="coach-data-row"><div class="coach-data-check">✓</div><div class="coach-data-label">Streak &amp; goal history</div><div class="coach-data-meta">7 days</div></div>
+        <!-- HC rows injected dynamically by CoachUI._renderTransparency() -->
+        <div class="hc-section"></div>
+        <div class="coach-trans-privacy">All analysis runs entirely on your device. No screen time data, no query text, and no usage patterns are ever sent to any server.</div>
+    </div>
+</div>
+
 <!-- ─── drum item CSS (scoped inline — only used inside focus-dur-modal) ── -->
 <style>
     #focus-dur-hrs .focus-drum-pad,
@@ -223,4 +298,5 @@
       border-color: var(--p);
       box-shadow: 0 2px 8px rgba(108,99,255,.4);
     }
+
 </style>

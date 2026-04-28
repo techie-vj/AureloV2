@@ -1,6 +1,6 @@
 /* ═══ SETTINGS ════════════════════════════════════ */
 .sg{margin:0 16px 14px}
-.sg-lbl{font-family:var(--ff-m);font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--t3);margin-bottom:7px;padding-left:4px}
+.sg-lbl{font-family:var(--ff-m);font-size: var(--text-2xs);letter-spacing:2px;text-transform:uppercase;color:var(--t3);margin-bottom:7px;padding-left:4px}
 .sr{display:flex;align-items:center;gap:12px;padding:13px 15px;background:var(--s1);border:1px solid var(--border);cursor:pointer;transition:background .12s}
 .sr:first-of-type{border-radius:13px 13px 0 0}
 .sr:last-of-type{border-radius:0 0 13px 13px}
@@ -9,7 +9,7 @@
 .sr:hover{background:var(--s2)}
 .sr-ico{width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
 .sr-lbl{font-size:14px;font-weight:600;flex:1}
-.sr-sub{font-size:11px;color:var(--t3);margin-top:1px;font-family:var(--ff-m)}
+.sr-sub{font-size: var(--text-2xs);color:var(--t3);margin-top:1px;font-family:var(--ff-m)}
 .sr-chev{color:var(--t3);font-size:14px}
 .tog{width:40px;height:22px;border-radius:999px;cursor:pointer;position:relative;transition:background .2s;flex-shrink:0}
 .tog.on{background:linear-gradient(135deg,var(--p),var(--c))}
@@ -17,7 +17,7 @@
 .tog-knob{width:16px;height:16px;border-radius:50%;background:white;position:absolute;top:3px;transition:left .2s cubic-bezier(.34,1.56,.64,1);box-shadow:0 2px 4px rgba(0,0,0,.3)}
 .tog.on .tog-knob{left:21px}
 .tog.off .tog-knob{left:3px}
-.perm-badge{padding:3px 8px;border-radius:999px;font-family:var(--ff-m);font-size:10px}
+.perm-badge{padding:3px 8px;border-radius:999px;font-family:var(--ff-m);font-size: var(--text-2xs)}
 .perm-badge.ok{background:rgba(18,212,138,.15);color:var(--g)}
 .perm-badge.no{background:rgba(240,78,122,.15);color:var(--r)}
 

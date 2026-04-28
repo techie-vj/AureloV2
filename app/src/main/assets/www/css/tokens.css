@@ -50,6 +50,15 @@
   --shadow-sm: 0 2px 8px rgba(0,0,0,.35);
   --shadow-md: 0 8px 28px rgba(0,0,0,.55);
   --shadow-lg: 0 16px 48px rgba(0,0,0,.65);
+
+  /* ── Health Connect accent ───────────────────────────────────
+     --hc       : primary teal for HC badges, icons, borders
+     --hc-dim   : semi-transparent fill for HC-branded surfaces
+     --hc-border: border/outline alpha for HC cards
+     ─────────────────────────────────────────────────────────── */
+  --hc:        #06D6B8;
+  --hc-dim:    rgba(6,214,184,0.10);
+  --hc-border: rgba(6,214,184,0.24);
 }
 
 /* ── LIGHT ── */

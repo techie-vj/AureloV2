@@ -1,6 +1,7 @@
 /* ═══ app-settings.js — Settings tab: theme, goal, bedtime, permissions ════
  * Widget settings panel → app-settings-widget.js (Phase 4)
  * ════════════════════════════════════════════════════════════════════════════ */
+var playSyncSettingsState = { running: false };
 
 /* ═══ SETTINGS ════════════════════════════════════════ */
 var APP_THEMES=[
@@ -164,7 +165,7 @@ function _ensureGoalModal() {
           'background:var(--border,rgba(255,255,255,.15));margin:0 auto 18px"></div>' +
       '<div style="font-family:var(--ff-d);font-size:18px;font-weight:700;' +
           'color:var(--t1);margin-bottom:6px">Daily Screen Time Goal</div>' +
-      '<div style="font-family:var(--ff-m);font-size:11px;color:var(--t3);' +
+      '<div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);' +
           'margin-bottom:18px">Choose how much daily screen time you\'re aiming for</div>' +
       '<div id="goal-grid" style="display:grid;grid-template-columns:repeat(3,1fr);' +
           'gap:8px;margin-bottom:20px">' +
@@ -366,10 +367,10 @@ function _btRefreshBlockedChips() {
     </div>`).join('');
   const overflow = _btBlockedApps.length > 5
     ? `<div class="focus-app-chip" style="background:var(--s2);border-color:var(--border2);
-         color:var(--t3);font-family:var(--ff-m);font-size:10px;cursor:default">
+         color:var(--t3);font-family:var(--ff-m);font-size:var(--text-2xs);cursor:default">
          +${_btBlockedApps.length - 5}</div>` : '';
   const addBtn = `<div onclick="_btInlineOpenBlockPicker()"
-       style="font-family:var(--ff-m);font-size:11px;color:var(--p);cursor:pointer;
+       style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--p);cursor:pointer;
               white-space:nowrap">+ Add</div>`;
   wrap.innerHTML = chips + overflow + (_btBlockedApps.length < 10 ? addBtn : '');
 }
@@ -701,7 +702,7 @@ function _updateSettingsIdentityCard(isPro) {
         <span style="font-size:14px">✦</span>
         <div style="flex:1">
           <div style="font-size:12px;font-weight:700;color:#c4c0ff;line-height:1.2">Upgrade to Pro</div>
-          <div style="font-family:var(--ff-m);font-size:10px;color:#7c6ff7;margin-top:1px">Unlock all features · tap to see plans</div>
+          <div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:#7c6ff7;margin-top:1px">Unlock all features · tap to see plans</div>
         </div>
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#7c6ff7" stroke-width="2.5"
           stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
@@ -792,6 +793,204 @@ function toast(msg,type='info',duration){
 function fmtM(m){ if(!m||m<=0) return ''; const h=Math.floor(m/60),mn=m%60; return h>0?(mn>0?`${h}h ${mn}m`:`${h}h`):`${mn}m`; }
 function nCall(method,...args){ try{ if(N&&typeof N[method]==='function') return N[method](...args); }catch(e){ console.error('[Bridge]',method,e); } return null; }
 
+/* ── Health Connect collapsible (Settings › Integrations) ── */
+    function toggleHCSettingsSection(forceOpen) {
+      const body = document.getElementById('hc-settings-inner');
+      const chev = document.getElementById('hc-settings-chev');
+      const sub  = document.getElementById('hc-settings-sub');
+      if (!body) return;
+
+      const isOpen   = body.style.display !== 'none';
+      const shouldOpen = (forceOpen !== undefined) ? !!forceOpen : !isOpen;
+
+      body.style.display = shouldOpen ? '' : 'none';
+      body.style.opacity  = shouldOpen ? '1' : '0';
+      if (chev) chev.style.transform = shouldOpen ? 'rotate(90deg)' : 'rotate(0deg)';
+
+      // Update subtitle to reflect state
+      if (sub) {
+        if (shouldOpen) {
+          sub.textContent = 'Steps, sleep & heart rate';
+        } else {
+          // Check if connected and show status
+          const connected = (typeof HealthConnect !== 'undefined' && HealthConnect.isConnected && HealthConnect.isConnected());
+          sub.textContent = connected ? 'Connected ✓' : 'Tap to expand';
+        }
+      }
+    }
+
+    /* Auto-expand HC section when arriving via deep-link from home.
+       Call openSettingsWithHC() instead of activateTab('settings') when
+       the user taps a Health Connect prompt on the home screen. */
+    function openSettingsWithHC() {
+      if (typeof activateTab === 'function') activateTab('settings');
+      // setTimeout gives the settings screen time to fully render before expanding
+      setTimeout(() => toggleHCSettingsSection(true), 80);
+    }
+
 /* ═══ BOOT ════════════════════════════════════════════ */
 applySettings();
-setCatView(S.catView);
+if (typeof setCatView === 'function') setCatView(S.catView);
+/* ── Play Sync (Improve App Categories) — panel-based flow ─────────────────── */
+
+function setPlaySyncSettingsStep(step, message, percent){
+  var prompt   = document.getElementById('pssm-prompt');
+  var progress = document.getElementById('pssm-progress');
+  var done     = document.getElementById('pssm-done');
+  var bar      = document.getElementById('pssm-bar');
+  var progressTxt = document.getElementById('pssm-progress-txt');
+  var doneTxt     = document.getElementById('pssm-done-txt');
+  if(prompt)   prompt.style.display   = step === 'prompt'   ? 'block' : 'none';
+  if(progress) progress.style.display = step === 'progress' ? 'block' : 'none';
+  if(done)     done.style.display     = step === 'done'     ? 'block' : 'none';
+  if(progressTxt && message && step === 'progress') progressTxt.textContent = message;
+  if(bar && typeof percent === 'number') bar.style.width = Math.max(0, Math.min(100, percent)) + '%';
+  if(doneTxt && message && step === 'done') doneTxt.textContent = message;
+}
+
+function openPlaySyncSettingsPanel(){
+  try {
+    playSyncSettingsState.running = false;
+    setPlaySyncSettingsStep('prompt');
+  } catch (e) {
+    console.error("Initialization failed, but opening panel anyway", e);
+  }
+  // This must be outside the try/catch or at the very end to ensure it runs
+  openPanel('play-sync-settings-panel');
+}
+
+function closePlaySyncSettingsPanel(){
+  // Remove the rigid block so the user can always back out.
+  playSyncSettingsState.running = false;
+  closePanel('play-sync-settings-panel');
+
+  // Reset the UI cleanly after the panel slides away
+  setTimeout(function() {
+    setPlaySyncSettingsStep('prompt');
+  }, 300);
+}
+
+function maybeShowPlaySyncBanner() {
+  // Play Sync entry point has moved to Settings → "Improve App Categories"
+  // Do not auto-show the home banner or navigate away from the current screen
+}
+
+function dismissPlaySyncBanner(){
+  var el = document.getElementById('play-sync-banner');
+  if (el) el.style.display = 'none';
+}
+
+function startPlaySync(){
+  if(!ProTier.isPro){
+    playSyncSettingsState.running = false;
+    setPlaySyncSettingsStep('prompt');
+    ProTier.triggerUpsell('PLAY_STORE_SYNC');
+    return;
+  }
+  if (!IS_NATIVE) {
+    playSyncSettingsState.running = false;
+    setPlaySyncSettingsStep('prompt');
+    return;
+  }
+
+  window.onPlaySyncProgress = function(done, total) {
+    var pct = total > 0 ? Math.round((done / total) * 100) : 0;
+    var msg = done + ' of ' + total + ' apps checked…';
+
+    var bar = document.getElementById('psb-bar');
+    var txt = document.getElementById('psb-progress-txt');
+    if (bar) bar.style.width = pct + '%';
+    if (txt) txt.textContent = msg;
+
+    var pssmBar = document.getElementById('pssm-bar');
+    var pssmTxt = document.getElementById('pssm-progress-txt');
+    if (pssmBar) pssmBar.style.width = pct + '%';
+    if (pssmTxt) pssmTxt.textContent = msg;
+  };
+
+  window.onPlaySyncComplete = function(updatedCount) {
+      // ── UI update first — guaranteed regardless of anything below ──
+      playSyncSettingsState.running = false;
+      var resultMsg = updatedCount > 0
+          ? updatedCount + ' app' + (updatedCount > 1 ? 's' : '') + ' updated'
+          : 'All apps already categorised';
+      setPlaySyncSettingsStep('done', resultMsg);
+
+      // ── Everything else is best-effort ──
+      try {
+          if (typeof _psbState === 'function') _psbState('done');
+          var txt = document.getElementById('psb-done-txt');
+          if (txt) txt.textContent = resultMsg;
+          setTimeout(dismissPlaySyncBanner, 4000);
+
+          if (typeof S !== 'undefined' && S !== null) {
+              S.playSyncSynced = true;
+              if (typeof saveS === 'function') saveS();
+          }
+
+          if (typeof loadNativeData === 'function') {
+              loadNativeData();
+          } else {
+              if (typeof IS_NATIVE !== 'undefined' && IS_NATIVE && typeof N !== 'undefined') {
+                  try {
+                      if (typeof buildCatsMap === 'function') {
+                          buildCatsMap(JSON.parse(N.getCachedApps() || '[]'));
+                      }
+                  } catch (_) {}
+              }
+              if (typeof renderCategoryGrid === 'function') renderCategoryGrid();
+              if (typeof renderCategoryList === 'function') renderCategoryList();
+              if (typeof updateCatsSub === 'function') updateCatsSub();
+              if (typeof scheduleGridRefresh === 'function') scheduleGridRefresh();
+          }
+      } catch (e) {
+          console.error('[PlaySync] onPlaySyncComplete post-processing error:', e);
+      }
+
+    window.onPlaySyncError = function() {
+        clearTimeout(_playSyncWatchdog);
+        playSyncSettingsState.running = false;
+        setPlaySyncSettingsStep('prompt');
+        if (typeof toast === 'function') toast('Could not reach Play Store — check your connection', 'error');
+    };
+
+    setTimeout(function(){
+      closePlaySyncSettingsPanel();
+    }, 3000);
+  };
+
+  try {
+    nCall('startPlaySync');
+    // Add a 60-second watchdog after nCall('startPlaySync'):
+        var _playSyncWatchdog = setTimeout(function() {
+            if (playSyncSettingsState.running) {
+                playSyncSettingsState.running = false;
+                setPlaySyncSettingsStep('prompt');
+                if (typeof toast === 'function') toast('Sync timed out — please try again', 'warn');
+            }
+        }, 60000);
+  } catch (e) {
+    playSyncSettingsState.running = false;
+    setPlaySyncSettingsStep('prompt');
+    if (typeof toast === 'function') {
+      toast('Could not start sync — check your connection', 'error');
+    }
+  }
+}
+
+function runPlaySyncFromSettings(){
+  if(playSyncSettingsState.running) return;
+  playSyncSettingsState.running = true;
+  setPlaySyncSettingsStep('progress', 'Connecting...', 12);
+  if(typeof startPlaySync === 'function') startPlaySync();
+  else {
+    playSyncSettingsState.running = false;
+    setPlaySyncSettingsStep('prompt');
+    if(typeof toast === 'function') toast('Play Store sync is unavailable right now', 'warn');
+  }
+}
+
+function onPlaySyncProgressFromSettings(message, percent){
+  if(!playSyncSettingsState.running) return;
+  setPlaySyncSettingsStep('progress', message || 'Syncing...', typeof percent === 'number' ? percent : 60);
+}

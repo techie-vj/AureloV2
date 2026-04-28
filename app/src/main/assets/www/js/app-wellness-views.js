@@ -52,7 +52,7 @@ function switchWellnessView(view, btn) {
     // Also show a loading state in top apps so there's no blank gap
     var _topList = document.getElementById('ww-top-apps-list');
     if (_topList) _topList.innerHTML =
-      '<div style="padding:14px 16px;font-family:var(--ff-m);font-size:11px;color:var(--t3);' +
+      '<div style="padding:14px 16px;font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);' +
       'display:flex;align-items:center;gap:8px">' +
       '<div style="width:14px;height:14px;border-radius:50%;border:2px solid var(--border2);' +
       'border-top-color:var(--p);animation:spin .8s linear infinite;flex-shrink:0"></div>' +
@@ -76,7 +76,8 @@ function switchWellnessView(view, btn) {
         // Defer the slow N.getWeeklyAppUsage() bridge call so chart paints first
         setTimeout(function() {
           renderWeekTopApps();
-          renderWeekInsights();
+          if (typeof renderWeekCoachInsight === 'function') renderWeekCoachInsight();
+          else if (typeof renderWeekInsights === 'function') renderWeekInsights();
         }, 0);
       } else {
         // Re-visit: restore correct chart tab highlight and re-render chart
@@ -155,6 +156,9 @@ function _renderMonthAfterLoad() {
   renderAppDNA();
   renderMonthStreakGrid();
   renderMonthTopApps();
+
+  // Coach insight card for Pro users — added above Top Apps
+  if (typeof renderMonthCoachInsight === 'function') renderMonthCoachInsight();
 
   // Restore scroll position after DOM settles (one rAF is enough for layout to flush)
   if (scr && savedScroll > 0) {

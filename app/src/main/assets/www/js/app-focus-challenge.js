@@ -272,29 +272,29 @@ window.FocusChallenge = (function () {
     return '<div style="padding:18px 20px 10px;display:flex;align-items:baseline;justify-content:space-between">' +
         '<div>' +
           '<div style="font-family:var(--ff-d);font-size:16px;font-weight:700">This Week\'s Challenge</div>' +
-          '<div style="font-family:var(--ff-m);font-size:11px;color:var(--t3);margin-top:2px;letter-spacing:.5px">BASED ON YOUR PATTERNS · LOCAL ONLY</div>' +
+          '<div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);margin-top:2px;letter-spacing:.5px">BASED ON YOUR PATTERNS · LOCAL ONLY</div>' +
         '</div>' +
-        '<div style="font-family:var(--ff-m);font-size:10px;color:var(--t3)">Day ' + Math.min(done+1,total) + ' of ' + total + '</div>' +
+        '<div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3)">Day ' + Math.min(done+1,total) + ' of ' + total + '</div>' +
       '</div>' +
       '<div style="margin:0 20px;border-radius:20px;background:linear-gradient(135deg,rgba(124,111,255,.1),rgba(61,214,140,.06));border:1px solid rgba(124,111,255,.22);padding:16px;position:relative;overflow:hidden" id="challenge-card">' +
         '<div style="position:absolute;top:-20px;right:-20px;width:100px;height:100px;border-radius:50%;background:rgba(124,111,255,.05);pointer-events:none"></div>' +
-        '<div style="font-family:var(--ff-m);font-size:11px;color:var(--p2);letter-spacing:1.2px;text-transform:uppercase;margin-bottom:10px;display:flex;align-items:center;gap:6px">' +
+        '<div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--p2);letter-spacing:1.2px;text-transform:uppercase;margin-bottom:10px;display:flex;align-items:center;gap:6px">' +
           '<div style="width:6px;height:6px;border-radius:50%;background:var(--p);box-shadow:0 0 6px var(--p);flex-shrink:0"></div>' +
           'Week of ' + _weekNumber() + ' · Personalised for you' +
         '</div>' +
         '<div style="font-size:16px;font-weight:700;margin-bottom:5px;color:var(--t1)">' + challenge.title + '</div>' +
-        '<div style="font-family:var(--ff-m);font-size:11px;color:var(--t2);line-height:1.6;margin-bottom:14px">' + context + '</div>' +
-        (dots ? '<div style="display:flex;align-items:center;gap:10px;margin-bottom:14px"><div style="display:flex;gap:5px;flex:1">' + dots + '</div><div style="font-family:var(--ff-m);font-size:10px;color:var(--t2);white-space:nowrap">' + progressLabel + '</div></div>'
-              : '<div style="font-family:var(--ff-m);font-size:11px;color:var(--t2);margin-bottom:14px">' + progressLabel + '</div>') +
+        '<div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t2);line-height:1.6;margin-bottom:14px">' + context + '</div>' +
+        (dots ? '<div style="display:flex;align-items:center;gap:10px;margin-bottom:14px"><div style="display:flex;gap:5px;flex:1">' + dots + '</div><div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t2);white-space:nowrap">' + progressLabel + '</div></div>'
+              : '<div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t2);margin-bottom:14px">' + progressLabel + '</div>') +
         '<div style="display:flex;gap:8px">' +
           '<button type="button" onclick="FocusChallenge.checkProgress(\'' + challenge.id + '\')" style="flex:1;padding:11px;border-radius:12px;border:none;background:linear-gradient(135deg,var(--p),var(--c));color:#fff;font-family:var(--ff-m);font-size:12px;font-weight:700;cursor:pointer">' +
             (isComplete ? '🏆 Completed!' : 'Check Progress →') +
           '</button>' +
-          '<button type="button" onclick="FocusChallenge.skipChallenge()" style="padding:11px 14px;border-radius:12px;border:1px solid var(--border);background:transparent;color:var(--t3);font-family:var(--ff-m);font-size:11px;cursor:pointer">Skip</button>' +
+          '<button type="button" onclick="FocusChallenge.skipChallenge()" style="padding:11px 14px;border-radius:12px;border:1px solid var(--border);background:transparent;color:var(--t3);font-family:var(--ff-m);font-size:var(--text-2xs);cursor:pointer">Skip</button>' +
         '</div>' +
         '<div style="display:flex;align-items:center;gap:7px;padding:9px 10px;background:rgba(247,184,35,.07);border:1px solid rgba(247,184,35,.18);border-radius:10px;margin-top:10px">' +
           '<span style="font-size:14px">🏆</span>' +
-          '<span style="font-family:var(--ff-m);font-size:10px;color:var(--a)">' + streakTip + '</span>' +
+          '<span style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--a)">' + streakTip + '</span>' +
         '</div>' +
       '</div>';
   }
@@ -302,12 +302,12 @@ window.FocusChallenge = (function () {
   function _buildChallengeSkippedSection() {
     return '<div style="padding:18px 20px 10px">' +
         '<div style="font-family:var(--ff-d);font-size:16px;font-weight:700">This Week\'s Challenge</div>' +
-        '<div style="font-family:var(--ff-m);font-size:11px;color:var(--t3);margin-top:2px;letter-spacing:.5px">BASED ON YOUR PATTERNS · LOCAL ONLY</div>' +
+        '<div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);margin-top:2px;letter-spacing:.5px">BASED ON YOUR PATTERNS · LOCAL ONLY</div>' +
       '</div>' +
       '<div style="margin:0 20px;border-radius:20px;background:var(--s1);border:1px solid var(--border);padding:20px 16px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:8px">' +
         '<div style="font-size:28px;opacity:.5">📅</div>' +
         '<div style="font-size:14px;font-weight:600;color:var(--t1)">Your next challenge starts ' + _getNextMondayDateStr() + '</div>' +
-        '<div style="font-family:var(--ff-m);font-size:11px;color:var(--t3);line-height:1.6;max-width:260px">You\'ve skipped this week\'s challenge. A new personalised challenge will be ready for you on Monday.</div>' +
+        '<div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);line-height:1.6;max-width:260px">You\'ve skipped this week\'s challenge. A new personalised challenge will be ready for you on Monday.</div>' +
       '</div>';
   }
 
@@ -321,14 +321,14 @@ window.FocusChallenge = (function () {
         '<div style="padding:18px 20px 10px;display:flex;align-items:baseline;justify-content:space-between">' +
           '<div>' +
             '<div style="font-family:var(--ff-d);font-size:16px;font-weight:700">This Week\'s Challenge</div>' +
-            '<div style="font-family:var(--ff-m);font-size:11px;color:var(--t3);margin-top:2px;letter-spacing:.5px">BASED ON YOUR PATTERNS · LOCAL ONLY</div>' +
+            '<div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);margin-top:2px;letter-spacing:.5px">BASED ON YOUR PATTERNS · LOCAL ONLY</div>' +
           '</div>' +
         '</div>' +
         '<div style="margin:0 20px;position:relative;border-radius:20px;overflow:hidden;cursor:pointer"' +
           ' class="challenge-locked" onclick="ProTier.triggerUpsell(\'WEEKLY_CHALLENGE\')">' +
           '<div style="filter:blur(5px);pointer-events:none;background:linear-gradient(135deg,rgba(124,111,255,.1),rgba(61,214,140,.06));border:1px solid rgba(124,111,255,.22);border-radius:20px;padding:16px">' +
             '<div style="font-size:16px;font-weight:700;margin-bottom:5px;color:var(--t1)">🎯 Under goal 3 days</div>' +
-            '<div style="font-family:var(--ff-m);font-size:11px;color:var(--t2);line-height:1.6;margin-bottom:14px">Hit your daily goal 3 times this week — 1 done so far.</div>' +
+            '<div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t2);line-height:1.6;margin-bottom:14px">Hit your daily goal 3 times this week — 1 done so far.</div>' +
             '<div style="display:flex;gap:5px;flex:1;margin-bottom:14px">' +
               Array.from({length:7}, function (_, i) {
                 return '<div style="height:6px;flex:1;border-radius:3px;background:' + (i < 1 ? 'var(--g)' : 'var(--s3)') + '"></div>';
@@ -338,7 +338,7 @@ window.FocusChallenge = (function () {
           '</div>' +
           '<div class="pro-lock-overlay" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;background:rgba(0,0,0,.18)">' +
             (typeof proBadge === 'function' ? proBadge() : '') +
-            '<div style="font-family:var(--ff-m);font-size:11px;color:var(--t2)">Unlock weekly challenges</div>' +
+            '<div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t2)">Unlock weekly challenges</div>' +
           '</div>' +
         '</div>';
       return;

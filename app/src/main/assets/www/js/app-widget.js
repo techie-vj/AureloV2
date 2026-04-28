@@ -274,27 +274,27 @@ function openRoutineDetail(){
         <div style="filter:blur(5px);pointer-events:none;padding:4px 0">
           <div style="display:flex;gap:2px;margin-bottom:14px;padding-bottom:2px">
             ${['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map((d,i)=>`
-              <div style="padding:5px 10px;border-radius:99px;font-size:11px;font-weight:${i===new Date().getDay()?700:400};
+              <div style="padding:5px 10px;border-radius:99px;font-size:var(--text-2xs);font-weight:${i===new Date().getDay()?700:400};
                 background:${i===new Date().getDay()?'rgba(108,99,255,.25)':'transparent'};
                 color:${i===new Date().getDay()?'#A89CFF':'var(--t3)'};">${d}</div>`).join('')}
           </div>
           <div style="margin-bottom:12px">
-            <div style="font-size:11px;font-weight:700;color:#F7A623;margin-bottom:6px">☀️ Morning</div>
+            <div style="font-size:var(--text-2xs);font-weight:700;color:#F7A623;margin-bottom:6px">☀️ Morning</div>
             <div style="display:flex;gap:8px;flex-wrap:wrap">
               ${['Instagram','YouTube','Spotify'].map(n=>`
                 <div style="display:flex;align-items:center;gap:6px;background:var(--s2);border-radius:10px;padding:5px 9px">
                   <div style="width:20px;height:20px;border-radius:5px;background:var(--border)"></div>
-                  <span style="font-size:11px;color:var(--t2)">${n}</span>
+                  <span style="font-size:var(--text-2xs);color:var(--t2)">${n}</span>
                 </div>`).join('')}
             </div>
           </div>
           <div>
-            <div style="font-size:11px;font-weight:700;color:#5DD6F8;margin-bottom:6px">🌤 Midday</div>
+            <div style="font-size:var(--text-2xs);font-weight:700;color:#5DD6F8;margin-bottom:6px">🌤 Midday</div>
             <div style="display:flex;gap:8px;flex-wrap:wrap">
               ${['WhatsApp','Gmail','Chrome'].map(n=>`
                 <div style="display:flex;align-items:center;gap:6px;background:var(--s2);border-radius:10px;padding:5px 9px">
                   <div style="width:20px;height:20px;border-radius:5px;background:var(--border)"></div>
-                  <span style="font-size:11px;color:var(--t2)">${n}</span>
+                  <span style="font-size:var(--text-2xs);color:var(--t2)">${n}</span>
                 </div>`).join('')}
             </div>
           </div>
@@ -302,7 +302,7 @@ function openRoutineDetail(){
         <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;background:rgba(0,0,0,.2)">
           ${typeof proBadge==='function' ? proBadge() : ''}
           <div style="font-family:var(--ff-m);font-size:12px;color:var(--t1);font-weight:600">Unlock Smart Routine</div>
-          <div style="font-family:var(--ff-m);font-size:11px;color:var(--t2);text-align:center;max-width:220px;line-height:1.5">See which apps you actually use at each time of day, learned from your real habits.</div>
+          <div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t2);text-align:center;max-width:220px;line-height:1.5">See which apps you actually use at each time of day, learned from your real habits.</div>
           <button type="button" onclick="event.stopPropagation();ProTier.triggerUpsell('WIDGET_STATS_INSIGHT')" style="margin-top:4px;padding:10px 24px;border-radius:12px;border:none;background:linear-gradient(135deg,var(--p),var(--c));color:#fff;font-family:var(--ff-m);font-size:12px;font-weight:700;cursor:pointer">Upgrade to Pro →</button>
         </div>
       </div>`;
@@ -343,16 +343,16 @@ function openRoutineDetail(){
     let html = '<div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">'
       + '<div style="flex:1">'
       + '<div style="font-size:15px;font-weight:700">'+dayLabel+'\u2019s Routine</div>'
-      + '<div style="font-size:11px;color:var(--t3);margin-top:2px">'+badgeTxt+'</div>'
+      + '<div style="font-size:var(--text-2xs);color:var(--t3);margin-top:2px">'+badgeTxt+'</div>'
       + '</div>'
-      + '<div style="font-family:var(--ff-m);font-size:10px;padding:3px 9px;border-radius:99px;background:rgba(168,156,255,.15);color:#A89CFF">'+(dayCount>0?dayCount+'×':'–')+'</div>'
+      + '<div style="font-family:var(--ff-m);font-size:var(--text-2xs);padding:3px 9px;border-radius:99px;background:rgba(168,156,255,.15);color:#A89CFF">'+(dayCount>0?dayCount+'×':'–')+'</div>'
       + '</div>';
 
     if(!hasAnyData){
       html += '<div style="text-align:center;padding:20px 0;color:var(--t3);font-size:13px">'
         + '<div style="font-size:28px;margin-bottom:8px">🌱</div>'
         + '<div>No data for '+DAY_NAMES[dow]+'s yet.</div>'
-        + '<div style="font-size:11px;margin-top:4px">Data builds up after a few '+DAY_NAMES[dow]+'s of use.</div>'
+        + '<div style="font-size:var(--text-2xs);margin-top:4px">Data builds up after a few '+DAY_NAMES[dow]+'s of use.</div>'
         + '</div>';
     } else {
       slotMeta.forEach(function(s){
@@ -360,13 +360,13 @@ function openRoutineDetail(){
         if(!apps.length) return;
         html += '<div style="margin-bottom:12px">'
           + '<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">'
-          + '<div style="font-size:11px;font-weight:700;color:'+s.color+'">'+s.label+'</div>'
-          + '<div style="font-size:11px;color:var(--t3);font-family:var(--ff-m)">'+s.time+'</div>'
+          + '<div style="font-size:var(--text-2xs);font-weight:700;color:'+s.color+'">'+s.label+'</div>'
+          + '<div style="font-size:var(--text-2xs);color:var(--t3);font-family:var(--ff-m)">'+s.time+'</div>'
           + '</div><div style="display:flex;gap:8px;flex-wrap:wrap">';
         apps.forEach(function(a){
           html += '<div style="display:flex;align-items:center;gap:6px;background:var(--s2);border-radius:10px;padding:5px 9px">'
             + '<img src="'+a.iconUrl+'" style="width:20px;height:20px;border-radius:5px" onerror="this.style.display=\'none\'">'
-            + '<span style="font-size:11px;color:var(--t2)">'+a.name+'</span>'
+            + '<span style="font-size:var(--text-2xs);color:var(--t2)">'+a.name+'</span>'
             + '</div>';
         });
         html += '</div></div>';
@@ -381,7 +381,7 @@ function openRoutineDetail(){
     return DAY_SHORT.map(function(d,i){
       const active = i === selectedDow;
       return '<div onclick="window._routineDayPick('+i+')" style="'
-        + 'padding:5px 10px;border-radius:99px;font-size:11px;'
+        + 'padding:5px 10px;border-radius:99px;font-size:var(--text-2xs);'
         + 'font-weight:'+(active?700:400)+';cursor:pointer;white-space:nowrap;'
         + 'background:'+(active?'rgba(108,99,255,.25)':'transparent')+';'
         + 'color:'+(active?'#A89CFF':'var(--t3)')+';">'+d+'</div>';
@@ -491,80 +491,6 @@ function _psbState(state) {
   document.getElementById('psb-prompt').style.display   = state === 'prompt'   ? '' : 'none';
   document.getElementById('psb-progress').style.display = state === 'progress' ? '' : 'none';
   document.getElementById('psb-done').style.display     = state === 'done'     ? 'flex' : 'none';
-}
-
-function maybeShowPlaySyncBanner() {
-  if (!IS_NATIVE) return;
-  // Only permanently hide after a successful sync — not just a dismiss
-  if (S.playSyncSynced) return;
-  document.getElementById('play-sync-banner').style.display = '';
-  _psbState('prompt');
-  // Phase 3 (#1): inject Pro badge into the Categorise Now button for free users
-  // The button is static HTML so we patch its label here after showing the banner
-  if (!ProTier.isPro) {
-    const btn = document.getElementById('psb-sync-btn');
-    if (btn && !btn.querySelector('.pro-sort-badge')) {
-      const badge = document.createElement('span');
-      badge.className = 'pro-sort-badge';
-      badge.style.cssText = 'margin-left:6px;vertical-align:middle';
-      badge.innerHTML = typeof proBadge === 'function' ? proBadge(true) : '';
-      btn.appendChild(badge);
-    }
-  }
-}
-
-function dismissPlaySyncBanner() {
-  document.getElementById('play-sync-banner').style.display = 'none';
-}
-
-function startPlaySyncFromSettings() {
-  // Phase 3 (#5): Categorise Now / Play Sync is a Pro feature
-  //if(!ProTier.isPro){ ProTier.triggerUpsell('categories'); return; }
-  // Scroll home tab into view and show the banner in active state
-  activateTab('home');
-  const banner = document.getElementById('play-sync-banner');
-  banner.style.display = '';
-  _psbState('prompt');
-  // Scroll banner into view
-  setTimeout(() => banner.scrollIntoView({ behavior: 'smooth', block: 'center' }), 300);
-}
-
-function startPlaySync() {
-  // Phase 3 (#5): gate — free users see paywall
-  if(!ProTier.isPro){ ProTier.triggerUpsell('PLAY_STORE_SYNC'); return; }
-  if (!IS_NATIVE) return;
-  _psbState('progress');
-
-  // Progress callback: AppBridge calls window.onPlaySyncProgress(done, total)
-  window.onPlaySyncProgress = function(done, total) {
-    const pct = total > 0 ? Math.round((done / total) * 100) : 0;
-    const bar = document.getElementById('psb-bar');
-    const txt = document.getElementById('psb-progress-txt');
-    if (bar) bar.style.width = pct + '%';
-    if (txt) txt.textContent = `${done} of ${total} apps checked…`;
-  };
-
-  window.onPlaySyncComplete = function(updatedCount) {
-     S.playSyncSynced = true;
-     saveS();
-    _psbState('done');
-    const txt = document.getElementById('psb-done-txt');
-    if (txt) txt.textContent = updatedCount > 0
-      ? `${updatedCount} app${updatedCount > 1 ? 's' : ''} updated`
-      : 'All apps already categorised';
-    // Auto-dismiss after 4s
-    setTimeout(dismissPlaySyncBanner, 4000);
-    // Refresh the category grid
-    loadNativeData();
-  };
-
-  // Kick off the sync via AppBridge
-  try {
-    nCall('startPlaySync');
-  } catch(e) {
-    toast('Could not start sync — check your connection', 'error');
-    _psbState('prompt');
-  }
 }
 
 // Called by onAppsChanged when PLAY_SYNC_COMPLETE fires from background (if kept)

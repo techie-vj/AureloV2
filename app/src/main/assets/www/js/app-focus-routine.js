@@ -287,8 +287,8 @@ window.FocusRoutine = (function () {
       'border-radius:12px;background:rgba(247,166,35,.08);border:1px solid rgba(247,166,35,.2)">' +
       '<div style="font-size:16px;flex-shrink:0">' + (soon.emoji || '⏰') + '</div>' +
       '<div style="flex:1;min-width:0">' +
-        '<div style="font-family:var(--ff-m);font-size:11px;font-weight:700;color:var(--a)">' + soon.name + ' starts ' + timeLabel + '</div>' +
-        '<div style="font-family:var(--ff-m);font-size:9px;color:var(--t3);margin-top:1px">Starting now will skip it · ' + diff.label + ' · ' + _fmtCustomDur(soon.durationMins) + '</div>' +
+        '<div style="font-family:var(--ff-m);font-size:var(--text-2xs);font-weight:700;color:var(--a)">' + soon.name + ' starts ' + timeLabel + '</div>' +
+        '<div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);margin-top:1px">Starting now will skip it · ' + diff.label + ' · ' + _fmtCustomDur(soon.durationMins) + '</div>' +
       '</div></div>';
   }
 
@@ -319,7 +319,7 @@ window.FocusRoutine = (function () {
         background:var(--s1);border-radius:24px 24px 0 0;width:100%;
         transform:translateY(100%);transition:transform .28s cubic-bezier(.32,1,.45,1);
       }
-      ._rp-lbl{font-family:var(--ff-m);font-size:10px;color:var(--t3);
+      ._rp-lbl{font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);
         text-transform:uppercase;letter-spacing:.7px;margin-bottom:8px;display:block;}
       ._rp-card{background:var(--s2);border:1px solid var(--border2);
         border-radius:18px;padding:14px;margin-bottom:10px;}
@@ -332,7 +332,7 @@ window.FocusRoutine = (function () {
         transition:background .1s,color .1s;-webkit-tap-highlight-color:transparent;}
       ._rp-grid-cell.on{background:var(--p)!important;color:#fff!important;}
       ._rp-preset-pill{padding:4px 10px;border-radius:99px;cursor:pointer;
-        font-family:var(--ff-m);font-size:10px;font-weight:600;
+        font-family:var(--ff-m);font-size:var(--text-2xs);font-weight:600;
         transition:background .12s,color .12s;background:var(--s3);color:var(--t3);
         -webkit-tap-highlight-color:transparent;user-select:none;}
       ._rp-preset-pill.on{background:var(--p)!important;color:#fff!important;}
@@ -389,7 +389,7 @@ window.FocusRoutine = (function () {
       return days.map(function (d) { return _DAY_SHORT[d]; }).join(' · ');
     }
     return '<div style="margin-bottom:14px">' +
-      '<div style="font-family:var(--ff-m);font-size:10px;color:var(--t3);letter-spacing:.5px;text-transform:uppercase;margin-bottom:8px">Quick Start Templates</div>' +
+      '<div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);letter-spacing:.5px;text-transform:uppercase;margin-bottom:8px">Quick Start Templates</div>' +
       '<div style="display:flex;gap:10px;overflow-x:auto;scrollbar-width:none;padding-bottom:4px">' +
         unused.map(function (tpl) {
           var endTotal = tpl.startHour * 60 + tpl.startMin + tpl.durationMins;
@@ -398,9 +398,9 @@ window.FocusRoutine = (function () {
             ' style="flex-shrink:0;width:160px;background:var(--s2);border:1px solid var(--border2);border-radius:16px;padding:14px 12px;cursor:pointer">' +
             '<div style="font-size:22px;margin-bottom:6px">' + tpl.emoji + '</div>' +
             '<div style="font-size:13px;font-weight:700;color:var(--t1);margin-bottom:5px">' + escHtml(tpl.name) + '</div>' +
-            '<div style="font-family:var(--ff-m);font-size:11px;font-weight:600;color:var(--t2);margin-bottom:2px">' + _fmt12h(tpl.startHour, tpl.startMin) + ' – ' + _fmt12h(endH, endM) + '</div>' +
-            '<div style="font-family:var(--ff-m);font-size:10px;color:var(--t3);margin-bottom:8px">' + _tplDayLabel(tpl.days) + '</div>' +
-            '<div style="font-family:var(--ff-m);font-size:10px;color:var(--p);font-weight:700">Use template →</div>' +
+            '<div style="font-family:var(--ff-m);font-size:var(--text-2xs);font-weight:600;color:var(--t2);margin-bottom:2px">' + _fmt12h(tpl.startHour, tpl.startMin) + ' – ' + _fmt12h(endH, endM) + '</div>' +
+            '<div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);margin-bottom:8px">' + _tplDayLabel(tpl.days) + '</div>' +
+            '<div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--p);font-weight:700">Use template →</div>' +
             '</div>';
         }).join('') +
       '</div></div>';
@@ -424,10 +424,10 @@ window.FocusRoutine = (function () {
           '<div style="width:44px;height:44px;border-radius:14px;flex-shrink:0;background:rgba(108,99,255,.1);border:1px solid rgba(108,99,255,.2);display:flex;align-items:center;justify-content:center;font-size:20px">📅</div>' +
           '<div style="flex:1;min-width:0">' +
             '<div style="font-size:13px;font-weight:700;color:var(--t1);margin-bottom:2px">Scheduled Routines</div>' +
-            '<div style="font-family:var(--ff-m);font-size:10px;color:var(--t3);line-height:1.5">Auto-start focus sessions on a repeating schedule</div>' +
+            '<div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);line-height:1.5">Auto-start focus sessions on a repeating schedule</div>' +
           '</div>' +
           '<div onclick="FocusRoutine.openRoutinePicker(null)"' +
-            ' style="padding:8px 14px;border-radius:99px;flex-shrink:0;background:rgba(108,99,255,.12);border:1px solid rgba(108,99,255,.25);font-family:var(--ff-m);font-size:11px;font-weight:700;color:var(--p);cursor:pointer;white-space:nowrap">＋ Add</div>' +
+            ' style="padding:8px 14px;border-radius:99px;flex-shrink:0;background:rgba(108,99,255,.12);border:1px solid rgba(108,99,255,.25);font-family:var(--ff-m);font-size:var(--text-2xs);font-weight:700;color:var(--p);cursor:pointer;white-space:nowrap">＋ Add</div>' +
         '</div>';
       return;
     }
@@ -448,7 +448,7 @@ window.FocusRoutine = (function () {
       var appIcons = (r.blockedApps || []).slice(0,4).map(function (a) {
         return '<div style="width:20px;height:20px;border-radius:6px;overflow:hidden;background:var(--s3);flex-shrink:0">' + appIco(a.packageName, 20, 4) + '</div>';
       }).join('');
-      var appMore = (r.blockedApps||[]).length > 4 ? '<span style="font-family:var(--ff-m);font-size:9px;color:var(--t3)">+' + (r.blockedApps.length-4) + '</span>' : '';
+      var appMore = (r.blockedApps||[]).length > 4 ? '<span style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3)">+' + (r.blockedApps.length-4) + '</span>' : '';
       var endedEarly = _routineEndedEarly.has(r.id);
       var pillCol, pillText;
       if (!r.enabled)      { pillCol='var(--t3)'; pillText='Paused'; }
@@ -469,23 +469,23 @@ window.FocusRoutine = (function () {
         '<div style="flex:1;min-width:0;overflow:hidden">' +
           '<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">' +
             '<span style="font-size:13px;font-weight:700;color:var(--t1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + r.name + '</span>' +
-            (st.active && !endedEarly ? '<span style="font-family:var(--ff-m);font-size:8px;padding:1px 7px;border-radius:99px;background:var(--p);color:#fff;flex-shrink:0;animation:_rp-pulse 1.4s ease-in-out infinite">ACTIVE</span>'
-              : endedEarly ? '<span style="font-family:var(--ff-m);font-size:8px;padding:1px 6px;border-radius:99px;background:rgba(247,166,35,.15);color:var(--a);flex-shrink:0">ENDED EARLY</span>'
-              : !r.enabled ? '<span style="font-family:var(--ff-m);font-size:8px;padding:1px 6px;border-radius:99px;background:var(--s3);color:var(--t3);flex-shrink:0">PAUSED</span>'
+            (st.active && !endedEarly ? '<span style="font-family:var(--ff-m);font-size:var(--text-2xs);padding:1px 7px;border-radius:99px;background:var(--p);color:#fff;flex-shrink:0;animation:_rp-pulse 1.4s ease-in-out infinite">ACTIVE</span>'
+              : endedEarly ? '<span style="font-family:var(--ff-m);font-size:var(--text-2xs);padding:1px 6px;border-radius:99px;background:rgba(247,166,35,.15);color:var(--a);flex-shrink:0">ENDED EARLY</span>'
+              : !r.enabled ? '<span style="font-family:var(--ff-m);font-size:var(--text-2xs);padding:1px 6px;border-radius:99px;background:var(--s3);color:var(--t3);flex-shrink:0">PAUSED</span>'
               : '') +
           '</div>' +
           '<div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;margin-bottom:4px">' +
-            '<span style="font-family:var(--ff-m);font-size:10px;font-weight:700;color:var(--t1)">' + start + '</span>' +
-            '<span style="font-family:var(--ff-m);font-size:10px;color:var(--t3)">→</span>' +
-            '<span style="font-family:var(--ff-m);font-size:10px;font-weight:700;color:var(--t1)">' + endStr + '</span>' +
-            '<span style="font-family:var(--ff-m);font-size:10px;color:var(--border2)">·</span>' +
-            '<span style="font-family:var(--ff-m);font-size:10px;color:var(--t3)">' + dayStr + '</span>' +
-            '<span style="font-family:var(--ff-m);font-size:10px;color:var(--border2)">·</span>' +
-            '<span style="font-family:var(--ff-m);font-size:10px;color:' + diff.color + '">' + diff.label.split(' ').slice(1).join(' ') + '</span>' +
+            '<span style="font-family:var(--ff-m);font-size:var(--text-2xs);font-weight:700;color:var(--t1)">' + start + '</span>' +
+            '<span style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3)">→</span>' +
+            '<span style="font-family:var(--ff-m);font-size:var(--text-2xs);font-weight:700;color:var(--t1)">' + endStr + '</span>' +
+            '<span style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--border2)">·</span>' +
+            '<span style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3)">' + dayStr + '</span>' +
+            '<span style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--border2)">·</span>' +
+            '<span style="font-family:var(--ff-m);font-size:var(--text-2xs);color:' + diff.color + '">' + diff.label.split(' ').slice(1).join(' ') + '</span>' +
           '</div>' +
           '<div style="display:flex;align-items:center;gap:4px">' +
             appIcons + appMore +
-            '<span id="' + pillId + '" style="font-family:var(--ff-m);font-size:9px;margin-left:auto;padding:2px 7px;border-radius:99px;white-space:nowrap;flex-shrink:0;background:' + (r.enabled ? pillCol + '18' : 'var(--s3)') + ';color:' + pillCol + '">' + pillText + '</span>' +
+            '<span id="' + pillId + '" style="font-family:var(--ff-m);font-size:var(--text-2xs);margin-left:auto;padding:2px 7px;border-radius:99px;white-space:nowrap;flex-shrink:0;background:' + (r.enabled ? pillCol + '18' : 'var(--s3)') + ';color:' + pillCol + '">' + pillText + '</span>' +
           '</div>' +
         '</div>' +
         (st.active && !endedEarly
@@ -509,10 +509,10 @@ window.FocusRoutine = (function () {
         '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">' +
           '<div>' +
             '<div style="font-size:14px;font-weight:700;color:var(--t1)">Scheduled Routines</div>' +
-            '<div style="font-family:var(--ff-m);font-size:10px;color:var(--t3);margin-top:1px">' + activeCount + ' active · tap any to edit</div>' +
+            '<div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);margin-top:1px">' + activeCount + ' active · tap any to edit</div>' +
           '</div>' +
           '<div onclick="FocusRoutine.openRoutinePicker(null)"' +
-            ' style="padding:7px 13px;border-radius:99px;background:rgba(108,99,255,.12);border:1px solid rgba(108,99,255,.22);font-family:var(--ff-m);font-size:11px;font-weight:700;color:var(--p);cursor:pointer;white-space:nowrap">＋ Add</div>' +
+            ' style="padding:7px 13px;border-radius:99px;background:rgba(108,99,255,.12);border:1px solid rgba(108,99,255,.22);font-family:var(--ff-m);font-size:var(--text-2xs);font-weight:700;color:var(--p);cursor:pointer;white-space:nowrap">＋ Add</div>' +
         '</div>' +
         _routines.map(function (r, i) { return row(r, i === _routines.length - 1); }).join('') +
       '</div>';
@@ -576,7 +576,7 @@ window.FocusRoutine = (function () {
       return _DAY_SHORT.map(function (d, i) {
         var on = rp.days.has(i);
         return '<div id="rp-day-' + i + '" onclick="FocusRoutine._rpToggleDay(' + i + ')"' +
-          ' style="flex:1;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-family:var(--ff-m);font-size:11px;font-weight:700;cursor:pointer;transition:all .15s;-webkit-tap-highlight-color:transparent;background:' + (on?'var(--p)':'var(--s3)') + ';color:' + (on?'#fff':'var(--t3)') + '">' + d + '</div>';
+          ' style="flex:1;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-family:var(--ff-m);font-size:var(--text-2xs);font-weight:700;cursor:pointer;transition:all .15s;-webkit-tap-highlight-color:transparent;background:' + (on?'var(--p)':'var(--s3)') + ';color:' + (on?'#fff':'var(--t3)') + '">' + d + '</div>';
       }).join('');
     }
     function _presetPills() {
@@ -591,7 +591,7 @@ window.FocusRoutine = (function () {
       var ampm=h>=12?'PM':'AM', h12=h%12===0?12:h%12;
       return '<div onclick="FocusRoutine._rpOpenTimePicker(\'' + idP + '\')" class="_rp-time-btn" id="' + idP + '-display">' +
         '<span style="font-family:var(--ff-d);font-size:18px;font-weight:700;color:var(--t1);letter-spacing:-0.5px">' + String(h12).padStart(2,'0') + ':' + String(m).padStart(2,'0') + '</span>' +
-        '<span style="font-family:var(--ff-m);font-size:10px;font-weight:700;color:var(--t3);margin-left:2px">' + ampm + '</span>' +
+        '<span style="font-family:var(--ff-m);font-size:var(--text-2xs);font-weight:700;color:var(--t3);margin-left:2px">' + ampm + '</span>' +
       '</div>';
     }
     function _diffPills() {
@@ -601,7 +601,7 @@ window.FocusRoutine = (function () {
         return '<div id="rp-diff-' + key + '" onclick="FocusRoutine._rpSetDiff(\'' + key + '\')"' +
           ' style="flex:1;padding:10px 4px;border-radius:12px;text-align:center;cursor:pointer;transition:all .15s;background:' + (on?meta.color+'1a':'var(--s3)') + ';border:2px solid ' + (on?meta.color:'transparent') + '">' +
           '<div style="font-size:15px;margin-bottom:2px">' + icon + '</div>' +
-          '<div style="font-family:var(--ff-m);font-size:9px;font-weight:700;color:' + (on?meta.color:'var(--t3)') + '"> ' + lbl + '</div></div>';
+          '<div style="font-family:var(--ff-m);font-size:var(--text-2xs);font-weight:700;color:' + (on?meta.color:'var(--t3)') + '"> ' + lbl + '</div></div>';
       }).join('');
     }
     function _appChips() {
@@ -615,7 +615,7 @@ window.FocusRoutine = (function () {
       var more = (rp.blockedApps||[]).length>5
         ? '<div class="focus-app-chip" onclick="FocusRoutine._rpOpenAppPicker(true)"' +
           ' style="background:var(--s2);border-color:var(--border2);color:var(--p);' +
-          'font-family:var(--ff-m);font-size:10px;cursor:pointer;font-weight:700">+' + (rp.blockedApps.length-5) + ' more</div>'
+          'font-family:var(--ff-m);font-size:var(--text-2xs);cursor:pointer;font-weight:700">+' + (rp.blockedApps.length-5) + ' more</div>'
         : '';
       return chips + more + '<div class="focus-chip-add" onclick="FocusRoutine._rpOpenAppPicker()">＋ Add app</div>';
     }
@@ -651,14 +651,14 @@ window.FocusRoutine = (function () {
         '<div class="_rp-card" style="padding:12px 14px">' +
           '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:9px">' +
             '<span class="_rp-lbl" style="margin:0">Apps Blocked</span>' +
-            '<span style="font-family:var(--ff-m);font-size:9px;color:var(--t3);opacity:.7">Independent from session</span>' +
+            '<span style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);opacity:.7">Independent from session</span>' +
           '</div>' +
           '<div id="rp-app-chips" style="display:flex;gap:7px;flex-wrap:wrap">' + _appChips() + '</div>' +
         '</div>' +
         '<div class="_rp-card" style="padding:12px 14px">' +
           '<span class="_rp-lbl">Difficulty</span>' +
           '<div style="display:flex;gap:8px" id="rp-diff-pills">' + _diffPills() + '</div>' +
-          '<div id="rp-diff-desc" style="font-family:var(--ff-m);font-size:10px;color:var(--t3);margin-top:9px;line-height:1.5">' +
+          '<div id="rp-diff-desc" style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);margin-top:9px;line-height:1.5">' +
             (typeof FOCUS_DIFF !== 'undefined' && FOCUS_DIFF[rp.difficulty] ? FOCUS_DIFF[rp.difficulty].desc : '') +
           '</div>' +
         '</div>' +
@@ -684,11 +684,11 @@ window.FocusRoutine = (function () {
           '</div>' +
           '<div id="rp-picker-display" style="text-align:center;font-family:var(--ff-d);font-size:36px;font-weight:700;color:var(--t1);letter-spacing:-1.5px;padding:4px 16px 10px;line-height:1.1"></div>' +
           '<div style="padding:0 12px 6px">' +
-            '<div style="font-family:var(--ff-m);font-size:9px;color:var(--t3);letter-spacing:.8px;margin-bottom:6px">HOUR</div>' +
+            '<div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);letter-spacing:.8px;margin-bottom:6px">HOUR</div>' +
             '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px" id="rp-picker-hours"></div>' +
           '</div>' +
           '<div style="padding:6px 12px 12px">' +
-            '<div style="font-family:var(--ff-m);font-size:9px;color:var(--t3);letter-spacing:.8px;margin-bottom:6px">MINUTE</div>' +
+            '<div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);letter-spacing:.8px;margin-bottom:6px">MINUTE</div>' +
             '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px" id="rp-picker-mins"></div>' +
           '</div>' +
           '<div style="height:max(env(safe-area-inset-bottom),16px)"></div>' +
@@ -767,7 +767,7 @@ window.FocusRoutine = (function () {
     var el = document.createElement('div');
     el.id = 'rp-inline-toast';
     el.style.cssText =
-      'font-family:var(--ff-m);font-size:11px;font-weight:600;margin-top:7px;' +
+      'font-family:var(--ff-m);font-size:var(--text-2xs);font-weight:600;margin-top:7px;' +
       'opacity:1;transition:opacity 0.5s ease;color:' +
       (type === 'success' ? 'var(--g,#4ade80)' : type === 'info' ? 'var(--p)' : 'var(--r,#f04e7a)') + ';';
     el.textContent = msg;
@@ -798,7 +798,7 @@ window.FocusRoutine = (function () {
     var more=arr.length>5
       ? '<div class="focus-app-chip" onclick="FocusRoutine._rpOpenAppPicker(true)"' +
         ' style="background:var(--s2);border-color:var(--border2);color:var(--p);' +
-        'font-family:var(--ff-m);font-size:10px;cursor:pointer;font-weight:700">+' + (arr.length-5) + ' more</div>'
+        'font-family:var(--ff-m);font-size:var(--text-2xs);cursor:pointer;font-weight:700">+' + (arr.length-5) + ' more</div>'
       : '';
     chips.innerHTML=html+more+'<div class="focus-chip-add" onclick="FocusRoutine._rpOpenAppPicker()">＋ Add app</div>';
   }
@@ -962,11 +962,11 @@ window.FocusRoutine = (function () {
           '<button id="rp-filter-all" onclick="FocusRoutine._rpSetFilter(\'all\')"' +
           ' style="padding:5px 14px;border-radius:99px;border:1px solid ' + (inSelected?'var(--border2)':'var(--p)') + ';' +
           'background:' + (inSelected?'transparent':'var(--p)') + ';color:' + (inSelected?'var(--t3)':'#fff') + ';' +
-          'font-family:var(--ff-m);font-size:11px;font-weight:700;cursor:pointer">All</button>' +
+          'font-family:var(--ff-m);font-size:var(--text-2xs);font-weight:700;cursor:pointer">All</button>' +
           '<button id="rp-filter-selected" onclick="FocusRoutine._rpSetFilter(\'selected\')"' +
           ' style="padding:5px 14px;border-radius:99px;border:1px solid ' + (inSelected?'var(--p)':'var(--border2)') + ';' +
           'background:' + (inSelected?'var(--p)':'transparent') + ';color:' + (inSelected?'#fff':'var(--t3)') + ';' +
-          'font-family:var(--ff-m);font-size:11px;font-weight:700;cursor:pointer">' +
+          'font-family:var(--ff-m);font-size:var(--text-2xs);font-weight:700;cursor:pointer">' +
           'Selected' + (selCount > 0 ? ' (' + selCount + ')' : '') + '</button>' +
         '</div>' +
       '</div>' +

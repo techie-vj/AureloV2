@@ -21,7 +21,7 @@
     <div class="panel-hdr">
         <div class="panel-back" onclick="closePanel('all-apps-panel')">←</div>
         <div class="panel-title">All Apps</div>
-        <div id="all-apps-count" style="font-family:var(--ff-m);font-size:10px;color:var(--t3)"></div>
+        <div id="all-apps-count" style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3)"></div>
     </div>
     <div style="padding:10px 16px 8px; border-bottom:1px solid var(--border); flex-shrink:0; display:flex; flex-direction:column; gap:12px;">
 
@@ -30,10 +30,10 @@
                oninput="renderAllAppsPanel()"/>
 
         <div style="display:flex; width:100%; background:var(--s2); border:1px solid var(--border2); border-radius:10px; overflow:hidden;">
-            <button id="aa-sort-today" onclick="setAllAppsSort('today')" style="flex:1; padding:8px 0; font-family:var(--ff-m); font-size:10px; border:none; cursor:pointer; background:var(--p); color:#fff; transition:all .15s; text-align:center;">Today</button>
-            <button id="aa-sort-week"  onclick="setAllAppsSort('week')"  style="flex:1; padding:8px 0; font-family:var(--ff-m); font-size:10px; border:none; cursor:pointer; background:transparent; color:var(--t2); transition:all .15s; text-align:center;">Week</button>
-            <button id="aa-sort-month" onclick="setAllAppsSort('month')" style="flex:1; padding:8px 0; font-family:var(--ff-m); font-size:10px; border:none; cursor:pointer; background:transparent; color:var(--t2); transition:all .15s; text-align:center;">Month</button>
-            <button id="aa-sort-az"   onclick="setAllAppsSort('az')"    style="flex:1; padding:8px 0; font-family:var(--ff-m); font-size:10px; border:none; cursor:pointer; background:transparent; color:var(--t2); transition:all .15s; text-align:center;">A–Z</button>
+            <button id="aa-sort-today" onclick="setAllAppsSort('today')" style="flex:1; padding:8px 0; font-family:var(--ff-m); font-size:var(--text-2xs); border:none; cursor:pointer; background:var(--p); color:#fff; transition:all .15s; text-align:center;">Today</button>
+            <button id="aa-sort-week"  onclick="setAllAppsSort('week')"  style="flex:1; padding:8px 0; font-family:var(--ff-m); font-size:var(--text-2xs); border:none; cursor:pointer; background:transparent; color:var(--t2); transition:all .15s; text-align:center;">Week</button>
+            <button id="aa-sort-month" onclick="setAllAppsSort('month')" style="flex:1; padding:8px 0; font-family:var(--ff-m); font-size:var(--text-2xs); border:none; cursor:pointer; background:transparent; color:var(--t2); transition:all .15s; text-align:center;">Month</button>
+            <button id="aa-sort-az"   onclick="setAllAppsSort('az')"    style="flex:1; padding:8px 0; font-family:var(--ff-m); font-size:var(--text-2xs); border:none; cursor:pointer; background:transparent; color:var(--t2); transition:all .15s; text-align:center;">A–Z</button>
         </div>
 
     </div>
@@ -52,7 +52,7 @@
             <div style="font-family:var(--ff-d);font-size:18px;font-weight:700;color:var(--g);margin-bottom:8px">Zero servers. Zero accounts. Zero data shared.</div>
             <div style="font-size:13px;color:var(--t2);line-height:1.7">Aurelo has no backend. Your screen time is computed on this device and never transmitted anywhere.</div>
         </div>
-        <div style="font-family:var(--ff-m);font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--t3);margin-bottom:8px">PERMISSIONS</div>
+        <div style="font-family:var(--ff-m);font-size:var(--text-2xs);letter-spacing:2px;text-transform:uppercase;color:var(--t3);margin-bottom:8px">PERMISSIONS</div>
         <div class="sr" onclick="tapPerm('usage')" style="margin-bottom:6px">
             <div class="sr-ico" style="background:rgba(108,99,255,.15)">📊</div>
             <div style="flex:1"><div class="sr-lbl">Usage Access</div><div class="sr-sub">Required for screen time tracking</div></div>
@@ -73,13 +73,13 @@
             <div style="flex:1"><div class="sr-lbl">Display Over Other Apps</div><div class="sr-sub" id="perm-overlay-sub">Required for Focus Mode, timers &amp; Mindful prompts</div></div>
             <div class="perm-badge no" id="perm-overlay">Check</div><span class="sr-chev">›</span>
         </div>
-        <div style="font-family:var(--ff-m);font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--t3);margin-bottom:8px">DATA</div>
+        <div style="font-family:var(--ff-m);font-size:var(--text-2xs);letter-spacing:2px;text-transform:uppercase;color:var(--t3);margin-bottom:8px">DATA</div>
         <div class="sr" onclick="confirmClearData()">
             <div class="sr-ico" style="background:rgba(240,78,122,.12)">🗑️</div>
             <div style="flex:1"><div class="sr-lbl">Clear All Data</div><div class="sr-sub">Reset categories, limits, and history</div></div>
             <span class="sr-chev">›</span>
         </div>
-        <div style="font-family:var(--ff-m);font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--t3);margin-bottom:8px;margin-top:16px">LEGAL</div>
+        <div style="font-family:var(--ff-m);font-size:var(--text-2xs);letter-spacing:2px;text-transform:uppercase;color:var(--t3);margin-bottom:8px;margin-top:16px">LEGAL</div>
         <div class="sr" onclick="AppBridge.openUrl('https://sites.google.com/view/tidyapp-privacy-policy')">
             <div class="sr-ico" style="background:rgba(18,212,138,.12)">🔒</div>
             <div style="flex:1"><div class="sr-lbl">Privacy Policy</div><div class="sr-sub">How we handle your data</div></div>
@@ -98,10 +98,10 @@
     <div class="panel-hdr">
         <div class="panel-back" onclick="closePanel('ghost-panel')">←</div>
         <div class="panel-title">👻 Ghost Apps</div>
-        <div style="font-family:var(--ff-m);font-size:10px;color:var(--t3)">Tap Uninstall to remove</div>
+        <div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3)">Tap Uninstall to remove</div>
     </div>
     <div class="panel-body">
-        <div style="background:rgba(176,110,255,.08);border:1px solid rgba(176,110,255,.2);border-radius:11px;padding:10px 13px;margin-bottom:12px;font-family:var(--ff-m);font-size:11px;color:var(--t2)">
+        <div style="background:rgba(176,110,255,.08);border:1px solid rgba(176,110,255,.2);border-radius:11px;padding:10px 13px;margin-bottom:12px;font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t2)">
             👻 Apps not opened in 30+ days. Uninstalling frees up storage.
         </div>
         <div id="ghost-list"></div>
@@ -121,7 +121,7 @@
         <div class="header-btn" onclick="clearNotifications()">Clear All</div>
     </div>
     <div class="panel-body">
-        <div id="notif-list"><div style="text-align:center;font-family:var(--ff-m);font-size:11px;color:var(--t3);padding:30px">Loading…</div></div>
+        <div id="notif-list"><div style="text-align:center;font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);padding:30px">Loading…</div></div>
     </div>
 </div>
 
@@ -140,7 +140,7 @@
                        oninput="filterManageCategories(this.value)"
                        style="width:100%;box-sizing:border-box;padding:9px 12px 9px 36px;border-radius:12px;border:1px solid var(--border2);background:var(--s1);color:var(--t1);font-size:13px;font-family:var(--ff-m);outline:none"/>
             </div>
-            <div style="font-family:var(--ff-m);font-size:10px;color:var(--t3);margin-top:8px">⠿ Drag to reorder categories</div>
+            <div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);margin-top:8px">⠿ Drag to reorder categories</div>
         </div>
         <div id="mcp-rows"></div>
     </div>
@@ -164,11 +164,11 @@
             <!-- Filter pills -->
             <div id="lock-filter-row" style="display:flex;gap:7px;margin-bottom:8px">
                 <button id="lock-filter-all" onclick="setPanelFilter('lock','all')"
-                        style="padding:5px 14px;border-radius:99px;border:1px solid var(--p);background:var(--p);color:#fff;font-family:var(--ff-m);font-size:11px;font-weight:700;cursor:pointer">All</button>
+                        style="padding:5px 14px;border-radius:99px;border:1px solid var(--p);background:var(--p);color:#fff;font-family:var(--ff-m);font-size:var(--text-2xs);font-weight:700;cursor:pointer">All</button>
                 <button id="lock-filter-selected" onclick="setPanelFilter('lock','selected')"
-                        style="padding:5px 14px;border-radius:99px;border:1px solid var(--border2);background:transparent;color:var(--t3);font-family:var(--ff-m);font-size:11px;font-weight:700;cursor:pointer">Locked</button>
+                        style="padding:5px 14px;border-radius:99px;border:1px solid var(--border2);background:transparent;color:var(--t3);font-family:var(--ff-m);font-size:var(--text-2xs);font-weight:700;cursor:pointer">Locked</button>
             </div>
-            <div style="font-family:var(--ff-m);font-size:11px;color:var(--t2);margin-top:4px;line-height:1.6">Locked apps are restricted within Aurelo only — they remain fully accessible from your phone.</div>
+            <div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t2);margin-top:4px;line-height:1.6">Locked apps are restricted within Aurelo only — they remain fully accessible from your phone.</div>
         </div>
         <div id="lock-list"></div>
     </div>
@@ -192,11 +192,11 @@
             <!-- Filter pills -->
             <div id="hide-filter-row" style="display:flex;gap:7px;margin-bottom:8px">
                 <button id="hide-filter-all" onclick="setPanelFilter('hide','all')"
-                        style="padding:5px 14px;border-radius:99px;border:1px solid var(--p);background:var(--p);color:#fff;font-family:var(--ff-m);font-size:11px;font-weight:700;cursor:pointer">All</button>
+                        style="padding:5px 14px;border-radius:99px;border:1px solid var(--p);background:var(--p);color:#fff;font-family:var(--ff-m);font-size:var(--text-2xs);font-weight:700;cursor:pointer">All</button>
                 <button id="hide-filter-selected" onclick="setPanelFilter('hide','selected')"
-                        style="padding:5px 14px;border-radius:99px;border:1px solid var(--border2);background:transparent;color:var(--t3);font-family:var(--ff-m);font-size:11px;font-weight:700;cursor:pointer">Hidden</button>
+                        style="padding:5px 14px;border-radius:99px;border:1px solid var(--border2);background:transparent;color:var(--t3);font-family:var(--ff-m);font-size:var(--text-2xs);font-weight:700;cursor:pointer">Hidden</button>
             </div>
-            <div style="font-family:var(--ff-m);font-size:11px;color:var(--t2);margin-top:8px;line-height:1.6">Hidden apps are removed from Aurelo's categories, search and stats only. They remain fully accessible on your phone.</div>
+            <div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t2);margin-top:8px;line-height:1.6">Hidden apps are removed from Aurelo's categories, search and stats only. They remain fully accessible on your phone.</div>
         </div>
         <div id="hide-list"></div>
     </div>
@@ -219,11 +219,11 @@
             <!-- Filter pills -->
             <div id="timer-filter-row" style="display:flex;gap:7px;margin-bottom:8px">
                 <button id="timer-filter-all" onclick="setPanelFilter('timer','all')"
-                        style="padding:5px 14px;border-radius:99px;border:1px solid var(--p);background:var(--p);color:#fff;font-family:var(--ff-m);font-size:11px;font-weight:700;cursor:pointer">All</button>
+                        style="padding:5px 14px;border-radius:99px;border:1px solid var(--p);background:var(--p);color:#fff;font-family:var(--ff-m);font-size:var(--text-2xs);font-weight:700;cursor:pointer">All</button>
                 <button id="timer-filter-selected" onclick="setPanelFilter('timer','selected')"
-                        style="padding:5px 14px;border-radius:99px;border:1px solid var(--border2);background:transparent;color:var(--t3);font-family:var(--ff-m);font-size:11px;font-weight:700;cursor:pointer">Has Timer</button>
+                        style="padding:5px 14px;border-radius:99px;border:1px solid var(--border2);background:transparent;color:var(--t3);font-family:var(--ff-m);font-size:var(--text-2xs);font-weight:700;cursor:pointer">Has Timer</button>
             </div>
-            <div style="font-family:var(--ff-m);font-size:11px;color:var(--t2);margin-top:4px;line-height:1.6">Set daily time limits. Tap an app to set or remove its timer.</div>
+            <div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t2);margin-top:4px;line-height:1.6">Set daily time limits. Tap an app to set or remove its timer.</div>
         </div>
         <div id="timer-list"></div>
     </div>
@@ -244,8 +244,77 @@
                        oninput="filterAddToCatList(this.value)"
                        style="width:100%;box-sizing:border-box;padding:10px 12px 10px 38px;border-radius:12px;border:1px solid var(--border2);background:var(--s1);color:var(--t1);font-size:13px;font-family:var(--ff-m);outline:none"/>
             </div>
-            <div style="font-family:var(--ff-m);font-size:11px;color:var(--t2);line-height:1.6">Check apps to add. Uncheck to return to auto-detected category.</div>
+            <div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t2);line-height:1.6">Check apps to add. Uncheck to return to auto-detected category.</div>
         </div>
         <div id="add-to-cat-list"></div>
+    </div>
+</div>
+
+<!-- ─── All Categories Panel ───────────────────────────────────────────── -->
+<div class="panel" id="all-cats-panel">
+    <div class="panel-hdr">
+        <div class="panel-back" onclick="closePanel('all-cats-panel')">←</div>
+        <div class="panel-title">Categories</div>
+        <div id="all-cats-count" style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3)"></div>
+    </div>
+    <div id="all-cats-list" style="flex:1;overflow-y:auto;scrollbar-width:none;padding:12px 0 100px"></div>
+    <div style="position:sticky;bottom:0;padding:12px 16px;background:var(--bg);border-top:1px solid var(--border);flex-shrink:0">
+        <button type="button" onclick="closePanel('all-cats-panel');openPanel('manage-cats-panel')"
+                style="width:100%;padding:13px;border-radius:14px;background:var(--s2);border:1px solid var(--border2);color:var(--t2);font-family:var(--ff-m);font-size:13px;cursor:pointer;">
+            ⚙️ Manage Categories
+        </button>
+    </div>
+</div>
+
+<!-- ─── Improve App Categories (Play Sync) Modal ────────────────────────── -->
+<!-- Lives here in modals-root so position:fixed escapes any screen overflow/transform context -->
+<div class="panel" id="play-sync-settings-panel">
+    <div class="panel-hdr">
+        <div class="panel-back" onclick="closePlaySyncSettingsPanel()">←</div>
+        <div class="panel-title">🏷️ Improve App Categories</div>
+        <div></div>
+    </div>
+    <div class="panel-body">
+
+        <!-- Prompt state -->
+        <div id="pssm-prompt">
+            <div style="font-family:var(--ff-m);font-size:12px;color:var(--t3);line-height:1.6;margin-bottom:20px;">
+                Fetch accurate categories for your installed apps directly from the Play Store. This keeps your category grid organised and up to date.
+            </div>
+            <button type="button" onclick="runPlaySyncFromSettings()"
+                    style="width:100%;padding:14px;border:none;border-radius:14px;background:linear-gradient(135deg,var(--p),var(--c));color:#fff;font-family:var(--ff-m);font-size:13px;font-weight:700;cursor:pointer;letter-spacing:.3px;">
+                Categorize Now
+            </button>
+            <button type="button" onclick="closePlaySyncSettingsPanel()"
+                    style="width:100%;margin-top:10px;padding:13px;border-radius:14px;background:var(--s2);border:1px solid var(--border2);color:var(--t3);font-family:var(--ff-m);font-size:13px;cursor:pointer;">
+                Later
+            </button>
+        </div>
+
+        <!-- Progress state -->
+        <div id="pssm-progress" style="display:none;">
+            <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
+                <div style="font-size:22px;">⏳</div>
+                <div style="flex:1;min-width:0;">
+                    <div style="font-size:14px;font-weight:700;color:var(--t1);">Categorising apps…</div>
+                    <div id="pssm-progress-txt" style="font-family:var(--ff-m);font-size:12px;color:var(--t3);margin-top:3px;">Connecting...</div>
+                </div>
+            </div>
+            <div style="height:6px;background:var(--border2);border-radius:999px;overflow:hidden;">
+                <div id="pssm-bar" style="height:100%;width:0%;border-radius:999px;background:linear-gradient(90deg,var(--p),var(--c));transition:width .3s ease;"></div>
+            </div>
+        </div>
+
+        <!-- Done state -->
+        <div id="pssm-done" style="display:none;">
+            <div style="display:flex;align-items:flex-start;gap:12px;">
+                <div style="font-size:28px;">✅</div>
+                <div style="flex:1;min-width:0;">
+                    <div style="font-size:15px;font-weight:700;color:var(--g);">Categories updated</div>
+                    <div id="pssm-done-txt" style="font-family:var(--ff-m);font-size:12px;color:var(--t3);margin-top:4px;"></div>
+                </div>
+            </div>
+        </div>
+
     </div>
 </div>

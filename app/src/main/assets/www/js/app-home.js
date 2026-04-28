@@ -2,44 +2,66 @@
  * Split in Phase 4: Aurelo Score → app-home-score.js,
  *                   Sleep card   → app-home-sleep.js,
  *                   Categories   → app-categories.js
+ * v2.1 PREMIUM REDESIGN changes:
+ *   • Section labels injected above dynamic rows, coach card, routine row
+ *   • "Based on your habits" sub-label on routine section
+ *   • renderCulpritsSection() uses CSS classes (culprit-row etc.)
+ *   • renderCategorySummary() uses CSS classes (cat-row etc.)
+ *   • Dynamic label: "TODAY'S CULPRITS" → "TOP APPS TODAY" / "WATCH THESE" / "MOST USED"
  * ════════════════════════════════════════════════════════════════════════════ */
 
 
-/* ═══ FOUC PREVENTION — font-load guard ══════════════════════════════════
-   Adds .fonts-ready to <body> once all webfonts have resolved.
-   CSS rule `body:not(.fonts-ready) .screens { opacity:0 }` keeps screen
-   content invisible until then, preventing the flash of fallback/unstyled
-   text that occurs when Bodoni Moda hasn't arrived yet but the
-   loading-screen has already faded out.
-   Falls back instantly on browsers without FontFaceSet API so the app
-   is never permanently hidden.                                            */
+/* ═══ FOUC PREVENTION — font-load guard ══════════════════════════════════ */
 (function initFontGuard() {
   function markReady() { document.body.classList.add('fonts-ready'); }
   if (typeof document.fonts !== 'undefined' && document.fonts.ready) {
     document.fonts.ready.then(markReady);
   } else {
-    markReady(); // Fallback: reveal immediately
+    markReady();
   }
 })();
 
-/* ═══ QUICK STATS + HOME ARC ═════════════════════════ */
-// Cache streak so we don't call into Kotlin on every 30s tick
-let _cachedStreak = 0, _streakTs = 0;
+/* ═══ SECTION LABEL INJECTOR ═════════════════════════════════════════════
+ * Inserts a .home-section-hdr label div immediately before a target element
+ * if it doesn't already exist. Idempotent — safe to call on every render.
+ * ════════════════════════════════════════════════════════════════════════ */
+function _ensureSectionLabel(targetId, labelId, titleText, subText, actionHtml) {
+  var target = document.getElementById(targetId);
+  if (!target) return;
+  var existing = document.getElementById(labelId);
+  if (existing) {
+    // Update text in case it changed (e.g. culprits label is dynamic)
+    var t = existing.querySelector('.home-section-title');
+    var s = existing.querySelector('.home-section-sub');
+    if (t && titleText) t.textContent = titleText;
+    if (s && subText !== undefined) s.textContent = subText;
+    return;
+  }
+  var hdr = document.createElement('div');
+  hdr.id        = labelId;
+  hdr.className = 'home-section-hdr';
+  hdr.innerHTML =
+    '<div>' +
+      '<div class="home-section-title">' + (titleText || '') + '</div>' +
+      (subText ? '<div class="home-section-sub">' + subText + '</div>' : '') +
+    '</div>' +
+    (actionHtml ? '<div>' + actionHtml + '</div>' : '');
+  target.parentNode.insertBefore(hdr, target);
+}
 
-// Arc path length: half-circle r=85 → π×85 ≈ 266.9
+/* ═══ QUICK STATS + HOME PROGRESS STRIP ══════════════ */
+let _cachedStreak = 0, _streakTs = 0;
 const _ARC_LEN = Math.PI * 85;
 
 function renderQuickStats(){
   const goalMins = S.streakGoalMins || 240;
 
-  // ── Text stat nodes ──────────────────────────────────
-  const todayEl     = document.getElementById('qs-today');
-  const pickupsEl   = document.getElementById('qs-pickups');
-  const streakEl    = document.getElementById('qs-streak');
+  const todayEl   = document.getElementById('qs-today');
+  const pickupsEl = document.getElementById('qs-pickups');
+  const streakEl  = document.getElementById('qs-streak');
   if(todayEl)   todayEl.textContent   = fmtM(TODAY_MINS)||'–';
   if(pickupsEl) pickupsEl.textContent = PICKUPS > 0 ? PICKUPS : '–';
 
-  // Streak — refresh at most once per minute
   const now = Date.now();
   if(IS_NATIVE && now - _streakTs > 60_000){
     try{ _cachedStreak = N.getStreakDays(goalMins); }catch(_){}
@@ -47,11 +69,9 @@ function renderQuickStats(){
   }
   const streak = IS_NATIVE ? _cachedStreak : 0;
   if(streakEl) streakEl.textContent = streak > 0 ? `🔥 ${streak}` : '–';
-  // Phase 5: show share button next to streak when active
   if (typeof renderStreakShareButton === 'function') renderStreakShareButton(streak);
 
-  // ── Status line (top of card) ─────────────────────────
-  const statusEl = document.getElementById('home-status-text');
+  const statusEl     = document.getElementById('home-status-text');
   const statusWrapEl = document.getElementById('home-status-line');
   if(statusEl && statusWrapEl){
     const rawPct = goalMins > 0 ? TODAY_MINS / goalMins : 0;
@@ -80,46 +100,94 @@ function renderQuickStats(){
     statusWrapEl.childNodes[0].textContent = icon + ' ';
   }
 
-  // ── Arc fill ──────────────────────────────────────────
   const arcEl = document.getElementById('home-arc-fill');
   const barEl = document.getElementById('home-goal-fill');
   const pctEl = document.getElementById('home-goal-pct');
   const lblEl = document.getElementById('home-goal-label');
-  if(arcEl){
-    const rawPct   = goalMins > 0 ? TODAY_MINS / goalMins : 0;
-    const fillPct  = Math.min(rawPct, 1);
-    const filled   = fillPct * _ARC_LEN;
-    const arcColor = rawPct > 1   ? 'var(--r)'
-                   : rawPct >= 1  ? 'var(--a)'
-                   : rawPct >= .8 ? 'var(--c)'
-                   : 'var(--p)';
-    arcEl.setAttribute('stroke', arcColor);
-    arcEl.setAttribute('stroke-dasharray', filled + ' 999');
+  {
+    const rawPct  = goalMins > 0 ? TODAY_MINS / goalMins : 0;
+    const fillPct = Math.min(rawPct, 1);
+    const filled  = fillPct * _ARC_LEN;
+    const accent  = rawPct > 1   ? 'var(--r)'
+                  : rawPct >= 1  ? 'var(--a)'
+                  : rawPct >= .8 ? 'var(--c)'
+                  : 'var(--p)';
+    if(arcEl){
+      arcEl.setAttribute('stroke', accent);
+      arcEl.setAttribute('stroke-dasharray', filled + ' 999');
+    }
     if(barEl){
       barEl.style.width      = Math.min(rawPct * 100, 100) + '%';
-      barEl.style.background = arcColor;
+      barEl.style.background = accent;
     }
     if(pctEl) pctEl.textContent = Math.round(rawPct * 100) + '%';
     if(lblEl){
-      if(rawPct > 1)       lblEl.textContent = 'of ' + fmtM(goalMins) + ' goal · ' + fmtM(TODAY_MINS - goalMins) + ' over';
-      else if(rawPct >= .9)lblEl.textContent = 'of ' + fmtM(goalMins) + ' goal · almost there!';
-      else                 lblEl.textContent = 'of ' + fmtM(goalMins) + ' goal · tap for details →';
+      if(rawPct > 1)        lblEl.textContent = 'of ' + fmtM(goalMins) + ' goal · ' + fmtM(TODAY_MINS - goalMins) + ' over';
+      else if(rawPct >= .9) lblEl.textContent = 'of ' + fmtM(goalMins) + ' goal · almost there';
+      else                  lblEl.textContent = 'of ' + fmtM(goalMins) + ' goal · tap for details';
     }
   }
 
-  // ── Category count badge ──────────────────────────────
   const totalApps = Object.values(CATS_MAP).reduce((n,a)=>n+a.length, 0);
   const badge = document.getElementById('cat-total-badge');
   if(badge){ badge.textContent = totalApps>0?totalApps+' apps':''; badge.style.display=totalApps>0?'':'none'; }
 }
 
+/* ─── Inject section labels for dynamic rows + coach card ─ */
+function _renderHomeSectionLabels() {
+  // 1. Handle "Active Reminders" (Focus OR Habits)
+  var focusDyn  = document.getElementById('home-focus-dynamic');
+  var habitsDyn = document.getElementById('home-habits-dynamic');
+  var remindersLabelId = 'home-reminders-sec-label';
+
+  // Check if Focus exists and has children
+  var hasFocus = focusDyn && focusDyn.children.length > 0;
+  // Check if Habits exists and has children
+  var hasHabits = habitsDyn && habitsDyn.children.length > 0;
+
+  if (hasFocus || hasHabits) {
+    // We inject above focus-dynamic specifically as it's the top-most row
+    _ensureSectionLabel(
+      'home-focus-dynamic',
+      remindersLabelId,
+      'Active Reminders',
+      ''
+    );
+  } else {
+    _removeSectionLabel(remindersLabelId);
+  }
+
+  // 2. Handle "Coach Insight"
+  var coachCard = document.getElementById('coach-home-insight');
+  var coachLabelId = 'home-coach-sec-label';
+
+  var hasCoachContent = coachCard &&
+                        coachCard.style.display !== 'none' &&
+                        coachCard.innerText.trim().length > 0;
+
+  if (hasCoachContent) {
+    _ensureSectionLabel(
+      'coach-home-insight',
+      coachLabelId,
+      'Coach Insight',
+      ''
+    );
+  } else {
+    _removeSectionLabel(coachLabelId);
+  }
+}
+
+/**
+ * Helper to remove a label if it exists
+ */
+function _removeSectionLabel(labelId) {
+  var label = document.getElementById(labelId);
+  if (label) label.remove();
+}
+
 /* ─── Consolidated insight banner ───────────────────── */
 const _INSIGHT_DISMISS_KEY = 'insight_dismissed_date';
 
-// Restore dismissed date from persistent storage so the banner stays
-// hidden across app restarts. Mirrors the dual-write pattern used by
-// CHALLENGE_KEY: native SharedPrefs first (survives WebView cache clears),
-// localStorage as fallback for demo / web mode.
 function _loadInsightDismissedDate() {
   try {
     if (typeof IS_NATIVE !== 'undefined' && IS_NATIVE &&
@@ -149,7 +217,6 @@ function _computeInsightBanner(){
   const streak   = _cachedStreak || 0;
   const h        = new Date().getHours();
 
-  // Priority 1: streak at risk (streak > 3, pacing over goal, still time to correct)
   if(streak > 3 && h >= 14 && h <= 19 && TODAY_MINS > goalMins * 0.6){
     const dayMinutes = h * 60 + new Date().getMinutes();
     const projected  = dayMinutes > 0 ? (TODAY_MINS * 1440) / dayMinutes : TODAY_MINS;
@@ -164,7 +231,6 @@ function _computeInsightBanner(){
     }
   }
 
-  // Priority 2: over goal
   if(rawPct > 1){
     const overMin = TODAY_MINS - goalMins;
     return {
@@ -175,10 +241,7 @@ function _computeInsightBanner(){
     };
   }
 
-  // Priority 3: streak milestone
-
   if([3,7,14,21,30].includes(streak)){
-    // Rate app prompt — positive moment: user just hit a streak milestone
     if(IS_NATIVE && typeof N.checkAndTriggerRateApp === 'function'){
       try{ N.checkAndTriggerRateApp('streak_milestone'); }catch(_){}
     }
@@ -191,7 +254,6 @@ function _computeInsightBanner(){
     };
   }
 
-  // Priority 4: ghost apps
   if(GHOSTS.length >= 3){
     const totalMB = GHOSTS.reduce((s,g)=>s+(g.sizeMB||0),0);
     return {
@@ -202,14 +264,13 @@ function _computeInsightBanner(){
     };
   }
 
-  return null; // nothing to show
+  return null;
 }
 
 function renderInsightBanner(){
   const banner = document.getElementById('home-insight-banner');
   if(!banner) return;
 
-  // Respect daily dismiss
   const today = new Date().toISOString().slice(0,10);
   if(_insightDismissedDate === today){ banner.style.display='none'; return; }
 
@@ -223,21 +284,35 @@ function renderInsightBanner(){
   if(iconEl)  iconEl.textContent  = data.icon;
   if(titleEl) titleEl.textContent = data.title;
   if(bodyEl)  bodyEl.textContent  = data.body;
-  banner.style.borderColor = data.color;
+
+  // Softer amber border for advisory, red for over-goal
+  const borderColor = data.color === 'var(--r)'
+    ? 'rgba(240,78,122,.3)'
+    : 'rgba(247,166,35,.3)';
+  banner.style.borderColor = borderColor;
   banner.style.display = '';
-  if(ctaEl && data.cta){
-    ctaEl.textContent  = data.cta + ' →';
-    ctaEl.style.color  = data.color;
-    ctaEl.style.display= '';
-    ctaEl._action      = data.action;
-  } else if(ctaEl){
-    ctaEl.style.display = 'none';
-  }
+  banner._action = typeof data.action === 'function' ? data.action : null;
+  banner.setAttribute('role', banner._action ? 'button' : 'status');
+  banner.setAttribute('tabindex', banner._action ? '0' : '-1');
+  banner.setAttribute('aria-label', data.cta
+    ? (data.title + '. ' + data.body + '. ' + data.cta)
+    : (data.title + '. ' + data.body));
+  banner.classList.toggle('is-clickable', !!banner._action);
+  banner.style.setProperty('--hib-accent', data.color || 'var(--p)');
+
+  if(ctaEl) ctaEl.style.display = 'none';
 }
 
 function onInsightBannerAction(){
-  const ctaEl = document.getElementById('hib-cta');
-  if(ctaEl && ctaEl._action) ctaEl._action();
+  const banner = document.getElementById('home-insight-banner');
+  if(banner && banner._action) banner._action();
+}
+
+function onInsightBannerKeydown(ev){
+  if(ev.key === 'Enter' || ev.key === ' '){
+    ev.preventDefault();
+    onInsightBannerAction();
+  }
 }
 
 function dismissInsightBanner(){
@@ -247,62 +322,45 @@ function dismissInsightBanner(){
   _saveInsightDismissedDate(_insightDismissedDate);
 }
 
-/* ─── Phase 2: Pro Insight Card (blur for free users) ─ */
-/**
- * renderContextualInsight — renders the home insight card with Pro gating.
- * For free users: blurs the content, overlays a badge + 'tap to unlock'.
- * For Pro users: renders content cleanly.
- * The badge and overlay text are NEVER blurred.
- */
- function renderContextualInsight() {
-   const el = document.getElementById('home-insight-card');
-   if (!el) return;
+/* ─── Phase 2: Pro Insight Card ──────────────────────── */
+function renderContextualInsight() {
+  const el = document.getElementById('home-insight-card');
+  if (!el) return;
 
-   // Ensure streak is fresh before computing insight priorities
   if (IS_NATIVE) {
     try { _cachedStreak = N.getStreakDays(S.streakGoalMins || 240); } catch (_) {}
   }
   const insight = _computeInsightBanner();
   if (!insight) { el.style.display = 'none'; return; }
 
-   // 1. Render the base content first (Pro version)
-   el.style.display = 'flex';
-   el.style.border = `1px solid ${insight.color}`;
-   el.style.background = 'var(--s2)';
-   el.style.marginBottom = '16px';
-   el.style.marginTop = '16px';
+  el.style.display = 'flex';
+  el.style.border  = `1px solid ${insight.color}`;
+  el.style.background = 'var(--s2)';
+  el.style.marginBottom = '16px';
+  el.style.marginTop    = '16px';
 
-   el.innerHTML = `
-     <div style="display:flex;align-items:flex-start;gap:10px;padding:10px 14px;width:100%">
-       <div style="font-size:18px;flex-shrink:0">${insight.icon}</div>
-       <div style="flex:1;min-width:0">
-         <div style="font-size:13px;font-weight:700;color:var(--t1);margin-bottom:2px">${insight.title}</div>
-         <div style="font-family:var(--ff-m);font-size:11px;color:var(--t2);line-height:1.6">${insight.body}</div>
-       </div>
-       ${insight.cta ? `<div id="home-insight-cta">...</div>` : ''}
-     </div>`;
+  el.innerHTML = `
+    <div style="display:flex;align-items:flex-start;gap:10px;padding:10px 14px;width:100%">
+      <div style="font-size:18px;flex-shrink:0">${insight.icon}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:700;color:var(--t1);margin-bottom:2px">${insight.title}</div>
+        <div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t2);line-height:1.6">${insight.body}</div>
+      </div>
+      ${insight.cta ? `<div id="home-insight-cta">...</div>` : ''}
+    </div>`;
 
-   // 2. Apply the Pro Gate.
-   // This will check ProTier.isPro internally and apply the blur/overlay if needed.
-   ProTier.applyBlur(el, 'HOME_INSIGHT', 'Pro Insight — tap to unlock');
+  ProTier.applyBlur(el, 'HOME_INSIGHT', 'Pro Insight — tap to unlock');
 
-   // 3. Wire CTA (only if pro and cta exists)
-   if (ProTier.isPro && insight.cta && insight.action) {
-     const ctaEl = el.querySelector('#home-insight-cta');
-     if (ctaEl) ctaEl.onclick = (e) => { e.stopPropagation(); insight.action(); };
-   }
- }
+  if (ProTier.isPro && insight.cta && insight.action) {
+    const ctaEl = el.querySelector('#home-insight-cta');
+    if (ctaEl) ctaEl.onclick = (e) => { e.stopPropagation(); insight.action(); };
+  }
+}
 
 /* ─── Phase 5: Streak share button ─────────────────── */
-/**
- * renderStreakShareButton — injects a small share icon next to the streak
- * stat whenever the user has an active streak (>0). Called from renderQuickStats.
- * The button is lightweight: just an emoji button that calls shareCard('streak').
- */
 function renderStreakShareButton(streak) {
   const streakEl = document.getElementById('qs-streak');
   if (!streakEl) return;
-  // Remove old button to avoid duplicates on re-renders
   const old = document.getElementById('streak-share-btn');
   if (old) old.remove();
   if (streak <= 0) return;
@@ -311,19 +369,11 @@ function renderStreakShareButton(streak) {
   btn.onclick = (e) => { e.stopPropagation(); shareCard('streak'); };
   btn.title = 'Share your streak';
   btn.style.cssText = [
-    'display:inline-flex',
-    'align-items:center',
-    'justify-content:center',
-    'width:24px',
-    'height:24px',
-    'border-radius:8px',
-    'border:1px solid rgba(108,99,255,.3)',
-    'background:rgba(108,99,255,.12)',
-    'font-size:13px',
-    'cursor:pointer',
-    'margin-left:6px',
-    'vertical-align:middle',
-    'flex-shrink:0',
+    'display:inline-flex','align-items:center','justify-content:center',
+    'width:24px','height:24px','border-radius:8px',
+    'border:1px solid rgba(108,99,255,.3)','background:rgba(108,99,255,.12)',
+    'font-size:13px','cursor:pointer','margin-left:6px',
+    'vertical-align:middle','flex-shrink:0',
   ].join(';');
   btn.textContent = '📤';
   streakEl.insertAdjacentElement('afterend', btn);
@@ -332,12 +382,12 @@ function renderStreakShareButton(streak) {
 /* ─── Time-slot routine header ──────────────────────── */
 function _getCurrentSlotInfo(){
   const h = new Date().getHours();
-  if(h>=6  && h<=8)  return {label:'☀️ Morning Routine',  sub:'Apps you typically open now',     color:'var(--a)'};
-  if(h>=9  && h<=10) return {label:'🚌 Commute Time',     sub:'Your commute-hour apps',           color:'var(--c)'};
-  if(h>=11 && h<=13) return {label:'🌤 Midday',           sub:'Your midday habits',               color:'var(--g)'};
-  if(h>=14 && h<=16) return {label:'🌞 Afternoon',        sub:'Your afternoon picks',             color:'var(--c)'};
-  if(h>=17 && h<=20) return {label:'🌅 Evening Routine',  sub:'Apps you open at this hour',       color:'var(--a)'};
-  return                     {label:'🌙 Night',            sub:'Your late-night apps',             color:'var(--pu)'};
+  if(h>=6  && h<=8)  return {label:'☀️ Morning Routine', sub:'Your morning habits',       color:'var(--a)'};
+  if(h>=9  && h<=10) return {label:'🚌 Commute Time',    sub:'Your commute-hour apps',     color:'var(--c)'};
+  if(h>=11 && h<=13) return {label:'🌤 Midday',          sub:'Your midday habits',         color:'var(--g)'};
+  if(h>=14 && h<=16) return {label:'🌞 Afternoon',       sub:'Your afternoon picks',       color:'var(--c)'};
+  if(h>=17 && h<=20) return {label:'🌅 Evening Routine', sub:'Your evening habits',        color:'var(--a)'};
+  return                    {label:'🌙 Night',           sub:'Your late-night apps',       color:'var(--pu)'};
 }
 
 function _renderRoutineHeader(){
@@ -345,21 +395,29 @@ function _renderRoutineHeader(){
   const labelEl = document.getElementById('routine-slot-label');
   const subEl   = document.getElementById('routine-slot-sub');
   const badgeEl = document.getElementById('routine-learn-badge');
+
   if(labelEl){ labelEl.textContent = slot.label; labelEl.style.color = slot.color; }
-  if(subEl)   subEl.textContent    = slot.sub;
+
+  // v2.1: sub shows time-slot description AND "based on your habits" hint
+  if(subEl){
+    subEl.textContent = slot.sub;
+  }
+
   if(badgeEl){
     let days = 0;
     if(IS_NATIVE){
       try{ days = typeof N.getWidgetLearningDays==='function' ? N.getWidgetLearningDays() : 1; }catch(_){ days=1; }
-    } else { days = 1; } // demo mode: always show Day 1
-    const txt = days >= 21 ? `Based on ${days} days`
+    } else { days = 1; }
+    const txt = days >= 21 ? `Based on your habits`
               : days >= 7  ? `Learnt · ${days} days`
               : days > 1   ? `Learning… ${days} days`
               : `Learning… Day 1`;
     badgeEl.textContent   = txt;
     badgeEl.style.display = '';
     badgeEl.style.color   = slot.color;
-    badgeEl.style.borderColor = slot.color.replace('var(--','').replace(')','');
+    // Set border via inline style using the CSS variable value
+    badgeEl.style.borderColor = 'currentColor';
+    badgeEl.style.opacity     = '0.85';
   }
 }
 
@@ -379,7 +437,6 @@ function icoDiv(pkg,size=46){
 }
 
 /* ═══ SEARCH ══════════════════════════════════════════ */
-// Cache all-apps list so search is fast
 let _allAppsCache = null;
 function getAllAppsForSearch(){
   if(!_allAppsCache){
@@ -389,18 +446,15 @@ function getAllAppsForSearch(){
 }
 
 function clearSearch(){
-  const inp = document.getElementById('search-input');
+  const inp  = document.getElementById('search-input');
   const drop = document.getElementById('search-drop');
-  if(inp) inp.value='';
+  if(inp)  inp.value='';
   if(drop) drop.style.display='none';
   _allAppsCache = null;
 }
 
-// ── Touch-drag from search result → category tile (fix #11) ─────────────────
-// Android WebView doesn't fire HTML5 dragover/drop on touch — we implement it manually
-let _tdrag = null; // { pkg, name, ghost, startX, startY }
+let _tdrag = null;
 
-// Called whenever a cross-category move is cancelled (drop on non-tile area, or tap anywhere)
 function _cancelCrossMove(showToast) {
   let cancelled = false;
   if (_tdrag) {
@@ -418,7 +472,6 @@ function _cancelCrossMove(showToast) {
   if (cancelled && showToast) toast('Move cancelled', 'info', 1000);
 }
 
-// Document-level listener: cancel cross-cat move when finger lifts outside a cat-tile
 document.addEventListener('touchend', e => {
   if (!_tdrag && !window._cpPickDragging) return;
   const t = e.changedTouches[0];
@@ -426,12 +479,11 @@ document.addEventListener('touchend', e => {
   if (!onTile) _cancelCrossMove(true);
 }, { passive: true });
 
-// Also cancel on any tap/click outside cat-tiles while a move is pending
 document.addEventListener('touchstart', e => {
   if (!_tdrag && !window._cpPickDragging) return;
-  // We only cancel here if it's a NEW touch (not the active drag touch)
   if (e.touches.length > 1) { _cancelCrossMove(true); }
 }, { passive: true });
+
 function attachTouchDragToSearchRow(row, pkg, name){
   let pressTimer=null, dragging=false;
 
@@ -440,7 +492,6 @@ function attachTouchDragToSearchRow(row, pkg, name){
     pressTimer=setTimeout(()=>{
       dragging=true;
       navigator.vibrate&&navigator.vibrate(30);
-      // Create floating ghost
       const ghost=document.createElement('div');
       ghost.style.cssText='position:fixed;z-index:9999;pointer-events:none;'
         +'background:var(--s1);border:2px solid var(--p);border-radius:12px;padding:8px 14px;'
@@ -450,7 +501,6 @@ function attachTouchDragToSearchRow(row, pkg, name){
       document.body.appendChild(ghost);
       positionGhost(ghost, t.clientX, t.clientY);
       _tdrag={pkg,name,ghost};
-      // Hide search dropdown
       document.getElementById('search-drop').style.display='none';
     },350);
   },{passive:true});
@@ -538,12 +588,10 @@ function onSearch(val){
   const all=getAllAppsForSearch();
   const hidden=new Set(S.hiddenPkgs||[]);
 
-  // Build usage map: pkg → totalMinutes today
   const usageMap={};
   DAILY_USE.forEach(u=>{ usageMap[u.packageName]=u.totalMinutes||0; });
   const totalUsageToday=Math.max(TODAY_MINS||1,1);
 
-  // Score each match: exact start > contains; then weight by usage
   const matches=all
     .filter(a=>!hidden.has(a.packageName)&&a.name.toLowerCase().includes(q))
     .map(a=>{
@@ -551,7 +599,7 @@ function onSearch(val){
       const startBonus=n.startsWith(q)?200:0;
       const wordBonus=n.split(/\W/).some(w=>w.startsWith(q))?100:0;
       const usageMins=usageMap[a.packageName]||0;
-      const usageBonus=Math.min(usageMins,180); // cap at 3h
+      const usageBonus=Math.min(usageMins,180);
       return {...a, _score:startBonus+wordBonus+usageBonus, _usageMins:usageMins};
     })
     .sort((a,b)=>b._score-a._score);
@@ -559,19 +607,16 @@ function onSearch(val){
   if(!matches.length){ drop.style.display='none'; return; }
   drop.style.display='block';
 
-  // Highlight matching text in name
   function hlName(name){
-    // SEC-07 FIX: escape name before inserting into innerHTML to prevent XSS
-    const safe = escHtml(name);
+    const safe  = escHtml(name);
     const safeQ = escHtml(q);
-    const idx = safe.toLowerCase().indexOf(safeQ.toLowerCase());
+    const idx   = safe.toLowerCase().indexOf(safeQ.toLowerCase());
     if(idx<0) return safe;
     return safe.slice(0,idx)
       +'<span style="color:var(--acc,#7C6FFF);font-weight:700">'+safe.slice(idx,idx+safeQ.length)+'</span>'
       +safe.slice(idx+safeQ.length);
   }
 
-  // Usage time label
   function usageLbl(mins){
     if(!mins) return '';
     const h=Math.floor(mins/60),m=mins%60;
@@ -579,7 +624,6 @@ function onSearch(val){
     return '<span style="color:#12D48A">'+t+' today</span>';
   }
 
-  // Frequency score as % of today's screen time (proxy for habit strength)
   function freqLbl(mins){
     if(!mins||!totalUsageToday) return '';
     const pct=Math.round((mins/totalUsageToday)*100);
@@ -597,15 +641,14 @@ function onSearch(val){
       <div class="sdr-icon">${appIco(a.packageName,34)}</div>
       <div style="flex:1;min-width:0">
         <div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${hlName(a.name)}</div>
-        <div style="font-family:var(--ff-m);font-size:10px;color:var(--t3);display:flex;align-items:center;gap:2px;margin-top:1px">
+        <div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);display:flex;align-items:center;gap:2px;margin-top:1px">
           ${usageLbl(a._usageMins)}${freqLbl(a._usageMins)}
           ${!a._usageMins?'<span style="color:var(--t3)">Not used today</span>':''}
         </div>
       </div>
-      <div style="font-family:var(--ff-m);font-size:10px;color:var(--t3);padding:0 4px">⠿</div>
+      <div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);padding:0 4px">⠿</div>
     </div>`).join('');
 
-  // Wire touch-drag for Android (HTML5 drag doesn't work on touch)
   drop.querySelectorAll('.sdr[data-pkg]').forEach(row=>{
     attachTouchDragToSearchRow(row, row.dataset.pkg, row.dataset.name);
   });
@@ -614,12 +657,6 @@ function onSearch(val){
 document.addEventListener('click',e=>{ if(!e.target.closest('#search-drop')&&!e.target.closest('#search-input')){ clearSearch(); } });
 
 /* ═══ FIRST-RUN SNAPSHOT CARD ════════════════════════ */
-/**
- * renderFirstRunCard — shown once after onboarding completes.
- * Builds a contextual message from the top app in DAILY_USE if available,
- * otherwise falls back to a generic app count message.
- * Only called when _isFirstBoot===true and !S.firstRunCardDone.
- */
 function renderFirstRunCard() {
   const card = document.getElementById('first-run-card');
   if (!card) return;
@@ -629,32 +666,28 @@ function renderFirstRunCard() {
   const titleEl = document.getElementById('frc-title');
   const bodyEl  = document.getElementById('frc-body');
 
-  // Link the card to your existing Pro Upsell logic
   card.onclick = () => {
     if (typeof ProUpsell !== 'undefined') {
       ProUpsell.show('upgrade_pro');
     } else {
-      // Fallback if ProUpsell isn't loaded yet
       openPanel('settings-panel');
     }
   };
 
   if (DAILY_USE.length > 0) {
-    // OPTION: DATA-DRIVEN INSIGHT
     const top = DAILY_USE[0];
     iconEl.textContent  = '💎';
     titleEl.textContent = 'Unlock Deep Insights';
     bodyEl.textContent  = `${top.name} is leading your trends today. Unlock Pro to see your Monthly View, analyze your App DNA, and use Hard Mode to stay intentional`;
   } else {
-    // OPTION: UTILITY/AESTHETIC PITCH
     iconEl.textContent  = '🚀';
     titleEl.textContent = 'Supercharge Your Focus';
     bodyEl.textContent  = 'Take total control of your digital space. Upgrade to Pro for custom categories, smart widgets, and advanced focus tools designed for deep work.';
   }
 
-  card.style.display = 'flex';
-  card.style.cursor = 'pointer'; // Visual cue that it's interactive
-  card.style.border = '1px dashed var(--p)'; // Dashed purple border implies "Unlockable"
+  card.style.display    = 'flex';
+  card.style.cursor     = 'pointer';
+  card.style.border     = '1px dashed var(--p)';
   card.style.background = 'linear-gradient(135deg, rgba(108,99,255,0.08), transparent)';
 }
 
@@ -665,23 +698,36 @@ function renderRecent(){
   if(!wrap) return;
   const hidden = new Set(S.hiddenPkgs || []);
 
-  // Build usage map
   const usageMap = {};
   DAILY_USE.forEach(u => { usageMap[u.packageName] = u.totalMinutes || 0; });
-  const totalMins = Math.max(TODAY_MINS || 1, 1);
 
-  // Source: today's usage sorted by time, fallback to CATS_MAP order
   const usageFiltered = DAILY_USE.filter(a => !hidden.has(a.packageName));
   const allCatApps    = Object.values(CATS_MAP).flat().filter(a => !hidden.has(a.packageName));
   const source = usageFiltered.length
     ? usageFiltered.slice(0, 8)
     : allCatApps.slice(0, 8).map(a => ({name:a.name, packageName:a.packageName, totalMinutes:0}));
 
+  const limits = S.limits || {};
+
   wrap.innerHTML = source.map(a => {
     const mins    = usageMap[a.packageName] || a.totalMinutes || 0;
     const timeStr = mins > 0 ? fmtM(mins) : '';
+    const limit   = limits[a.packageName];
+    const isAtLimit  = limit && (usageMap[a.packageName] || 0) >= limit;
+    const isNearLimit = limit && !isAtLimit && (usageMap[a.packageName] || 0) >= limit * 0.8;
+
+    // v2.1: show timer pip on icon if app has a limit
+    const timerPip = isAtLimit
+      ? `<div class="app-icon-timer">${fmtM((usageMap[a.packageName]||0) - limit)} over</div>`
+      : isNearLimit
+        ? `<div class="app-icon-timer" style="background:var(--a)">${fmtM(limit - (usageMap[a.packageName]||0))} left</div>`
+        : '';
+
     return `<div class="rc" onclick="launchApp('${escAttr(a.packageName)}','${escAttr(a.name)}')">
-      <div class="rc-icon">${appIco(a.packageName, 52, 14)}</div>
+      <div class="rc-icon" style="position:relative">
+        ${appIco(a.packageName, 52, 14)}
+        ${timerPip}
+      </div>
       <div class="rc-lbl">${escHtml(a.name)}</div>
       ${timeStr ? `<div class="rc-time">${timeStr}</div>` : '<div class="rc-time" style="opacity:0">·</div>'}
     </div>`;
@@ -690,50 +736,122 @@ function renderRecent(){
 
 /* ═══ GHOST BANNER → INSIGHT BANNER ═════════════════ */
 function renderGhostBanner(){
-  // Keep ghost-banner stub hidden (backward compat)
   const stub = document.getElementById('ghost-banner');
   if(stub) stub.style.display='none';
-  // Drive the consolidated insight banner instead
- // renderInsightBanner() is called separately by renderAll() — no call needed here
-}
 
-/* ═══ PLAY STORE SYNC — Phase 4 ══════════════════════ */
-/**
- * getPlaySyncStatus — checks whether the current user can trigger a Play Store sync.
- * Manual sync is Pro-only per the strategy document.
- */
-function getPlaySyncStatus() {
-  const isPro = ProTier.isPro;
-  if (!isPro) return { canSync: false, reason: 'pro_required' };
-  return { canSync: true };
-}
+  renderCulpritsSection();
+  renderCategorySummary();
 
-/**
- * startPlaySync — Pro-gated. Call before the network/bridge sync call.
- * Shows ProTier.triggerUpsell() paywall for free users; proceeds with sync for Pro.
- */
-function startPlaySync() {
-  const status = getPlaySyncStatus();
-  if (!status.canSync) {
-    ProTier.triggerUpsell('UNLIMITED_CATEGORIES');
-    return;
+  const ghostOrgSub = document.getElementById('ghost-org-sub');
+  if (ghostOrgSub && GHOSTS && GHOSTS.length > 0) {
+    ghostOrgSub.textContent = `${GHOSTS.length} app${GHOSTS.length !== 1 ? 's' : ''} unused 30+ days`;
   }
-  // Trigger the actual sync via bridge
-  if (IS_NATIVE && typeof nCall === 'function') {
-    toast('Syncing categories from Play Store…', 'info');
-    nCall('startPlaySync');
+}
+
+/* ═══ CULPRITS / MOST USED SECTION ════════════════════════════════════════
+ * v2.1: Uses CSS classes (culprit-row, culprit-ico, culprit-bar etc.)
+ *        Dynamic label toned down: "TODAY'S CULPRITS" only when over goal.
+ * ═══════════════════════════════════════════════════════════════════════ */
+function renderCulpritsSection() {
+  const section = document.getElementById('home-culprits-section');
+  const labelEl = document.getElementById('home-culprits-label');
+  const listEl  = document.getElementById('home-culprits-list');
+  if (!section || !listEl) return;
+
+  const hidden  = new Set(S.hiddenPkgs || []);
+  const top3    = DAILY_USE.filter(a => !hidden.has(a.packageName)).slice(0, 3);
+  if (!top3.length) { section.style.display = 'none'; return; }
+
+  const goalMins = S.streakGoalMins || 240;
+  const rawPct   = goalMins > 0 ? TODAY_MINS / goalMins : 0;
+  const maxMins  = top3[0].totalMinutes || 1;
+
+  // v2.1: less judgmental labelling
+  let label, accentColor;
+  if (rawPct > 1) {
+    label = "TODAY'S CULPRITS"; accentColor = 'var(--r)';
+  } else if (rawPct >= 0.9) {
+    label = 'WATCH THESE TODAY'; accentColor = 'var(--a)';
   } else {
-    toast('Play Store sync not available in demo mode', 'info');
+    label = 'TOP APPS TODAY';    accentColor = 'var(--t3)';
   }
+  if (labelEl) { labelEl.textContent = label; labelEl.style.color = accentColor; }
+
+  // v2.1: CSS classes instead of wall-of-inline-styles
+  listEl.innerHTML = top3.map(a => {
+    const mins   = a.totalMinutes || 0;
+    const barPct = maxMins > 0 ? Math.round((mins / maxMins) * 100) : 0;
+    // Bar colour matches status: red when leading while over goal, else gradient
+    const barColor = (rawPct > 1 && a === top3[0])
+      ? 'var(--r)'
+      : 'linear-gradient(90deg, var(--p), var(--c))';
+
+    return `<div class="culprit-row">
+      <div class="culprit-ico">${appIco(a.packageName, 32)}</div>
+      <div class="culprit-info">
+        <div class="culprit-name">${escHtml(a.name)}</div>
+        <div class="culprit-bar-wrap">
+          <div class="culprit-bar" style="width:${barPct}%;background:${barColor}"></div>
+        </div>
+      </div>
+      <div class="culprit-time" style="color:${accentColor}">${fmtM(mins)}</div>
+    </div>`;
+  }).join('');
+
+  section.style.display = '';
 }
 
-/**
- * onPlaySyncComplete — called by the bridge when Play Store sync finishes.
- * Uses "you're in control" framing from the strategy document.
- * @param {number} updatedCount  Number of app categories updated.
- */
-function onPlaySyncComplete(updatedCount) {
-  toast(`✓ ${updatedCount} categories updated — you're in control`, 'success', 3500);
-  try { localStorage.setItem('lastPlaySync', String(Date.now())); } catch(_) {}
-  if (typeof updatePlaySyncSubtitle === 'function') updatePlaySyncSubtitle();
+/* ═══ CATEGORY SUMMARY STRIP ══════════════════════════════════════════════
+ * v2.1: Uses CSS classes (cat-row, cat-dot, cat-bar etc.)
+ *        Proportional bar widths for clearer visual comparison.
+ * ═══════════════════════════════════════════════════════════════════════ */
+function renderCategorySummary() {
+  const section = document.getElementById('home-cat-summary');
+  const listEl  = document.getElementById('home-cat-summary-list');
+  if (!section || !listEl) return;
+
+  const hidden   = new Set(S.hiddenPkgs || []);
+  const usageMap = {};
+  DAILY_USE.forEach(u => { usageMap[u.packageName] = u.totalMinutes || 0; });
+
+  const catTotals = {};
+  Object.entries(CATS_MAP).forEach(([cat, apps]) => {
+    const total = apps
+      .filter(a => !hidden.has(a.packageName))
+      .reduce((sum, a) => sum + (usageMap[a.packageName] || 0), 0);
+    if (total > 0) catTotals[cat] = total;
+  });
+
+  const sorted = Object.entries(catTotals)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 3);
+
+  if (!sorted.length) { section.style.display = 'none'; return; }
+
+  const maxCatMins = sorted[0][1] || 1;
+  const CAT_COLORS = ['var(--p)', 'var(--c)', 'var(--a)', 'var(--g)', 'var(--r)'];
+
+  listEl.innerHTML = sorted.map(([cat, mins], i) => {
+    const barPct = Math.round((mins / maxCatMins) * 100);
+    const color  = CAT_COLORS[i % CAT_COLORS.length];
+    return `<div class="cat-row">
+      <div class="cat-dot" style="background:${color}"></div>
+      <div class="cat-name">${escHtml(cat)}</div>
+      <div class="cat-bar-wrap">
+        <div class="cat-bar" style="width:${barPct}%;background:${color}"></div>
+      </div>
+      <div class="cat-time">${fmtM(mins)}</div>
+    </div>`;
+  }).join('');
+
+  section.style.display = '';
+}
+
+/* ═══ SECTION LABELS POST-RENDER HOOK ════════════════
+ * Called after all home render functions complete so labels
+ * can be injected after dynamic content has been painted.
+ * ════════════════════════════════════════════════════ */
+function renderHomeSectionLabelsDeferred() {
+  // Small delay so coach card (async) has time to appear
+  setTimeout(_renderHomeSectionLabels, 200);
 }

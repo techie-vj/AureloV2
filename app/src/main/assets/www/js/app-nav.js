@@ -248,6 +248,12 @@ function activateTab(tab){
     }
   }
   setCatView(S.catView);
+
+  // Notify modules that registered a 'tabchange' listener (e.g. app-coach-home.js).
+  // Dispatched after all synchronous tab-switch work above is complete.
+  try {
+    document.dispatchEvent(new CustomEvent('tabchange', { detail: { tab: tab, prev: prev } }));
+  } catch (_) {}
 }
 
 // ── Back gesture handler — called by MainActivity via evaluateJavascript ──

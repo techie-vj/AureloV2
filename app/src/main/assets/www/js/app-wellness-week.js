@@ -61,7 +61,7 @@ function renderWeekChart(mode) {
   const area = document.getElementById('ww-chart-area');
   if(!area) return;
   if(!WEEKLY.length) {
-    area.innerHTML = '<div style="text-align:center;padding:20px;font-family:var(--ff-m);font-size:11px;color:var(--t3)">No data yet</div>';
+    area.innerHTML = '<div style="text-align:center;padding:20px;font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3)">No data yet</div>';
     return;
   }
   if(mode === 'time') { renderWeeklyBarsInto(area); return; }
@@ -114,7 +114,7 @@ function _renderWeekPickupsChart(area) {
     const dC     = d.isToday ? (isOver?'#F04E7A':'#6C63FF') : (isOver?'rgba(240,78,122,.7)':'var(--t3)');
     // Real number for today, "~N" for estimates so users know the difference
     const label  = d.v > 0 && bH >= 28
-      ? '<span style="font-family:var(--ff-m);font-size:8px;font-weight:700;color:#fff;opacity:.9;text-shadow:0 1px 2px rgba(0,0,0,.4)">'
+      ? '<span style="font-family:var(--ff-m);font-size:var(--text-2xs);font-weight:700;color:#fff;opacity:.9;text-shadow:0 1px 2px rgba(0,0,0,.4)">'
         + (d.real ? d.v : '~'+d.v) + '</span>'
       : '';
     return '<div style="flex:1;display:flex;flex-direction:column;align-items:center">'
@@ -124,16 +124,16 @@ function _renderWeekPickupsChart(area) {
       +'display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:height .5s cubic-bezier(.34,1.56,.64,1)">'
       +label+'</div>'
       +'</div>'
-      +'<div style="font-family:var(--ff-m);font-size:9px;color:'+dC+';font-weight:'+(d.isToday?700:400)+';margin-top:4px">'
+      +'<div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:'+dC+';font-weight:'+(d.isToday?700:400)+';margin-top:4px">'
       +(d.day.slice?d.day.slice(0,3):d.day)+'</div>'
       +'</div>';
   }).join('');
 
   area.innerHTML = '<div style="display:flex;gap:2px;align-items:flex-end;width:100%;padding:0 4px;box-sizing:border-box">'+cols+'</div>'
     +'<div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:6px">'
-    +'<div style="display:flex;align-items:center;gap:4px;font-family:var(--ff-m);font-size:9px;color:var(--t3)"><div style="width:8px;height:8px;border-radius:2px;background:rgba(18,212,138,0.4)"></div>Under '+GOAL_PU+'/day</div>'
-    +'<div style="display:flex;align-items:center;gap:4px;font-family:var(--ff-m);font-size:9px;color:var(--t3)"><div style="width:8px;height:8px;border-radius:2px;background:rgba(240,78,122,0.5)"></div>Over '+GOAL_PU+'/day</div>'
-    +'<div style="font-family:var(--ff-m);font-size:9px;color:var(--t3);margin-left:auto">~ = estimated</div>'
+    +'<div style="display:flex;align-items:center;gap:4px;font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3)"><div style="width:8px;height:8px;border-radius:2px;background:rgba(18,212,138,0.4)"></div>Under '+GOAL_PU+'/day</div>'
+    +'<div style="display:flex;align-items:center;gap:4px;font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3)"><div style="width:8px;height:8px;border-radius:2px;background:rgba(240,78,122,0.5)"></div>Over '+GOAL_PU+'/day</div>'
+    +'<div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);margin-left:auto">~ = estimated</div>'
     +'</div>';
 }
 
@@ -145,7 +145,7 @@ function renderWeekCategoryChart(area) {
   const sorted     = Object.entries(catMins).sort((a,b)=>b[1]-a[1]).slice(0,5);
   const isEstimate = !weeklyApps.length;
   if(!sorted.length){
-    area.innerHTML='<div style="text-align:center;padding:20px;font-family:var(--ff-m);font-size:11px;color:var(--t3)">No category data yet</div>';
+    area.innerHTML='<div style="text-align:center;padding:20px;font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3)">No category data yet</div>';
     return;
   }
   const colors = ['#F04E7A','#6C63FF','#05C8E8','#F7A623','#12D48A'];
@@ -153,13 +153,13 @@ function renderWeekCategoryChart(area) {
     +sorted.map(([cat,mins],i)=>{
       const pct=Math.round((mins/total)*100);
       return '<div style="display:flex;align-items:center;gap:8px">'
-        +'<div style="font-family:var(--ff-m);font-size:10px;color:var(--t2);width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+cat+'</div>'
+        +'<div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t2);width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+cat+'</div>'
         +'<div style="flex:1;height:8px;background:var(--s2);border-radius:4px;overflow:hidden"><div style="height:100%;width:'+pct+'%;background:'+colors[i]+';border-radius:4px;transition:width .5s"></div></div>'
-        +'<div style="font-family:var(--ff-m);font-size:10px;color:var(--t3);width:52px;text-align:right">'+fmtM(mins)+' '+pct+'%</div>'
+        +'<div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);width:52px;text-align:right">'+fmtM(mins)+' '+pct+'%</div>'
         +'</div>';
     }).join('')
     +'</div>'
-    +'<div style="font-family:var(--ff-m);font-size:9px;color:var(--t3);margin-top:6px">'
+    +'<div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);margin-top:6px">'
     +(isEstimate?'Based on today\'s usage · weekly breakdown builds over time':'Based on this week\'s real usage')
     +'</div>';
 }
@@ -189,12 +189,12 @@ function renderWeeklyBarsInto(container) {
     const isUnder  = d.minutes<=goalMins && d.minutes>0;
     const barColor = isUnder&&!isToday?'rgba(18,212,138,0.35)':(isToday?col:col+'99');
     const labelH   = d.minutes>=60?Math.floor(d.minutes/60)+'h'+(d.minutes%60>0?d.minutes%60+'m':''):d.minutes>0?d.minutes+'m':'';
-    const timeEl   = labelH&&barH>=28?'<span style="font-family:var(--ff-m);font-size:8px;font-weight:700;color:#fff;opacity:.95;text-shadow:0 1px 2px rgba(0,0,0,.4)">'+labelH+'</span>':'';
+    const timeEl   = labelH&&barH>=28?'<span style="font-family:var(--ff-m);font-size:var(--text-2xs);font-weight:700;color:#fff;opacity:.95;text-shadow:0 1px 2px rgba(0,0,0,.4)">'+labelH+'</span>':'';
     return '<div style="flex:1;display:flex;flex-direction:column;align-items:center">'
       +'<div style="height:'+BAR_H+'px;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;width:100%">'
       +'<div style="width:88%;height:'+barH+'px;background:'+barColor+';border-radius:5px 5px 0 0;'+(isToday?'border-top:2px solid '+col+';':'')+';display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:height .5s cubic-bezier(.34,1.56,.64,1)">'+timeEl+'</div>'
       +'</div>'
-      +'<div style="font-family:var(--ff-m);font-size:9px;color:'+(isToday?col:'var(--t3)')+';font-weight:'+(isToday?700:400)+';margin-top:4px;text-align:center">'+(d.day.slice?d.day.slice(0,3):d.day)+'</div>'
+      +'<div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:'+(isToday?col:'var(--t3)')+';font-weight:'+(isToday?700:400)+';margin-top:4px;text-align:center">'+(d.day.slice?d.day.slice(0,3):d.day)+'</div>'
       +'</div>';
   }).join('');
   container.innerHTML='<div style="display:flex;gap:2px;align-items:flex-end;width:100%;padding:0 4px;box-sizing:border-box">'+cols+'</div>';
@@ -205,7 +205,7 @@ function renderWeekTopApps() {
   if(!list) return;
   const apps = _getWeeklyApps();
   if(!apps.length){
-    list.innerHTML='<div style="padding:16px;font-family:var(--ff-m);font-size:11px;color:var(--t3);text-align:center">Weekly app data loading…</div>';
+    list.innerHTML='<div style="padding:16px;font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);text-align:center">Weekly app data loading…</div>';
     return;
   }
   const max    = Math.max(...apps.map(a=>a.weeklyMinutes||0), 1);

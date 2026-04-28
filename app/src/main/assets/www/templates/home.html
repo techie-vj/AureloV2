@@ -17,48 +17,46 @@
                 </svg>
                 <span id="tidy-header-title" class="aurelo-logo-txt" style="font-family:var(--ff-d);font-size:20px;font-weight:400;background:linear-gradient(135deg,#FFE082 30%,#FFAA44 70%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;letter-spacing:2px;line-height:1;padding-bottom:2px">URELO</span>
             </div>
-            <span id="pro-pill" style="display:none;margin-left:7px;padding:2px 8px 2px 6px;border-radius:40px;background:rgba(247,201,72,0.12);border:1px solid rgba(247,201,72,0.25);color:#f7c948;font-size:10px;font-weight:700;font-family:var(--ff-m);letter-spacing:0.08em;vertical-align:middle">✦ PRO</span>
+            <span id="pro-pill" style="display:none;margin-left:7px;padding:2px 8px 2px 6px;border-radius:40px;background:rgba(247,201,72,0.12);border:1px solid rgba(247,201,72,0.25);color:#f7c948;font-size: var(--text-2xs);font-weight:700;font-family:var(--ff-m);letter-spacing:0.08em;vertical-align:middle">✦ PRO</span>
         </div>
         <div style="cursor:pointer;width:36px;height:36px;border-radius:10px;background:var(--s1);border:1px solid var(--border);display:flex;align-items:center;justify-content:center" onclick="activateTab('settings')">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--t2)"><circle cx="12" cy="8" r="4"/><path d="M20 21a8 8 0 1 0-16 0"/></svg>
         </div>
     </div>
 
-    <!-- ── Goal Arc Card ─────────────────────────────── -->
-    <div class="home-goal-card" onclick="activateTab('wellness')">
+    <!-- ── REORDERED: Score card FIRST (emotional anchor) ─────────────────────────── -->
+    <div id="home-aurelo-score" style="margin-bottom:12px"></div>
+
+    <!-- ── Quick stats strip (now supporting detail) ─────────────────────────── -->
+    <div class="home-quick-strip" onclick="activateTab('wellness')" role="button" tabindex="0" aria-label="Open wellness details">
         <div id="home-status-line" class="home-status-line">✅ <span id="home-status-text">On track today</span></div>
-        <div class="home-goal-top">
-            <div class="home-arc-wrap">
-                <svg class="home-arc-svg" viewBox="0 0 200 110" overflow="visible">
-                    <path d="M 15 100 A 85 85 0 0 1 185 100" fill="none" stroke="rgba(255,255,255,.09)" stroke-width="13" stroke-linecap="round"/>
-                    <path id="home-arc-fill" d="M 15 100 A 85 85 0 0 1 185 100" fill="none" stroke="var(--p)" stroke-width="13" stroke-linecap="round" stroke-dasharray="0 999"/>
-                </svg>
-                <div class="home-arc-center">
-                    <div class="home-arc-val" id="qs-today">–</div>
-                    <div class="home-arc-lbl">TODAY</div>
-                </div>
+        <div class="home-kpi-grid">
+            <div class="home-kpi-pill">
+                <div class="home-kpi-value" id="qs-today">–</div>
+                <div class="home-kpi-label">Screen time</div>
             </div>
-            <div class="home-side-stats">
-                <div class="home-stat-mini">
-                    <div class="hsm-val" style="color:var(--r)" id="qs-pickups">–</div>
-                    <div class="hsm-lbl">PICKUPS</div>
-                </div>
-                <div class="hsm-div"></div>
-                <div class="home-stat-mini">
-                    <div class="hsm-val" style="color:var(--a)" id="qs-streak">–</div>
-                    <div class="hsm-lbl">STREAK</div>
-                </div>
+            <div class="home-kpi-pill">
+                <div class="home-kpi-value is-alert" id="qs-pickups">–</div>
+                <div class="home-kpi-label">Pickups</div>
+            </div>
+            <div class="home-kpi-pill">
+                <div class="home-kpi-value is-streak" id="qs-streak">–</div>
+                <div class="home-kpi-label">Streak</div>
             </div>
         </div>
-        <div class="home-goal-bar-wrap">
-            <div class="home-goal-bar-fill" id="home-goal-fill"></div>
+        <div class="home-progress-wrap">
+            <div class="home-goal-bar-wrap home-goal-bar-wrap--slim">
+                <div class="home-goal-bar-fill" id="home-goal-fill"></div>
+            </div>
+            <div class="home-goal-meta home-goal-meta--compact">
+                <span id="home-goal-pct" class="home-goal-pct-text">0%</span>
+                <span id="home-goal-label" class="home-goal-lbl-text">of 4h goal</span>
+            </div>
         </div>
-        <div class="home-goal-meta">
-            <span id="home-goal-pct" class="home-goal-pct-text">0%</span>
-            <span id="home-goal-label" class="home-goal-lbl-text">of 4h goal</span>
-        </div>
-        <div id="home-aurelo-score"></div>
     </div>
+
+    <!-- ── Health Connect promo banner (rendered by app-health-connect.js) ── -->
+    <div id="hc-home-banner" style="padding:0 16px;margin-bottom:12px;display:none" onclick="if(typeof openSettingsWithHC==='function'){openSettingsWithHC();}else{activateTab('settings');requestAnimationFrame(()=>toggleHCSettingsSection&&toggleHCSettingsSection(true));}" role="button" tabindex="0"></div>
 
     <!-- ── First-run snapshot card ── -->
     <div id="first-run-card" style="display:none">
@@ -70,10 +68,21 @@
         <span id="first-run-card-close" onclick="dismissFirstRunCard()">×</span>
     </div>
 
+    <!-- ── CONTEXTUAL INSIGHT BANNER (moved up, softer design) ──── -->
+    <div id="home-insight-banner" class="home-insight-banner home-insight-banner--contextual" style="display:none" onclick="onInsightBannerAction()" onkeydown="onInsightBannerKeydown(event)">
+        <div id="hib-icon" class="hib-icon">⚠️</div>
+        <div style="flex:1;min-width:0">
+            <div id="hib-title" class="hib-title"></div>
+            <div id="hib-body" class="hib-body"></div>
+        </div>
+        <div onclick="event.stopPropagation(); dismissInsightBanner()" class="hib-close" role="button" tabindex="0" aria-label="Dismiss insight">×</div>
+    </div>
+    <div id="ghost-banner" style="display:none"><div id="ghost-banner-sub"></div></div>
+
     <!-- ── Focus dynamic row ──── -->
-    <div id="home-focus-dynamic" style="padding:0 14px;margin-bottom:8px"></div>
+    <div id="home-focus-dynamic" style="padding:0 14px;margin-bottom:16px"></div>
     <!-- ── Habits dynamic row ──── -->
-    <div id="home-habits-dynamic" style="padding:0 14px;margin-bottom:8px"></div>
+    <div id="home-habits-dynamic" style="padding:0 14px;margin-bottom:16px"></div>
 
     <!-- legacy stubs — JS backward compat -->
     <div id="home-focus-strip" style="display:none"></div>
@@ -83,93 +92,41 @@
     <div id="home-timer-alert" style="padding:0 16px;margin-bottom:10px;display:none"></div>
     <div id="home-sleep-card" style="padding:0 16px;margin-bottom:10px;display:none"></div>
 
-    <!-- ── Consolidated Insight Banner ── -->
-    <div id="home-insight-banner" class="home-insight-banner" style="display:none">
-        <div id="hib-icon" class="hib-icon">🔥</div>
-        <div style="flex:1;min-width:0">
-            <div id="hib-title" class="hib-title"></div>
-            <div id="hib-body" class="hib-body"></div>
-        </div>
-        <div id="hib-cta" onclick="onInsightBannerAction()" class="hib-cta" style="display:none"></div>
-        <div onclick="dismissInsightBanner()" class="hib-close">×</div>
-    </div>
-    <div id="ghost-banner" style="display:none"><div id="ghost-banner-sub"></div></div>
-
-    <!-- ── Time-slot Routine ─────────────────────────── -->
+    <!-- ── Time-slot Routine (contextual app suggestions) ─────────────────────────── -->
     <div class="home-section-hdr">
         <div>
-            <div class="home-section-title" id="routine-slot-label">Recent</div>
-            <div class="home-section-sub" id="routine-slot-sub">Your most-used apps today</div>
+            <div class="home-section-title" id="routine-slot-label">Afternoon Picks</div>
+            <div class="home-section-sub" id="routine-slot-sub">Based on your habits</div>
         </div>
         <div id="routine-learn-badge" class="routine-learn-badge" style="display:none"></div>
     </div>
     <div class="recent-row" id="recent-row"></div>
 
-    <!-- ── Search ────────────────────────────────────── -->
-    <div class="search-wrap" style="padding-top:2px;margin-bottom:2px">
-        <div style="position:relative">
-            <span class="search-ico">🔍</span>
-            <input class="search-input" id="search-input" type="text" placeholder=" Search apps…" oninput="onSearch(this.value)" autocomplete="off"/>
-            <div class="search-dropdown" id="search-drop"></div>
+    <!-- ── Dynamic Culprits / Most Used Apps ─────────────────────────── -->
+    <div id="home-culprits-section" style="padding:0 16px;margin-bottom:24px;display:none">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+            <div style="display:flex;align-items:center;gap:7px">
+                <div id="home-culprits-label" style="font-family:var(--ff-m);font-size: var(--text-2xs);letter-spacing:1.5px;color:var(--r)">TOP APPS TODAY</div>
+                <span id="home-culprits-count" style="display:none;font-family:var(--ff-m);font-size: var(--text-2xs);color:var(--t3);background:var(--s2);border:1px solid var(--border2);border-radius:99px;padding:1px 7px"></span>
+            </div>
+            <div onclick="openAllApps()" style="font-family:var(--ff-m);font-size: var(--text-2xs);color:var(--p);cursor:pointer">See all →</div>
         </div>
+        <div id="home-culprits-list"></div>
     </div>
 
-    <!-- ── Play Store Banner ─────────────────────────── -->
-    <div id="play-sync-banner" style="display:none;margin:0 16px 12px;border-radius:16px;background:linear-gradient(135deg,rgba(108,99,255,.1),rgba(5,200,232,.06));border:1px solid rgba(108,99,255,.28);padding:14px 16px">
-        <div id="psb-prompt">
-            <div style="display:flex;align-items:flex-start;gap:12px">
-                <div style="font-size:24px;flex-shrink:0">🪄</div>
-                <div style="flex:1">
-                    <div style="font-size:13px;font-weight:700;color:var(--p2)">Improve App Categories</div>
-                    <div style="font-family:var(--ff-m);font-size:10px;color:var(--t3);margin-top:3px;line-height:1.5">Offline sorting is limited. Tap to sync categories from Play Store (Online).</div>
-                </div>
-                <div onclick="dismissPlaySyncBanner()" style="font-size:18px;color:var(--t3);cursor:pointer;padding:0 0 0 4px;flex-shrink:0;line-height:1">×</div>
+    <!-- ── Category Summary Strip ────────────────────────────────── -->
+    <div id="home-cat-summary" style="padding:0 16px;margin-bottom:12px;display:none">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+            <div style="display:flex;align-items:center;gap:7px">
+                <div style="font-family:var(--ff-m);font-size: var(--text-2xs);letter-spacing:1.5px;color:var(--t3)">TOP CATEGORIES TODAY</div>
+                <span id="home-cat-count" style="display:none;font-family:var(--ff-m);font-size: var(--text-2xs);color:var(--t3);background:var(--s2);border:1px solid var(--border2);border-radius:99px;padding:1px 7px"></span>
             </div>
-            <div style="display:flex;gap:8px;margin-top:12px">
-                <button onclick="startPlaySync()" style="flex:1;padding:9px;border-radius:10px;background:linear-gradient(135deg,var(--p),var(--c));border:none;color:#fff;font-family:var(--ff-m);font-size:11px;font-weight:700;cursor:pointer">Categorize Now <span id="categorise-pro-badge"></span></button>
-                <button onclick="dismissPlaySyncBanner()" style="padding:9px 14px;border-radius:10px;background:var(--s2);border:1px solid var(--border2);color:var(--t3);font-family:var(--ff-m);font-size:11px;cursor:pointer">Later</button>
-            </div>
+            <div onclick="openAllCatsPanel()" style="font-family:var(--ff-m);font-size: var(--text-2xs);color:var(--p);cursor:pointer">View all →</div>
         </div>
-        <div id="psb-progress" style="display:none">
-            <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
-                <div style="font-size:18px">🔄</div>
-                <div style="flex:1">
-                    <div style="font-size:13px;font-weight:700;color:var(--p2)">Categorising apps…</div>
-                    <div style="font-family:var(--ff-m);font-size:10px;color:var(--t3);margin-top:2px" id="psb-progress-txt">Connecting…</div>
-                </div>
-            </div>
-            <div style="height:4px;background:var(--border2);border-radius:2px;overflow:hidden">
-                <div id="psb-bar" style="height:100%;width:0%;border-radius:2px;background:linear-gradient(90deg,var(--p),var(--c));transition:width .3s ease"></div>
-            </div>
-        </div>
-        <div id="psb-done" style="display:none;align-items:center;gap:10px">
-            <div style="font-size:20px">✅</div>
-            <div style="flex:1">
-                <div style="font-size:13px;font-weight:700;color:var(--g)">Categories updated!</div>
-                <div style="font-family:var(--ff-m);font-size:10px;color:var(--t3);margin-top:2px" id="psb-done-txt"></div>
-            </div>
-            <div onclick="dismissPlaySyncBanner()" style="font-size:18px;color:var(--t3);cursor:pointer;flex-shrink:0">×</div>
-        </div>
+        <div id="home-cat-summary-list"></div>
     </div>
-
-    <!-- ── Categories ────────────────────────────────── -->
-    <div class="home-cats-hdr">
-        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-            <div class="home-section-title">Categories</div>
-            <div id="cat-total-badge" style="display:none;font-family:var(--ff-m);font-size:10px;color:var(--t2);font-weight:600;background:var(--s2);border:1px solid var(--border2);border-radius:999px;padding:1px 8px"></div>
-        </div>
-        <div style="display:flex;gap:6px">
-            <div class="home-cat-btn home-cat-btn-new" onclick="openAddCatModal()">＋ New</div>
-            <div class="home-cat-btn" onclick="openPanel('manage-cats-panel')">Manage</div>
-        </div>
-    </div>
-    <div id="cat-grid-view"></div>
-    <div id="cat-list-view" style="display:none;padding:0 16px"></div>
 
     <!-- Hidden stubs -->
-    <button id="vt-grid" class="vt-btn on" style="display:none"></button>
-    <button id="vt-list" class="vt-btn" style="display:none"></button>
     <div id="notif-dot" style="display:none"></div>
-
     <div style="height:20px"></div>
 </div>

@@ -165,6 +165,30 @@ class MainActivity : AppCompatActivity() {
         bridge = AppBridge(this, webView)
         webView.addJavascriptInterface(bridge, "AppBridge")
 
+        // ── Health Connect permission launcher ───────────────────────────────
+        // Health Connect permissions (android.permission.health.*) are NOT
+        // standard Android runtime permissions on any API level — they are
+        // managed exclusively by the HC SDK's PermissionController contract.
+        //
+        // Using ActivityResultContracts.RequestMultiplePermissions() for HC
+        // permissions is incorrect on ALL API levels including Android 14+:
+        // the OS sees unfamiliar permission strings, skips any dialog, and
+        // immediately returns an empty granted map — which was causing the
+        // spurious "permanently denied" state on first connect.
+        //
+        // The PermissionController contract works correctly on API 28–34+:
+        //   • API 28–33: drives the HC app's custom permission sheet
+        //   • API 34+  : drives the built-in OS Health Connect permission UI
+        //
+        // Android 8.x (API 26–27): HC is not supported; launcher is never invoked.
+        bridge.healthConnect.manager.permissionLauncher =
+            registerForActivityResult(
+                androidx.health.connect.client.PermissionController
+                    .createRequestPermissionResultContract()
+            ) { granted: Set<String> ->
+                bridge.healthConnect.onPermissionsResult(granted)
+            }
+
         // Schedule background notifications immediately so the WorkManager
         // periodic task exists even before the WebView finishes loading.
         // JS also calls scheduleBackgroundNotifications() on init as a second
@@ -172,6 +196,8 @@ class MainActivity : AppCompatActivity() {
         bridge.scheduleBackgroundNotifications()
         // Schedule background widget refresh (15-min WorkManager task, runs even when app is closed)
         AureloWidgetUpdateWorker.schedule(this)
+        // Schedule daily Coach insight notification (Aurelo Coach Phase 1 — spec §18.1)
+        CoachInsightWorker.schedule(this)
 
         // SEC-03 FIX: NativeBridge removed — it exposed uninstallAppDirect() with no
         // package validation, allowing any JS to uninstall any app silently.
@@ -299,6 +325,7 @@ class MainActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         bridge.notifyForeground()
+        bridge.healthConnect.refreshOnForeground()   // refresh HC cache on resume
         webView.onResume()
         webView.resumeTimers()
 
