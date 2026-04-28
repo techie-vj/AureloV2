@@ -390,7 +390,8 @@ var PatternDetector = {
     }
 
     // Anomalous spike
-    var activeDays = (summary.screenTime7Day || []).filter(function(d) { return d > 0; });
+    var _rawDays = (summary.screenTime7Day || []);
+    var activeDays = _rawDays.map(function(d) { return typeof d === 'object' ? (d.minutes || 0) : (d || 0); }).filter(function(m) { return m > 0; });
     if (activeDays.length > 0) {
       var avg7 = activeDays.reduce(function(a, b) { return a + b; }, 0) / activeDays.length;
       if (summary.worstDayMinutes > avg7 * 1.5) {
@@ -423,7 +424,8 @@ var PatternDetector = {
     }
 
     // FIX: Proactive RECOVERY_DAY — significantly under recent average (not just keyword-triggered)
-    var activeDayArr = (summary.screenTime7Day || []).filter(function(d) { return d > 0; });
+    var _rawDays2 = (summary.screenTime7Day || []);
+    var activeDayArr = _rawDays2.map(function(d) { return typeof d === 'object' ? (d.minutes || 0) : (d || 0); }).filter(function(m) { return m > 0; });
     if (activeDayArr.length >= 2) {
       var recentAvg = activeDayArr.reduce(function(a, b) { return a + b; }, 0) / activeDayArr.length;
       if (summary.todayMinutes < recentAvg * 0.6 && summary.streakDays > 0 && summary.todayMinutes > 0) {
@@ -443,9 +445,10 @@ var PatternDetector = {
     }
 
     // FIX: Post-streak-break rebuild acknowledgement
-    var prevBest = summary.previousBestStreak || 0;
-    if (prevBest > 10 && summary.streakDays > 0 && summary.streakDays <= 3) {
-      found.push({ intent: CoachIntent.RECOVERY_DAY, priority: 7, data: { streakRebuild: true, prevBest: prevBest } });
+    // previousBestStreak not in summary; infer from established user (14+ days) with low current streak
+    var likelyRebuild = summary.dataWindowDays >= 14 && summary.streakDays > 0 && summary.streakDays <= 3;
+    if (likelyRebuild) {
+      found.push({ intent: CoachIntent.RECOVERY_DAY, priority: 7, data: { streakRebuild: true } });
     }
 
     // HC patterns — gated on hcConnected
@@ -489,16 +492,14 @@ var PatternDetector = {
  * 5. HELPERS
  * ───────────────────────────────────────────────────────────────────────── */
 
-/** Compute the pillar (screen/focus/sleep) that dropped the most vs yesterday.
- *  Returns 'screen', 'focus', or 'sleep'. Used for SCORE_DROP responses. */
+/** Compute weakest pillar by lowest weighted contribution — no yesterday data needed */
 function _worstPillar(s) {
-  var deltas = [
-    { pillar: 'focus',  delta: (s.focusScore  || 0) - (s.focusScoreYesterday  || s.focusScore  || 0) },
-    { pillar: 'screen', delta: (s.screenScore || 0) - (s.screenScoreYesterday || s.screenScore || 0) },
-    { pillar: 'sleep',  delta: (s.sleepScore  || 0) - (s.sleepScoreYesterday  || s.sleepScore  || 0) },
-  ];
-  deltas.sort(function(a, b) { return a.delta - b.delta; });
-  return deltas[0].pillar;
+  var screenW = (s.screenScore || 0) * 0.40;
+  var focusW  = (s.focusScore  || 0) * 0.35;
+  var sleepW  = (s.sleepScore  || 0) * 0.25;
+  if (focusW <= screenW && focusW <= sleepW)  return 'focus';
+  if (screenW <= focusW && screenW <= sleepW) return 'screen';
+  return 'sleep';
 }
 
 /** Format minutes as Xh Ym */
@@ -551,9 +552,12 @@ var TemplateLibrary = {
       {
         text: function(s) {
           var drop = Math.abs(s.aureloScore - s.aureloScoreYesterday);
-          return 'Score went from <strong>' + s.aureloScoreYesterday + '</strong> to <strong>' + s.aureloScore + '</strong> — ' + drop + ' points down. Your first app open was at <strong>' + s.firstUseHour + ':00</strong>, which costs first-use points. Waiting until 9 AM recovers the full 20 points there.';
+          var cause = s.firstUseHour < 9
+            ? 'Your first app open was at <strong>' + s.firstUseHour + ':00</strong> — waiting until 9 AM recovers the full 20 first-use points.'
+            : 'Your pickup count of <strong>' + s.pickupsToday + '</strong> vs your average of <strong>' + Math.round(s.pickups7DayAvg) + '</strong> is the likely driver — each pickup above average costs pickup score points.';
+          return 'Score moved from <strong>' + s.aureloScoreYesterday + '</strong> to <strong>' + s.aureloScore + '</strong> — ' + drop + ' point' + (drop === 1 ? '' : 's') + ' down. ' + cause;
         },
-        followUps: ['Why does first-use time matter?', 'What time should I open my phone?', 'How do I boost my focus score?']
+        followUps: ['How do I recover today?', 'Is my streak safe?', 'What should I work on first?']
       }
     ],
 
@@ -570,7 +574,7 @@ var TemplateLibrary = {
           }
           return 'Your <strong>' + s.streakDays + '-day streak</strong> looks safe at current pace — <strong>' + _fmtMins(s.todayMinutes) + '</strong> against a ' + _fmtMins(s.dailyGoalMinutes) + ' goal. Watch the evening; pickup count typically climbs after 6 PM.';
         },
-        followUps: ['What should I do right now?', 'When is my riskiest time?', 'Start a focus session']
+        followUps: ['What should I do right now?', 'When is my riskiest time?', 'How many minutes do I have left?']
       }
     ],
 
@@ -578,7 +582,6 @@ var TemplateLibrary = {
     FOCUS_GAP: [
       {
         text: function(s) {
-          // FIX: if user has been focusing today, give active-user response
           if (s.daysSinceLastFocus === 0 && s.focusSessionsCompleted > 0) {
             var total = s.focusSessionsCompleted + (s.focusSessionsFail || 0);
             var rate = total > 0 ? Math.round((s.focusSessionsCompleted / total) * 100) : 0;
@@ -590,7 +593,12 @@ var TemplateLibrary = {
             : '';
           return 'You haven\'t done a focus session in <strong>' + (days === 0 ? 'a few days' : days + ' day' + (days === 1 ? '' : 's')) + '</strong>. Your Focus Score is <strong>' + s.focusScore + '</strong> — it\'ll drop further if you miss another day. Even a quick <strong>10-minute Gentle session</strong> would stop the slide. Your top distractor is <strong>' + (s.topApps && s.topApps[0] || 'social apps') + '</strong> — a good candidate to block.' + hcNote;
         },
-        followUps: ['Start a 10-minute focus session', 'Which apps should I block?', "What's my session completion rate?"]
+        followUps: function(s) {
+          if (s.daysSinceLastFocus === 0 && s.focusSessionsCompleted > 0) {
+            return ['When is my most focused time?', 'Which apps should I block?', 'How do I reach Excellent?'];
+          }
+          return ['Start a 10-minute focus session', 'Which apps should I block?', "What's my session completion rate?"];
+        }
       }
     ],
 
@@ -628,15 +636,13 @@ var TemplateLibrary = {
           var diff = Math.round(s.pickupsToday - s.pickups7DayAvg);
           return 'Social apps are your top category today, led by <strong>' + (s.topApps && s.topApps[0] || 'social apps') + '</strong>. You\'ve got <strong>' + s.pickupsToday + ' pickups</strong> — <strong>' + (diff > 0 ? '+' + diff : diff) + '</strong> vs your weekly average. A <strong>25-min Firm session</strong> with ' + (s.topApps && s.topApps[0] || 'your top app') + ' blocked right now would reset the loop.';
         },
-        followUps: ['Block social apps for 25 min', "What's a healthy social limit?", 'Show my social trend']
+        followUps: ['Block social apps for 25 min', "What's a healthy social limit?", 'Do I have a dopamine loop?']
       }
     ],
 
-    // ── PRODUCTIVE_DAY — now handles perfect-day composite ─────────────
     PRODUCTIVE_DAY: [
       {
         text: function(s) {
-          // FIX: perfect-day celebration is distinct from a regular good day
           var isPerfect = (
             s.focusSessionsCompleted >= 3 &&
             s.firstUseHour >= 9 &&
@@ -650,16 +656,27 @@ var TemplateLibrary = {
                    'and pickups are <strong>' + Math.round(s.pickupsToday) + '</strong> — below your average. ' +
                    'All three pillars are aligned. This is exactly the pattern that builds an Excellent Aurelo Score.';
           }
-          // FIX: "How do I reach Excellent?" — gap-calculation response
+          // Gap to Excellent — only show if not already there
           var gap = 85 - (s.aureloScore || 0);
           var excellentNote = '';
           if (gap > 0) {
             var weakPillar = _worstPillar(s);
-            excellentNote = ' You\'re <strong>' + gap + ' points</strong> from Excellent (85). Your weakest pillar is <strong>' + weakPillar + '</strong> — focusing there is the fastest path.';
+            excellentNote = ' You\'re <strong>' + gap + ' point' + (gap === 1 ? '' : 's') + '</strong> from Excellent (85). Your weakest pillar is <strong>' + weakPillar + '</strong> — focusing there is the fastest path.';
+          } else if (gap <= 0) {
+            excellentNote = ' You\'ve reached <strong>Excellent</strong> — that\'s the top grade. Keep this up to extend the streak.';
           }
-          return 'Today looks good — <strong>' + _fmtMins(s.todayMinutes) + '</strong> against your <strong>' + _fmtMins(s.dailyGoalMinutes) + '</strong> goal, Screen Score <strong>' + s.screenScore + '</strong>, and <strong>' + s.focusSessionsCompleted + ' focus session' + (s.focusSessionsCompleted === 1 ? '' : 's') + '</strong> completed. Your <strong>' + s.streakDays + '-day streak</strong> is alive.' + excellentNote + ' ' + (s.firstUseHour < 9 ? 'One thing: first use was at ' + s.firstUseHour + ':00 AM — waiting until 9 AM tomorrow adds 20 points to your Screen Score.' : 'You waited until 9 AM for first use — perfect.');
+          var morningNote = s.firstUseHour < 9
+            ? ' One thing: first use was at ' + s.firstUseHour + ':00 AM — waiting until 9 AM tomorrow adds 20 points to your Screen Score.'
+            : ' You waited until ' + s.firstUseHour + ':00 for first use — solid start.';
+          return 'Today looks good — <strong>' + _fmtMins(s.todayMinutes) + '</strong> against your <strong>' + _fmtMins(s.dailyGoalMinutes) + '</strong> goal, Screen Score <strong>' + s.screenScore + '</strong>, and <strong>' + s.focusSessionsCompleted + ' focus session' + (s.focusSessionsCompleted === 1 ? '' : 's') + '</strong> completed. Your <strong>' + s.streakDays + '-day streak</strong> is alive.' + excellentNote + morningNote;
         },
-        followUps: ['Share my score', "What's my best habit this week?", 'How do I get to Excellent?']
+        followUps: function(s) {
+          var gap = 85 - (s.aureloScore || 0);
+          if (gap <= 0) {
+            return ['Share my score', "What's my best habit this week?", 'How do I maintain Excellent?'];
+          }
+          return ['Share my score', "What's my best habit this week?", 'How do I reach Excellent?'];
+        }
       }
     ],
 
@@ -669,19 +686,20 @@ var TemplateLibrary = {
         text: function(s) {
           return 'Your first phone use today was at <strong>' + s.firstUseHour + ':00 AM</strong> — that costs you the full first-use score (20 pts). Checking your phone within the first hour of waking is linked to higher pickup counts all day. Tomorrow: try waiting until <strong>9 AM</strong>. Just that change adds 20 points to your Screen Score.';
         },
-        followUps: ['Set a morning reminder', 'What should I do instead?', 'How much does it affect my score?']
+        followUps: ['How much does first-use time affect my score?', 'Do I have a dopamine loop?', 'What should I do instead of checking my phone?']
       }
     ],
 
-    // ── ANOMALOUS_SPIKE ────────────────────────────────────────────────
     ANOMALOUS_SPIKE: [
       {
         text: function(s) {
-          var activeDays = (s.screenTime7Day || []).filter(function(d) { return d > 0; });
-          var avg = activeDays.length ? Math.round(activeDays.reduce(function(a,b){return a+b;},0)/activeDays.length) : 0;
-          return '<strong>' + s.worstDay + '</strong> is your heaviest screen day — <strong>' + _fmtMins(s.worstDayMinutes) + '</strong> vs your weekly average of ~' + _fmtMins(avg) + '. The pattern repeats. A scheduled focus routine on ' + s.worstDay + ' afternoons would directly address this.';
+          var days = (s.screenTime7Day || []);
+          var minutes = days.map(function(d) { return typeof d === 'object' ? (d.minutes || 0) : (d || 0); });
+          var active = minutes.filter(function(m) { return m > 0; });
+          var avg = active.length ? Math.round(active.reduce(function(a,b){return a+b;},0)/active.length) : 0;
+          return '<strong>' + s.worstDay + '</strong> is your heaviest screen day — <strong>' + _fmtMins(s.worstDayMinutes) + '</strong> vs your weekly average of ~' + _fmtMins(avg) + '. The pattern repeats. A scheduled Focus Routine on ' + s.worstDay + ' afternoons would directly address this — set it up in Focus → Schedules.';
         },
-        followUps: ['Schedule a routine', 'Why is that day different?', 'Show my weekly pattern']
+        followUps: ['Why do I spike on that day?', 'How do I set a focus schedule?', "What's my weekly pattern?"]
       }
     ],
 
@@ -713,31 +731,34 @@ var TemplateLibrary = {
       }
     ],
 
-    // ── WEEKEND_BINGE ─────────────────────────────────────────────────
     WEEKEND_BINGE: [
       {
         text: function(s) {
-          var activeDays = (s.screenTime7Day || []).filter(function(d) { return d > 0; });
-          var weekdayAvg = activeDays.length
-            ? Math.round(activeDays.reduce(function(a,b){return a+b;},0) / activeDays.length) : 0;
-          return 'Weekends are your highest-usage days — today you\'re at <strong>' + _fmtMins(s.todayMinutes) + '</strong>, about <strong>' + Math.round(s.todayMinutes / (weekdayAvg || 1) * 100 - 100) + '%</strong> above your weekday average. Screen time on days off often doubles because routines loosen. A weekend focus schedule would help cap the spike.';
+          var days = (s.screenTime7Day || []);
+          var minutes = days.map(function(d) { return typeof d === 'object' ? (d.minutes || 0) : (d || 0); });
+          var active = minutes.filter(function(m) { return m > 0; });
+          var weekdayAvg = active.length ? Math.round(active.reduce(function(a,b){return a+b;},0) / active.length) : 0;
+          var pctOver = weekdayAvg > 0 ? Math.round(s.todayMinutes / weekdayAvg * 100 - 100) : 0;
+          return 'Weekends are your highest-usage days — today you\'re at <strong>' + _fmtMins(s.todayMinutes) + '</strong>, about <strong>' + pctOver + '%</strong> above your weekday average. Screen time on days off often doubles because routines loosen. A Focus Routine set specifically for weekends (Focus → Schedules) would help cap the spike.';
         },
-        followUps: ['Set a weekend routine', "What's a good weekend goal?", 'Show my week pattern']
+        followUps: ["What's a good weekend goal?", 'How do I set a focus schedule?', 'Tell me about my week']
       }
     ],
 
-    // ── RECOVERY_DAY — now handles streak-rebuild case ─────────────────
     RECOVERY_DAY: [
       {
         text: function(s) {
-          var prevBest = s.previousBestStreak || 0;
-          // FIX: post-streak-break rebuild response
-          if (prevBest > 10 && s.streakDays > 0 && s.streakDays <= 3) {
-            return 'Your <strong>' + prevBest + '-day streak</strong> ended recently — but you\'re now on day <strong>' + s.streakDays + '</strong> of the rebuild. You already know how to do this; you\'ve proven it over ' + prevBest + ' days. Two or three more consistent days and the momentum fully returns. Today\'s usage of <strong>' + _fmtMins(s.todayMinutes) + '</strong> is a solid start.';
+          // Detect likely streak-rebuild: established user (14+ days data) on a low streak (1–3 days)
+          var likelyRebuild = s.dataWindowDays >= 14 && s.streakDays > 0 && s.streakDays <= 3;
+          if (likelyRebuild) {
+            return 'Looks like you\'re rebuilding your streak — you\'re on day <strong>' + s.streakDays + '</strong>. ' +
+                   'You\'ve built consistency before; the pattern is in your data. ' +
+                   'Two or three more days under your ' + _fmtMins(s.dailyGoalMinutes) + ' goal and the momentum is fully back. ' +
+                   'Today\'s <strong>' + _fmtMins(s.todayMinutes) + '</strong> is a solid foundation.';
           }
-          return 'You\'re having a recovery day — <strong>' + _fmtMins(s.todayMinutes) + '</strong> is below your recent average. After a heavy usage day your brain naturally pulls back. Lean into it: this is a good day for a focus session and an early first-use cutoff tomorrow.';
+          return 'You\'re having a lighter day — <strong>' + _fmtMins(s.todayMinutes) + '</strong> is below your recent average. After a heavy-usage day your brain naturally pulls back. Lean into it: this is a good day for a focus session and an early first-use cutoff tomorrow.';
         },
-        followUps: ['Start a recovery focus session', "What's the best next step?", 'How am I trending?']
+        followUps: ['How do I protect my streak today?', 'What should I focus on next?', 'How am I trending this week?']
       }
     ],
 
@@ -772,7 +793,7 @@ var TemplateLibrary = {
           var steps = s.stepsToday ? s.stepsToday.toLocaleString() : '8,000+';
           return 'You\'ve logged <strong>' + steps + ' steps</strong> today (Health Connect). On days when your step count exceeds 8,000 your screen time tends to run <strong>10–15%</strong> below goal and focus session completion is higher. Physical activity and focused phone use are correlated in your 7-day pattern. Keep it going.';
         },
-        followUps: ['What else helps my focus?', 'Do active days improve my score?', 'Show me the correlation']
+        followUps: ['What else helps my focus?', 'Do active days improve my score?', "What's my best habit right now?"]
       }
     ],
 
@@ -801,7 +822,7 @@ var TemplateLibrary = {
             : '';
           return 'Your strongest habit right now is the <strong>' + s.streakDays + '-day streak</strong> — that\'s real consistency. Your Screen Score of <strong>' + s.screenScore + '</strong> shows you\'re managing goal adherence well. The ' + s.focusSessionsCompleted + ' focus session' + (s.focusSessionsCompleted === 1 ? '' : 's') + ' this week is solid.' + hcLine + ' Keep the morning routine going — first-use timing is your clearest lever.';
         },
-        followUps: ['How do I build on this?', 'Share my streak', "What's my best day pattern?"]
+        followUps: ['How do I build on this?', 'Share my streak', 'How close am I to Excellent?']
       }
     ],
 
@@ -817,7 +838,7 @@ var TemplateLibrary = {
                  'To see a full per-app breakdown, go to <strong>Wellness → Today → All Apps</strong>. ' +
                  'Adding a <strong>Mindful Pause</strong> or <strong>App Timer</strong> on ' + topApp + ' is the fastest way to directly cut time on it.';
         },
-        followUps: ['Add a mindful pause', 'Set an app timer', 'Am I on social media too much?']
+        followUps: ['Add a mindful pause', 'Am I on social media too much?', 'Do I have a dopamine loop?']
       }
     ],
 
@@ -835,7 +856,7 @@ var TemplateLibrary = {
                  '<strong>Mindful Pause:</strong> A 10-second intention check before a chosen app opens, breaking the automatic habit loop.<br>' +
                  'Ask me about any specific one for more detail.';
         },
-        followUps: ['How do I reach Excellent?', "What's my session completion rate?", 'How does sleep affect my score?']
+        followUps: ['How do I reach Excellent?', "What's my session completion rate?", 'Why do I use my phone at night?']
       }
     ],
 
@@ -843,9 +864,11 @@ var TemplateLibrary = {
     GOAL_SETTING_ADVICE: [
       {
         text: function(s) {
-          var activeDays = (s.screenTime7Day || []).filter(function(d) { return d > 0; });
-          var avg7 = activeDays.length
-            ? Math.round(activeDays.reduce(function(a,b){return a+b;},0) / activeDays.length)
+          var days = (s.screenTime7Day || []);
+          var minutes = days.map(function(d) { return typeof d === 'object' ? (d.minutes || 0) : (d || 0); });
+          var active = minutes.filter(function(m) { return m > 0; });
+          var avg7 = active.length
+            ? Math.round(active.reduce(function(a,b){return a+b;},0) / active.length)
             : s.todayMinutes;
           var currentGoal = _fmtMins(s.dailyGoalMinutes);
           var suggestion = '';
@@ -877,9 +900,12 @@ var TemplateLibrary = {
   get: function(intent, summary) {
     var pool = this.templates[intent] || this.templates['UNKNOWN'];
     var template = pool[Math.floor(Math.random() * pool.length)];
+    var followUps = typeof template.followUps === 'function'
+      ? template.followUps(summary)
+      : (template.followUps || []);
     return {
       text:      template.text(summary),
-      followUps: template.followUps || []
+      followUps: followUps
     };
   }
 };

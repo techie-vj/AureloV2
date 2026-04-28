@@ -1266,22 +1266,33 @@ class CoachOrchestrator(
         hcSignals: HcSignalAvailability,
     ): List<String> {
         val raw = when (intent) {
-            "SCORE_DROP" -> listOf("What caused the drop?", "How do I recover today?", "Is my streak safe?")
+            // FIX: "What caused the drop?" loops back to the same intent — replaced with actionable recovery
+            "SCORE_DROP" -> listOf("How do I recover today?", "Is my streak safe?", "What should I work on first?")
             "STREAK_AT_RISK" -> listOf("What should I do right now?", "When is my riskiest time?", "How many minutes do I have left?")
-            "HC_POOR_SLEEP_HIGH_USAGE" -> listOf("How does sleep affect my usage?", "What can I do tonight?", "Start a focus session")
-            "HC_ACTIVE_DAY_BETTER_FOCUS" -> listOf("Do active days improve my score?", "What else helps my focus?", "Show my active day pattern")
-            "FOCUS_GAP" -> listOf("Start a 10-minute focus session", "Which apps should I block?", "What's my session completion rate?")
+            "HC_POOR_SLEEP_HIGH_USAGE" -> listOf("Why do I use my phone at night?", "What can I do tonight?", "How are my focus sessions going?")
+            "HC_ACTIVE_DAY_BETTER_FOCUS" -> listOf("Do active days improve my score?", "What else helps my focus?", "What's my best habit right now?")
+            "FOCUS_GAP" -> if (summary.daysSinceLastFocus == 0 && summary.focusSessionsCompleted > 0)
+                listOf("When is my most focused time?", "Which apps should I block?", "How do I reach Excellent?")
+            else
+                listOf("Start a 10-minute focus session", "Which apps should I block?", "What's my session completion rate?")
             "FOCUS_PEAK_TIME" -> listOf("Start a focus session now", "How does first-use time affect my score?", "What's a good session length?")
-            "BEDTIME_REVENGE_PROCRASTINATION" -> listOf("What time should I stop?", "Enable Bedtime Mode", "How does sleep affect my score?")
-            "DOPAMINE_LOOP" -> listOf("Add a mindful pause", "Why does the loop happen?", "Which app triggers it?")
-            "HEALTHY_PATTERN" -> listOf("How do I build on this?", "What's my best habit?", "Share my streak")
-            "PRODUCTIVE_DAY" -> listOf("Share my score", "What's my best habit this week?", "How do I get to Excellent?")
-            "RECOVERY_DAY" -> listOf("Start a recovery focus session", "What's the best next step?", "How am I trending?")
-            "SOCIAL_SPIRAL" -> listOf("Block social apps for 25 min", "What's a healthy social limit?", "Show my social trend")
-            "ANOMALOUS_SPIKE" -> listOf("Schedule a routine", "Why is that day different?", "Show my weekly pattern")
-            "APP_DEEP_DIVE" -> listOf("Add a mindful pause", "Set an app timer", "Am I on social media too much?")
-            "FEATURE_EXPLANATION" -> listOf("How do I reach Excellent?", "What's my session completion rate?", "How does sleep affect my score?")
+            "FOCUS_BURNOUT" -> listOf("Start a 5-minute focus session", "Why can't I focus?", "How do I rebuild focus?")
+            "BEDTIME_REVENGE_PROCRASTINATION" -> listOf("What time should I stop using my phone?", "What is revenge procrastination?", "How's my bedtime routine?")
+            "DOPAMINE_LOOP" -> listOf("Add a mindful pause", "Why does the loop happen?", "Am I on social media too much?")
+            "HEALTHY_PATTERN" -> listOf("How do I build on this?", "What's my best habit right now?", "How close am I to Excellent?")
+            "PRODUCTIVE_DAY" -> if ((summary.aureloScore) >= 85)
+                listOf("Share my score", "What's my best habit this week?", "How do I maintain Excellent?")
+            else
+                listOf("Share my score", "What's my best habit this week?", "How do I reach Excellent?")
+            "RECOVERY_DAY" -> listOf("How do I protect my streak today?", "What should I focus on next?", "How am I trending this week?")
+            "SOCIAL_SPIRAL" -> listOf("Block social apps for 25 min", "What's a healthy social limit?", "Do I have a dopamine loop?")
+            "MORNING_DOOM_SCROLL" -> listOf("How much does first-use time affect my score?", "Do I have a dopamine loop?", "What should I do instead of checking my phone?")
+            "WEEKEND_BINGE" -> listOf("What's a good weekend goal?", "How do I set a focus schedule?", "Tell me about my week")
+            "ANOMALOUS_SPIKE" -> listOf("Why do I spike on that day?", "How do I set a focus schedule?", "What's my weekly pattern?")
+            "APP_DEEP_DIVE" -> listOf("Add a mindful pause", "Am I on social media too much?", "Do I have a dopamine loop?")
+            "FEATURE_EXPLANATION" -> listOf("How do I reach Excellent?", "What's my session completion rate?", "Why do I use my phone at night?")
             "GOAL_SETTING_ADVICE" -> listOf("How do I change my goal?", "How does my goal affect my score?", "What's my weekly average?")
+            "GENERAL_SUMMARY" -> listOf("What should I work on first?", "How close am I to Excellent?", "What's my best habit this week?")
             else -> listOf("What should I work on first?", "How is my streak looking?", "Tell me about my week")
         }
 

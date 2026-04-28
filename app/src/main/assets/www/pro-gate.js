@@ -53,6 +53,9 @@
     // Appearance
     BEDTIME_MODE:              { tier:'pro', gate:'blur',    upsell:'bedtime' },
     THEME_AMOLED_PLUS:         { tier:'pro', gate:'lock',    upsell:'themes' },
+    // Coach & Health connect
+    COACH_UPGRADE:                   { tier:'pro', gate:'lock',    upsell:'coach_upgrade' },
+    HEALTH_CONNECT:                   { tier:'pro', gate:'lock',    upsell:'health_connect' },
     // Monetisation
     AD_FREE:                   { tier:'pro', gate:'lock',    upsell:'ad_free' },
   };
