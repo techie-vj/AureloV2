@@ -112,6 +112,18 @@ class AureloWidgetProvider : AppWidgetProvider() {
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action == ACTION_LAUNCH_APP) {
             val pkg = intent.getStringExtra(EXTRA_PACKAGE) ?: return
+            if (!SecurityValidators.isValidPackageName(pkg)) return
+            val widgetId = intent.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, -1)
+            if (widgetId != -1) {
+                val ids = AppWidgetManager.getInstance(context)
+                    .getAppWidgetIds(ComponentName(context, AureloWidgetProvider::class.java))
+                if (!ids.contains(widgetId)) return
+            }
+            val launchIntent = context.packageManager.getLaunchIntentForPackage(pkg) ?: return
+            val widgetApps = runCatching {
+                buildWidgetAppPackages(context, widgetId).take(5)
+            }.getOrElse { emptyList() }
+            if (widgetApps.isNotEmpty() && pkg !in widgetApps) return
             // Haptic feedback — short click-style vibration on app slot tap
             runCatching {
                 val vibrator = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
@@ -135,9 +147,8 @@ class AureloWidgetProvider : AppWidgetProvider() {
             executor.execute { runCatching { LaunchTracker.get(context).recordLaunch(pkg) } }
             // Then open the app
             runCatching {
-                context.packageManager.getLaunchIntentForPackage(pkg)
-                    ?.apply { flags = Intent.FLAG_ACTIVITY_NEW_TASK }
-                    ?.let { context.startActivity(it) }
+                launchIntent.apply { flags = Intent.FLAG_ACTIVITY_NEW_TASK }
+                    .let { context.startActivity(it) }
             }
             return
         }
@@ -188,7 +199,11 @@ class AureloWidgetProvider : AppWidgetProvider() {
         // Refresh usage caches here so each alarm tick has up-to-date screen time / pickups
         // even when the app is fully in the background.
         executor.execute {
-            runCatching { AureloWidgetUpdateWorker.refreshCachesStatic(context) }
+            runCatching {
+                if (RefreshCoordinator.tryBegin(context, "widget_alarm", minIntervalMs = 2 * 60_000L)) {
+                    AureloWidgetUpdateWorker.refreshCachesStatic(context)
+                }
+            }
         }
         ids.forEach { id ->
             executor.execute {
@@ -800,8 +815,6 @@ class AureloWidgetProvider : AppWidgetProvider() {
 
     // ── Clicks ────────────────────────────────────────────────────────────────
     private fun wireClicks(context: Context, views: RemoteViews, apps: List<String>, widgetId: Int) {
-        val pm = context.packageManager
-
         // Insight bar → cycle message variant
         val cycleIntent = Intent(context, AureloWidgetProvider::class.java).apply {
             action = ACTION_CYCLE_INSIGHT

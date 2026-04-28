@@ -83,6 +83,7 @@ class WidgetBridge(
     }
 
     @JavascriptInterface fun recordAppLaunch(packageName: String) {
+        if (!SecurityValidators.isInstalledLaunchablePackage(context, packageName)) return
         Thread { LaunchTracker.get(context).recordLaunch(packageName) }.start()
     }
 

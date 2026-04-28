@@ -88,6 +88,7 @@ class AppBridge(private val context: Context, private val webView: WebView) {
     fun preScan() { appManagement.preScan(); usage.preScan { appManagement.buildInstalledAppsList() } }
 
     fun refreshUsageStats() {
+        if (!RefreshCoordinator.shouldRefreshUsage()) return
         usage.refreshUsageStats()
         timer.checkTimerThresholds()
     }
@@ -140,7 +141,7 @@ class AppBridge(private val context: Context, private val webView: WebView) {
     @JavascriptInterface fun saveStreakGoalMins(mins: Int)     = settings.saveStreakGoalMins(mins)
     @JavascriptInterface fun getStreakGoalMinsBridge()         = settings.getStreakGoalMinsBridge()
     @JavascriptInterface fun getStringPref(key: String)        = settings.getStringPref(key)
-    @JavascriptInterface fun setStringPref(k: String, v: String) = settings.setStringPref(k,v)
+    @JavascriptInterface fun setStringPref(k: String, v: String)= settings.setStringPref(k,v)
     @JavascriptInterface fun getDeviceModel()                  = settings.getDeviceModel()
     @JavascriptInterface fun getCountryCode()                  = settings.getCountryCode()
     @JavascriptInterface fun getPackageName()                  = settings.getPackageName()
@@ -307,7 +308,6 @@ class AppBridge(private val context: Context, private val webView: WebView) {
 
     // ── Billing ────────────────────────────────────────────────────────────
     @JavascriptInterface fun isProUser()                       = billing.isProUser()
-    @JavascriptInterface fun setProUser(isPro: Boolean)        = billing.setProUser(isPro)
     @JavascriptInterface fun getProStatus()                    = billing.getProStatus()
     @JavascriptInterface fun getProPricing()                   = billing.getProPricing()
     @JavascriptInterface fun launchBillingFlow(plan: String)   = billing.launchBillingFlow(plan)

@@ -193,17 +193,22 @@ class HealthConnectManager(private val context: Context) {
         fun startIntent(intent: android.content.Intent): Boolean {
             intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
             return if (activity != null) {
-                // UI-thread dispatch is the key fix — avoids silent drop on API 34+
-                var succeeded = false
-                runCatching {
+                // UI-thread dispatch avoids silent drops on API 34+, but still
+                // return the real startActivity result so fallback intents can run.
+                if (android.os.Looper.myLooper() == android.os.Looper.getMainLooper()) {
+                    runCatching { activity.startActivity(intent) }.isSuccess
+                } else {
+                    val latch = java.util.concurrent.CountDownLatch(1)
+                    val succeeded = java.util.concurrent.atomic.AtomicBoolean(false)
                     activity.runOnUiThread {
-                        runCatching { activity.startActivity(intent) }
-                            .onSuccess { succeeded = true }
+                        succeeded.set(runCatching { activity.startActivity(intent) }.isSuccess)
+                        latch.countDown()
                     }
+                    val completed = runCatching {
+                        latch.await(2, java.util.concurrent.TimeUnit.SECONDS)
+                    }.getOrDefault(false)
+                    completed && succeeded.get()
                 }
-                // runOnUiThread posts and returns immediately; treat as success if no exception
-                // was thrown posting to the handler (the actual start is async on the UI thread)
-                true
             } else {
                 runCatching { context.startActivity(intent) }.isSuccess
             }

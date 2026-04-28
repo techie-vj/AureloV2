@@ -38,6 +38,10 @@ class AureloWidgetUpdateWorker(
     override fun doWork(): Result {
         if (!hasUsagePermission()) return Result.success()
 
+        if (!RefreshCoordinator.shouldRefreshWidgetCaches(appContext)) {
+            pushWidgetBroadcast()
+            return Result.success()
+        }
         refreshCaches()
         pushWidgetBroadcast()
         return Result.success()

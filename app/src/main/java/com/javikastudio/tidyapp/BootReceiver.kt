@@ -9,12 +9,13 @@ import android.os.Build
 class BootReceiver : BroadcastReceiver() {
     override fun onReceive(ctx: Context, intent: Intent) {
         if (intent.action != Intent.ACTION_BOOT_COMPLETED &&
-            intent.action != "android.intent.action.QUICKBOOT_POWERON") return
+            intent.action != "android.intent.action.QUICKBOOT_POWERON" &&
+            intent.action != Intent.ACTION_MY_PACKAGE_REPLACED) return
 
         val prefs = ctx.getSharedPreferences("tidyapp_v6", Context.MODE_PRIVATE)
 
         // Only reschedule if bedtime was enabled before reboot
-        val raw = prefs.getString("bedtime_settings_v1", null) ?: return
+        val raw = BedtimePrefs.getSettings(ctx, prefs) ?: return
         val cfg = try { org.json.JSONObject(raw) } catch (e: Exception) { return }
         if (!cfg.optBoolean("enabled", false)) return
 
@@ -66,10 +67,7 @@ class BootReceiver : BroadcastReceiver() {
     }
 
     // COMPAT-01: canScheduleExactAlarms() gating
-    private fun canScheduleExact(am: AlarmManager): Boolean {
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) am.canScheduleExactAlarms()
-        else true
-    }
+    private fun canScheduleExact(am: AlarmManager): Boolean = BedtimePrefs.canScheduleExact(am)
 
     // Standard reschedule: sets hour/minute directly, no offset issues
     private fun rescheduleSingle(ctx: Context, am: AlarmManager, action: String,
@@ -109,6 +107,6 @@ class BootReceiver : BroadcastReceiver() {
         val pi = android.app.PendingIntent.getBroadcast(ctx, reqCode,
             Intent(action).apply { setPackage(ctx.packageName) }, flags)
 
-        am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerMs, pi)
+        BedtimePrefs.setExactSafely(ctx, am, AlarmManager.RTC_WAKEUP, triggerMs, pi)
     }
 }

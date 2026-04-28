@@ -25,8 +25,14 @@ class SettingsBridge(
     @JavascriptInterface fun saveSettings(json: String) { securePrefs.edit().putString(USER_SETTINGS_V5, json).apply() }
     @JavascriptInterface fun saveStreakGoalMins(mins: Int) { prefs.edit().putInt(STREAK_GOAL_MINS, mins).apply() }
     @JavascriptInterface fun getStreakGoalMinsBridge(): Int = prefs.getInt(STREAK_GOAL_MINS, 240)
-    @JavascriptInterface fun getStringPref(key: String): String = (prefs.all[key] ?: "").toString()
-    @JavascriptInterface fun setStringPref(key: String, value: String) { prefs.edit().putString(key, value).apply() }
+    @JavascriptInterface fun getStringPref(key: String): String {
+        if (!SecurityValidators.isAllowedPublicPrefKey(key)) return ""
+        return (prefs.all[key] ?: "").toString()
+    }
+    @JavascriptInterface fun setStringPref(key: String, value: String) {
+        if (!SecurityValidators.isAllowedPublicPrefKey(key)) return
+        prefs.edit().putString(key, value).apply()
+    }
     @JavascriptInterface fun getDeviceModel(): String = "${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL}"
     @JavascriptInterface fun getCountryCode(): String = java.util.Locale.getDefault().country.uppercase().ifEmpty { "US" }
     @JavascriptInterface fun getPackageName(): String = context.packageName
@@ -37,6 +43,7 @@ class SettingsBridge(
     }.getOrElse { "v1.0.0" }
 
     @JavascriptInterface fun loadAssetFile(path: String): String {
+        if (!SecurityValidators.isAllowedAssetPath(path)) return ""
         return try { context.assets.open(path).bufferedReader().use { it.readText() } } catch (_:Exception) { "" }
     }
 
