@@ -332,4 +332,6 @@ class AppBridge(private val context: Context, private val webView: WebView) {
     @JavascriptInterface fun getCoachChips()                                   = coach.getCoachChips()
     @JavascriptInterface fun askCoach(query: String)                           = coach.askCoach(query)
     @JavascriptInterface fun getTabCoachInsight(tab: String, ctx: String)      = coach.getTabCoachInsight(tab, ctx)
+    @JavascriptInterface fun getCoachInsightDismissed()                        = coach.getCoachInsightDismissed()
+    @JavascriptInterface fun setCoachInsightDismissed()                        = coach.setCoachInsightDismissed()
 }

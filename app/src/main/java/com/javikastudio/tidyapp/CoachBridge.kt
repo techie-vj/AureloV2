@@ -35,6 +35,10 @@ class CoachBridge(
         private const val KEY_COACH_QUERY_DATE   = "coach_query_date"
         private const val KEY_COACH_INSIGHT_JSON = "coach_daily_insight_json"
         private const val KEY_COACH_INSIGHT_DATE = "coach_daily_insight_date"
+        // Per-day dismissed flag for the home insight card. Stored as YYYYMMDD
+        // so it expires automatically when the day rolls over and the user
+        // sees a fresh insight in the morning.
+        private const val KEY_COACH_INSIGHT_DISMISSED_DATE = "coach_insight_dismissed_date"
         private const val KEY_TAB_INSIGHT_PREFIX = "tab_coach_insight_"
         private const val FREE_DAILY_LIMIT = 3
     }
@@ -93,6 +97,30 @@ class CoachBridge(
         }
         // Insight not yet computed for today — return empty so JS can show default
         return JSONObject().toString()
+    }
+
+    /**
+     * Returns "1" when the user dismissed today's home insight card, "0"
+     * otherwise. Mirrors the JS-side localStorage key
+     * `coach_insight_dismissed_v1_YYYY-MM-DD` so dismissal state is consistent
+     * between WebView storage and SharedPreferences.
+     */
+    @JavascriptInterface
+    fun getCoachInsightDismissed(): String {
+        val today = todayKey()
+        val storedDate = prefs.getString(KEY_COACH_INSIGHT_DISMISSED_DATE, "") ?: ""
+        return if (storedDate == today) "1" else "0"
+    }
+
+    /**
+     * Marks today's home insight card as dismissed. The flag clears
+     * automatically when the day rolls over.
+     */
+    @JavascriptInterface
+    fun setCoachInsightDismissed() {
+        prefs.edit()
+            .putString(KEY_COACH_INSIGHT_DISMISSED_DATE, todayKey())
+            .apply()
     }
 
     /**
