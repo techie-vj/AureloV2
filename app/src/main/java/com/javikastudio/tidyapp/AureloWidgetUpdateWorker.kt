@@ -416,7 +416,12 @@ class AureloWidgetUpdateWorker(
                 val pm = context.packageManager
                 val totalMin = timeMap
                     .filter { (pkg, _) ->
-                        isUserApp(pkg) && pm.getLaunchIntentForPackage(pkg) != null
+                        try {
+                            val info = pm.getApplicationInfo(pkg, 0)
+                            isUserApp(pkg) &&
+                                    pm.getLaunchIntentForPackage(pkg) != null &&
+                                    (info.flags and android.content.pm.ApplicationInfo.FLAG_SYSTEM) == 0
+                        } catch (_: Exception) { false }
                     }
                     .values.sum() / 60_000L
                 val goalMins = prefs.getInt(STREAK_GOAL_MINS, 240).toLong()
