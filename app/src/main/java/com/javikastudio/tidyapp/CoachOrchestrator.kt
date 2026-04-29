@@ -237,6 +237,7 @@ class CoachOrchestrator(
                 ),
                 summary = summary,
                 hcSignals = hcSignals,
+                query = query,
             )
         }
 
@@ -335,6 +336,41 @@ class CoachOrchestrator(
     /** True when no pillar score has been computed yet (fresh install state). */
     private fun pillarsUnpopulated(summary: UsageSummary): Boolean =
         summary.screenScore <= 0 && summary.focusScore <= 0 && summary.sleepScore <= 0
+
+    /**
+     * Extract the app name the user is asking about (e.g. "Instagram" /
+     * "YouTube") and look it up against the cached top-app list.
+     *
+     * Returns a `(spokenName, lookupOrNull)` pair:
+     *   - `spokenName` is the lowercase keyword that matched the query
+     *     (or null when no app keyword was present at all).
+     *   - `lookupOrNull` is the `AppUsageEntry` from `summary.topApps` whose
+     *     label/package contains the spoken keyword, or null when the user
+     *     named an app we don't have data for.
+     *
+     * The keyword set is small on purpose — only the names we explicitly
+     * recognise from the predefined questions and `INTENT_RULES` patterns.
+     */
+    private fun resolveNamedApp(
+        query: String,
+        summary: UsageSummary,
+    ): Pair<String?, AppUsageEntry?> {
+        val q = query.lowercase(Locale.US)
+        val candidates = listOf(
+            "instagram", "youtube", "tiktok", "tik tok", "reddit", "facebook",
+            "twitter", "x.com", "snapchat", "whatsapp", "messenger", "telegram",
+            "discord", "spotify", "netflix", "twitch", "chrome", "gmail",
+            "linkedin", "pinterest",
+        )
+        val named = candidates.firstOrNull { q.contains(it) } ?: return null to null
+        val needle = named.replace(" ", "")
+        val match = summary.topApps.firstOrNull { app ->
+            val label = app.label.lowercase(Locale.US).replace(" ", "")
+            val pkg = app.packageName.lowercase(Locale.US).replace(" ", "")
+            label.contains(needle) || pkg.contains(needle)
+        }
+        return named to match
+    }
 
     /**
      * True when the Social category is actually leading the user's usage.
@@ -1400,6 +1436,7 @@ class CoachOrchestrator(
         insight: InsightTemplateLibrary.InsightText,
         summary: UsageSummary,
         hcSignals: HcSignalAvailability,
+        query: String = "",
     ): InsightTemplateLibrary.InsightText {
         var title = insight.title
         var body = insight.body
@@ -1491,6 +1528,31 @@ class CoachOrchestrator(
                         "Health Connect shows ${steps.toLocaleString()} steps. You're partway to an active day — Aurelo usually sees stronger screen-time benefits closer to 8,000 steps."
                     else ->
                         "Health Connect shows ${steps.toLocaleString()} steps. That's below the active-day range Aurelo uses, so today may not get the activity benefit yet."
+                }
+            }
+        }
+
+        // FIX: APP_DEEP_DIVE — when the user names a specific app in the query
+        // ("How much time on Instagram?"), rewrite the response to address that
+        // app instead of the generic top-app. If the named app isn't in the
+        // user's tracked top-app list we say so explicitly rather than
+        // silently substituting another app's name.
+        if (intent == "APP_DEEP_DIVE" && query.isNotBlank()) {
+            val (named, lookup) = resolveNamedApp(query, summary)
+            if (named != null) {
+                if (lookup != null) {
+                    title = "📱 ${lookup.label} — what your data shows"
+                    body = "${lookup.label} accounted for ${lookup.minutes} min of your " +
+                            "${summary.todayMinutes} min total today. " +
+                            "Adding a Mindful Pause or App Timer on ${lookup.label} via Focus → App Timers " +
+                            "is the fastest way to directly cut time on it."
+                } else {
+                    val pretty = named.replaceFirstChar { it.uppercase() }
+                    title = "📱 $pretty isn't in your top apps today"
+                    body = "I don't see $pretty in your tracked top-app list for today, so I can't " +
+                            "give you a per-app number. " +
+                            "If you'd like to track it, install or open it for a session and Aurelo will " +
+                            "pick it up. For your full per-app breakdown go to Wellness → Today → All Apps."
                 }
             }
         }
