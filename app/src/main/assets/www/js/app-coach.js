@@ -520,8 +520,11 @@ var PatternDetector = {
  * 5. HELPERS
  * ───────────────────────────────────────────────────────────────────────── */
 
-/** Compute weakest pillar by lowest weighted contribution — no yesterday data needed */
+/** Compute weakest pillar by lowest weighted contribution — no yesterday data needed.
+ *  Returns null when no pillar score has been computed yet so callers can skip
+ *  the "main driver was your X Score (0)" injection on fresh installs. */
 function _worstPillar(s) {
+  if (!(s.screenScore || s.focusScore || s.sleepScore)) return null;
   var screenW = (s.screenScore || 0) * 0.40;
   var focusW  = (s.focusScore  || 0) * 0.35;
   var sleepW  = (s.sleepScore  || 0) * 0.25;
@@ -559,7 +562,10 @@ var TemplateLibrary = {
     SCORE_DROP: [
       {
         text: function(s) {
-          // FIX: pillar-specific explanation
+          // FIX: pillar-specific explanation, but skip when no pillar scores
+          // have been computed yet (fresh-install state) so we don't print
+          // "main driver was your Focus Score (0) — 35%" to a user who has
+          // never had a focus session.
           var pillar = _worstPillar(s);
           var drop = Math.abs(s.aureloScore - s.aureloScoreYesterday);
           var pillarMsg = '';
@@ -567,7 +573,7 @@ var TemplateLibrary = {
             pillarMsg = ' The main drag was your <strong>Focus Score (' + (s.focusScore || '–') + ')</strong> — it contributes 35% of your Aurelo Score. Completing a session today will start recovering it.';
           } else if (pillar === 'sleep') {
             pillarMsg = ' The main drag was your <strong>Sleep Score (' + (s.sleepScore || '–') + ')</strong> — it contributes 25% of your Aurelo Score. Enable Bedtime Mode tonight to protect tomorrow.';
-          } else {
+          } else if (pillar === 'screen') {
             pillarMsg = ' The main drag was your <strong>Screen Score (' + (s.screenScore || '–') + ')</strong> — pickup count or first-use time moved against you.';
           }
           var hcNote = s.hcConnected && s.hrvToday && s.hrv7DayAvg && s.hrvToday < s.hrv7DayAvg
@@ -1112,15 +1118,28 @@ var CoachOrchestrator = {
         : CoachIntent.PRODUCTIVE_DAY;
     }
 
-    // FIX: "Why did my score change?" — direction-aware
+    // FIX: "Why did my score change?" — direction-aware with no-baseline guard.
     if (q.indexOf('score change') !== -1 || q.indexOf('why did my score') !== -1) {
-      var delta = (summary.aureloScore || 0) - (summary.aureloScoreYesterday || 0);
-      return delta >= 0 ? CoachIntent.PRODUCTIVE_DAY : CoachIntent.SCORE_DROP;
+      var ys = summary.aureloScoreYesterday || 0;
+      if (ys <= 0) return CoachIntent.GENERAL_SUMMARY;
+      var delta = (summary.aureloScore || 0) - ys;
+      if (delta < 0) return CoachIntent.SCORE_DROP;
+      if (delta === 0) return CoachIntent.HEALTHY_PATTERN;
+      return CoachIntent.PRODUCTIVE_DAY;
     }
 
-    // FIX: "What's dragging my score down?" — pillar-aware so it differs from "why did my score change"
+    // FIX: "What's dragging my score down?" — pillar-aware with a no-drag guard
+    // so the response doesn't fabricate a problem on a great-score day.
     if (q.indexOf("dragging my score") !== -1 || q.indexOf("what's dragging") !== -1) {
-      if ((summary.focusScore || 100) < 60) return CoachIntent.FOCUS_GAP;
+      var noDrag = (summary.aureloScore || 0) >= 80 &&
+                   (summary.screenScore || 0) >= 65 &&
+                   (summary.focusScore  || 0) >= 65 &&
+                   (summary.sleepScore  || 0) >= 65;
+      if (noDrag) return CoachIntent.HEALTHY_PATTERN;
+      var allZero = !(summary.screenScore || summary.focusScore || summary.sleepScore);
+      if (allZero) return CoachIntent.GENERAL_SUMMARY;
+      var fs = summary.focusScore || 0;
+      if (fs > 0 && fs < 60) return CoachIntent.FOCUS_GAP;
       if ((summary.firstUseHour || 9) < 8) return CoachIntent.MORNING_DOOM_SCROLL;
       return CoachIntent.SCORE_DROP;
     }

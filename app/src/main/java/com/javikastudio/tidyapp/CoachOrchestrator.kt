@@ -310,11 +310,30 @@ class CoachOrchestrator(
     // Direction-aware score helpers
     // ─────────────────────────────────────────────────────────────────────────
 
-    /** FIX: Route score-change query based on actual delta direction. */
+    /**
+     * Route score-change query based on actual delta direction.
+     *
+     * Edge cases handled:
+     * - When `aureloScoreYesterday <= 0` we don't have a real comparison point
+     *   (fresh install / data wiped) — return GENERAL_SUMMARY so the response
+     *   doesn't claim a phantom drop or improvement.
+     * - When delta is exactly 0 with valid scores on both sides, prefer
+     *   HEALTHY_PATTERN ("steady, today matches yesterday") over PRODUCTIVE_DAY,
+     *   which would print "Score recovered — streak intact" with score_drop=0.
+     */
     private fun resolveScoreChangeIntent(summary: UsageSummary): String {
+        if (summary.aureloScoreYesterday <= 0) return "GENERAL_SUMMARY"
         val delta = summary.aureloScore - summary.aureloScoreYesterday
-        return if (delta >= 0) "PRODUCTIVE_DAY" else "SCORE_DROP"
+        return when {
+            delta < 0 -> "SCORE_DROP"
+            delta == 0 -> "HEALTHY_PATTERN"
+            else -> "PRODUCTIVE_DAY"
+        }
     }
+
+    /** True when no pillar score has been computed yet (fresh install state). */
+    private fun pillarsUnpopulated(summary: UsageSummary): Boolean =
+        summary.screenScore <= 0 && summary.focusScore <= 0 && summary.sleepScore <= 0
 
     /**
      * FIX: Identify which pillar is weakest right now.
@@ -785,14 +804,22 @@ class CoachOrchestrator(
                     q.contains("score change") ->
                 ClassifiedIntent(resolveScoreChangeIntent(summary), 1.0f, "predefined_query")
 
-            // FIX: "What's dragging my score down?" — pillar-aware routing so it produces
-            // a different answer from "Why did my score change?" which uses direction-aware routing.
-            // This question gets the answer about the SPECIFIC pillar dragging it down.
+            // FIX: "What's dragging my score down?" — pillar-aware, but with a
+            // no-drag guard so it doesn't claim a problem on a great-score day.
+            // - Score >= 80 with no pillar < 65 → HEALTHY_PATTERN
+            //   ("nothing significant is dragging your score").
+            // - Otherwise route to the actual weakest pillar's intent.
             q.contains("what's dragging my score down") ||
                     q.contains("what is dragging my score down") ||
                     q.contains("dragging my score down") -> {
+                val noDrag = summary.aureloScore >= 80 &&
+                        summary.screenScore >= 65 &&
+                        summary.focusScore >= 65 &&
+                        summary.sleepScore >= 65
                 val draggingIntent = when {
-                    summary.focusScore < 60 -> "FOCUS_GAP"
+                    noDrag -> "HEALTHY_PATTERN"
+                    pillarsUnpopulated(summary) -> "GENERAL_SUMMARY"
+                    summary.focusScore in 1..59 -> "FOCUS_GAP"
                     summary.firstUseHour < 8 -> "MORNING_DOOM_SCROLL"
                     else -> "SCORE_DROP"
                 }
@@ -1420,8 +1447,12 @@ class CoachOrchestrator(
             }
         }
 
-        // FIX: SCORE_DROP — inject worst-pillar context if not already present
-        if (intent == "SCORE_DROP" && !body.contains("Focus Score") && !body.contains("Screen Score") && !body.contains("Sleep Score")) {
+        // FIX: SCORE_DROP — inject worst-pillar context if not already present.
+        // Skip when no pillar scores have been computed yet (fresh install) so we
+        // don't print "The main driver was your Focus Score (0) — 35%" to a user
+        // who has never had a focus session.
+        if (intent == "SCORE_DROP" && !pillarsUnpopulated(summary) &&
+            !body.contains("Focus Score") && !body.contains("Screen Score") && !body.contains("Sleep Score")) {
             val pillar = worstPillar(summary)
             val pillarScore = when (pillar) {
                 "Focus" -> summary.focusScore
