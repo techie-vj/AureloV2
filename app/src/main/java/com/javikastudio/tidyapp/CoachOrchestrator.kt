@@ -336,6 +336,19 @@ class CoachOrchestrator(
         summary.screenScore <= 0 && summary.focusScore <= 0 && summary.sleepScore <= 0
 
     /**
+     * True when the Social category is actually leading the user's usage.
+     * Matches the canonical category constant from `Categories.SOCIAL`
+     * ("Social & Communication") and the legacy raw "Social" string used by
+     * older callers and the JS browser-preview mock.
+     */
+    private fun isSocialDominant(summary: UsageSummary): Boolean {
+        val cat = summary.topCategory.lowercase(Locale.US)
+        return cat == "social" ||
+                cat == Categories.SOCIAL.lowercase(Locale.US) ||
+                cat.startsWith("social ")
+    }
+
+    /**
      * FIX: Identify which pillar is weakest right now.
      * UsageSummary only carries current-day pillar scores (no yesterday breakdown),
      * so we use the lowest weighted score as the best proxy for what's dragging
@@ -844,9 +857,15 @@ class CoachOrchestrator(
 
             // ── Habits tab ────────────────────────────────────────────────────
 
+            // FIX: only confirm DOPAMINE_LOOP when pickups actually run hot.
+            // pickups7DayAvg has to be > 0 (otherwise we have no baseline yet).
             q.contains("do i have a dopamine loop") ||
                     q.contains("dopamine loop") ->
-                ClassifiedIntent("DOPAMINE_LOOP", 1.0f, "predefined_query")
+                if (summary.pickups7DayAvg > 0f &&
+                    summary.pickupsToday < summary.pickups7DayAvg)
+                    ClassifiedIntent("HEALTHY_PATTERN", 1.0f, "predefined_query")
+                else
+                    ClassifiedIntent("DOPAMINE_LOOP", 1.0f, "predefined_query")
 
             // FIX: data-driven trigger detection — distinct from "Do I have a dopamine loop?"
             // High-pickup case now routes to ANOMALOUS_SPIKE (diagnostic: what happened?)
@@ -857,17 +876,23 @@ class CoachOrchestrator(
                     q.contains("phone use trigger") -> {
                 val triggerIntent = when {
                     summary.firstUseHour < 8 -> "MORNING_DOOM_SCROLL"
-                    summary.topCategory == "Social" -> "SOCIAL_SPIRAL"
+                    isSocialDominant(summary) -> "SOCIAL_SPIRAL"
                     summary.pickupsToday > summary.pickups7DayAvg * 1.3f -> "ANOMALOUS_SPIKE"
                     else -> "MORNING_DOOM_SCROLL"
                 }
                 ClassifiedIntent(triggerIntent, 1.0f, "predefined_query")
             }
 
+            // FIX: data-guarded — only force SOCIAL_SPIRAL when Social actually
+            // is dominant. Otherwise return HEALTHY_PATTERN with the topCategory
+            // surfaced so the answer reflects reality.
             q.contains("am i on social media too much") ||
                     q.contains("social media too much") ||
                     q.contains("social apps too much") ->
-                ClassifiedIntent("SOCIAL_SPIRAL", 1.0f, "predefined_query")
+                if (isSocialDominant(summary))
+                    ClassifiedIntent("SOCIAL_SPIRAL", 1.0f, "predefined_query")
+                else
+                    ClassifiedIntent("HEALTHY_PATTERN", 1.0f, "predefined_query")
 
             q.contains("what's my best habit") ||
                     q.contains("what is my best habit") ||
@@ -876,10 +901,16 @@ class CoachOrchestrator(
 
             // ── Sleep & Body tab ──────────────────────────────────────────────
 
+            // FIX: when the user's bedtime routine is healthy (sleepScore >= 75)
+            // and they aren't actually using the phone late, "Why do I use my
+            // phone at night?" should not assume they do. Route to HEALTHY_PATTERN.
             q.contains("why do i use my phone at night") ||
                     q.contains("phone at night") ||
                     q.contains("night phone") ->
-                ClassifiedIntent("BEDTIME_REVENGE_PROCRASTINATION", 1.0f, "predefined_query")
+                if (summary.sleepScore >= 75)
+                    ClassifiedIntent("HEALTHY_PATTERN", 1.0f, "predefined_query")
+                else
+                    ClassifiedIntent("BEDTIME_REVENGE_PROCRASTINATION", 1.0f, "predefined_query")
 
             // FIX: return HC_MISSING sentinel when HC not connected
             q.contains("how does sleep affect my usage") ||
@@ -936,11 +967,17 @@ class CoachOrchestrator(
 
             // ── Focus tab ─────────────────────────────────────────────────────
 
+            // FIX: when the user has actually completed sessions today with no
+            // interruptions, "Why can't I focus?" should not respond as if they
+            // can't — surface the positive stat via PRODUCTIVE_DAY instead.
             q.contains("why can't i focus") ||
                     q.contains("why cant i focus") ||
                     q.contains("can't i focus") ||
                     q.contains("cant i focus") ->
-                ClassifiedIntent("FOCUS_BURNOUT", 1.0f, "predefined_query")
+                if (summary.focusSessionsCompleted > 0 && summary.focusSessionsInterrupted == 0)
+                    ClassifiedIntent("PRODUCTIVE_DAY", 1.0f, "predefined_query")
+                else
+                    ClassifiedIntent("FOCUS_BURNOUT", 1.0f, "predefined_query")
 
             // FIX: separate "How are my focus sessions going?" from "What's my session
             // completion rate?" — the completion-rate question always shows a stat.

@@ -429,7 +429,7 @@ var PatternDetector = {
     }
 
     // Social spiral
-    if (summary.topCategory === 'Social') {
+    if (_isSocialDominant(summary.topCategory)) {
       found.push({ intent: CoachIntent.SOCIAL_SPIRAL, priority: 5, data: {} });
     }
 
@@ -519,6 +519,15 @@ var PatternDetector = {
 /* ─────────────────────────────────────────────────────────────────────────
  * 5. HELPERS
  * ───────────────────────────────────────────────────────────────────────── */
+
+/** True when the user's top category is some flavour of "Social". Accepts both
+ *  the legacy short label ("Social") and the canonical multi-word name
+ *  ("Social & Communication") that the native side now emits. */
+function _isSocialDominant(cat) {
+  if (!cat) return false;
+  var c = String(cat).toLowerCase();
+  return c === 'social' || c === 'social & communication' || c.indexOf('social ') === 0;
+}
 
 /** Compute weakest pillar by lowest weighted contribution — no yesterday data needed.
  *  Returns null when no pillar score has been computed yet so callers can skip
@@ -987,7 +996,7 @@ var ChipGenerator = {
     }
 
     // Social spiral
-    if (summary.topCategory === 'Social' && summary.pickupsToday > summary.pickups7DayAvg * 1.2) {
+    if (_isSocialDominant(summary.topCategory) && summary.pickupsToday > summary.pickups7DayAvg * 1.2) {
       chips.push({ label: 'Why do I keep opening ' + (summary.topApps && summary.topApps[0] || 'social apps') + '?', intent: CoachIntent.DOPAMINE_LOOP });
     }
 
@@ -1148,9 +1157,33 @@ var CoachOrchestrator = {
     // case to avoid overlap with "Do I have a dopamine loop?" → DOPAMINE_LOOP.
     if (q.indexOf('triggers my phone') !== -1 || q.indexOf('trigger my phone') !== -1) {
       if ((summary.firstUseHour || 9) < 8) return CoachIntent.MORNING_DOOM_SCROLL;
-      if (summary.topCategory === 'Social') return CoachIntent.SOCIAL_SPIRAL;
+      if (_isSocialDominant(summary.topCategory)) return CoachIntent.SOCIAL_SPIRAL;
       if (summary.pickupsToday > summary.pickups7DayAvg * 1.3) return CoachIntent.ANOMALOUS_SPIKE;
       return CoachIntent.MORNING_DOOM_SCROLL;
+    }
+
+    // FIX: data-guarded predefined questions — don't force a negative diagnosis
+    // on users whose data doesn't support it.
+    if (q.indexOf('am i on social media too much') !== -1 ||
+        q.indexOf('social media too much') !== -1) {
+      return _isSocialDominant(summary.topCategory)
+        ? CoachIntent.SOCIAL_SPIRAL : CoachIntent.HEALTHY_PATTERN;
+    }
+    if (q.indexOf('do i have a dopamine loop') !== -1 || q === 'dopamine loop') {
+      var avgPick = summary.pickups7DayAvg || 0;
+      if (avgPick > 0 && summary.pickupsToday < avgPick) return CoachIntent.HEALTHY_PATTERN;
+      return CoachIntent.DOPAMINE_LOOP;
+    }
+    if (q.indexOf("why can't i focus") !== -1 || q.indexOf('why cant i focus') !== -1) {
+      if ((summary.focusSessionsCompleted || 0) > 0 &&
+          (summary.focusSessionsFail || 0) === 0) return CoachIntent.PRODUCTIVE_DAY;
+      return CoachIntent.FOCUS_BURNOUT;
+    }
+    if (q.indexOf('why do i use my phone at night') !== -1 ||
+        q.indexOf('phone at night') !== -1) {
+      return (summary.sleepScore || 0) >= 75
+        ? CoachIntent.HEALTHY_PATTERN
+        : CoachIntent.BEDTIME_REVENGE_PROCRASTINATION;
     }
 
     // FIX: "How's my bedtime routine?" — good adherence → HEALTHY_PATTERN.

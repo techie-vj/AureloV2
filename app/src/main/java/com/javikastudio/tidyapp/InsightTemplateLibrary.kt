@@ -1697,8 +1697,14 @@ object InsightTemplateLibrary {
                     summary.aureloScore > 0
                 TemplateCondition.PICKUP_AVG_AVAILABLE ->
                     summary.pickups7DayAvg > 0f
-                TemplateCondition.SOCIAL_CATEGORY_AVAILABLE ->
-                    summary.topCategory.equals("Social", ignoreCase = true)
+                TemplateCondition.SOCIAL_CATEGORY_AVAILABLE -> {
+                    // FIX: now that topCategory carries the canonical multi-word
+                    // value ("Social & Communication") we accept either.
+                    val c = summary.topCategory.lowercase()
+                    c == "social" ||
+                        c == Categories.SOCIAL.lowercase() ||
+                        c.startsWith("social ")
+                }
             }
         }
     }
