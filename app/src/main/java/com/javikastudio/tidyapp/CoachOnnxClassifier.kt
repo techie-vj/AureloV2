@@ -82,7 +82,14 @@ class CoachOnnxClassifier(
      * - Kotlin code that uses String intents, or
      * - Kotlin code that converts later via CoachIntent.valueOf(...)
      */
-    fun classifyIntent(features: FloatArray): String {
+    /** Result of an ONNX inference — exposes top probability so callers can
+     *  apply a confidence floor and reject low-confidence predictions. */
+    data class Prediction(val intent: String, val probability: Float)
+
+    fun classifyIntent(features: FloatArray): String =
+        classifyWithProbability(features).intent
+
+    fun classifyWithProbability(features: FloatArray): Prediction {
         require(features.size == 14) {
             "Coach ONNX expected 14 features, got ${features.size}"
         }
@@ -98,10 +105,15 @@ class CoachOnnxClassifier(
                 val rawLabel = results[0].value
                 val labelIndex = extractLabelIndex(rawLabel)
                 val intent = LABELS.getOrElse(labelIndex) { "GENERAL_SUMMARY" }
+                val prob = extractTopProbability(
+                    if (results.size() > 1) results[1].value else null,
+                    labelIndex.toLong(),
+                )
 
-                Log.d(TAG, "CoachOnnxClassifier predicted labelIndex=$labelIndex intent=$intent")
+                Log.d(TAG, "CoachOnnxClassifier predicted labelIndex=$labelIndex " +
+                        "intent=$intent prob=$prob")
 
-                return intent
+                return Prediction(intent, prob)
             }
         }
     }
@@ -117,6 +129,45 @@ class CoachOnnxClassifier(
             Log.w(TAG, "CoachOnnxClassifier inference failed; falling back", e)
             null
         }
+    }
+
+    /** Same as classifyIntentOrNull but exposes the top probability. */
+    fun classifyOrNull(features: FloatArray): Prediction? {
+        return try {
+            classifyWithProbability(features)
+        } catch (e: Exception) {
+            Log.w(TAG, "CoachOnnxClassifier inference failed; falling back", e)
+            null
+        }
+    }
+
+    /**
+     * Extract the probability for [predictedLabel] from the ZipMap output of
+     * skl2onnx TreeEnsembleClassifier. The wire format is a list of maps
+     * keyed by class id (Long) with Float probability values. Returns 0f
+     * when the structure can't be interpreted — callers must fall back to
+     * a conservative threshold check rather than trust 1.0.
+     */
+    private fun extractTopProbability(value: Any?, predictedLabel: Long): Float {
+        return runCatching {
+            when (value) {
+                is List<*> -> {
+                    val first = value.firstOrNull() as? Map<*, *> ?: return@runCatching 0f
+                    val raw = first[predictedLabel] ?: first[predictedLabel.toInt()]
+                    when (raw) {
+                        is Float -> raw
+                        is Double -> raw.toFloat()
+                        is Number -> raw.toFloat()
+                        else -> 0f
+                    }
+                }
+                is Map<*, *> -> {
+                    val raw = value[predictedLabel] ?: value[predictedLabel.toInt()]
+                    (raw as? Number)?.toFloat() ?: 0f
+                }
+                else -> 0f
+            }
+        }.getOrDefault(0f)
     }
 
     private fun extractLabelIndex(rawLabel: Any?): Int {

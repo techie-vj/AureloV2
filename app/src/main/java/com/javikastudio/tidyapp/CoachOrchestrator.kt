@@ -441,7 +441,11 @@ class CoachOrchestrator(
                 source = "pattern_over_onnx:${onnxCandidate.intent}",
             )
 
-            onnxCandidate.priority >= patternCandidate.priority -> onnxCandidate.copy(
+            // FIX: strict ">" so deterministic pattern signals win on ties
+            // (was ">="). Combined with the lowered ONNX_PRIORITY this means
+            // ONNX only overrides the pattern detector when its priority is
+            // strictly greater AND its plausibility/probability checks passed.
+            onnxCandidate.priority > patternCandidate.priority -> onnxCandidate.copy(
                 source = "onnx_over_pattern:${patternCandidate.intent}",
             )
 
@@ -470,12 +474,34 @@ class CoachOrchestrator(
             }
 
             Log.d(TAG, "Calling CoachOnnxClassifier")
-            val rawIntent = CoachOnnxClassifier(ctx).classifyIntentOrNull(features)
+            val prediction = CoachOnnxClassifier(ctx).classifyOrNull(features)
                 ?: return@runCatching null
 
-            val intent = normalizeIntent(rawIntent)
+            val intent = normalizeIntent(prediction.intent)
             if (!isKnownIntent(intent)) {
-                Log.w(TAG, "ONNX returned unknown intent=$rawIntent normalized=$intent")
+                Log.w(TAG, "ONNX returned unknown intent=${prediction.intent} normalized=$intent")
+                return@runCatching null
+            }
+
+            // FIX: confidence floor. The current model emits discrete probability
+            // buckets (5-tree ensemble) and "ties" frequently land at 0.20.
+            // Anything below 0.45 is too unstable to override the deterministic
+            // pattern detector, so drop those predictions entirely.
+            if (prediction.probability > 0f && prediction.probability < ONNX_PROB_FLOOR) {
+                Log.d(TAG, "ONNX prediction below probability floor — dropped " +
+                        "(intent=$intent prob=${prediction.probability})")
+                return@runCatching null
+            }
+
+            // FIX: plausibility filter. The shipped model is a 16-class tree
+            // ensemble trained on a small synthetic dataset and confidently
+            // mis-classifies on realistic inputs (e.g. predicts
+            // HEALTHY_PATTERN for a 320-min social-heavy day, or
+            // HC_ACTIVE_DAY_BETTER_FOCUS for an HC-disconnected user). Reject
+            // outputs that obviously contradict the feature values.
+            if (!isOnnxPredictionPlausible(intent, summary, hcSignals)) {
+                Log.d(TAG, "ONNX prediction implausible against features — dropped " +
+                        "(intent=$intent prob=${prediction.probability})")
                 return@runCatching null
             }
 
@@ -493,7 +519,9 @@ class CoachOrchestrator(
             BehaviourCandidate(
                 intent = intent,
                 priority = ONNX_PRIORITY,
-                confidence = 0.75f,
+                // Use the model's own probability instead of a flat 0.75 so
+                // higher-confidence predictions win against pattern ties.
+                confidence = prediction.probability.coerceAtLeast(0.5f),
                 description = "ONNX behaviour classification",
                 hcBased = intent.startsWith("HC_"),
                 source = "onnx",
@@ -501,6 +529,109 @@ class CoachOrchestrator(
         }.onFailure { e ->
             Log.w(TAG, "ONNX classification failed; falling back to KotlinPatternDetector", e)
         }.getOrNull()
+    }
+
+    /**
+     * Sanity-check a raw ONNX prediction against the feature snapshot.
+     * Anchored to the audit findings — these are the cases where the model
+     * was empirically wrong on realistic personas.
+     *
+     * Returns false → the prediction is dropped and the pattern detector
+     * is used instead.
+     */
+    private fun isOnnxPredictionPlausible(
+        intent: String,
+        summary: UsageSummary,
+        hcSignals: HcSignalAvailability,
+    ): Boolean {
+        val goal = summary.dailyGoalMinutes.coerceAtLeast(1)
+        val today = summary.todayMinutes
+        val pickups = summary.pickupsToday
+        val pickupAvg = summary.pickups7DayAvg
+
+        when (intent) {
+            // HEALTHY_PATTERN cannot be plausible if usage is well over goal
+            // or pickups are well above the 7-day average.
+            "HEALTHY_PATTERN" -> {
+                if (today > goal * 1.10f) return false
+                if (pickupAvg > 0f && pickups > pickupAvg * 1.30f) return false
+                // Or if pillar scores are clearly weak
+                if (summary.aureloScore in 1..54) return false
+            }
+
+            // PRODUCTIVE_DAY requires at least mild positive signal — not a
+            // 320-min over-goal day with no sessions.
+            "PRODUCTIVE_DAY" -> {
+                if (today > goal * 1.05f) return false
+                if (summary.focusSessionsCompleted == 0 &&
+                    summary.firstUseHour < 8) return false
+            }
+
+            // HC_* intents require HC actually being connected with the
+            // matching signal.
+            "HC_POOR_SLEEP_HIGH_USAGE" -> {
+                if (!summary.hcConnected) return false
+                if (!hcSignals.hasHrv && !hcSignals.hasSleep) return false
+            }
+            "HC_ACTIVE_DAY_BETTER_FOCUS" -> {
+                if (!summary.hcConnected) return false
+                if (!hcSignals.hasSteps) return false
+                // Active-day claim only makes sense at >= 5k steps and roughly
+                // on-or-under goal. The model fired this for a 450-min/0-step
+                // user in our personas test.
+                val steps = summary.stepsToday ?: 0
+                if (steps < 5000) return false
+                if (today > goal * 1.20f) return false
+            }
+
+            // BEDTIME_REVENGE_PROCRASTINATION needs *some* night-time signal.
+            // Reject when:
+            //   - all-zero day with no late first-use signal (the empirical
+            //     "all-zero -> bedtime" misfire from the audit);
+            //   - the user already has a strong Sleep Score and is well
+            //     under their daily goal (bedtime is plainly working);
+            //   - early-morning doom-scroll signal dominates (firstUseHour<8
+            //     with under-goal usage and a passing sleep score) — that's
+            //     a morning pattern, not a bedtime pattern.
+            "BEDTIME_REVENGE_PROCRASTINATION" -> {
+                if (today == 0 && pickups == 0 &&
+                    summary.firstUseHour >= 9) return false
+                if (summary.sleepScore >= 70 && today < goal * 0.5f) return false
+                if (summary.firstUseHour < 8 &&
+                    summary.sleepScore >= 65 &&
+                    today < goal * 0.5f) return false
+            }
+
+            // PICKUP_SPIKE / DOPAMINE_LOOP need pickups actually elevated.
+            "PICKUP_SPIKE", "DOPAMINE_LOOP" -> {
+                if (pickupAvg > 0f && pickups < pickupAvg * 1.10f) return false
+                if (today < goal * 0.4f && pickups < 30) return false
+            }
+
+            // STREAK_AT_RISK only when the streak exists *and* projection is
+            // genuinely close to or over goal.
+            "STREAK_AT_RISK" -> {
+                if (summary.streakDays <= 0) return false
+                if (today < goal * 0.3f) return false
+            }
+
+            // FOCUS_GAP requires actually being in a gap.
+            "FOCUS_GAP" -> {
+                if (summary.daysSinceLastFocus == 0 &&
+                    summary.focusSessionsCompleted > 0) return false
+            }
+
+            // SCORE_DROP requires an actual drop or no comparison being possible.
+            "SCORE_DROP" -> {
+                if (summary.aureloScoreYesterday > 0 &&
+                    summary.aureloScore >= summary.aureloScoreYesterday) return false
+            }
+
+            // The two legacy labels the orchestrator already remaps via
+            // normalizeIntent: same plausibility rules apply post-remap.
+            // (Nothing extra to do here.)
+        }
+        return true
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -1785,8 +1916,18 @@ class CoachOrchestrator(
     private companion object {
         const val TAG = "AureloCoach"
         const val CONFIDENCE_THRESHOLD = 0.30f
-        const val ONNX_PRIORITY = 8
+        // FIX: lowered ONNX_PRIORITY from 8 to 7 so deterministic
+        // pattern-detector signals (priority 7+) win ties. The shipped model
+        // produces unreliable predictions on realistic personas (see
+        // README → Coach audit) so we treat it as supporting evidence, not
+        // ground truth, until it's retrained.
+        const val ONNX_PRIORITY = 7
         const val HIGH_PRIORITY_PATTERN = 9
+        // FIX: probability floor below which ONNX outputs are dropped
+        // entirely. The 5-tree ensemble emits discrete buckets (0.2 / 0.4 /
+        // 0.6 / 0.8); 0.45 keeps the strong predictions and rejects the
+        // unstable mid-range ties.
+        const val ONNX_PROB_FLOOR = 0.45f
 
         // FIX: updated to include all new intents
         val TEMPLATE_INTENTS = setOf(
