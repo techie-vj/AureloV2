@@ -258,7 +258,9 @@ class CoachBridge(
                 } else HCDailyData(isAvailable = false)
             }
 
-            val summary = UsageSummaryBuilder(context, prefs).build(hcData, dataWindowDays = 7)
+            // FIX: drop the hard-coded 7-day window so the orchestrator can
+            // surface ESTABLISHED-variant copy for users with 30+ days of data.
+            val summary = UsageSummaryBuilder(context, prefs).build(hcData)
             val answer  = CoachOrchestrator(context).answer(query, summary)
             val result  = answer.toJson()
 
@@ -412,8 +414,7 @@ class CoachBridge(
                 }
             }
 
-            val summary = UsageSummaryBuilder(context, prefs)
-                .build(hcData, dataWindowDays = 7)
+            val summary = UsageSummaryBuilder(context, prefs).build(hcData)
 
             CoachOrchestrator(context)
                 .answer(query, summary)
