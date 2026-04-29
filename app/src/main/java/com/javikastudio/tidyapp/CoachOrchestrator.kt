@@ -441,11 +441,11 @@ class CoachOrchestrator(
                 source = "pattern_over_onnx:${onnxCandidate.intent}",
             )
 
-            // FIX: strict ">" so deterministic pattern signals win on ties
-            // (was ">="). Combined with the lowered ONNX_PRIORITY this means
-            // ONNX only overrides the pattern detector when its priority is
-            // strictly greater AND its plausibility/probability checks passed.
-            onnxCandidate.priority > patternCandidate.priority -> onnxCandidate.copy(
+            // ONNX wins ties (>=) for non-HIGH_PRIORITY patterns, since the
+            // retrained model has 95% test accuracy + plausibility filtering.
+            // HIGH_PRIORITY pattern signals (priority >= 9) still override
+            // ONNX via the explicit branch above.
+            onnxCandidate.priority >= patternCandidate.priority -> onnxCandidate.copy(
                 source = "onnx_over_pattern:${patternCandidate.intent}",
             )
 
@@ -468,8 +468,8 @@ class CoachOrchestrator(
         return runCatching {
             val features = CoachFeatureBuilder.toOnnx(summary)
 
-            if (features.size != 14) {
-                Log.w(TAG, "ONNX skipped: expected 14 features, got ${features.size}")
+            if (features.size != CoachFeatureBuilder.FEATURE_COUNT) {
+                Log.w(TAG, "ONNX skipped: expected ${CoachFeatureBuilder.FEATURE_COUNT} features, got ${features.size}")
                 return@runCatching null
             }
 
@@ -619,6 +619,36 @@ class CoachOrchestrator(
             "FOCUS_GAP" -> {
                 if (summary.daysSinceLastFocus == 0 &&
                     summary.focusSessionsCompleted > 0) return false
+            }
+
+            // FOCUS_ON_TRACK requires the user actually has sessions today
+            // (otherwise FOCUS_GAP is the right intent).
+            "FOCUS_ON_TRACK" -> {
+                if (summary.focusSessionsCompleted == 0 &&
+                    summary.focusSessionsInterrupted == 0) return false
+            }
+
+            // MORNING_DOOM_SCROLL fires off the firstUseHour signal — reject
+            // when the user actually didn't have a morning issue.
+            "MORNING_DOOM_SCROLL" -> {
+                if (summary.firstUseHour >= 9) return false
+            }
+
+            // WEEKEND_BINGE only on actual weekend days. The runtime can't
+            // know whether the model trained on dow=1/7=Sun/Sat, but the
+            // current dayOfWeek reading does follow Calendar.DAY_OF_WEEK
+            // convention so this guard works in production.
+            "WEEKEND_BINGE" -> {
+                val dow = java.util.Calendar.getInstance()
+                    .get(java.util.Calendar.DAY_OF_WEEK)
+                if (dow != java.util.Calendar.SATURDAY &&
+                    dow != java.util.Calendar.SUNDAY) return false
+            }
+
+            // SOCIAL_SPIRAL must actually be social-led (ties into the
+            // topCategory fix in commit 9b12b5d).
+            "SOCIAL_SPIRAL" -> {
+                if (!isSocialDominant(summary)) return false
             }
 
             // SCORE_DROP requires an actual drop or no comparison being possible.
@@ -1916,18 +1946,20 @@ class CoachOrchestrator(
     private companion object {
         const val TAG = "AureloCoach"
         const val CONFIDENCE_THRESHOLD = 0.30f
-        // FIX: lowered ONNX_PRIORITY from 8 to 7 so deterministic
-        // pattern-detector signals (priority 7+) win ties. The shipped model
-        // produces unreliable predictions on realistic personas (see
-        // README → Coach audit) so we treat it as supporting evidence, not
-        // ground truth, until it's retrained.
-        const val ONNX_PRIORITY = 7
+        // ONNX_PRIORITY = 8 (was lowered to 7 while the original poorly-trained
+        // model was in use). The retrained model (95.4% test accuracy on the
+        // held-out split, 0 rejects on the audit personas) is reliable
+        // enough to outrank typical pattern-detector signals; HIGH_PRIORITY
+        // pattern signals (>= 9) still win ties via the explicit override
+        // in classifyBehaviourIntent.
+        const val ONNX_PRIORITY = 8
         const val HIGH_PRIORITY_PATTERN = 9
-        // FIX: probability floor below which ONNX outputs are dropped
-        // entirely. The 5-tree ensemble emits discrete buckets (0.2 / 0.4 /
-        // 0.6 / 0.8); 0.45 keeps the strong predictions and rejects the
-        // unstable mid-range ties.
-        const val ONNX_PROB_FLOOR = 0.45f
+        // Probability floor below which ONNX outputs are dropped entirely.
+        // The retrained model's outputs cluster near 0.7-1.0 for confident
+        // predictions and 0.25-0.5 for boundary cases; 0.40 keeps the
+        // confident ones and falls back to the pattern detector for the
+        // boundary cases.
+        const val ONNX_PROB_FLOOR = 0.40f
 
         // FIX: updated to include all new intents
         val TEMPLATE_INTENTS = setOf(

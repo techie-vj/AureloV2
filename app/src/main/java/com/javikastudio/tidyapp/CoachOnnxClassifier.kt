@@ -14,7 +14,7 @@ import java.nio.FloatBuffer
  *
  * Expected ONNX input:
  *   name:  "input"
- *   shape: [1, 14]
+ *   shape: [1, 15]
  *   type:  float32
  *
  * Expected ONNX outputs from skl2onnx TreeEnsembleClassifier:
@@ -24,6 +24,9 @@ import java.nio.FloatBuffer
  * Important:
  * - The label order MUST match the order used when the ONNX model was exported.
  * - HC features must be zero when Health Connect is disconnected.
+ * - Feature vector length bumped from 14 → 15 in retrain v2 to include
+ *   dailyGoalMinutes so the model can normalise todayMinutes against the
+ *   user's actual goal.
  */
 class CoachOnnxClassifier(
     private val context: Context,
@@ -36,26 +39,40 @@ class CoachOnnxClassifier(
         /**
          * Numeric label index -> Coach intent string.
          *
-         * This matches the 16-label ONNX export order we validated:
-         * 0..15.
+         * MUST match the LABELS list in `scripts/train_coach_onnx.py` byte
+         * for byte. Re-running the training script regenerates the .onnx
+         * with this exact order.
+         *
+         * The retrained model (commit "Coach: retrain ONNX...") drops the
+         * four legacy synonyms (WORST_DAY_PATTERN, PICKUP_SPIKE,
+         * EVENING_USAGE, APP_CATEGORY_DRIFT) — which the orchestrator's
+         * normalizeIntent always remapped anyway — and adds the missing
+         * behavioural intents the orchestrator already supports
+         * (MORNING_DOOM_SCROLL, WEEKEND_BINGE, SOCIAL_SPIRAL, PRODUCTIVE_DAY,
+         * FOCUS_ON_TRACK).
+         *
+         * SCORE_DROP is intentionally not in the label set: it can't be
+         * reliably learned from the input features (yesterday's score
+         * is not a feature). The pattern detector and predefined-question
+         * router produce SCORE_DROP directly without consulting ONNX.
          */
         private val LABELS = arrayOf(
-            "SCORE_DROP",
-            "HC_POOR_SLEEP_HIGH_USAGE",
-            "HC_ACTIVE_DAY_BETTER_FOCUS",
-            "BEDTIME_REVENGE_PROCRASTINATION",
-            "FOCUS_BURNOUT",
-            "DOPAMINE_LOOP",
-            "STREAK_AT_RISK",
-            "FOCUS_GAP",
-            "HEALTHY_PATTERN",
-            "RECOVERY_DAY",
-            "WORST_DAY_PATTERN",
-            "PICKUP_SPIKE",
-            "ANOMALOUS_SPIKE",
-            "EVENING_USAGE",
-            "APP_CATEGORY_DRIFT",
-            "GENERAL_SUMMARY"
+            "STREAK_AT_RISK",                       // 0
+            "HC_POOR_SLEEP_HIGH_USAGE",             // 1
+            "HC_ACTIVE_DAY_BETTER_FOCUS",           // 2
+            "BEDTIME_REVENGE_PROCRASTINATION",      // 3
+            "FOCUS_BURNOUT",                        // 4
+            "DOPAMINE_LOOP",                        // 5
+            "SOCIAL_SPIRAL",                        // 6
+            "FOCUS_GAP",                            // 7
+            "FOCUS_ON_TRACK",                       // 8
+            "MORNING_DOOM_SCROLL",                  // 9
+            "WEEKEND_BINGE",                        // 10
+            "ANOMALOUS_SPIKE",                      // 11
+            "PRODUCTIVE_DAY",                       // 12
+            "RECOVERY_DAY",                         // 13
+            "HEALTHY_PATTERN",                      // 14
+            "GENERAL_SUMMARY",                      // 15
         )
     }
 
@@ -90,15 +107,15 @@ class CoachOnnxClassifier(
         classifyWithProbability(features).intent
 
     fun classifyWithProbability(features: FloatArray): Prediction {
-        require(features.size == 14) {
-            "Coach ONNX expected 14 features, got ${features.size}"
+        require(features.size == CoachFeatureBuilder.FEATURE_COUNT) {
+            "Coach ONNX expected ${CoachFeatureBuilder.FEATURE_COUNT} features, got ${features.size}"
         }
 
         Log.d(TAG, "CoachOnnxClassifier classify called")
         Log.d(TAG, "CoachOnnxClassifier features=${features.joinToString(prefix = "[", postfix = "]")}")
 
         val inputName = session.inputNames.firstOrNull() ?: "input"
-        val shape = longArrayOf(1L, 14L)
+        val shape = longArrayOf(1L, CoachFeatureBuilder.FEATURE_COUNT.toLong())
 
         OnnxTensor.createTensor(env, FloatBuffer.wrap(features), shape).use { tensor ->
             session.run(mapOf(inputName to tensor)).use { results ->
