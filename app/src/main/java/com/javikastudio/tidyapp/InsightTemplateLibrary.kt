@@ -1355,28 +1355,31 @@ object InsightTemplateLibrary {
         ),
 
         // ── 17. FOCUS_PEAK_TIME [NEW v1.2.1] ─────────────────────────────
+        // {peak_focus_window} — computed from cached hourly usage by the
+        // orchestrator and substituted in resolveOrchestratorSlots; falls
+        // back to "9–11 AM" when no hourly data is available yet.
         "FOCUS_PEAK_TIME" to mapOf(
             TemplateVariant.ENCOURAGING to listOf(
                 InsightText(
                     title = "⏱ Your best focus window",
-                    body  = "Based on your usage pattern, your lowest-distraction window is typically 10 AM–12 PM — " +
-                            "that's when pickups are fewest and screen time hasn't built up yet. " +
+                    body  = "Based on your hourly usage pattern, your lowest-distraction window is typically " +
+                            "{peak_focus_window} — that's when your pickups are fewest. " +
                             "Your first use today was at {first_use_hour}:00. " +
                             "Schedule your most demanding focus sessions here for best results."
                 ),
                 InsightText(
                     title = "⏱ When focus is easiest",
-                    body  = "Morning hours — before your pickup rate climbs — are your clearest window. " +
+                    body  = "Your clearest window is {peak_focus_window} — that's when your historical " +
+                            "pickup rate is lowest. " +
                             "First use at {first_use_hour}:00 sets the baseline. " +
-                            "Every hour you delay opening your phone extends that focused window. " +
-                            "Try a Deep session between 9–11 AM tomorrow."
+                            "Every hour you delay opening your phone extends that focused window."
                 )
             ),
             TemplateVariant.CAUTIONARY to listOf(
                 InsightText(
                     title = "⏱ Finding your focus window",
                     body  = "Your pickup count climbs through the day — today {pickups_today} pickups suggests attention " +
-                            "has been scattered. Your clearest window is usually first thing in the morning before social apps pull you in. " +
+                            "has been scattered. Based on your data your clearest window is {peak_focus_window}. " +
                             "First use was at {first_use_hour}:00. " +
                             "Tomorrow: delay first use to 9 AM and start a focus session before checking anything else."
                 )
@@ -1384,23 +1387,25 @@ object InsightTemplateLibrary {
             TemplateVariant.CELEBRATORY to listOf(
                 InsightText(
                     title = "⏱ You've found your rhythm",
-                    body  = "First use at {first_use_hour}:00 and {focus_score} focus score — your morning window is working. " +
-                            "Your {streak_days}-day streak shows consistency in protecting that early focus time. " +
-                            "Keep scheduling your hardest tasks in the 9 AM–12 PM slot."
+                    body  = "First use at {first_use_hour}:00 and {focus_score} focus score — your peak window " +
+                            "({peak_focus_window}) is working. " +
+                            "Your {streak_days}-day streak shows consistency in protecting that focus time. " +
+                            "Keep scheduling your hardest tasks here."
                 )
             ),
             TemplateVariant.NEW_USER to listOf(
                 InsightText(
                     title = "⏱ Finding your focus window",
-                    body  = "Aurelo is still learning your patterns — after a few more days it can pinpoint your sharpest hours. " +
+                    body  = "Aurelo is still learning your patterns — after a few more days it can pinpoint " +
+                            "your sharpest hours. " +
                             "A good starting point: try your first focus session before 10 AM tomorrow and see how it feels."
                 )
             ),
             TemplateVariant.ESTABLISHED to listOf(
                 InsightText(
                     title = "⏱ Your peak focus window",
-                    body  = "Over {data_window_days} days your data shows your lowest-distraction hours are in the late morning. " +
-                            "Pickups hit their daily minimum between 9–11 AM for you. " +
+                    body  = "Over {data_window_days} days your data shows your lowest-distraction hours are " +
+                            "{peak_focus_window}. " +
                             "Block that window for deep work — your Focus Score of {focus_score} will benefit most from protecting it."
                 )
             )
@@ -1949,6 +1954,11 @@ object InsightTemplateLibrary {
                 .replace("0% below", "near")
                 .replace("0% above", "near")
                 .replace("1 days", "1 day")
+                .replace("1 pts", "1 pt")
+                .replace("1 points", "1 point")
+                .replace("1 hours", "1 hour")
+                .replace("1 sessions", "1 session")
+                .replace("1 minutes", "1 minute")
                 .replace("  ", " ")
 
             return s

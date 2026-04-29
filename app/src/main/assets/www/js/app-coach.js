@@ -961,6 +961,17 @@ var ChipGenerator = {
     var chips = [];
     var hour = summary.currentHour || 14;
 
+    // FIX: zero-data state — fresh installs / no usage permission yet have
+    // no meaningful chips to surface. Return a single onboarding-flavoured
+    // chip that routes to the FEATURE_EXPLANATION welcome copy instead of
+    // the misleading "What's my Tuesday pattern?" default.
+    var noData = !summary.aureloScore && !summary.todayMinutes && !summary.pickupsToday;
+    if (noData || summary.dataWindowDays < 3) {
+      chips.push({ label: 'What can Aurelo help me with?', intent: CoachIntent.FEATURE_EXPLANATION });
+      chips.push({ label: 'How does the score work?',      intent: CoachIntent.FEATURE_EXPLANATION });
+      return chips;
+    }
+
     // FIX: direction-aware score chip
     var scoreDelta = (summary.aureloScore || 0) - (summary.aureloScoreYesterday || 0);
     if (scoreDelta < -4) {
@@ -1566,7 +1577,14 @@ window.CoachUI = {
           self._addCoachMsg(html, result.followUps || []);
         }
         self._hideIntroAndChips();
-        AureloCoach.QueryGate.increment();
+        // FIX: don't burn a query against the free daily limit when the
+        // response was an explicit error fallback (bridge timeout, HC failure,
+        // etc.) — those aren't useful answers and shouldn't count.
+        var src = result && (result.source || (result.response && result.response.source)) || '';
+        var isErrorFallback = src === 'error' || (result && result.usedFallback === true && !result.intent);
+        if (!isErrorFallback) {
+          AureloCoach.QueryGate.increment();
+        }
       } catch (err) {
         self._removeTyping();
         self._addCoachMsg(

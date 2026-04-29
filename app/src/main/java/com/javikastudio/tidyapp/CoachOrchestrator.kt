@@ -670,6 +670,20 @@ class CoachOrchestrator(
             return "MORNING_DOOM_SCROLL"
         }
 
+        // FIX: STREAK_AT_RISK demotion — if the user is asking about their
+        // streak but they aren't actually projected to break it today, the
+        // STREAK_AT_RISK templates ("act now", "final warning") are misleading.
+        // Demote to HEALTHY_PATTERN with a celebratory tone.
+        if (baseIntent == "STREAK_AT_RISK") {
+            val hour = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
+            val rate = if (hour > 0) summary.todayMinutes.toFloat() / hour else 0f
+            val projected = summary.todayMinutes + rate * (24 - hour)
+            val safeMargin = summary.dailyGoalMinutes * 0.75f
+            if (projected < safeMargin && summary.streakDays > 0) {
+                return "HEALTHY_PATTERN"
+            }
+        }
+
         // FIX: Proactive RECOVERY_DAY — today significantly under recent average
         // screenTime7Day is List<DayRecord>; extract .minutes for arithmetic
         val activeDayMinutes = summary.screenTime7Day.map { it.minutes }.filter { it > 0 }
@@ -1457,8 +1471,23 @@ class CoachOrchestrator(
             .replace("on  in the next", "on your top distractor in the next")
             .replace("  ", " ")
 
-        // Avoid "1 days".
-        body = body.replace("1 days", "1 day")
+        // Avoid "1 days" / "1 pts" / "1 points" / "1 hours" / "1 sessions" /
+        // "1 minutes" — common when arithmetic returns 1 and the template has
+        // a hard-coded plural.
+        body = body
+            .replace("1 days", "1 day")
+            .replace("1 pts", "1 pt")
+            .replace("1 points", "1 point")
+            .replace("1 hours", "1 hour")
+            .replace("1 sessions", "1 session")
+            .replace("1 minutes", "1 minute")
+        title = title
+            .replace("1 days", "1 day")
+            .replace("1 pts", "1 pt")
+            .replace("1 points", "1 point")
+            .replace("1 hours", "1 hour")
+            .replace("1 sessions", "1 session")
+            .replace("1 minutes", "1 minute")
 
         // Avoid all-zero score summaries when score fields are not populated.
         if (
@@ -1599,9 +1628,68 @@ class CoachOrchestrator(
         summary: UsageSummary,
     ): InsightTemplateLibrary.InsightText {
         val weekday = SimpleDateFormat("EEEE", Locale.US).format(Date())
-        val title = insight.title.replace("{weekday}", weekday)
-        val body = insight.body.replace("{weekday}", weekday)
+        // FIX: {weekday+1} legacy slot — substitute with the next calendar day
+        // so the literal token never appears to users.
+        val tomorrowCal = Calendar.getInstance().apply { add(Calendar.DAY_OF_YEAR, 1) }
+        val tomorrow = SimpleDateFormat("EEEE", Locale.US).format(tomorrowCal.time)
+        val peakWindow = computePeakFocusWindow()
+        val title = insight.title
+            .replace("{weekday}", weekday)
+            .replace("{weekday+1}", tomorrow)
+            .replace("{peak_focus_window}", peakWindow)
+        val body = insight.body
+            .replace("{weekday}", weekday)
+            .replace("{weekday+1}", tomorrow)
+            .replace("{peak_focus_window}", peakWindow)
         return insight.copy(title = title, body = body)
+    }
+
+    /**
+     * Pick the 2-hour daytime window with the lowest historical screen-time
+     * load from the cached monthly hourly breakdown (preferred) or today's
+     * hourly cache as a fallback. Falls back to "9–11 AM" when no data is
+     * available — matches the previous hard-coded copy so brand-new users
+     * still see a sensible suggestion.
+     */
+    private fun computePeakFocusWindow(): String {
+        val ctx = context ?: return "9–11 AM"
+        val prefs = ctx.getSharedPreferences(PREFS_FILE, Context.MODE_PRIVATE)
+        val sources = listOf(CACHED_MONTHLY_HOURLY, CACHED_HOURLY)
+        for (key in sources) {
+            val raw = prefs.getString(key, null)
+            if (raw.isNullOrBlank() || raw == "[]") continue
+            val window = pickLowLoadWindow(raw) ?: continue
+            return window
+        }
+        return "9–11 AM"
+    }
+
+    private fun pickLowLoadWindow(json: String): String? {
+        return runCatching {
+            val arr = JSONArray(json)
+            // Aggregate minutes per hour across all entries (monthly hourly
+            // arrays may carry per-day buckets keyed by hour).
+            val totals = LongArray(24)
+            for (i in 0 until arr.length()) {
+                val o = arr.optJSONObject(i) ?: continue
+                val hr = o.optInt("hour", -1)
+                val mins = o.optLong("minutes", 0L)
+                if (hr in 0..23) totals[hr] += mins
+            }
+            // Restrict to typical work hours; sleeping hours have low load
+            // for trivial reasons.
+            val candidates = (8..18).map { it to (totals[it] + totals[it + 1]) }
+            val best = candidates.minByOrNull { it.second } ?: return@runCatching null
+            val startH = best.first
+            val endH = startH + 2
+            fun fmt(h: Int): String = when {
+                h == 0 -> "12 AM"
+                h < 12 -> "$h AM"
+                h == 12 -> "12 PM"
+                else -> "${h - 12} PM"
+            }
+            "${fmt(startH)}–${fmt(endH)}"
+        }.getOrNull()
     }
 
     // ─────────────────────────────────────────────────────────────────────────

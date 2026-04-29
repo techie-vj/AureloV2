@@ -134,6 +134,23 @@ class CoachBridge(
         val aureloScoreYesterday = prefs.getInt("cached_aurelo_score_yesterday", 0)
         val daysSinceFocus = prefs.getInt("days_since_last_focus_cached", 3)
         val hour = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
+        val pickupsToday = prefs.getInt("cached_pickups", 0)
+
+        // FIX: zero-data fallback — fresh installs would otherwise only see the
+        // day-of-week chip ("What's my Tuesday pattern?") which routes to a
+        // GENERAL_SUMMARY response that has no data to summarise. Surface
+        // onboarding-flavoured chips instead.
+        if (aureloScore == 0 && todayMins == 0 && pickupsToday == 0) {
+            arr.put(JSONObject().apply {
+                put("label",  "What can Aurelo help me with?")
+                put("intent", "FEATURE_EXPLANATION")
+            })
+            arr.put(JSONObject().apply {
+                put("label",  "How does the score work?")
+                put("intent", "FEATURE_EXPLANATION")
+            })
+            return arr
+        }
 
         // Score drop chip
         if (aureloScoreYesterday - aureloScore > 4) {
