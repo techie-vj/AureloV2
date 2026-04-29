@@ -34,6 +34,16 @@ package com.javikastudio.tidyapp
 //   • applyPersonalisation: proactive RECOVERY_DAY detection
 //   • followUpsFor: new intents covered
 //   • TEMPLATE_INTENTS: updated set includes all new intents
+//
+// CHANGELOG v1.2.2 — unrouted chip label audit + duplicate response fixes:
+//   • classifyPredefinedQuestion: 30+ previously UNKNOWN chip labels now routed
+//   • "What's dragging my score down?" → pillar-aware (focusScore/firstUseHour)
+//   • "What triggers my phone use?" → ANOMALOUS_SPIKE in high-pickup case
+//   • "How's my bedtime routine?" → RECOVERY_DAY when sleepScore<75
+//   • "How do I reach Excellent?" → HEALTHY_PATTERN when score≥85
+//   • "What's my session completion rate?" → PRODUCTIVE_DAY when sessions exist
+//   • followUpsFor: all action-label chips replaced with routable questions
+//   • classifyQueryIntent: chip label keywords added to all relevant intent rules
 // ═══════════════════════════════════════════════════════════════════════════
 
 import android.content.Context
@@ -775,21 +785,35 @@ class CoachOrchestrator(
                     q.contains("score change") ->
                 ClassifiedIntent(resolveScoreChangeIntent(summary), 1.0f, "predefined_query")
 
-            // FIX: "What's dragging my score down?" always goes to SCORE_DROP (correct)
+            // FIX: "What's dragging my score down?" — pillar-aware routing so it produces
+            // a different answer from "Why did my score change?" which uses direction-aware routing.
+            // This question gets the answer about the SPECIFIC pillar dragging it down.
             q.contains("what's dragging my score down") ||
                     q.contains("what is dragging my score down") ||
-                    q.contains("dragging my score down") ->
-                ClassifiedIntent("SCORE_DROP", 1.0f, "predefined_query")
+                    q.contains("dragging my score down") -> {
+                val draggingIntent = when {
+                    summary.focusScore < 60 -> "FOCUS_GAP"
+                    summary.firstUseHour < 8 -> "MORNING_DOOM_SCROLL"
+                    else -> "SCORE_DROP"
+                }
+                ClassifiedIntent(draggingIntent, 1.0f, "predefined_query")
+            }
 
             q.contains("what's going well") ||
                     q.contains("what is going well") ->
                 ClassifiedIntent("HEALTHY_PATTERN", 1.0f, "predefined_query")
 
-            // FIX: "How do I reach Excellent?" -> PRODUCTIVE_DAY (gap context in template)
+            // FIX: "How do I reach Excellent?" — when score is already ≥85, PRODUCTIVE_DAY
+            // just celebrates instead of giving actionable maintenance advice.
+            // Route to HEALTHY_PATTERN which focuses on sustaining what's working.
             q.contains("how do i reach excellent") ||
                     q.contains("reach excellent") ||
-                    q.contains("get to excellent") ->
-                ClassifiedIntent("PRODUCTIVE_DAY", 1.0f, "predefined_query")
+                    q.contains("get to excellent") -> {
+                if (summary.aureloScore >= 85)
+                    ClassifiedIntent("HEALTHY_PATTERN", 1.0f, "predefined_query")
+                else
+                    ClassifiedIntent("PRODUCTIVE_DAY", 1.0f, "predefined_query")
+            }
 
             // ── Habits tab ────────────────────────────────────────────────────
 
@@ -797,14 +821,17 @@ class CoachOrchestrator(
                     q.contains("dopamine loop") ->
                 ClassifiedIntent("DOPAMINE_LOOP", 1.0f, "predefined_query")
 
-            // FIX: data-driven trigger detection
+            // FIX: data-driven trigger detection — distinct from "Do I have a dopamine loop?"
+            // High-pickup case now routes to ANOMALOUS_SPIKE (diagnostic: what happened?)
+            // rather than DOPAMINE_LOOP (mechanistic: the loop explained).
+            // This prevents identical copy when topCategory isn't Social.
             q.contains("what triggers my phone use") ||
                     q.contains("triggers my phone use") ||
                     q.contains("phone use trigger") -> {
                 val triggerIntent = when {
                     summary.firstUseHour < 8 -> "MORNING_DOOM_SCROLL"
                     summary.topCategory == "Social" -> "SOCIAL_SPIRAL"
-                    summary.pickupsToday > summary.pickups7DayAvg * 1.3f -> "DOPAMINE_LOOP"
+                    summary.pickupsToday > summary.pickups7DayAvg * 1.3f -> "ANOMALOUS_SPIKE"
                     else -> "MORNING_DOOM_SCROLL"
                 }
                 ClassifiedIntent(triggerIntent, 1.0f, "predefined_query")
@@ -839,12 +866,18 @@ class CoachOrchestrator(
                 }
             }
 
-            // FIX: sleepScore-aware routing — good adherence → HEALTHY_PATTERN
+            // FIX: sleepScore-aware routing — good adherence → HEALTHY_PATTERN.
+            // When sleepScore < 75, route to RECOVERY_DAY (gives adherence stats + structured
+            // feedback) rather than BEDTIME_REVENGE_PROCRASTINATION (which explains psychology).
+            // This separates it from "Why do I use my phone at night?" which always explains
+            // the psychological cause via BEDTIME_REVENGE_PROCRASTINATION.
             q.contains("how's my bedtime routine") ||
                     q.contains("how is my bedtime routine") ||
                     q.contains("bedtime routine") -> {
-                val bedtimeIntent = if (summary.sleepScore >= 75) "HEALTHY_PATTERN"
-                else "BEDTIME_REVENGE_PROCRASTINATION"
+                val bedtimeIntent = when {
+                    summary.sleepScore >= 75 -> "HEALTHY_PATTERN"
+                    else -> "RECOVERY_DAY"
+                }
                 ClassifiedIntent(bedtimeIntent, 1.0f, "predefined_query")
             }
 
@@ -882,14 +915,24 @@ class CoachOrchestrator(
                     q.contains("cant i focus") ->
                 ClassifiedIntent("FOCUS_BURNOUT", 1.0f, "predefined_query")
 
+            // FIX: separate "How are my focus sessions going?" from "What's my session
+            // completion rate?" — the completion-rate question always shows a stat.
+            // When sessions exist → PRODUCTIVE_DAY (reflects current session performance);
+            // when no sessions → FOCUS_GAP (explains the gap, prompts to start).
+            q.contains("session completion rate") ||
+                    q.contains("what's my session completion") ||
+                    q.contains("what is my session completion") ||
+                    q.contains("completion rate") -> {
+                if (summary.focusSessionsCompleted > 0 || summary.focusSessionsInterrupted > 0)
+                    ClassifiedIntent("PRODUCTIVE_DAY", 1.0f, "predefined_query")
+                else
+                    ClassifiedIntent("FOCUS_GAP", 1.0f, "predefined_query")
+            }
+
             // FIX: active-user path — if user has sessions today, FOCUS_GAP template
             // handles it correctly with the completion-rate branch
             q.contains("how are my focus sessions going") ||
                     q.contains("focus sessions going") ->
-                ClassifiedIntent("FOCUS_GAP", 1.0f, "predefined_query")
-
-            q.contains("session completion rate") ||
-                    q.contains("completion rate") ->
                 ClassifiedIntent("FOCUS_GAP", 1.0f, "predefined_query")
 
             // FIX: FOCUS_PEAK_TIME (was wrongly GENERAL_SUMMARY)
@@ -971,6 +1014,142 @@ class CoachOrchestrator(
                     q.contains("most focused") && q.contains("time") ->
                 ClassifiedIntent("FOCUS_PEAK_TIME", 1.0f, "predefined_query")
 
+            // ── Unrouted follow-up chip labels — all fixed ────────────────────
+
+            // "How do I connect Health Connect?" → FEATURE_EXPLANATION
+            q.contains("health connect") ||
+                    q.contains("connect health") ->
+                ClassifiedIntent("FEATURE_EXPLANATION", 1.0f, "predefined_query")
+
+            // "How do I build on this?" → HEALTHY_PATTERN
+            q.contains("build on this") ||
+                    q.contains("build on my") ->
+                ClassifiedIntent("HEALTHY_PATTERN", 1.0f, "predefined_query")
+
+            // "How am I trending this week?" → GENERAL_SUMMARY
+            q.contains("trending this week") ||
+                    q.contains("how am i trending") ->
+                ClassifiedIntent("GENERAL_SUMMARY", 1.0f, "predefined_query")
+
+            // "How do I improve focus?" / "How do I improve my focus score?" → FOCUS_GAP
+            q.contains("improve focus") ||
+                    q.contains("improve my focus") ->
+                ClassifiedIntent("FOCUS_GAP", 1.0f, "predefined_query")
+
+            // "How do I protect my streak today?" → STREAK_AT_RISK
+            q.contains("protect my streak") ||
+                    q.contains("protect streak") ->
+                ClassifiedIntent("STREAK_AT_RISK", 1.0f, "predefined_query")
+
+            // "How do I recover today?" → RECOVERY_DAY
+            q.contains("recover today") ||
+                    q.contains("how do i recover") ->
+                ClassifiedIntent("RECOVERY_DAY", 1.0f, "predefined_query")
+
+            // "How do I set a focus schedule?" → FEATURE_EXPLANATION
+            q.contains("focus schedule") ||
+                    q.contains("set a focus schedule") ->
+                ClassifiedIntent("FEATURE_EXPLANATION", 1.0f, "predefined_query")
+
+            // "How does first-use time affect my score?" /
+            // "How much does first-use time affect my score?" → FEATURE_EXPLANATION
+            q.contains("first-use time") ||
+                    q.contains("first use time") ->
+                ClassifiedIntent("FEATURE_EXPLANATION", 1.0f, "predefined_query")
+
+            // "How does sleep affect my phone use?" → HC-aware
+            q.contains("sleep affect my phone") ||
+                    q.contains("sleep affect phone use") ||
+                    q.contains("sleep affect my phone use") -> {
+                if (!summary.hcConnected)
+                    ClassifiedIntent("HC_MISSING_SLEEP", 1.0f, "predefined_query")
+                else
+                    ClassifiedIntent("HC_POOR_SLEEP_HIGH_USAGE", 1.0f, "predefined_query")
+            }
+
+            // "How does sleep affect my score?" → FEATURE_EXPLANATION
+            q.contains("sleep affect my score") ||
+                    q.contains("sleep affect score") ->
+                ClassifiedIntent("FEATURE_EXPLANATION", 1.0f, "predefined_query")
+
+            // "How many pickups is normal?" / "How many minutes do I have left?" (keyword fallback)
+            q.contains("how many pickups") ||
+                    q.contains("pickups is normal") ||
+                    q.contains("normal pickups") ->
+                ClassifiedIntent("FEATURE_EXPLANATION", 1.0f, "predefined_query")
+
+            // "Start a focus session now" / "Start a 5-min session" → FOCUS_GAP
+            q.contains("start a focus session") ||
+                    q.contains("start focus session") ||
+                    q.contains("start a 5") ||
+                    q.contains("start a quick") ||
+                    q.contains("start a short") ->
+                ClassifiedIntent("FOCUS_GAP", 1.0f, "predefined_query")
+
+            // "Tell me about my worst day" → ANOMALOUS_SPIKE
+            q.contains("worst day") ||
+                    q.contains("tell me about my worst") ->
+                ClassifiedIntent("ANOMALOUS_SPIKE", 1.0f, "predefined_query")
+
+            // "What can I do tonight?" / "What should I do differently tonight?"
+            // / "What time should I stop?" → BEDTIME_REVENGE_PROCRASTINATION
+            q.contains("what can i do tonight") ||
+                    q.contains("do tonight") ||
+                    q.contains("differently tonight") ||
+                    q.contains("time should i stop") ||
+                    q.contains("what time should i stop") ->
+                ClassifiedIntent("BEDTIME_REVENGE_PROCRASTINATION", 1.0f, "predefined_query")
+
+            // "What else helps my focus?" → FOCUS_GAP
+            q.contains("helps my focus") ||
+                    q.contains("what else helps") ||
+                    q.contains("else helps my") ->
+                ClassifiedIntent("FOCUS_GAP", 1.0f, "predefined_query")
+
+            // "What should I do instead of checking my phone?" → DOPAMINE_LOOP
+            q.contains("instead of checking") ||
+                    q.contains("what should i do instead") ->
+                ClassifiedIntent("DOPAMINE_LOOP", 1.0f, "predefined_query")
+
+            // "What should I do right now?" → STREAK_AT_RISK
+            q.contains("what should i do right now") ||
+                    q.contains("do right now") ->
+                ClassifiedIntent("STREAK_AT_RISK", 1.0f, "predefined_query")
+
+            // "What should I focus on next?" → GENERAL_SUMMARY
+            q.contains("what should i focus on") ||
+                    q.contains("focus on next") ->
+                ClassifiedIntent("GENERAL_SUMMARY", 1.0f, "predefined_query")
+
+            // "What's a healthy social limit?" → SOCIAL_SPIRAL
+            q.contains("social limit") ||
+                    q.contains("healthy social limit") ||
+                    q.contains("healthy social") ->
+                ClassifiedIntent("SOCIAL_SPIRAL", 1.0f, "predefined_query")
+
+            // "What's causing this?" → SCORE_DROP
+            q.contains("causing this") ||
+                    q.contains("what's causing") ||
+                    q.contains("what is causing") ->
+                ClassifiedIntent("SCORE_DROP", 1.0f, "predefined_query")
+
+            // "What's my best habit this week?" → HEALTHY_PATTERN (explicit, covers all variants)
+            q.contains("best habit this week") ||
+                    q.contains("best habit right now") ->
+                ClassifiedIntent("HEALTHY_PATTERN", 1.0f, "predefined_query")
+
+            // "What's my weekly average?" / "What's my weekly pattern?" → GENERAL_SUMMARY
+            q.contains("weekly average") ||
+                    q.contains("weekly pattern") ||
+                    q.contains("my weekly") ->
+                ClassifiedIntent("GENERAL_SUMMARY", 1.0f, "predefined_query")
+
+            // "Why does the pause help?" → FEATURE_EXPLANATION
+            q.contains("why does the pause") ||
+                    q.contains("does the pause help") ||
+                    q.contains("pause help") ->
+                ClassifiedIntent("FEATURE_EXPLANATION", 1.0f, "predefined_query")
+
             else -> null
         }
     }
@@ -990,10 +1169,15 @@ class CoachOrchestrator(
                 // FIX: additional phrasings
                 "went from", "dropped to", "score today", "score is at", "score fell to",
                 "score worse", "score bad", "score went",
+                // FIX: chip labels
+                "causing this", "what's causing", "what is causing",
             ),
             "STREAK_AT_RISK" to listOf(
                 "streak", "lose streak", "break streak", "safe today", "streak risk",
                 "keep streak", "lose my streak", "will i break",
+                // FIX: chip labels
+                "riskiest time", "risky time", "protect my streak", "right now",
+                "what should i do right now",
             ),
             "FOCUS_PEAK_TIME" to listOf(
                 "most focused time", "most focused", "when am i focused",
@@ -1004,6 +1188,9 @@ class CoachOrchestrator(
                 "haven't focused", "no session", "last session", "focus gap",
                 "should i focus", "no focus", "focus sessions", "session completion",
                 "completion rate", "how do i rebuild", "missed sessions",
+                // FIX: chip labels
+                "improve focus", "improve my focus", "helps my focus",
+                "start a focus session", "start focus session", "what else helps",
             ),
             "DOPAMINE_LOOP" to listOf(
                 "dopamine", "mindless", "keep checking", "pick up phone",
@@ -1012,12 +1199,16 @@ class CoachOrchestrator(
                 "always on my phone", "can't put it down", "keep unlocking",
                 "checking constantly", "compulsively", "every few minutes",
                 "notification", "keep opening",
+                // FIX: chip labels
+                "instead of checking", "what should i do instead",
             ),
             "SOCIAL_SPIRAL" to listOf(
                 "social media", "instagram", "tiktok", "twitter", "reddit", "social apps",
                 "facebook",
                 // FIX: YouTube and app-time phrasings
                 "youtube", "my worst app", "time on apps", "app time", "spending too much on",
+                // FIX: chip labels
+                "social limit", "healthy social",
             ),
             "PRODUCTIVE_DAY" to listOf(
                 "doing well", "on track", "good day", "am i improving", "getting better",
@@ -1033,6 +1224,9 @@ class CoachOrchestrator(
                 // FIX: sleep deprivation mentions
                 "only slept", "barely slept", "2am", "3am", "up late",
                 "slept 4", "slept 5", "slept 3",
+                // FIX: chip labels
+                "tonight", "do tonight", "time to stop", "differently tonight",
+                "time should i stop",
             ),
             "FOCUS_BURNOUT" to listOf(
                 "burnout", "burnt out", "tired", "exhausted", "stressed",
@@ -1046,15 +1240,21 @@ class CoachOrchestrator(
             "RECOVERY_DAY" to listOf(
                 "recovery", "recovering", "bounce back", "after bad day",
                 "better than yesterday", "improvement", "rebuild",
+                // FIX: chip labels
+                "recover today", "how do i recover", "trending this week", "how am i trending",
             ),
             "ANOMALOUS_SPIKE" to listOf(
                 "spike", "unusual", "way more", "a lot today", "highest ever", "record",
                 // FIX: "what happened yesterday" → recent spike
                 "what happened yesterday", "yesterday so bad", "yesterday so high",
+                // FIX: chip labels
+                "worst day", "tell me about my worst",
             ),
             "HEALTHY_PATTERN" to listOf(
                 "what's working", "best habit", "positive pattern",
                 "what am i doing right", "good habit",
+                // FIX: chip labels
+                "build on this", "best habit this week", "best habit right now",
             ),
             "HC_POOR_SLEEP_HIGH_USAGE" to listOf(
                 "hrv", "heart rate variability", "poor sleep", "sleep affect",
@@ -1071,6 +1271,10 @@ class CoachOrchestrator(
                 "what is revenge procrastination", "what is hrv",
                 "what is a streak", "what is the sleep score",
                 "how does the score work", "explain",
+                // FIX: chip labels
+                "health connect", "focus schedule", "first-use time", "first use time",
+                "how many pickups", "normal pickups", "pause help", "why does the pause",
+                "how do i add a mindful", "how does bedtime work",
             ),
             "GOAL_SETTING_ADVICE" to listOf(
                 "is my goal", "change my goal", "what goal should i set",
@@ -1087,6 +1291,9 @@ class CoachOrchestrator(
                 "summary", "overall", "overview", "what do you see",
                 "my data", "this week", "analyse", "analyze",
                 "what should i work on", "where do i start",
+                // FIX: chip labels
+                "trending this week", "weekly pattern", "weekly average",
+                "focus on next", "what should i focus on", "how am i trending",
             ),
         )
 
@@ -1275,21 +1482,27 @@ class CoachOrchestrator(
                 listOf("When is my most focused time?", "Which apps should I block?", "How do I reach Excellent?")
             else
                 listOf("Start a 10-minute focus session", "Which apps should I block?", "What's my session completion rate?")
-            "FOCUS_PEAK_TIME" -> listOf("Start a focus session now", "How does first-use time affect my score?", "What's a good session length?")
-            "FOCUS_BURNOUT" -> listOf("Start a 5-minute focus session", "Why can't I focus?", "How do I rebuild focus?")
+            // FIX: "Start a focus session now" is an action — replaced with question routing to FOCUS_GAP
+            "FOCUS_PEAK_TIME" -> listOf("How do I start a focus session?", "How does first-use time affect my score?", "What's a good session length?")
+            // FIX: "Start a 5-minute focus session" is an action; route new question to FOCUS_GAP via predefined
+            "FOCUS_BURNOUT" -> listOf("How do I start a focus session?", "Why can't I focus?", "How do I rebuild focus?")
             "BEDTIME_REVENGE_PROCRASTINATION" -> listOf("What time should I stop using my phone?", "What is revenge procrastination?", "How's my bedtime routine?")
-            "DOPAMINE_LOOP" -> listOf("Add a mindful pause", "Why does the loop happen?", "Am I on social media too much?")
-            "HEALTHY_PATTERN" -> listOf("How do I build on this?", "What's my best habit right now?", "How close am I to Excellent?")
+            // FIX: "Add a mindful pause" is an action — replaced with a question that routes to FEATURE_EXPLANATION
+            "DOPAMINE_LOOP" -> listOf("How do I add a mindful pause?", "Why does the loop happen?", "Am I on social media too much?")
+            // FIX: "Share my streak" is an action; "How do I build on this?" now routes to HEALTHY_PATTERN
+            "HEALTHY_PATTERN" -> listOf("How do I build on this?", "How is my streak looking?", "How close am I to Excellent?")
             "PRODUCTIVE_DAY" -> if ((summary.aureloScore) >= 85)
                 listOf("Share my score", "What's my best habit this week?", "How do I maintain Excellent?")
             else
                 listOf("Share my score", "What's my best habit this week?", "How do I reach Excellent?")
             "RECOVERY_DAY" -> listOf("How do I protect my streak today?", "What should I focus on next?", "How am I trending this week?")
-            "SOCIAL_SPIRAL" -> listOf("Block social apps for 25 min", "What's a healthy social limit?", "Do I have a dopamine loop?")
+            // FIX: "Block social apps for 25 min" is an action — replaced with question routing to SOCIAL_SPIRAL
+            "SOCIAL_SPIRAL" -> listOf("Which social apps should I limit?", "What's a healthy social limit?", "Do I have a dopamine loop?")
             "MORNING_DOOM_SCROLL" -> listOf("How much does first-use time affect my score?", "Do I have a dopamine loop?", "What should I do instead of checking my phone?")
             "WEEKEND_BINGE" -> listOf("What's a good weekend goal?", "How do I set a focus schedule?", "Tell me about my week")
             "ANOMALOUS_SPIKE" -> listOf("Why do I spike on that day?", "How do I set a focus schedule?", "What's my weekly pattern?")
-            "APP_DEEP_DIVE" -> listOf("Add a mindful pause", "Am I on social media too much?", "Do I have a dopamine loop?")
+            // FIX: "Add a mindful pause" is an action — replaced with routable question
+            "APP_DEEP_DIVE" -> listOf("How do I add a mindful pause?", "Am I on social media too much?", "Do I have a dopamine loop?")
             "FEATURE_EXPLANATION" -> listOf("How do I reach Excellent?", "What's my session completion rate?", "Why do I use my phone at night?")
             "GOAL_SETTING_ADVICE" -> listOf("How do I change my goal?", "How does my goal affect my score?", "What's my weekly average?")
             "GENERAL_SUMMARY" -> listOf("What should I work on first?", "How close am I to Excellent?", "What's my best habit this week?")

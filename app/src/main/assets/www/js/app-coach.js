@@ -210,13 +210,19 @@ var INTENT_RULES = [
   { intent: CoachIntent.STREAK_AT_RISK,
     patterns: ['streak','lose streak','break streak','safe today','streak risk',
                 'keep streak','lose my streak','will i break','streak gone',
-                'minutes left','time left','how many minutes'] },
+                'minutes left','time left','how many minutes',
+                // FIX: chip labels
+                'riskiest time','risky time','protect my streak','right now',
+                'what should i do right now'] },
 
   { intent: CoachIntent.FOCUS_GAP,
     patterns: ["haven't focused","no session","last session","focus gap","slacking",
                 'should i focus','not focused','no focus','missed sessions',
                 'when did i last','skipped focus','no sessions','focus sessions going',
-                'session completion','completion rate','how do i rebuild'] },
+                'session completion','completion rate','how do i rebuild',
+                // FIX: chip labels
+                'improve focus','improve my focus','helps my focus',
+                'start a focus session','start focus session','what else helps'] },
 
   // NEW: FOCUS_PEAK_TIME
   { intent: CoachIntent.FOCUS_PEAK_TIME,
@@ -230,13 +236,17 @@ var INTENT_RULES = [
                 // FIX: additional compulsive pickup phrasings
                 'always on my phone',"can't put it down",'keep unlocking',
                 'checking constantly','compulsively','every few minutes',
-                'notification','keep opening'] },
+                'notification','keep opening',
+                // FIX: chip labels
+                'instead of checking','what should i do instead'] },
 
   { intent: CoachIntent.SOCIAL_SPIRAL,
     patterns: ['social media','instagram','tiktok','twitter','too much social',
                 'social apps','facebook','reddit','social time','scrolling social',
                 // FIX: YouTube and app-time phrasings
-                'youtube','my worst app','time on apps','app time','spending too much on'] },
+                'youtube','my worst app','time on apps','app time','spending too much on',
+                // FIX: chip labels
+                'social limit','healthy social','which social apps'] },
 
   { intent: CoachIntent.PRODUCTIVE_DAY,
     patterns: ['doing well','on track','good day','how am i','am i improving',
@@ -256,7 +266,10 @@ var INTENT_RULES = [
                 'night usage','nighttime','bed scrolling',
                 // FIX: sleep-deprivation mentions trigger bedtime intent
                 'only slept','barely slept','2am','3am','up late',
-                'slept 4','slept 5','slept 3'] },
+                'slept 4','slept 5','slept 3',
+                // FIX: chip labels
+                'tonight','do tonight','time to stop','differently tonight',
+                'time should i stop','when should i stop'] },
 
   { intent: CoachIntent.FOCUS_BURNOUT,
     patterns: ['burnt out','burnout','tired','exhausted','stressed',
@@ -272,17 +285,23 @@ var INTENT_RULES = [
 
   { intent: CoachIntent.RECOVERY_DAY,
     patterns: ['recovery','recovering','bounce back','coming down','after bad day',
-                'better than yesterday','improvement','getting better','rebuild'] },
+                'better than yesterday','improvement','getting better','rebuild',
+                // FIX: chip labels
+                'recover today','how do i recover','trending this week','how am i trending'] },
 
   { intent: CoachIntent.ANOMALOUS_SPIKE,
     patterns: ['spike','unusual','way more','a lot today','way too much',
                 'really high','so much today','highest ever','record',
                 // FIX: "what happened yesterday" → recent spike lookup
-                'what happened yesterday','yesterday so bad','yesterday so high'] },
+                'what happened yesterday','yesterday so bad','yesterday so high',
+                // FIX: chip labels
+                'worst day','tell me about my worst'] },
 
   { intent: CoachIntent.HEALTHY_PATTERN,
     patterns: ["what's working",'best habit','positive pattern',
-                'what am i doing right','good habit'] },
+                'what am i doing right','good habit',
+                // FIX: chip labels
+                'build on this','best habit this week','best habit right now'] },
 
   { intent: CoachIntent.HC_POOR_SLEEP_HIGH_USAGE,
     patterns: ['hrv','heart rate variability','poor sleep affect','sleep affect usage',
@@ -302,7 +321,12 @@ var INTENT_RULES = [
                 'what is the score','what is aurelo score',
                 'what is a focus session','how does bedtime mode work',
                 'what is a streak','what is the sleep score',
-                'what does the score mean','how does the score work'] },
+                'what does the score mean','how does the score work',
+                // FIX: chip labels
+                'health connect','focus schedule','first-use time','first use time',
+                'how many pickups','normal pickups','why does the pause',
+                'pause help','how do i add a mindful','sleep affect score',
+                'sleep affect my score'] },
 
   // NEW: GOAL_SETTING_ADVICE
   { intent: CoachIntent.GOAL_SETTING_ADVICE,
@@ -323,7 +347,11 @@ var INTENT_RULES = [
     patterns: ['summary','overall','overview','tell me','what do you see',
                 'what does my data','this week','give me a summary',
                 'analyse','analyze','my data','what should i work on',
-                'where do i start','what should i improve'] },
+                'where do i start','what should i improve',
+                // FIX: chip labels
+                'trending this week','weekly pattern','weekly average',
+                'focus on next','what should i focus on',
+                'how am i trending'] },
 ];
 
 var KEYWORD_CLASSIFIER = {
@@ -615,7 +643,7 @@ var TemplateLibrary = {
                  (s.firstUseHour < 9 ? 'Delaying first use to 9 AM tomorrow will extend that clear window.' : 'That\'s a good start — protect the morning as long as possible.') +
                  ' Schedule your deepest focus sessions here for best results.';
         },
-        followUps: ['Start a focus session now', 'How does first-use time affect my score?', "What's a good session length?"]
+        followUps: ['How do I start a focus session?', 'How does first-use time affect my score?', "What's a good session length?"]
       }
     ],
 
@@ -625,7 +653,7 @@ var TemplateLibrary = {
         text: function(s) {
           return 'You\'re showing a classic dopamine loop — picking up your phone, opening <strong>' + (s.topApps && s.topApps[0] || 'your top app') + '</strong>, putting it down, and repeating within minutes. Each short session under 90 seconds reinforces the urge rather than satisfying it. Try a <strong>Mindful Pause</strong> on ' + (s.topApps && s.topApps[0] || 'that app') + ': it adds a 10-second intention check before the app opens, which breaks the automatic loop.';
         },
-        followUps: ['Add a mindful pause', 'Why does the pause help?', 'How many pickups is normal?']
+        followUps: ['How do I add a mindful pause?', 'Why does the pause help?', 'How many pickups is normal?']
       }
     ],
 
@@ -636,7 +664,7 @@ var TemplateLibrary = {
           var diff = Math.round(s.pickupsToday - s.pickups7DayAvg);
           return 'Social apps are your top category today, led by <strong>' + (s.topApps && s.topApps[0] || 'social apps') + '</strong>. You\'ve got <strong>' + s.pickupsToday + ' pickups</strong> — <strong>' + (diff > 0 ? '+' + diff : diff) + '</strong> vs your weekly average. A <strong>25-min Firm session</strong> with ' + (s.topApps && s.topApps[0] || 'your top app') + ' blocked right now would reset the loop.';
         },
-        followUps: ['Block social apps for 25 min', "What's a healthy social limit?", 'Do I have a dopamine loop?']
+        followUps: ['Which social apps should I limit?', "What's a healthy social limit?", 'Do I have a dopamine loop?']
       }
     ],
 
@@ -713,7 +741,7 @@ var TemplateLibrary = {
           }
           return 'Late-night phone use is a form of "revenge procrastination" — reclaiming personal time at the cost of sleep.' + sleepLine + ' If Bedtime Mode is set, your phone handles the blocking automatically. Key signal: pickup count spikes after 10 PM are almost always followed by a higher-usage next day. Your <strong>' + s.streakDays + '-day streak</strong> could be at risk if tonight follows that pattern.';
         },
-        followUps: ['Enable Bedtime Mode', 'What time should I stop?', 'How does sleep affect my score?']
+        followUps: ['How does Bedtime Mode work?', 'What time should I stop?', 'How does sleep affect my score?']
       }
     ],
 
@@ -727,7 +755,7 @@ var TemplateLibrary = {
             : '';
           return 'Your Focus Score is <strong>' + s.focusScore + '</strong> with <strong>' + s.focusSessionsCompleted + ' session' + (s.focusSessionsCompleted === 1 ? '' : 's') + '</strong> this week. Burnout shows as more pickups and shorter focus attempts — you have <strong>' + s.pickupsToday + ' pickups</strong> today, ' + (diff > 0 ? diff + ' above your average' : 'near your average') + '.' + hcNote + ' Try a <strong>5-min Gentle session</strong> — it restores the habit without the pressure.';
         },
-        followUps: ['Start a 5-min session', "What's causing this?", 'How long should sessions be?']
+        followUps: ['How do I start a focus session?', "What's causing this?", 'How long should sessions be?']
       }
     ],
 
@@ -773,7 +801,7 @@ var TemplateLibrary = {
             ? Math.round((s.todayMinutes / s.dailyGoalMinutes - 1) * 100) : 0;
           return 'Your HRV last night was <strong>' + (hcDelta !== null ? hcDelta + '%' : 'notably') + '</strong> below your average — and your screen time today is already <strong>' + (screenDelta > 0 ? '+' + screenDelta + '%' : screenDelta + '%') + '</strong> vs your usual ' + weekday + ' total. Poor sleep and heavier phone use tend to reinforce each other. A <strong>15-minute focus session</strong> could help break the cycle. Based on Health Connect + screen data.';
         },
-        followUps: ['Start a focus session now', 'How does HRV affect my score?', 'What can I do tonight?']
+        followUps: ['How do I start a focus session?', 'How does HRV affect my score?', 'What can I do tonight?']
       },
       {
         text: function(s) {
@@ -782,7 +810,7 @@ var TemplateLibrary = {
             : 'below target';
           return 'Sleep quality is showing up in your data. Last night: <strong>' + sleep + '</strong> (Health Connect). On low-HRV days your pickup count runs <strong>15–20%</strong> higher than average — and that\'s exactly what\'s happening today. Your focus sessions are your best defence on days like this.';
         },
-        followUps: ['How does sleep affect my phone use?', 'What should I do differently tonight?', 'Show my HRV trend']
+        followUps: ['How does sleep affect my phone use?', 'What should I do differently tonight?', 'What does my HRV tell me?']
       }
     ],
 
@@ -822,7 +850,7 @@ var TemplateLibrary = {
             : '';
           return 'Your strongest habit right now is the <strong>' + s.streakDays + '-day streak</strong> — that\'s real consistency. Your Screen Score of <strong>' + s.screenScore + '</strong> shows you\'re managing goal adherence well. The ' + s.focusSessionsCompleted + ' focus session' + (s.focusSessionsCompleted === 1 ? '' : 's') + ' this week is solid.' + hcLine + ' Keep the morning routine going — first-use timing is your clearest lever.';
         },
-        followUps: ['How do I build on this?', 'Share my streak', 'How close am I to Excellent?']
+        followUps: ['How do I build on this?', 'How is my streak looking?', 'How close am I to Excellent?']
       }
     ],
 
@@ -838,7 +866,7 @@ var TemplateLibrary = {
                  'To see a full per-app breakdown, go to <strong>Wellness → Today → All Apps</strong>. ' +
                  'Adding a <strong>Mindful Pause</strong> or <strong>App Timer</strong> on ' + topApp + ' is the fastest way to directly cut time on it.';
         },
-        followUps: ['Add a mindful pause', 'Am I on social media too much?', 'Do I have a dopamine loop?']
+        followUps: ['How do I add a mindful pause?', 'Am I on social media too much?', 'Do I have a dopamine loop?']
       }
     ],
 
@@ -1076,9 +1104,12 @@ var CoachOrchestrator = {
   _resolveDynamicIntent: function(query, summary) {
     var q = query.toLowerCase().trim();
 
-    // FIX: "How do I reach Excellent?" → always PRODUCTIVE_DAY (gap calculation is in template)
+    // FIX: "How do I reach Excellent?" — when score ≥85, give maintenance advice via
+    // HEALTHY_PATTERN rather than celebrating in PRODUCTIVE_DAY.
     if (q.indexOf('reach excellent') !== -1 || q.indexOf('get to excellent') !== -1) {
-      return CoachIntent.PRODUCTIVE_DAY;
+      return (summary.aureloScore || 0) >= 85
+        ? CoachIntent.HEALTHY_PATTERN
+        : CoachIntent.PRODUCTIVE_DAY;
     }
 
     // FIX: "Why did my score change?" — direction-aware
@@ -1087,24 +1118,41 @@ var CoachOrchestrator = {
       return delta >= 0 ? CoachIntent.PRODUCTIVE_DAY : CoachIntent.SCORE_DROP;
     }
 
-    // FIX: "What triggers my phone use?" — data-driven trigger detection
+    // FIX: "What's dragging my score down?" — pillar-aware so it differs from "why did my score change"
+    if (q.indexOf("dragging my score") !== -1 || q.indexOf("what's dragging") !== -1) {
+      if ((summary.focusScore || 100) < 60) return CoachIntent.FOCUS_GAP;
+      if ((summary.firstUseHour || 9) < 8) return CoachIntent.MORNING_DOOM_SCROLL;
+      return CoachIntent.SCORE_DROP;
+    }
+
+    // FIX: "What triggers my phone use?" — diagnostic, uses ANOMALOUS_SPIKE in high-pickup
+    // case to avoid overlap with "Do I have a dopamine loop?" → DOPAMINE_LOOP.
     if (q.indexOf('triggers my phone') !== -1 || q.indexOf('trigger my phone') !== -1) {
-      if (summary.firstUseHour < 8) return CoachIntent.MORNING_DOOM_SCROLL;
+      if ((summary.firstUseHour || 9) < 8) return CoachIntent.MORNING_DOOM_SCROLL;
       if (summary.topCategory === 'Social') return CoachIntent.SOCIAL_SPIRAL;
-      if (summary.pickupsToday > summary.pickups7DayAvg * 1.3) return CoachIntent.DOPAMINE_LOOP;
-      return CoachIntent.MORNING_DOOM_SCROLL; // default
+      if (summary.pickupsToday > summary.pickups7DayAvg * 1.3) return CoachIntent.ANOMALOUS_SPIKE;
+      return CoachIntent.MORNING_DOOM_SCROLL;
     }
 
-    // FIX: "How's my bedtime routine?" — good adherence → HEALTHY_PATTERN
+    // FIX: "How's my bedtime routine?" — good adherence → HEALTHY_PATTERN.
+    // Poor adherence (sleepScore < 75) → RECOVERY_DAY (stats + structured feedback),
+    // which separates it from "Why do I use my phone at night?" → always BEDTIME_REVENGE.
     if (q.indexOf("bedtime routine") !== -1) {
-      var sleepGood = summary.sleepScore >= 75;
-      return sleepGood ? CoachIntent.HEALTHY_PATTERN : CoachIntent.BEDTIME_REVENGE_PROCRASTINATION;
+      if ((summary.sleepScore || 0) >= 75) return CoachIntent.HEALTHY_PATTERN;
+      return CoachIntent.RECOVERY_DAY;
     }
 
-    // FIX: "What's my session completion rate?" + "How are my focus sessions going?"
-    // — active-user path handled in FOCUS_GAP template, but we ensure right intent
-    if (q.indexOf('session completion') !== -1 || q.indexOf('completion rate') !== -1 ||
-        q.indexOf('focus sessions going') !== -1) {
+    // FIX: "What's my session completion rate?" — always shows stat.
+    // Routes to PRODUCTIVE_DAY (positive stat view) when sessions exist,
+    // FOCUS_GAP when no sessions — distinct from "How are my focus sessions going?"
+    // which always routes to FOCUS_GAP.
+    if (q.indexOf('session completion rate') !== -1 || q.indexOf('what\'s my session completion') !== -1 ||
+        q.indexOf('completion rate') !== -1) {
+      var hasSessions = (summary.focusSessionsCompleted || 0) > 0 || (summary.focusSessionsInterrupted || 0) > 0;
+      return hasSessions ? CoachIntent.PRODUCTIVE_DAY : CoachIntent.FOCUS_GAP;
+    }
+
+    if (q.indexOf('focus sessions going') !== -1) {
       return CoachIntent.FOCUS_GAP;
     }
 
@@ -1121,8 +1169,82 @@ var CoachOrchestrator = {
     if ((q.indexOf('active enough') !== -1 || q.indexOf('am i active') !== -1 || q.indexOf('steps') !== -1) && !summary.hcConnected) {
       return '_HC_MISSING_STEPS';
     }
-    if (q.indexOf('sleep affect') !== -1 && !summary.hcConnected) {
+    if ((q.indexOf('sleep affect') !== -1 || q.indexOf('sleep affect my phone') !== -1) && !summary.hcConnected) {
       return '_HC_MISSING_SLEEP';
+    }
+
+    // ── Unrouted chip labels — dynamic overrides ─────────────────────────────
+
+    // STREAK_AT_RISK group
+    if (q.indexOf('protect my streak') !== -1 || q.indexOf('protect streak') !== -1 ||
+        q.indexOf('riskiest time') !== -1 || q.indexOf('risky time') !== -1 ||
+        q.indexOf('do right now') !== -1 || q.indexOf('what should i do right now') !== -1 ||
+        q.indexOf('how many minutes do i have left') !== -1) {
+      return CoachIntent.STREAK_AT_RISK;
+    }
+
+    // RECOVERY_DAY group
+    if (q.indexOf('recover today') !== -1 || q.indexOf('how do i recover') !== -1 ||
+        q.indexOf('how am i trending') !== -1 || q.indexOf('trending this week') !== -1) {
+      return CoachIntent.RECOVERY_DAY;
+    }
+
+    // BEDTIME group
+    if (q.indexOf('do tonight') !== -1 || q.indexOf('differently tonight') !== -1 ||
+        q.indexOf('time should i stop') !== -1 || q.indexOf('time to stop') !== -1) {
+      return CoachIntent.BEDTIME_REVENGE_PROCRASTINATION;
+    }
+
+    // FOCUS_GAP group
+    if (q.indexOf('improve focus') !== -1 || q.indexOf('improve my focus') !== -1 ||
+        q.indexOf('helps my focus') !== -1 || q.indexOf('what else helps') !== -1 ||
+        q.indexOf('start a focus session') !== -1 || q.indexOf('start focus session') !== -1 ||
+        q.indexOf('how do i start a focus') !== -1) {
+      return CoachIntent.FOCUS_GAP;
+    }
+
+    // SOCIAL_SPIRAL group
+    if (q.indexOf('social limit') !== -1 || q.indexOf('healthy social') !== -1 ||
+        q.indexOf('which social apps') !== -1) {
+      return CoachIntent.SOCIAL_SPIRAL;
+    }
+
+    // DOPAMINE_LOOP group
+    if (q.indexOf('instead of checking') !== -1 || q.indexOf('what should i do instead') !== -1) {
+      return CoachIntent.DOPAMINE_LOOP;
+    }
+
+    // HEALTHY_PATTERN group
+    if (q.indexOf('build on this') !== -1 || q.indexOf('best habit this week') !== -1 ||
+        q.indexOf('best habit right now') !== -1) {
+      return CoachIntent.HEALTHY_PATTERN;
+    }
+
+    // GENERAL_SUMMARY group
+    if (q.indexOf('focus on next') !== -1 || q.indexOf('what should i focus on') !== -1 ||
+        q.indexOf('weekly pattern') !== -1 || q.indexOf('weekly average') !== -1 ||
+        q.indexOf('my weekly') !== -1) {
+      return CoachIntent.GENERAL_SUMMARY;
+    }
+
+    // ANOMALOUS_SPIKE group
+    if (q.indexOf('worst day') !== -1 || q.indexOf('tell me about my worst') !== -1) {
+      return CoachIntent.ANOMALOUS_SPIKE;
+    }
+
+    // SCORE_DROP group
+    if (q.indexOf('causing this') !== -1 || q.indexOf("what's causing") !== -1) {
+      return CoachIntent.SCORE_DROP;
+    }
+
+    // FEATURE_EXPLANATION group
+    if (q.indexOf('health connect') !== -1 || q.indexOf('focus schedule') !== -1 ||
+        q.indexOf('first-use time') !== -1 || q.indexOf('first use time') !== -1 ||
+        q.indexOf('how many pickups') !== -1 || q.indexOf('normal pickups') !== -1 ||
+        q.indexOf('why does the pause') !== -1 || q.indexOf('pause help') !== -1 ||
+        q.indexOf('how do i add a mindful') !== -1 || q.indexOf('how does bedtime mode') !== -1 ||
+        q.indexOf('sleep affect my score') !== -1 || q.indexOf('sleep affect score') !== -1) {
+      return CoachIntent.FEATURE_EXPLANATION;
     }
 
     return null; // no dynamic override
@@ -1415,11 +1537,8 @@ window.CoachUI = {
         btn.textContent = 'Upgrade to Pro →';
         btn.style.cssText = 'margin-top:8px;padding:9px 18px;border-radius:10px;border:none;background:var(--p);color:#fff;font-family:var(--ff-m);font-size:13px;font-weight:600;cursor:pointer;display:block';
         btn.addEventListener('click', function() {
-          CoachUI.close();
           if (typeof ProTier !== 'undefined' && typeof ProTier.triggerUpsell === 'function') {
-            setTimeout(function() {
-              ProTier.triggerUpsell('COACH_UPGRADE');
-            }, 150);
+            ProTier.triggerUpsell('COACH');
           }
         });
         lastBubble.appendChild(btn);
