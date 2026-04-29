@@ -64,7 +64,7 @@ class UsageSummaryBuilder(
      * Assemble [UsageSummary] from SharedPrefs caches and [hcData].
      * Called by HealthConnectBridge and (in future) CoachOrchestrator.
      */
-    fun build(hcData: HCDailyData, dataWindowDays: Int = 7): UsageSummary {
+    fun build(hcData: HCDailyData, dataWindowDays: Int = -1): UsageSummary {
         // ── Screen time ────────────────────────────────────────────────────
         val todayMins = try {
             prefs.getInt(CACHED_TOTAL_MINS, 0)
@@ -84,7 +84,11 @@ class UsageSummaryBuilder(
         val streak      = prefs.getInt(CACHED_STREAK_DAYS, 0)
 
         val topApps     = parseTopApps(prefs.getString(CACHED_DAILY_USAGE, "[]") ?: "[]")
-        val topCategory = topApps.firstOrNull()?.let { "Social" } ?: "Other"  // simplified
+        // FIX: derive real top category from cached app→category map written by
+        // AppManagementBridge (APP_CAT_MAP_V1) and CAT_OVERRIDES_V4. The previous
+        // hard-coded "Social" caused every user with at least one tracked app to
+        // be flagged as a social-media spiral candidate downstream.
+        val topCategory = resolveTopCategory(topApps)
         val weekly      = parseWeekly(prefs.getString(CACHED_WEEKLY, "[]") ?: "[]")
 
         // Pickups 7-day average from weekly data
@@ -150,8 +154,59 @@ class UsageSummaryBuilder(
             rhr7DayAvg                    = hcData.avgRhr7d,
             externalMindfulnessMinutesToday = mindfulnessMins,
             hcConnected                   = hcData.isAvailable,
-            dataWindowDays                = dataWindowDays,
+            // FIX: reflect actual installed-history depth instead of always 7.
+            // Falls back to the explicitly-supplied window when caller forces one.
+            dataWindowDays                = if (dataWindowDays >= 0) dataWindowDays
+                                            else effectiveDataWindowDays(weekly),
         )
+    }
+
+    /**
+     * Returns the effective data window in days, capped at 30 (the value
+     * `InsightTemplateLibrary.inferVariant` uses for ESTABLISHED). Drawn from
+     * the cached daily-history map written by `UsageStatsBridge`, so users with
+     * 30+ days of history actually surface ESTABLISHED templates.
+     */
+    private fun effectiveDataWindowDays(weekly: List<DayRecord>): Int {
+        val activeWeekly = weekly.count { it.minutes > 0 }
+        val histSize = runCatching {
+            val raw = prefs.getString(DAILY_HIST_MAP, "{}") ?: "{}"
+            JSONObject(raw).length()
+        }.getOrDefault(0)
+        return maxOf(activeWeekly, histSize).coerceIn(0, 30)
+    }
+
+    /**
+     * Resolve the user's actual top app category by looking up each top app
+     * against the same cat-map / overrides used by the rest of the app.
+     * Falls back to "Other" when no mapping is found — never a hard-coded value.
+     */
+    private fun resolveTopCategory(topApps: List<AppUsageEntry>): String {
+        if (topApps.isEmpty()) return "Other"
+        val secure = try {
+            context.getSharedPreferences(SECURE_PREFS_FILE, Context.MODE_PRIVATE)
+        } catch (_: Exception) { null }
+        val appCatMap = runCatching {
+            JSONObject(secure?.getString(APP_CAT_MAP_V1, "{}") ?: "{}")
+        }.getOrDefault(JSONObject())
+        val overrides = runCatching {
+            JSONObject(secure?.getString(CAT_OVERRIDES_V4, "{}") ?: "{}")
+        }.getOrDefault(JSONObject())
+
+        // Aggregate minutes per category across all top apps so the result
+        // reflects the dominant category, not just the top single app.
+        val totals = HashMap<String, Int>()
+        for (app in topApps) {
+            val pkg = app.packageName
+            val cat = when {
+                appCatMap.has(pkg) -> appCatMap.optString(pkg, "")
+                overrides.has(pkg) -> overrides.optString(pkg, "")
+                else -> ""
+            }.let { Categories.migrate(it) }
+            if (cat.isBlank()) continue
+            totals[cat] = (totals[cat] ?: 0) + app.minutes
+        }
+        return totals.maxByOrNull { it.value }?.key ?: "Other"
     }
 
     // ── Serialise to JSON for the Coach JS side ───────────────────────────────
@@ -219,29 +274,56 @@ class UsageSummaryBuilder(
     }.getOrElse { 0f }
 
     private fun daysSinceLastFocus(): Int {
-        // BUG-FIX: "focus_last_complete_date" was never written by FocusSessionBridge.
-        // Use KEY_FOCUS_WEEK_ID + KEY_FOCUS_COMPLETED_WEEK (written by FocusSessionBridge)
-        // to determine whether any session completed this week, and KEY_FOCUS_LAST_OUTCOME
-        // to distinguish today from earlier in the week.
+        // FIX: use the exact timestamp now persisted by FocusSessionBridge so we
+        // return real day counts (0/1/2/3/…) instead of jumping 0 → 7 → 14.
+        val lastTs = prefs.getLong(KEY_FOCUS_LAST_COMPLETE_TS, 0L)
+        if (lastTs > 0L) {
+            val now = System.currentTimeMillis()
+            if (now <= lastTs) return 0
+            // Compare calendar days in the device's local timezone so a session
+            // at 11pm last night reads as "1 day ago" the next morning, not "0".
+            return calendarDayDelta(lastTs, now).coerceIn(0, 60)
+        }
+
+        // Legacy fallback for users who completed sessions before the timestamp
+        // was introduced — keeps the old approximation but flagged for replacement
+        // once the timestamp accumulates fresh data.
         val currentWeek = currentWeekId()
         val storedWeek  = prefs.getString(KEY_FOCUS_WEEK_ID, "") ?: ""
         val completedThisWeek = storedWeek == currentWeek &&
                 prefs.getInt(KEY_FOCUS_COMPLETED_WEEK, 0) > 0
 
         if (!completedThisWeek) {
-            // Check the previous week to give a rough "days since" estimate
             val lastWeekCal = java.util.Calendar.getInstance()
             lastWeekCal.add(java.util.Calendar.WEEK_OF_YEAR, -1)
             val lastWeek = currentWeekId(lastWeekCal)
-            // If the stored week is last week, estimate ~4-7 days; otherwise 14+
             return if (storedWeek == lastWeek &&
                 prefs.getInt(KEY_FOCUS_COMPLETED_WEEK, 0) > 0) 7 else 14
         }
 
-        // A session completed this week. Determin
-        // e if it was today.
         val lastOutcome = prefs.getString(KEY_FOCUS_LAST_OUTCOME, "") ?: ""
         return if (lastOutcome == "completed" || lastOutcome == "in_progress") 0 else 1
+    }
+
+    /**
+     * Number of calendar-day boundaries crossed between [olderTs] and [newerTs]
+     * in the device's local timezone.
+     */
+    private fun calendarDayDelta(olderTs: Long, newerTs: Long): Int {
+        if (olderTs <= 0L || newerTs <= olderTs) return 0
+        val tz = java.util.TimeZone.getDefault()
+        fun localMidnight(ts: Long): Long {
+            val cal = java.util.Calendar.getInstance(tz).apply {
+                timeInMillis = ts
+                set(java.util.Calendar.HOUR_OF_DAY, 0)
+                set(java.util.Calendar.MINUTE, 0)
+                set(java.util.Calendar.SECOND, 0)
+                set(java.util.Calendar.MILLISECOND, 0)
+            }
+            return cal.timeInMillis
+        }
+        val ms = localMidnight(newerTs) - localMidnight(olderTs)
+        return (ms / 86_400_000L).toInt().coerceAtLeast(0)
     }
 
     // BUG-FIX: currentWeekId() was called but never defined in this class.

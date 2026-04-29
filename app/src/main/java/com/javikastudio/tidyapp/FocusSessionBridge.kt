@@ -232,7 +232,9 @@ class FocusSessionBridge(
                     .putInt(KEY_FOCUS_COMPLETED_TODAY,prefs.getInt(KEY_FOCUS_COMPLETED_TODAY,0)+1)
                     .putInt(KEY_FOCUS_PLANNED_MINS_TODAY,prefs.getInt(KEY_FOCUS_PLANNED_MINS_TODAY,0)+total)
                     .putInt(KEY_FOCUS_ELAPSED_MINS_TODAY,prefs.getInt(KEY_FOCUS_ELAPSED_MINS_TODAY,0)+total)
-                    .putInt(KEY_FOCUS_LAST_ELAPSED,total).apply()
+                    .putInt(KEY_FOCUS_LAST_ELAPSED,total)
+                    .putLong(KEY_FOCUS_LAST_COMPLETE_TS, System.currentTimeMillis())
+                    .apply()
             }
         }
         if (outcome != "completed" && outcome != "interrupted") return JSONObject().apply { put("outcome","") }.toString()
@@ -249,7 +251,9 @@ class FocusSessionBridge(
             .putInt(KEY_FOCUS_COMPLETED_TODAY, prefs.getInt(KEY_FOCUS_COMPLETED_TODAY,0)+1)
             .putInt(KEY_FOCUS_PLANNED_MINS_TODAY, prefs.getInt(KEY_FOCUS_PLANNED_MINS_TODAY,0)+durationMins)
             .putInt(KEY_FOCUS_ELAPSED_MINS_TODAY, prefs.getInt(KEY_FOCUS_ELAPSED_MINS_TODAY,0)+durationMins)
-            .putString(KEY_FOCUS_LAST_OUTCOME,"completed").putInt(KEY_FOCUS_LAST_ELAPSED,durationMins).putInt(KEY_FOCUS_LAST_TOTAL,durationMins).apply()
+            .putString(KEY_FOCUS_LAST_OUTCOME,"completed").putInt(KEY_FOCUS_LAST_ELAPSED,durationMins).putInt(KEY_FOCUS_LAST_TOTAL,durationMins)
+            .putLong(KEY_FOCUS_LAST_COMPLETE_TS, System.currentTimeMillis())
+            .apply()
     }
 
     @JavascriptInterface fun recordFocusInterrupt(elapsedMins: Int) {
