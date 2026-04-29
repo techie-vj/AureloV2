@@ -151,7 +151,8 @@ class CoachOrchestrator(
     fun answer(query: String, summary: UsageSummary): CoachAnswer {
         Log.d(TAG, "CoachOrchestrator.answer query=$query")
 
-        val queryIntent = classifyPredefinedQuestion(query, summary)
+        val hcSignalsEarly = HcSignalAvailability.from(summary)
+        val queryIntent = classifyPredefinedQuestion(query, summary, hcSignalsEarly)
             ?: classifyQueryIntent(query)
         Log.d(TAG, "Query intent=${queryIntent.intent} confidence=${queryIntent.confidence}")
 
@@ -170,7 +171,7 @@ class CoachOrchestrator(
             )
         }
 
-        val hcSignals = HcSignalAvailability.from(summary)
+        val hcSignals = hcSignalsEarly
 
         val behaviour = classifyBehaviourIntent(summary, hcSignals)
         Log.d(TAG, "Behaviour intent=${behaviour.intent} priority=${behaviour.priority} source=${behaviour.source}")
@@ -806,7 +807,11 @@ class CoachOrchestrator(
      * Exact routing for static UI questions from the Coach category tabs.
      * Now takes UsageSummary for data-driven routing decisions.
      */
-    private fun classifyPredefinedQuestion(query: String, summary: UsageSummary): ClassifiedIntent? {
+    private fun classifyPredefinedQuestion(
+        query: String,
+        summary: UsageSummary,
+        hcSignals: HcSignalAvailability,
+    ): ClassifiedIntent? {
         val q = query.lowercase(Locale.US)
             .trim()
             .replace("'", "'")
@@ -915,48 +920,51 @@ class CoachOrchestrator(
                 else
                     ClassifiedIntent("BEDTIME_REVENGE_PROCRASTINATION", 1.0f, "predefined_query")
 
-            // FIX: return HC_MISSING sentinel when HC not connected
+            // FIX: HC-missing check now keys off the actual signal availability,
+            // not just `hcConnected`. A user who connected HC for steps but never
+            // granted Sleep permission previously got an HC_POOR_SLEEP template
+            // that printed "Sleep last night: —"; now they get the dedicated
+            // HC_MISSING_SLEEP explanation pointing them to Settings.
             q.contains("how does sleep affect my usage") ||
                     q.contains("sleep affect my usage") ||
                     q.contains("sleep affect phone") ||
                     q.contains("sleep affect screen") -> {
-                if (!summary.hcConnected) {
+                if (!summary.hcConnected || !hcSignals.hasSleep) {
                     ClassifiedIntent("HC_MISSING_SLEEP", 1.0f, "predefined_query")
                 } else {
                     ClassifiedIntent("HC_POOR_SLEEP_HIGH_USAGE", 1.0f, "predefined_query")
                 }
             }
 
-            // FIX: sleepScore-aware routing — good adherence → HEALTHY_PATTERN.
-            // When sleepScore < 75, route to RECOVERY_DAY (gives adherence stats + structured
-            // feedback) rather than BEDTIME_REVENGE_PROCRASTINATION (which explains psychology).
-            // This separates it from "Why do I use my phone at night?" which always explains
-            // the psychological cause via BEDTIME_REVENGE_PROCRASTINATION.
+            // FIX: sleepScore-aware routing.
+            //   sleepScore >= 75  → HEALTHY_PATTERN (the routine is working).
+            //   sleepScore <  75  → BEDTIME_REVENGE_PROCRASTINATION (whose templates
+            //                       explicitly talk about Bedtime Mode and bedtime
+            //                       adherence). Previously routed to RECOVERY_DAY,
+            //                       which printed "yesterday was tough but today is
+            //                       trending better" — unrelated to bedtime.
             q.contains("how's my bedtime routine") ||
                     q.contains("how is my bedtime routine") ||
                     q.contains("bedtime routine") -> {
-                val bedtimeIntent = when {
-                    summary.sleepScore >= 75 -> "HEALTHY_PATTERN"
-                    else -> "RECOVERY_DAY"
-                }
+                val bedtimeIntent = if (summary.sleepScore >= 75) "HEALTHY_PATTERN"
+                else "BEDTIME_REVENGE_PROCRASTINATION"
                 ClassifiedIntent(bedtimeIntent, 1.0f, "predefined_query")
             }
 
-            // FIX: return HC_MISSING sentinel for HRV without HC
+            // FIX: signal-level HC check (see sleep-affect comment above).
             q.contains("what does my hrv tell me") ||
                     q.contains("hrv tell me") ||
                     q.contains("heart rate variability") -> {
-                if (!summary.hcConnected) {
+                if (!summary.hcConnected || !hcSignals.hasHrv) {
                     ClassifiedIntent("HC_MISSING_HRV", 1.0f, "predefined_query")
                 } else {
                     ClassifiedIntent("HC_POOR_SLEEP_HIGH_USAGE", 1.0f, "predefined_query")
                 }
             }
 
-            // FIX: return HC_MISSING sentinel for steps without HC
             q.contains("am i active enough") ||
                     q.contains("active enough") -> {
-                if (!summary.hcConnected) {
+                if (!summary.hcConnected || !hcSignals.hasSteps) {
                     ClassifiedIntent("HC_MISSING_STEPS", 1.0f, "predefined_query")
                 } else {
                     ClassifiedIntent("HC_ACTIVE_DAY_BETTER_FOCUS", 1.0f, "predefined_query")

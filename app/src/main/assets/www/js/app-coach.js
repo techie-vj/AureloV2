@@ -1186,12 +1186,13 @@ var CoachOrchestrator = {
         : CoachIntent.BEDTIME_REVENGE_PROCRASTINATION;
     }
 
-    // FIX: "How's my bedtime routine?" — good adherence → HEALTHY_PATTERN.
-    // Poor adherence (sleepScore < 75) → RECOVERY_DAY (stats + structured feedback),
-    // which separates it from "Why do I use my phone at night?" → always BEDTIME_REVENGE.
+    // FIX: bedtime-routine routing — poor adherence routes to
+    // BEDTIME_REVENGE_PROCRASTINATION whose templates actually discuss
+    // Bedtime Mode setup and adherence, not RECOVERY_DAY which talks about
+    // "yesterday was tough" — unrelated to a user asking about their routine.
     if (q.indexOf("bedtime routine") !== -1) {
       if ((summary.sleepScore || 0) >= 75) return CoachIntent.HEALTHY_PATTERN;
-      return CoachIntent.RECOVERY_DAY;
+      return CoachIntent.BEDTIME_REVENGE_PROCRASTINATION;
     }
 
     // FIX: "What's my session completion rate?" — always shows stat.
@@ -1214,14 +1215,19 @@ var CoachOrchestrator = {
       return CoachIntent.FOCUS_PEAK_TIME;
     }
 
-    // FIX: HC questions without HC connected → explain missing signal
-    if ((q.indexOf('hrv') !== -1 || q.indexOf('heart rate variability') !== -1) && !summary.hcConnected) {
+    // FIX: HC questions key off the actual signal availability, not just
+    // hcConnected — a user with HC connected for steps but no HRV grant should
+    // still get the "please grant HRV" explanation.
+    var hasHrv   = summary.hcConnected && summary.hrvToday != null && summary.hrv7DayAvg && summary.hrv7DayAvg > 0;
+    var hasSleep = summary.hcConnected && summary.sleepDurationMinutes != null && summary.sleepDurationMinutes > 0;
+    var hasSteps = summary.hcConnected && summary.stepsToday != null && summary.stepsToday > 0;
+    if ((q.indexOf('hrv') !== -1 || q.indexOf('heart rate variability') !== -1) && !hasHrv) {
       return '_HC_MISSING_HRV';
     }
-    if ((q.indexOf('active enough') !== -1 || q.indexOf('am i active') !== -1 || q.indexOf('steps') !== -1) && !summary.hcConnected) {
+    if ((q.indexOf('active enough') !== -1 || q.indexOf('am i active') !== -1 || q.indexOf('steps') !== -1) && !hasSteps) {
       return '_HC_MISSING_STEPS';
     }
-    if ((q.indexOf('sleep affect') !== -1 || q.indexOf('sleep affect my phone') !== -1) && !summary.hcConnected) {
+    if ((q.indexOf('sleep affect') !== -1 || q.indexOf('sleep affect my phone') !== -1) && !hasSleep) {
       return '_HC_MISSING_SLEEP';
     }
 
