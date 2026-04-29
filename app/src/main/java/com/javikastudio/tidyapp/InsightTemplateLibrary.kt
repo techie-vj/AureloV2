@@ -1219,6 +1219,61 @@ object InsightTemplateLibrary {
             )
         ),
 
+        // ── 14b. FOCUS_ON_TRACK — active-user variant of FOCUS_GAP ────────
+        // Used when the user has actually completed sessions today / this week.
+        // Always surfaces a real completion-rate stat so questions like
+        // "What's my session completion rate?" and "How are my focus sessions
+        // going?" produce data, not generic encouragement.
+        "FOCUS_ON_TRACK" to mapOf(
+            TemplateVariant.ENCOURAGING to listOf(
+                InsightText(
+                    title = "🎯 Focus on track — keep the rhythm",
+                    body  = "You've completed {focus_completed} of {focus_total} sessions this week — " +
+                            "that's a {focus_completion_pct}% completion rate. " +
+                            "Your Focus Score of {focus_score} reflects it. " +
+                            "Keep blocking your top distractor and the rate climbs."
+                ),
+                InsightText(
+                    title = "🎯 Sessions going well",
+                    body  = "{focus_completed} completed, {focus_interrupted} interrupted this week — " +
+                            "a {focus_completion_pct}% completion rate. " +
+                            "That's above the threshold the Focus Score uses for its top band."
+                )
+            ),
+            TemplateVariant.CAUTIONARY to listOf(
+                InsightText(
+                    title = "🎯 Sessions completing, but interruptions stack up",
+                    body  = "You've completed {focus_completed} of {focus_total} this week " +
+                            "({focus_completion_pct}% completion rate). " +
+                            "Closing {top_app} before you start would cut interruptions further."
+                )
+            ),
+            TemplateVariant.CELEBRATORY to listOf(
+                InsightText(
+                    title = "🏆 {focus_completion_pct}% completion rate",
+                    body  = "{focus_completed} completed sessions, {focus_interrupted} interrupted — " +
+                            "a {focus_completion_pct}% rate this week. " +
+                            "Your Focus Score is {focus_score}; protect the rhythm with one session per weekday."
+                )
+            ),
+            TemplateVariant.NEW_USER to listOf(
+                InsightText(
+                    title = "🎯 First sessions logged",
+                    body  = "You've completed {focus_completed} session(s) so far this week — " +
+                            "that's the foundation of the Focus Score. " +
+                            "Two more this week and your habit is on track."
+                )
+            ),
+            TemplateVariant.ESTABLISHED to listOf(
+                InsightText(
+                    title = "🎯 {focus_completion_pct}% completion — your established rhythm",
+                    body  = "Over {data_window_days} days of history you've held a steady focus rhythm. " +
+                            "{focus_completed} completed and {focus_interrupted} interrupted this week " +
+                            "is consistent with your norm. Focus Score: {focus_score}."
+                )
+            )
+        ),
+
         // ── 15. DOPAMINE_LOOP ─────────────────────────────────────────────
         "DOPAMINE_LOOP" to mapOf(
             TemplateVariant.ENCOURAGING to listOf(
@@ -1828,6 +1883,15 @@ object InsightTemplateLibrary {
             s = s.replace("{score_drop}",
                 (summary.aureloScoreYesterday - summary.aureloScore).coerceAtLeast(0).toString())
             s = s.replace("{focus_days_ago}",     summary.daysSinceLastFocus.toString())
+            // FIX: FOCUS_ON_TRACK slots — completion rate + raw counts
+            val fComp = summary.focusSessionsCompleted
+            val fInt  = summary.focusSessionsInterrupted
+            val fTot  = fComp + fInt
+            val fPct  = if (fTot > 0) (fComp * 100 / fTot) else 0
+            s = s.replace("{focus_completed}",   fComp.toString())
+            s = s.replace("{focus_interrupted}", fInt.toString())
+            s = s.replace("{focus_total}",       fTot.toString())
+            s = s.replace("{focus_completion_pct}", fPct.toString())
             s = s.replace("{top_app}",            summary.topApps.firstOrNull()?.label ?: "your top app")
             s = s.replace("{top_category}",       safeTopCategory(summary.topCategory))
             s = s.replace("{data_window_days}",   summary.dataWindowDays.toString())

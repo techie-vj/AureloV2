@@ -615,8 +615,11 @@ class CoachOrchestrator(
             }
         }
 
+        // FIX: don't promote FOCUS_GAP over an explicit FOCUS_ON_TRACK
+        // (active-user) routing or other already-specific intents.
         if (
             summary.daysSinceLastFocus >= 3 &&
+            baseIntent != "FOCUS_ON_TRACK" &&
             (baseIntent == "GENERAL_SUMMARY" || q.contains("focus") || q.contains("session"))
         ) {
             return "FOCUS_GAP"
@@ -979,25 +982,25 @@ class CoachOrchestrator(
                 else
                     ClassifiedIntent("FOCUS_BURNOUT", 1.0f, "predefined_query")
 
-            // FIX: separate "How are my focus sessions going?" from "What's my session
-            // completion rate?" — the completion-rate question always shows a stat.
-            // When sessions exist → PRODUCTIVE_DAY (reflects current session performance);
-            // when no sessions → FOCUS_GAP (explains the gap, prompts to start).
+            // FIX: "What's my session completion rate?" / "How are my focus
+            // sessions going?" now route to FOCUS_ON_TRACK whenever the user
+            // has completed *or* interrupted at least one session this week.
+            // FOCUS_ON_TRACK templates always print the actual stat. Without
+            // any sessions yet → FOCUS_GAP, which explains the gap.
             q.contains("session completion rate") ||
                     q.contains("what's my session completion") ||
                     q.contains("what is my session completion") ||
-                    q.contains("completion rate") -> {
-                if (summary.focusSessionsCompleted > 0 || summary.focusSessionsInterrupted > 0)
-                    ClassifiedIntent("PRODUCTIVE_DAY", 1.0f, "predefined_query")
-                else
-                    ClassifiedIntent("FOCUS_GAP", 1.0f, "predefined_query")
+                    q.contains("completion rate") ||
+                    q.contains("how are my focus sessions going") ||
+                    q.contains("focus sessions going") -> {
+                val hasSessions = summary.focusSessionsCompleted > 0 ||
+                        summary.focusSessionsInterrupted > 0
+                ClassifiedIntent(
+                    if (hasSessions) "FOCUS_ON_TRACK" else "FOCUS_GAP",
+                    1.0f,
+                    "predefined_query",
+                )
             }
-
-            // FIX: active-user path — if user has sessions today, FOCUS_GAP template
-            // handles it correctly with the completion-rate branch
-            q.contains("how are my focus sessions going") ||
-                    q.contains("focus sessions going") ->
-                ClassifiedIntent("FOCUS_GAP", 1.0f, "predefined_query")
 
             // FIX: FOCUS_PEAK_TIME (was wrongly GENERAL_SUMMARY)
             q.contains("when is my most focused time") ||
@@ -1550,6 +1553,7 @@ class CoachOrchestrator(
                 listOf("When is my most focused time?", "Which apps should I block?", "How do I reach Excellent?")
             else
                 listOf("Start a 10-minute focus session", "Which apps should I block?", "What's my session completion rate?")
+            "FOCUS_ON_TRACK" -> listOf("When is my most focused time?", "How do I reach Excellent?", "What's my best habit right now?")
             // FIX: "Start a focus session now" is an action — replaced with question routing to FOCUS_GAP
             "FOCUS_PEAK_TIME" -> listOf("How do I start a focus session?", "How does first-use time affect my score?", "What's a good session length?")
             // FIX: "Start a 5-minute focus session" is an action; route new question to FOCUS_GAP via predefined
@@ -1649,6 +1653,7 @@ class CoachOrchestrator(
             "GOAL_SETTING_ADVICE",
             "APP_DEEP_DIVE",
             "FOCUS_PEAK_TIME",
+            "FOCUS_ON_TRACK",
         )
     }
 }
