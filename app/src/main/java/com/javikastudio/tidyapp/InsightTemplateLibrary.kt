@@ -1219,6 +1219,61 @@ object InsightTemplateLibrary {
             )
         ),
 
+        // ── 14b. FOCUS_ON_TRACK — active-user variant of FOCUS_GAP ────────
+        // Used when the user has actually completed sessions today / this week.
+        // Always surfaces a real completion-rate stat so questions like
+        // "What's my session completion rate?" and "How are my focus sessions
+        // going?" produce data, not generic encouragement.
+        "FOCUS_ON_TRACK" to mapOf(
+            TemplateVariant.ENCOURAGING to listOf(
+                InsightText(
+                    title = "🎯 Focus on track — keep the rhythm",
+                    body  = "You've completed {focus_completed} of {focus_total} sessions this week — " +
+                            "that's a {focus_completion_pct}% completion rate. " +
+                            "Your Focus Score of {focus_score} reflects it. " +
+                            "Keep blocking your top distractor and the rate climbs."
+                ),
+                InsightText(
+                    title = "🎯 Sessions going well",
+                    body  = "{focus_completed} completed, {focus_interrupted} interrupted this week — " +
+                            "a {focus_completion_pct}% completion rate. " +
+                            "That's above the threshold the Focus Score uses for its top band."
+                )
+            ),
+            TemplateVariant.CAUTIONARY to listOf(
+                InsightText(
+                    title = "🎯 Sessions completing, but interruptions stack up",
+                    body  = "You've completed {focus_completed} of {focus_total} this week " +
+                            "({focus_completion_pct}% completion rate). " +
+                            "Closing {top_app} before you start would cut interruptions further."
+                )
+            ),
+            TemplateVariant.CELEBRATORY to listOf(
+                InsightText(
+                    title = "🏆 {focus_completion_pct}% completion rate",
+                    body  = "{focus_completed} completed sessions, {focus_interrupted} interrupted — " +
+                            "a {focus_completion_pct}% rate this week. " +
+                            "Your Focus Score is {focus_score}; protect the rhythm with one session per weekday."
+                )
+            ),
+            TemplateVariant.NEW_USER to listOf(
+                InsightText(
+                    title = "🎯 First sessions logged",
+                    body  = "You've completed {focus_completed} session(s) so far this week — " +
+                            "that's the foundation of the Focus Score. " +
+                            "Two more this week and your habit is on track."
+                )
+            ),
+            TemplateVariant.ESTABLISHED to listOf(
+                InsightText(
+                    title = "🎯 {focus_completion_pct}% completion — your established rhythm",
+                    body  = "Over {data_window_days} days of history you've held a steady focus rhythm. " +
+                            "{focus_completed} completed and {focus_interrupted} interrupted this week " +
+                            "is consistent with your norm. Focus Score: {focus_score}."
+                )
+            )
+        ),
+
         // ── 15. DOPAMINE_LOOP ─────────────────────────────────────────────
         "DOPAMINE_LOOP" to mapOf(
             TemplateVariant.ENCOURAGING to listOf(
@@ -1300,28 +1355,31 @@ object InsightTemplateLibrary {
         ),
 
         // ── 17. FOCUS_PEAK_TIME [NEW v1.2.1] ─────────────────────────────
+        // {peak_focus_window} — computed from cached hourly usage by the
+        // orchestrator and substituted in resolveOrchestratorSlots; falls
+        // back to "9–11 AM" when no hourly data is available yet.
         "FOCUS_PEAK_TIME" to mapOf(
             TemplateVariant.ENCOURAGING to listOf(
                 InsightText(
                     title = "⏱ Your best focus window",
-                    body  = "Based on your usage pattern, your lowest-distraction window is typically 10 AM–12 PM — " +
-                            "that's when pickups are fewest and screen time hasn't built up yet. " +
+                    body  = "Based on your hourly usage pattern, your lowest-distraction window is typically " +
+                            "{peak_focus_window} — that's when your pickups are fewest. " +
                             "Your first use today was at {first_use_hour}:00. " +
                             "Schedule your most demanding focus sessions here for best results."
                 ),
                 InsightText(
                     title = "⏱ When focus is easiest",
-                    body  = "Morning hours — before your pickup rate climbs — are your clearest window. " +
+                    body  = "Your clearest window is {peak_focus_window} — that's when your historical " +
+                            "pickup rate is lowest. " +
                             "First use at {first_use_hour}:00 sets the baseline. " +
-                            "Every hour you delay opening your phone extends that focused window. " +
-                            "Try a Deep session between 9–11 AM tomorrow."
+                            "Every hour you delay opening your phone extends that focused window."
                 )
             ),
             TemplateVariant.CAUTIONARY to listOf(
                 InsightText(
                     title = "⏱ Finding your focus window",
                     body  = "Your pickup count climbs through the day — today {pickups_today} pickups suggests attention " +
-                            "has been scattered. Your clearest window is usually first thing in the morning before social apps pull you in. " +
+                            "has been scattered. Based on your data your clearest window is {peak_focus_window}. " +
                             "First use was at {first_use_hour}:00. " +
                             "Tomorrow: delay first use to 9 AM and start a focus session before checking anything else."
                 )
@@ -1329,23 +1387,25 @@ object InsightTemplateLibrary {
             TemplateVariant.CELEBRATORY to listOf(
                 InsightText(
                     title = "⏱ You've found your rhythm",
-                    body  = "First use at {first_use_hour}:00 and {focus_score} focus score — your morning window is working. " +
-                            "Your {streak_days}-day streak shows consistency in protecting that early focus time. " +
-                            "Keep scheduling your hardest tasks in the 9 AM–12 PM slot."
+                    body  = "First use at {first_use_hour}:00 and {focus_score} focus score — your peak window " +
+                            "({peak_focus_window}) is working. " +
+                            "Your {streak_days}-day streak shows consistency in protecting that focus time. " +
+                            "Keep scheduling your hardest tasks here."
                 )
             ),
             TemplateVariant.NEW_USER to listOf(
                 InsightText(
                     title = "⏱ Finding your focus window",
-                    body  = "Aurelo is still learning your patterns — after a few more days it can pinpoint your sharpest hours. " +
+                    body  = "Aurelo is still learning your patterns — after a few more days it can pinpoint " +
+                            "your sharpest hours. " +
                             "A good starting point: try your first focus session before 10 AM tomorrow and see how it feels."
                 )
             ),
             TemplateVariant.ESTABLISHED to listOf(
                 InsightText(
                     title = "⏱ Your peak focus window",
-                    body  = "Over {data_window_days} days your data shows your lowest-distraction hours are in the late morning. " +
-                            "Pickups hit their daily minimum between 9–11 AM for you. " +
+                    body  = "Over {data_window_days} days your data shows your lowest-distraction hours are " +
+                            "{peak_focus_window}. " +
                             "Block that window for deep work — your Focus Score of {focus_score} will benefit most from protecting it."
                 )
             )
@@ -1697,8 +1757,14 @@ object InsightTemplateLibrary {
                     summary.aureloScore > 0
                 TemplateCondition.PICKUP_AVG_AVAILABLE ->
                     summary.pickups7DayAvg > 0f
-                TemplateCondition.SOCIAL_CATEGORY_AVAILABLE ->
-                    summary.topCategory.equals("Social", ignoreCase = true)
+                TemplateCondition.SOCIAL_CATEGORY_AVAILABLE -> {
+                    // FIX: now that topCategory carries the canonical multi-word
+                    // value ("Social & Communication") we accept either.
+                    val c = summary.topCategory.lowercase()
+                    c == "social" ||
+                        c == Categories.SOCIAL.lowercase() ||
+                        c.startsWith("social ")
+                }
             }
         }
     }
@@ -1822,6 +1888,15 @@ object InsightTemplateLibrary {
             s = s.replace("{score_drop}",
                 (summary.aureloScoreYesterday - summary.aureloScore).coerceAtLeast(0).toString())
             s = s.replace("{focus_days_ago}",     summary.daysSinceLastFocus.toString())
+            // FIX: FOCUS_ON_TRACK slots — completion rate + raw counts
+            val fComp = summary.focusSessionsCompleted
+            val fInt  = summary.focusSessionsInterrupted
+            val fTot  = fComp + fInt
+            val fPct  = if (fTot > 0) (fComp * 100 / fTot) else 0
+            s = s.replace("{focus_completed}",   fComp.toString())
+            s = s.replace("{focus_interrupted}", fInt.toString())
+            s = s.replace("{focus_total}",       fTot.toString())
+            s = s.replace("{focus_completion_pct}", fPct.toString())
             s = s.replace("{top_app}",            summary.topApps.firstOrNull()?.label ?: "your top app")
             s = s.replace("{top_category}",       safeTopCategory(summary.topCategory))
             s = s.replace("{data_window_days}",   summary.dataWindowDays.toString())
@@ -1879,6 +1954,11 @@ object InsightTemplateLibrary {
                 .replace("0% below", "near")
                 .replace("0% above", "near")
                 .replace("1 days", "1 day")
+                .replace("1 pts", "1 pt")
+                .replace("1 points", "1 point")
+                .replace("1 hours", "1 hour")
+                .replace("1 sessions", "1 session")
+                .replace("1 minutes", "1 minute")
                 .replace("  ", " ")
 
             return s

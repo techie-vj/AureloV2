@@ -429,7 +429,7 @@ var PatternDetector = {
     }
 
     // Social spiral
-    if (summary.topCategory === 'Social') {
+    if (_isSocialDominant(summary.topCategory)) {
       found.push({ intent: CoachIntent.SOCIAL_SPIRAL, priority: 5, data: {} });
     }
 
@@ -520,8 +520,20 @@ var PatternDetector = {
  * 5. HELPERS
  * ───────────────────────────────────────────────────────────────────────── */
 
-/** Compute weakest pillar by lowest weighted contribution — no yesterday data needed */
+/** True when the user's top category is some flavour of "Social". Accepts both
+ *  the legacy short label ("Social") and the canonical multi-word name
+ *  ("Social & Communication") that the native side now emits. */
+function _isSocialDominant(cat) {
+  if (!cat) return false;
+  var c = String(cat).toLowerCase();
+  return c === 'social' || c === 'social & communication' || c.indexOf('social ') === 0;
+}
+
+/** Compute weakest pillar by lowest weighted contribution — no yesterday data needed.
+ *  Returns null when no pillar score has been computed yet so callers can skip
+ *  the "main driver was your X Score (0)" injection on fresh installs. */
 function _worstPillar(s) {
+  if (!(s.screenScore || s.focusScore || s.sleepScore)) return null;
   var screenW = (s.screenScore || 0) * 0.40;
   var focusW  = (s.focusScore  || 0) * 0.35;
   var sleepW  = (s.sleepScore  || 0) * 0.25;
@@ -559,7 +571,10 @@ var TemplateLibrary = {
     SCORE_DROP: [
       {
         text: function(s) {
-          // FIX: pillar-specific explanation
+          // FIX: pillar-specific explanation, but skip when no pillar scores
+          // have been computed yet (fresh-install state) so we don't print
+          // "main driver was your Focus Score (0) — 35%" to a user who has
+          // never had a focus session.
           var pillar = _worstPillar(s);
           var drop = Math.abs(s.aureloScore - s.aureloScoreYesterday);
           var pillarMsg = '';
@@ -567,7 +582,7 @@ var TemplateLibrary = {
             pillarMsg = ' The main drag was your <strong>Focus Score (' + (s.focusScore || '–') + ')</strong> — it contributes 35% of your Aurelo Score. Completing a session today will start recovering it.';
           } else if (pillar === 'sleep') {
             pillarMsg = ' The main drag was your <strong>Sleep Score (' + (s.sleepScore || '–') + ')</strong> — it contributes 25% of your Aurelo Score. Enable Bedtime Mode tonight to protect tomorrow.';
-          } else {
+          } else if (pillar === 'screen') {
             pillarMsg = ' The main drag was your <strong>Screen Score (' + (s.screenScore || '–') + ')</strong> — pickup count or first-use time moved against you.';
           }
           var hcNote = s.hcConnected && s.hrvToday && s.hrv7DayAvg && s.hrvToday < s.hrv7DayAvg
@@ -946,6 +961,17 @@ var ChipGenerator = {
     var chips = [];
     var hour = summary.currentHour || 14;
 
+    // FIX: zero-data state — fresh installs / no usage permission yet have
+    // no meaningful chips to surface. Return a single onboarding-flavoured
+    // chip that routes to the FEATURE_EXPLANATION welcome copy instead of
+    // the misleading "What's my Tuesday pattern?" default.
+    var noData = !summary.aureloScore && !summary.todayMinutes && !summary.pickupsToday;
+    if (noData || summary.dataWindowDays < 3) {
+      chips.push({ label: 'What can Aurelo help me with?', intent: CoachIntent.FEATURE_EXPLANATION });
+      chips.push({ label: 'How does the score work?',      intent: CoachIntent.FEATURE_EXPLANATION });
+      return chips;
+    }
+
     // FIX: direction-aware score chip
     var scoreDelta = (summary.aureloScore || 0) - (summary.aureloScoreYesterday || 0);
     if (scoreDelta < -4) {
@@ -981,7 +1007,7 @@ var ChipGenerator = {
     }
 
     // Social spiral
-    if (summary.topCategory === 'Social' && summary.pickupsToday > summary.pickups7DayAvg * 1.2) {
+    if (_isSocialDominant(summary.topCategory) && summary.pickupsToday > summary.pickups7DayAvg * 1.2) {
       chips.push({ label: 'Why do I keep opening ' + (summary.topApps && summary.topApps[0] || 'social apps') + '?', intent: CoachIntent.DOPAMINE_LOOP });
     }
 
@@ -1112,15 +1138,28 @@ var CoachOrchestrator = {
         : CoachIntent.PRODUCTIVE_DAY;
     }
 
-    // FIX: "Why did my score change?" — direction-aware
+    // FIX: "Why did my score change?" — direction-aware with no-baseline guard.
     if (q.indexOf('score change') !== -1 || q.indexOf('why did my score') !== -1) {
-      var delta = (summary.aureloScore || 0) - (summary.aureloScoreYesterday || 0);
-      return delta >= 0 ? CoachIntent.PRODUCTIVE_DAY : CoachIntent.SCORE_DROP;
+      var ys = summary.aureloScoreYesterday || 0;
+      if (ys <= 0) return CoachIntent.GENERAL_SUMMARY;
+      var delta = (summary.aureloScore || 0) - ys;
+      if (delta < 0) return CoachIntent.SCORE_DROP;
+      if (delta === 0) return CoachIntent.HEALTHY_PATTERN;
+      return CoachIntent.PRODUCTIVE_DAY;
     }
 
-    // FIX: "What's dragging my score down?" — pillar-aware so it differs from "why did my score change"
+    // FIX: "What's dragging my score down?" — pillar-aware with a no-drag guard
+    // so the response doesn't fabricate a problem on a great-score day.
     if (q.indexOf("dragging my score") !== -1 || q.indexOf("what's dragging") !== -1) {
-      if ((summary.focusScore || 100) < 60) return CoachIntent.FOCUS_GAP;
+      var noDrag = (summary.aureloScore || 0) >= 80 &&
+                   (summary.screenScore || 0) >= 65 &&
+                   (summary.focusScore  || 0) >= 65 &&
+                   (summary.sleepScore  || 0) >= 65;
+      if (noDrag) return CoachIntent.HEALTHY_PATTERN;
+      var allZero = !(summary.screenScore || summary.focusScore || summary.sleepScore);
+      if (allZero) return CoachIntent.GENERAL_SUMMARY;
+      var fs = summary.focusScore || 0;
+      if (fs > 0 && fs < 60) return CoachIntent.FOCUS_GAP;
       if ((summary.firstUseHour || 9) < 8) return CoachIntent.MORNING_DOOM_SCROLL;
       return CoachIntent.SCORE_DROP;
     }
@@ -1129,17 +1168,42 @@ var CoachOrchestrator = {
     // case to avoid overlap with "Do I have a dopamine loop?" → DOPAMINE_LOOP.
     if (q.indexOf('triggers my phone') !== -1 || q.indexOf('trigger my phone') !== -1) {
       if ((summary.firstUseHour || 9) < 8) return CoachIntent.MORNING_DOOM_SCROLL;
-      if (summary.topCategory === 'Social') return CoachIntent.SOCIAL_SPIRAL;
+      if (_isSocialDominant(summary.topCategory)) return CoachIntent.SOCIAL_SPIRAL;
       if (summary.pickupsToday > summary.pickups7DayAvg * 1.3) return CoachIntent.ANOMALOUS_SPIKE;
       return CoachIntent.MORNING_DOOM_SCROLL;
     }
 
-    // FIX: "How's my bedtime routine?" — good adherence → HEALTHY_PATTERN.
-    // Poor adherence (sleepScore < 75) → RECOVERY_DAY (stats + structured feedback),
-    // which separates it from "Why do I use my phone at night?" → always BEDTIME_REVENGE.
+    // FIX: data-guarded predefined questions — don't force a negative diagnosis
+    // on users whose data doesn't support it.
+    if (q.indexOf('am i on social media too much') !== -1 ||
+        q.indexOf('social media too much') !== -1) {
+      return _isSocialDominant(summary.topCategory)
+        ? CoachIntent.SOCIAL_SPIRAL : CoachIntent.HEALTHY_PATTERN;
+    }
+    if (q.indexOf('do i have a dopamine loop') !== -1 || q === 'dopamine loop') {
+      var avgPick = summary.pickups7DayAvg || 0;
+      if (avgPick > 0 && summary.pickupsToday < avgPick) return CoachIntent.HEALTHY_PATTERN;
+      return CoachIntent.DOPAMINE_LOOP;
+    }
+    if (q.indexOf("why can't i focus") !== -1 || q.indexOf('why cant i focus') !== -1) {
+      if ((summary.focusSessionsCompleted || 0) > 0 &&
+          (summary.focusSessionsFail || 0) === 0) return CoachIntent.PRODUCTIVE_DAY;
+      return CoachIntent.FOCUS_BURNOUT;
+    }
+    if (q.indexOf('why do i use my phone at night') !== -1 ||
+        q.indexOf('phone at night') !== -1) {
+      return (summary.sleepScore || 0) >= 75
+        ? CoachIntent.HEALTHY_PATTERN
+        : CoachIntent.BEDTIME_REVENGE_PROCRASTINATION;
+    }
+
+    // FIX: bedtime-routine routing — poor adherence routes to
+    // BEDTIME_REVENGE_PROCRASTINATION whose templates actually discuss
+    // Bedtime Mode setup and adherence, not RECOVERY_DAY which talks about
+    // "yesterday was tough" — unrelated to a user asking about their routine.
     if (q.indexOf("bedtime routine") !== -1) {
       if ((summary.sleepScore || 0) >= 75) return CoachIntent.HEALTHY_PATTERN;
-      return CoachIntent.RECOVERY_DAY;
+      return CoachIntent.BEDTIME_REVENGE_PROCRASTINATION;
     }
 
     // FIX: "What's my session completion rate?" — always shows stat.
@@ -1162,14 +1226,19 @@ var CoachOrchestrator = {
       return CoachIntent.FOCUS_PEAK_TIME;
     }
 
-    // FIX: HC questions without HC connected → explain missing signal
-    if ((q.indexOf('hrv') !== -1 || q.indexOf('heart rate variability') !== -1) && !summary.hcConnected) {
+    // FIX: HC questions key off the actual signal availability, not just
+    // hcConnected — a user with HC connected for steps but no HRV grant should
+    // still get the "please grant HRV" explanation.
+    var hasHrv   = summary.hcConnected && summary.hrvToday != null && summary.hrv7DayAvg && summary.hrv7DayAvg > 0;
+    var hasSleep = summary.hcConnected && summary.sleepDurationMinutes != null && summary.sleepDurationMinutes > 0;
+    var hasSteps = summary.hcConnected && summary.stepsToday != null && summary.stepsToday > 0;
+    if ((q.indexOf('hrv') !== -1 || q.indexOf('heart rate variability') !== -1) && !hasHrv) {
       return '_HC_MISSING_HRV';
     }
-    if ((q.indexOf('active enough') !== -1 || q.indexOf('am i active') !== -1 || q.indexOf('steps') !== -1) && !summary.hcConnected) {
+    if ((q.indexOf('active enough') !== -1 || q.indexOf('am i active') !== -1 || q.indexOf('steps') !== -1) && !hasSteps) {
       return '_HC_MISSING_STEPS';
     }
-    if ((q.indexOf('sleep affect') !== -1 || q.indexOf('sleep affect my phone') !== -1) && !summary.hcConnected) {
+    if ((q.indexOf('sleep affect') !== -1 || q.indexOf('sleep affect my phone') !== -1) && !hasSleep) {
       return '_HC_MISSING_SLEEP';
     }
 
@@ -1508,7 +1577,14 @@ window.CoachUI = {
           self._addCoachMsg(html, result.followUps || []);
         }
         self._hideIntroAndChips();
-        AureloCoach.QueryGate.increment();
+        // FIX: don't burn a query against the free daily limit when the
+        // response was an explicit error fallback (bridge timeout, HC failure,
+        // etc.) — those aren't useful answers and shouldn't count.
+        var src = result && (result.source || (result.response && result.response.source)) || '';
+        var isErrorFallback = src === 'error' || (result && result.usedFallback === true && !result.intent);
+        if (!isErrorFallback) {
+          AureloCoach.QueryGate.increment();
+        }
       } catch (err) {
         self._removeTyping();
         self._addCoachMsg(

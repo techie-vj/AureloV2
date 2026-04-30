@@ -35,6 +35,10 @@ class CoachBridge(
         private const val KEY_COACH_QUERY_DATE   = "coach_query_date"
         private const val KEY_COACH_INSIGHT_JSON = "coach_daily_insight_json"
         private const val KEY_COACH_INSIGHT_DATE = "coach_daily_insight_date"
+        // Per-day dismissed flag for the home insight card. Stored as YYYYMMDD
+        // so it expires automatically when the day rolls over and the user
+        // sees a fresh insight in the morning.
+        private const val KEY_COACH_INSIGHT_DISMISSED_DATE = "coach_insight_dismissed_date"
         private const val KEY_TAB_INSIGHT_PREFIX = "tab_coach_insight_"
         private const val FREE_DAILY_LIMIT = 3
     }
@@ -96,6 +100,30 @@ class CoachBridge(
     }
 
     /**
+     * Returns "1" when the user dismissed today's home insight card, "0"
+     * otherwise. Mirrors the JS-side localStorage key
+     * `coach_insight_dismissed_v1_YYYY-MM-DD` so dismissal state is consistent
+     * between WebView storage and SharedPreferences.
+     */
+    @JavascriptInterface
+    fun getCoachInsightDismissed(): String {
+        val today = todayKey()
+        val storedDate = prefs.getString(KEY_COACH_INSIGHT_DISMISSED_DATE, "") ?: ""
+        return if (storedDate == today) "1" else "0"
+    }
+
+    /**
+     * Marks today's home insight card as dismissed. The flag clears
+     * automatically when the day rolls over.
+     */
+    @JavascriptInterface
+    fun setCoachInsightDismissed() {
+        prefs.edit()
+            .putString(KEY_COACH_INSIGHT_DISMISSED_DATE, todayKey())
+            .apply()
+    }
+
+    /**
      * Called by CoachInsightWorker to cache the day's computed insight.
      * [json] must match the shape expected by getDailyCoachInsight().
      */
@@ -134,6 +162,23 @@ class CoachBridge(
         val aureloScoreYesterday = prefs.getInt("cached_aurelo_score_yesterday", 0)
         val daysSinceFocus = prefs.getInt("days_since_last_focus_cached", 3)
         val hour = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
+        val pickupsToday = prefs.getInt("cached_pickups", 0)
+
+        // FIX: zero-data fallback — fresh installs would otherwise only see the
+        // day-of-week chip ("What's my Tuesday pattern?") which routes to a
+        // GENERAL_SUMMARY response that has no data to summarise. Surface
+        // onboarding-flavoured chips instead.
+        if (aureloScore == 0 && todayMins == 0 && pickupsToday == 0) {
+            arr.put(JSONObject().apply {
+                put("label",  "What can Aurelo help me with?")
+                put("intent", "FEATURE_EXPLANATION")
+            })
+            arr.put(JSONObject().apply {
+                put("label",  "How does the score work?")
+                put("intent", "FEATURE_EXPLANATION")
+            })
+            return arr
+        }
 
         // Score drop chip
         if (aureloScoreYesterday - aureloScore > 4) {
@@ -213,7 +258,9 @@ class CoachBridge(
                 } else HCDailyData(isAvailable = false)
             }
 
-            val summary = UsageSummaryBuilder(context, prefs).build(hcData, dataWindowDays = 7)
+            // FIX: drop the hard-coded 7-day window so the orchestrator can
+            // surface ESTABLISHED-variant copy for users with 30+ days of data.
+            val summary = UsageSummaryBuilder(context, prefs).build(hcData)
             val answer  = CoachOrchestrator(context).answer(query, summary)
             val result  = answer.toJson()
 
@@ -367,8 +414,7 @@ class CoachBridge(
                 }
             }
 
-            val summary = UsageSummaryBuilder(context, prefs)
-                .build(hcData, dataWindowDays = 7)
+            val summary = UsageSummaryBuilder(context, prefs).build(hcData)
 
             CoachOrchestrator(context)
                 .answer(query, summary)

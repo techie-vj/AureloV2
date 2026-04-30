@@ -105,7 +105,11 @@ class CoachInsightWorker(
             }
 
             val summaryBuilder = UsageSummaryBuilder(context, prefs)
-            val summary = summaryBuilder.build(hcData, dataWindowDays = 7)
+            // FIX: drop the hard-coded 7-day window so InsightTemplateLibrary
+            // can surface ESTABLISHED-variant copy for users with 30+ days of
+            // data. UsageSummaryBuilder now derives the window from cached
+            // history depth.
+            val summary = summaryBuilder.build(hcData)
 
             // Run pattern detection ────────────────────────────────────────
             val patterns = KotlinPatternDetector.detectAll(summary)
