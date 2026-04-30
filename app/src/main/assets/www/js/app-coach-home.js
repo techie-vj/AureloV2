@@ -116,16 +116,6 @@
     };
 
     card.style.display = '';
-    if (card && card.style.display !== 'none') {
-        _ensureSectionLabel(
-          'coach-home-insight',
-          'home-coach-sec-label',
-          'Coach Insight',
-          ''
-        );
-      }
-
-    if (typeof HealthConnect !== 'undefined') HealthConnect.renderHomeBanner();
   }
 
   /* ── Load insight ───────────────────────────────────────────────────────── */
@@ -173,67 +163,65 @@
 
   /* ── Create card DOM ────────────────────────────────────────────────────── */
 
-  function _createInsightCard() {
-    var hcBanner = document.getElementById('hc-home-banner');
-    var screen   = document.getElementById('screen-home');
-    var parent   = (hcBanner && hcBanner.parentNode) ? hcBanner.parentNode : screen;
-    if (!parent) return null;
+function _createInsightCard() {
+  var screen = document.getElementById('screen-home');
+  if (!screen) return null;
 
-    var card = document.createElement('div');
-    card.id  = 'coach-home-insight';
-    card.style.display = 'none';
-    card.setAttribute('role', 'button');
-    card.setAttribute('tabindex', '0');
-    card.setAttribute('aria-label', 'Aurelo Coach daily insight — tap to read full insight');
+  var card = document.createElement('div');
+  card.id = 'coach-home-insight';
+  card.style.display = 'none';
+  card.setAttribute('role', 'button');
+  card.setAttribute('tabindex', '0');
+  card.setAttribute('aria-label', 'Aurelo Coach daily insight — tap to read full insight');
 
-    // Aurelo arch logo — prefix 'chi' on gradient IDs to avoid SVG defs clashes
-    var ARCH_SVG =
-      '<svg width="14" height="14" viewBox="0 0 108 108" fill="none" overflow="visible">' +
-        '<defs>' +
-          '<linearGradient id="chiGa" x1="28" y1="20" x2="80" y2="90" gradientUnits="userSpaceOnUse">' +
-            '<stop offset="0%" stop-color="#FFE082"/>' +
-            '<stop offset="55%" stop-color="#FFAA44"/>' +
-            '<stop offset="100%" stop-color="#FF7020"/>' +
-          '</linearGradient>' +
-        '</defs>' +
-        '<path d="M 22 88 C 22 88 30 30 54 20 C 78 30 86 88 86 88" stroke="url(#chiGa)" stroke-width="9" fill="none" stroke-linecap="round"/>' +
-        '<circle cx="54" cy="20" r="6" fill="#FFE082"/>' +
-      '</svg>';
+  var ARCH_SVG =
+    '<svg width="14" height="14" viewBox="0 0 108 108" fill="none" overflow="visible">' +
+      '<defs>' +
+        '<linearGradient id="chiGa" x1="28" y1="20" x2="80" y2="90" gradientUnits="userSpaceOnUse">' +
+          '<stop offset="0%" stop-color="#FFE082"/>' +
+          '<stop offset="55%" stop-color="#FFAA44"/>' +
+          '<stop offset="100%" stop-color="#FF7020"/>' +
+        '</linearGradient>' +
+      '</defs>' +
+      '<path d="M 22 88 C 22 88 30 30 54 20 C 78 30 86 88 86 88" stroke="url(#chiGa)" stroke-width="9" fill="none" stroke-linecap="round"/>' +
+      '<circle cx="54" cy="20" r="6" fill="#FFE082"/>' +
+    '</svg>';
 
-    card.innerHTML =
-      '<div class="coach-home-insight-inner">' +
-        '<div class="coach-home-insight-hdr">' +
-          '<div class="coach-home-insight-hdr-left">' +
-            '<div class="coach-home-insight-icon">' + ARCH_SVG + '</div>' +
-            '<div class="coach-home-insight-label">Aurelo Coach \xb7 Today</div>' +
-            '<div class="coach-home-insight-hc-badge" style="display:none">Health Connect</div>' +
-          '</div>' +
-          '<div class="coach-home-insight-timestamp"></div>' +
+  card.innerHTML =
+    '<div class="coach-home-insight-inner">' +
+      '<div class="coach-home-insight-hdr">' +
+        '<div class="coach-home-insight-hdr-left">' +
+          '<div class="coach-home-insight-icon">' + ARCH_SVG + '</div>' +
+          '<div class="coach-home-insight-label">Aurelo Coach \xb7 Today</div>' +
+          '<div class="coach-home-insight-hc-badge" style="display:none">Health Connect</div>' +
         '</div>' +
-        '<div class="coach-home-insight-title"></div>' +
-        '<div class="coach-home-insight-body"></div>' +
-        '<div class="coach-home-insight-actions">' +
-          '<div class="coach-home-insight-cta">Ask follow\u2011up \u2192</div>' +
-          '<div class="coach-home-insight-dismiss">Got it</div>' +
-        '</div>' +
-        '<div class="coach-home-insight-source">' +
-          '<svg width="10" height="10" viewBox="0 0 10 10" fill="none">' +
-            '<rect x="1" y="1" width="8" height="8" rx="1.5" stroke="#5C5278" stroke-width="1"/>' +
-            '<path d="M3 5h4M3 3.5h2.5M3 6.5h2" stroke="#5C5278" stroke-width="0.8" stroke-linecap="round"/>' +
-          '</svg>' +
-          'On\u2011device \xb7 Private' +
-        '</div>' +
-      '</div>';
+        '<div class="coach-home-insight-timestamp"></div>' +
+      '</div>' +
+      '<div class="coach-home-insight-title"></div>' +
+      '<div class="coach-home-insight-body"></div>' +
+      '<div class="coach-home-insight-actions">' +
+        '<div class="coach-home-insight-cta">Ask follow\u2011up \u2192</div>' +
+        '<div class="coach-home-insight-dismiss">Got it</div>' +
+      '</div>' +
+      '<div class="coach-home-insight-source">' +
+        '<svg width="10" height="10" viewBox="0 0 10 10" fill="none">' +
+          '<rect x="1" y="1" width="8" height="8" rx="1.5" stroke="#5C5278" stroke-width="1"/>' +
+          '<path d="M3 5h4M3 3.5h2.5M3 6.5h2" stroke="#5C5278" stroke-width="0.8" stroke-linecap="round"/>' +
+        '</svg>' +
+        'On\u2011device \xb7 Private' +
+      '</div>' +
+    '</div>';
 
-    var insertAfter = hcBanner || parent.querySelector('.home-goal-card') || parent.firstElementChild;
-    if (insertAfter && insertAfter.nextSibling) {
-      parent.insertBefore(card, insertAfter.nextSibling);
-    } else {
-      parent.appendChild(card);
-    }
-
-    return card;
+  // ── Insertion: use named anchor if present, otherwise append to screen ──
+  var anchor = document.getElementById('coach-home-insight-anchor');
+  if (anchor && anchor.parentNode) {
+    anchor.parentNode.insertBefore(card, anchor);
+  } else {
+    screen.appendChild(card);
   }
+
+  return card;   // always return the node — never null after this point
+}
 
   /* ── Helpers ────────────────────────────────────────────────────────────── */
 

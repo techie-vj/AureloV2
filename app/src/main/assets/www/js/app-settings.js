@@ -824,8 +824,28 @@ function nCall(method,...args){ try{ if(N&&typeof N[method]==='function') return
        the user taps a Health Connect prompt on the home screen. */
     function openSettingsWithHC() {
       if (typeof activateTab === 'function') activateTab('settings');
-      // setTimeout gives the settings screen time to fully render before expanding
-      setTimeout(() => toggleHCSettingsSection(true), 80);
+
+      // Step 1 — reset scroll immediately so we start from top
+      requestAnimationFrame(function () {
+        var screen = document.getElementById('screen-settings');
+        if (screen) screen.scrollTop = 0;
+      });
+
+      // Step 2 — expand section (existing 80ms delay kept)
+      setTimeout(function () {
+        toggleHCSettingsSection(true);
+
+        // Step 3 — scroll HC section into view after it's visible
+        setTimeout(function () {
+          var target = document.getElementById('hc-settings-inner');
+          if (target && target.parentNode) {
+            // Scroll to the parent row so the header is visible too
+            target.parentNode.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          } else if (target) {
+            target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }
+        }, 80); // small extra delay after expand paint
+      }, 80);
     }
 
 /* ═══ BOOT ════════════════════════════════════════════ */
