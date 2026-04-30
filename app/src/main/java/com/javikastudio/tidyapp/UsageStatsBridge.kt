@@ -317,61 +317,29 @@ class UsageStatsBridge(
     @Suppress("DEPRECATION")
     internal fun buildUsageSnapshot(): JSONObject {
         val now = System.currentTimeMillis(); val dayStart = startOfToday()
-
-        // ── NEW: fetch system daily stats as a sanity ceiling ──────────────────
-        val systemDailyMs: Map<String, Long> = runCatching {
-            usm().queryUsageStats(UsageStatsManager.INTERVAL_DAILY, dayStart, now)
-                .associate { it.packageName to it.totalTimeInForeground }
-        }.getOrElse { emptyMap() }
-
         val events = usm().queryEvents(dayStart, now); val ev = UsageEvents.Event()
         val timeMap = mutableMapOf<String, Long>(); val fgStart = mutableMapOf<String, Long>()
         val hourMap = LongArray(24); var pickups = 0; var firstPickupTs = 0L
-        val MAX_SESSION_MS = 4 * 60 * 60_000L
-
         while (events.hasNextEvent()) {
             events.getNextEvent(ev)
             if (ev.packageName == context.packageName) continue
             when (ev.eventType) {
-                UsageEvents.Event.KEYGUARD_HIDDEN -> {
-                    pickups++; if (firstPickupTs == 0L) firstPickupTs = ev.timeStamp
-                }
+                UsageEvents.Event.KEYGUARD_HIDDEN -> { pickups++; if (firstPickupTs == 0L) firstPickupTs = ev.timeStamp }
                 UsageEvents.Event.MOVE_TO_FOREGROUND -> fgStart[ev.packageName] = ev.timeStamp
                 UsageEvents.Event.MOVE_TO_BACKGROUND -> {
                     val start = fgStart.remove(ev.packageName) ?: continue
-                    val ms = (ev.timeStamp - start).coerceAtMost(MAX_SESSION_MS)
-                    timeMap[ev.packageName] = (timeMap[ev.packageName] ?: 0L) + ms
-                    if (isKnownUserPackage(ev.packageName)) {
-                        val hour = Calendar.getInstance().apply { timeInMillis = start }
-                            .get(Calendar.HOUR_OF_DAY)
-                        hourMap[hour] += ms / 60_000L
-                    }
+                    val ms = ev.timeStamp - start; timeMap[ev.packageName] = (timeMap[ev.packageName] ?: 0L) + ms
+                    val hour = Calendar.getInstance().apply { timeInMillis = start }.get(Calendar.HOUR_OF_DAY)
+                    hourMap[hour] += ms / 60_000L
                 }
             }
         }
+        val MAX_SESSION_MS = 4 * 60 * 60_000L
         fgStart.forEach { (pkg, start) ->
-            val ms = (now - start).coerceAtMost(MAX_SESSION_MS)
-            timeMap[pkg] = (timeMap[pkg] ?: 0L) + ms
-            if (isKnownUserPackage(pkg)) {
-                val hour = Calendar.getInstance().apply { timeInMillis = start }
-                    .get(Calendar.HOUR_OF_DAY)
-                hourMap[hour] += ms / 60_000L
-            }
+            val ms = (now - start).coerceAtMost(MAX_SESSION_MS); timeMap[pkg] = (timeMap[pkg] ?: 0L) + ms
+            val hour = Calendar.getInstance().apply { timeInMillis = start }.get(Calendar.HOUR_OF_DAY)
+            hourMap[hour] += ms / 60_000L
         }
-
-        // ── NEW: apply system ceiling per app ──────────────────────────────────
-        for (pkg in timeMap.keys.toList()) {
-            val systemMs = systemDailyMs[pkg]
-            if (systemMs != null && systemMs > 0L) {
-                // Allow a small tolerance (10%) for minor timing drift, but never
-                // let the event-derived total exceed the system-reported value.
-                val ceiling = (systemMs * 1.1).toLong()
-                if (timeMap[pkg]!! > ceiling) {
-                    timeMap[pkg] = systemMs
-                }
-            }
-        }
-
         val totalMins = timeMap.filter { isKnownUserPackage(it.key) }.values.sum() / 60_000L
         val topApps = JSONArray()
         timeMap.entries.filter { it.value > 60_000L && isKnownUserPackage(it.key) }.sortedByDescending { it.value }.forEach { (pkg, ms) ->
@@ -388,89 +356,33 @@ class UsageStatsBridge(
     @Suppress("DEPRECATION")
     internal fun buildWeeklyBreakdown(): String {
         val usm = usm(); val result = JSONArray()
-        val days = listOf("Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat")
-        val now = System.currentTimeMillis()
-        val MAX_MS = 4 * 60 * 60_000L
-
+        val days = listOf("Sun","Mon","Tue","Wed","Thu","Fri","Sat")
+        val now = System.currentTimeMillis(); val MAX_MS = 4 * 60 * 60_000L
         for (i in 6 downTo 0) {
-            val dayStart = Calendar.getInstance().apply {
-                timeInMillis = now
-                add(Calendar.DAY_OF_YEAR, -i)
-                set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0)
-                set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
-            }.timeInMillis
+            val dayStart = Calendar.getInstance().apply { timeInMillis = now; add(Calendar.DAY_OF_YEAR,-i); set(Calendar.HOUR_OF_DAY,0); set(Calendar.MINUTE,0); set(Calendar.SECOND,0); set(Calendar.MILLISECOND,0) }.timeInMillis
             val dayEnd = if (i == 0) now else dayStart + 86_400_000L
-
-            // ── System ceiling for this day (sum across all user apps) ──────────
-            val systemDayMs: Map<String, Long> = if (i == 0) {
-                runCatching {
-                    usm.queryUsageStats(UsageStatsManager.INTERVAL_DAILY, dayStart, dayEnd)
-                        .associate { it.packageName to it.totalTimeInForeground }
-                }.getOrElse { emptyMap() }
-            } else emptyMap()
-
-            val foregroundStart = mutableMapOf<String, Long>()
-            val totalMs = mutableMapOf<String, Long>()
-            var pickups = 0
-
+            val foregroundStart = mutableMapOf<String,Long>(); val totalMs = mutableMapOf<String,Long>(); var pickups = 0
             runCatching {
-                val events = usm.queryEvents(dayStart, dayEnd)
-                val event = UsageEvents.Event()
+                val events = usm.queryEvents(dayStart, dayEnd); val event = UsageEvents.Event()
                 while (events.hasNextEvent()) {
-                    events.getNextEvent(event)
-                    val pkg = event.packageName
+                    events.getNextEvent(event); val pkg = event.packageName
                     if (pkg == context.packageName) continue
                     if (event.eventType == UsageEvents.Event.KEYGUARD_HIDDEN) { pickups++; continue }
                     if (!isKnownUserPackage(pkg)) continue
                     when (event.eventType) {
-                        UsageEvents.Event.MOVE_TO_FOREGROUND ->
-                            foregroundStart[pkg] = event.timeStamp
-                        UsageEvents.Event.MOVE_TO_BACKGROUND -> {
-                            val start = foregroundStart.remove(pkg) ?: continue
-                            totalMs[pkg] = (totalMs[pkg] ?: 0L) +
-                                    (event.timeStamp - start).coerceAtMost(MAX_MS)
-                        }
+                        UsageEvents.Event.MOVE_TO_FOREGROUND -> foregroundStart[pkg] = event.timeStamp
+                        UsageEvents.Event.MOVE_TO_BACKGROUND -> { val start = foregroundStart.remove(pkg); if (start != null) totalMs[pkg] = (totalMs[pkg] ?: 0L) + (event.timeStamp - start).coerceAtMost(MAX_MS) }
                     }
                 }
-
-                // Apps still in foreground at day boundary
                 val boundary = if (i == 0) now else dayEnd
-                foregroundStart.forEach { (pkg, start) ->
-                    totalMs[pkg] = (totalMs[pkg] ?: 0L) +
-                            (boundary - start).coerceAtMost(MAX_MS)
-                }
-
-                // ── Apply per-app system ceiling (10% tolerance) ─────────────
-                for (pkg in totalMs.keys.toList()) {
-                    val sysMs = systemDayMs[pkg] ?: continue
-                    if (sysMs > 0L && (totalMs[pkg] ?: 0L) > (sysMs * 1.1).toLong()) {
-                        totalMs[pkg] = sysMs
-                    }
-                }
+                foregroundStart.forEach { (pkg, start) -> totalMs[pkg] = (totalMs[pkg] ?: 0L) + (boundary - start).coerceAtMost(MAX_MS) }
             }
-
             val dayPickups = if (i == 0) prefs.getInt(CACHED_PICKUPS, pickups) else pickups
             val totalMins = totalMs.values.sum() / 60_000L
-
-            val tops = totalMs.entries
-                .filter { it.value > 0 && isKnownUserPackage(it.key) }
-                .sortedByDescending { it.value }
-                .take(3)
-                .mapNotNull { (pkg, _) ->
-                    runCatching {
-                        pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)).toString()
-                    }.getOrNull()
-                }
-
+            val tops = totalMs.entries.filter { it.value > 0 && isKnownUserPackage(it.key) }.sortedByDescending { it.value }.take(3)
+                .mapNotNull { (pkg,_) -> runCatching { pm.getApplicationLabel(pm.getApplicationInfo(pkg,0)).toString() }.getOrNull() }
             val cal = Calendar.getInstance().apply { timeInMillis = dayStart }
-            result.put(JSONObject().apply {
-                put("day", days[cal.get(Calendar.DAY_OF_WEEK) - 1])
-                put("minutes", totalMins)
-                put("pickups", dayPickups)
-                put("isToday", i == 0)
-                put("date", "${cal.get(Calendar.MONTH) + 1}/${cal.get(Calendar.DAY_OF_MONTH)}")
-                put("topApps", JSONArray(tops))
-            })
+            result.put(JSONObject().apply { put("day",days[cal.get(Calendar.DAY_OF_WEEK)-1]); put("minutes",totalMins); put("pickups",dayPickups); put("isToday",i==0); put("date","${cal.get(Calendar.MONTH)+1}/${cal.get(Calendar.DAY_OF_MONTH)}"); put("topApps",JSONArray(tops)) })
         }
         return result.toString()
     }

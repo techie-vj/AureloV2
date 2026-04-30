@@ -91,11 +91,8 @@ class AureloWidgetUpdateWorker(
                 timeMap[pkg] = (timeMap[pkg] ?: 0L) + elapsed
             }
 
-            val pm = appContext.packageManager
             val totalMin = timeMap
-                .filter { (pkg, _) ->
-                    isUserApp(pkg) && pm.getLaunchIntentForPackage(pkg) != null
-                }
+                .filter { isUserApp(it.key) }
                 .values.sum() / 60_000L
 
             val ghostCount = runCatching {
@@ -413,16 +410,8 @@ class AureloWidgetUpdateWorker(
                     timeMap[pkg] = (timeMap[pkg] ?: 0L) + (now - start).coerceAtMost(MAX_SESSION_MS)
                 }
 
-                val pm = context.packageManager
                 val totalMin = timeMap
-                    .filter { (pkg, _) ->
-                        try {
-                            val info = pm.getApplicationInfo(pkg, 0)
-                            isUserApp(pkg) &&
-                                    pm.getLaunchIntentForPackage(pkg) != null &&
-                                    (info.flags and android.content.pm.ApplicationInfo.FLAG_SYSTEM) == 0
-                        } catch (_: Exception) { false }
-                    }
+                    .filter { isUserApp(it.key) }   // ← add this line
                     .values.sum() / 60_000L
                 val goalMins = prefs.getInt(STREAK_GOAL_MINS, 240).toLong()
                 val streakDays = runCatching {
