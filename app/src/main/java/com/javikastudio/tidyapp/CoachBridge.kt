@@ -379,16 +379,105 @@ class CoachBridge(
     }
 
     /**
-     * Clears today's and this week's tab insight caches.
+     * Clears today's, this week's, AND this month's tab insight caches.
      * Called from SettingsBridge when the user clears all data.
-     * Month cache is intentionally preserved — it's slow to regenerate.
+     *
+     * FIX: Month cache was previously preserved but this caused stale month
+     * insights to survive a full data-clear. All three caches are now cleared.
      */
     fun clearTabInsightCache() {
-        val today = todayKey()
+        val today    = todayKey()
+        val monthKey = SimpleDateFormat("yyyyMM", Locale.US).format(Date())
         prefs.edit()
             .remove(KEY_TAB_INSIGHT_PREFIX + "today_" + today)
             .remove(KEY_TAB_INSIGHT_PREFIX + "week_"  + today)
+            .remove(KEY_TAB_INSIGHT_PREFIX + "month_" + monthKey)
             .apply()
+    }
+
+    /**
+     * Invalidates one or more tab insight caches from JS.
+     * Called after focus-session completion or sleep-score refresh so the next
+     * tab visit re-generates an up-to-date insight instead of serving stale copy.
+     *
+     * [tab] — "today" | "week" | "month" | "home" | "all"
+     *   • "today"  → clears the today tab cache (e.g. after a focus session)
+     *   • "week"   → clears the week tab cache
+     *   • "month"  → clears the month tab cache
+     *   • "home"   → clears the pre-computed WorkManager home insight
+     *   • "all"    → clears all four caches
+     */
+    @JavascriptInterface
+    fun invalidateTabInsightCache(tab: String) {
+        val today    = todayKey()
+        val monthKey = SimpleDateFormat("yyyyMM", Locale.US).format(Date())
+        prefs.edit().also { e ->
+            when (tab) {
+                "today" -> e.remove(KEY_TAB_INSIGHT_PREFIX + "today_" + today)
+                "week"  -> e.remove(KEY_TAB_INSIGHT_PREFIX + "week_"  + today)
+                "month" -> e.remove(KEY_TAB_INSIGHT_PREFIX + "month_" + monthKey)
+                "home"  -> {
+                    e.remove(KEY_COACH_INSIGHT_JSON)
+                    e.remove(KEY_COACH_INSIGHT_DATE)
+                }
+                else    -> { // "all"
+                    e.remove(KEY_TAB_INSIGHT_PREFIX + "today_" + today)
+                    e.remove(KEY_TAB_INSIGHT_PREFIX + "week_"  + today)
+                    e.remove(KEY_TAB_INSIGHT_PREFIX + "month_" + monthKey)
+                    e.remove(KEY_COACH_INSIGHT_JSON)
+                    e.remove(KEY_COACH_INSIGHT_DATE)
+                }
+            }
+        }.apply()
+        Log.d("CoachBridge", "invalidateTabInsightCache tab=$tab")
+    }
+
+    /**
+     * Generates a fresh home insight synchronously based on current data and
+     * caches it, replacing the stale WorkManager result.
+     * Called by JS after a focus session or sleep score update so the Home tab
+     * coach card immediately reflects the new state.
+     *
+     * Returns the JSON string of the new insight (same shape as getDailyCoachInsight).
+     * On error returns an empty JSON object so JS can fall back gracefully.
+     */
+    @JavascriptInterface
+    fun refreshHomeInsightSync(): String {
+        return try {
+            val hcData: HCDailyData = runBlocking {
+                val hcManager = HealthConnectManager(context)
+                if (hcManager.isAvailable() && hcManager.hasAnyPermission()) {
+                    try {
+                        withTimeoutOrNull(3_000) {
+                            HealthConnectRepository(hcManager).readDailyData()
+                        } ?: HCDailyData(isAvailable = false)
+                    } catch (_: Exception) { HCDailyData(isAvailable = false) }
+                } else HCDailyData(isAvailable = false)
+            }
+
+            val summary  = UsageSummaryBuilder(context, prefs).build(hcData)
+            val patterns = KotlinPatternDetector.detectAll(summary)
+            val top      = patterns.firstOrNull() ?: return JSONObject().toString()
+            val insight  = InsightTemplateLibrary.get(top, summary)
+
+            val json = JSONObject().apply {
+                put("title",   insight.title)
+                put("body",    insight.body)
+                put("intent",  top.intent)
+                put("hcBadge", top.hcBased)
+            }.toString()
+
+            // Cache as the new home insight for the rest of the day.
+            prefs.edit()
+                .putString(KEY_COACH_INSIGHT_JSON, json)
+                .putString(KEY_COACH_INSIGHT_DATE, todayKey())
+                .apply()
+
+            json
+        } catch (e: Exception) {
+            Log.e("CoachBridge", "refreshHomeInsightSync failed", e)
+            JSONObject().toString()
+        }
     }
 
     @JavascriptInterface

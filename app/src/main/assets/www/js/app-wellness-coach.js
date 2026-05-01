@@ -486,4 +486,74 @@
     });
   };
 
+  /* ═══════════════════════════════════════════════════════════════════════════
+   * FIX: Session-completion refresh
+   *
+   * Problem: Tab insight caches are per-day. If a focus session completes at
+   * 2 PM and the Today/Week coach cards were already rendered at 9 AM, the
+   * stale FOCUS_GAP insight persists for the rest of the day even though
+   * focusSessionsCompleted is now > 0 and daysSinceLastFocus is 0.
+   *
+   * Fix:
+   *  1. On aurelo:focuscomplete — invalidate today + week caches via bridge,
+   *     then re-render whichever tab insight is currently visible.
+   *  2. On aurelo:sleepcomplete — invalidate today cache and re-render today.
+   *  3. Helpers track which tab is currently active so we only re-render the
+   *     visible card (avoids unnecessary background bridge calls).
+   * ═══════════════════════════════════════════════════════════════════════════ */
+
+  /** Returns the currently active wellness sub-tab id, or null if not on wellness. */
+  function _activeWellnessTab() {
+    // Use the same global the wellness view-switcher writes so we don't have
+    // to parse DOM visibility (which may be unreliable across WebView repaints).
+    var screenWellness = document.getElementById('screen-wellness');
+    if (!screenWellness || screenWellness.style.display === 'none') return null;
+    // _wellnessView is the global defined by app-wellness.js via Object.defineProperty.
+    try { return window._wellnessView || 'today'; } catch (_) { return 'today'; }
+  }
+
+  /** Invalidate one or more tab insight caches via the native bridge. */
+  function _invalidateBridgeCache(tab) {
+    try {
+      if (typeof window.AppBridge === 'object' && window.AppBridge &&
+          typeof window.AppBridge.invalidateTabInsightCache === 'function') {
+        window.AppBridge.invalidateTabInsightCache(tab);
+      }
+    } catch (_) {}
+  }
+
+  /**
+   * Called when a focus session completes.
+   * Clears today + week caches and re-renders whichever card is visible.
+   */
+  function _onFocusSessionComplete() {
+    _invalidateBridgeCache('today');
+    _invalidateBridgeCache('week');
+
+    var activeTab = _activeWellnessTab();
+    if (activeTab === 'today') {
+      setTimeout(window.renderTodayCoachInsight, 400);
+    } else if (activeTab === 'week') {
+      setTimeout(window.renderWeekCoachInsight,  400);
+    }
+  }
+
+  /**
+   * Called when Bedtime Mode records a sleep score (morning summary or manual
+   * completion). Clears the today cache and re-renders if today tab is active.
+   */
+  function _onSleepComplete() {
+    _invalidateBridgeCache('today');
+
+    var activeTab = _activeWellnessTab();
+    if (activeTab === 'today') {
+      setTimeout(window.renderTodayCoachInsight, 400);
+    }
+  }
+
+  // FIX: Attach listeners for events dispatched by app-focus.js and
+  // app-focus-bedtime.js after session completion.
+  document.addEventListener('aurelo:focuscomplete', _onFocusSessionComplete);
+  document.addEventListener('aurelo:sleepcomplete',  _onSleepComplete);
+
 })();

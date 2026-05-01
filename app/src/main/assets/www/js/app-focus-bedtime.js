@@ -75,6 +75,15 @@ window.FocusBedtime = (function () {
 
     // Invalidate sleep score cache
     if (typeof FocusScore !== 'undefined') FocusScore.invalidateSleepCache();
+    // FIX: Invalidate today tab insight cache and notify home/wellness coach cards
+    // that sleep data has changed (e.g. after bedtime settings saved / morning wakeup).
+    try {
+      if (typeof window.AppBridge === 'object' && window.AppBridge &&
+          typeof window.AppBridge.invalidateTabInsightCache === 'function') {
+        window.AppBridge.invalidateTabInsightCache('today');
+      }
+      document.dispatchEvent(new CustomEvent('aurelo:sleepcomplete'));
+    } catch (_) {}
 
     if (IS_NATIVE && typeof N.saveBedtimeSettings === 'function') {
       try { N.saveBedtimeSettings(JSON.stringify(cfg)); } catch (_) {}
