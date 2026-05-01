@@ -14,7 +14,7 @@ import java.nio.FloatBuffer
  *
  * Expected ONNX input:
  *   name:  "input"
- *   shape: [1, 14]
+ *   shape: [1, 15]
  *   type:  float32
  *
  * Expected ONNX outputs from skl2onnx TreeEnsembleClassifier:
@@ -24,6 +24,9 @@ import java.nio.FloatBuffer
  * Important:
  * - The label order MUST match the order used when the ONNX model was exported.
  * - HC features must be zero when Health Connect is disconnected.
+ * - Feature vector length bumped from 14 → 15 in retrain v2 to include
+ *   dailyGoalMinutes so the model can normalise todayMinutes against the
+ *   user's actual goal.
  */
 class CoachOnnxClassifier(
     private val context: Context,
@@ -36,26 +39,40 @@ class CoachOnnxClassifier(
         /**
          * Numeric label index -> Coach intent string.
          *
-         * This matches the 16-label ONNX export order we validated:
-         * 0..15.
+         * MUST match the LABELS list in `scripts/train_coach_onnx.py` byte
+         * for byte. Re-running the training script regenerates the .onnx
+         * with this exact order.
+         *
+         * The retrained model (commit "Coach: retrain ONNX...") drops the
+         * four legacy synonyms (WORST_DAY_PATTERN, PICKUP_SPIKE,
+         * EVENING_USAGE, APP_CATEGORY_DRIFT) — which the orchestrator's
+         * normalizeIntent always remapped anyway — and adds the missing
+         * behavioural intents the orchestrator already supports
+         * (MORNING_DOOM_SCROLL, WEEKEND_BINGE, SOCIAL_SPIRAL, PRODUCTIVE_DAY,
+         * FOCUS_ON_TRACK).
+         *
+         * SCORE_DROP is intentionally not in the label set: it can't be
+         * reliably learned from the input features (yesterday's score
+         * is not a feature). The pattern detector and predefined-question
+         * router produce SCORE_DROP directly without consulting ONNX.
          */
         private val LABELS = arrayOf(
-            "SCORE_DROP",
-            "HC_POOR_SLEEP_HIGH_USAGE",
-            "HC_ACTIVE_DAY_BETTER_FOCUS",
-            "BEDTIME_REVENGE_PROCRASTINATION",
-            "FOCUS_BURNOUT",
-            "DOPAMINE_LOOP",
-            "STREAK_AT_RISK",
-            "FOCUS_GAP",
-            "HEALTHY_PATTERN",
-            "RECOVERY_DAY",
-            "WORST_DAY_PATTERN",
-            "PICKUP_SPIKE",
-            "ANOMALOUS_SPIKE",
-            "EVENING_USAGE",
-            "APP_CATEGORY_DRIFT",
-            "GENERAL_SUMMARY"
+            "STREAK_AT_RISK",                       // 0
+            "HC_POOR_SLEEP_HIGH_USAGE",             // 1
+            "HC_ACTIVE_DAY_BETTER_FOCUS",           // 2
+            "BEDTIME_REVENGE_PROCRASTINATION",      // 3
+            "FOCUS_BURNOUT",                        // 4
+            "DOPAMINE_LOOP",                        // 5
+            "SOCIAL_SPIRAL",                        // 6
+            "FOCUS_GAP",                            // 7
+            "FOCUS_ON_TRACK",                       // 8
+            "MORNING_DOOM_SCROLL",                  // 9
+            "WEEKEND_BINGE",                        // 10
+            "ANOMALOUS_SPIKE",                      // 11
+            "PRODUCTIVE_DAY",                       // 12
+            "RECOVERY_DAY",                         // 13
+            "HEALTHY_PATTERN",                      // 14
+            "GENERAL_SUMMARY",                      // 15
         )
     }
 
@@ -82,26 +99,38 @@ class CoachOnnxClassifier(
      * - Kotlin code that uses String intents, or
      * - Kotlin code that converts later via CoachIntent.valueOf(...)
      */
-    fun classifyIntent(features: FloatArray): String {
-        require(features.size == 14) {
-            "Coach ONNX expected 14 features, got ${features.size}"
+    /** Result of an ONNX inference — exposes top probability so callers can
+     *  apply a confidence floor and reject low-confidence predictions. */
+    data class Prediction(val intent: String, val probability: Float)
+
+    fun classifyIntent(features: FloatArray): String =
+        classifyWithProbability(features).intent
+
+    fun classifyWithProbability(features: FloatArray): Prediction {
+        require(features.size == CoachFeatureBuilder.FEATURE_COUNT) {
+            "Coach ONNX expected ${CoachFeatureBuilder.FEATURE_COUNT} features, got ${features.size}"
         }
 
         Log.d(TAG, "CoachOnnxClassifier classify called")
         Log.d(TAG, "CoachOnnxClassifier features=${features.joinToString(prefix = "[", postfix = "]")}")
 
         val inputName = session.inputNames.firstOrNull() ?: "input"
-        val shape = longArrayOf(1L, 14L)
+        val shape = longArrayOf(1L, CoachFeatureBuilder.FEATURE_COUNT.toLong())
 
         OnnxTensor.createTensor(env, FloatBuffer.wrap(features), shape).use { tensor ->
             session.run(mapOf(inputName to tensor)).use { results ->
                 val rawLabel = results[0].value
                 val labelIndex = extractLabelIndex(rawLabel)
                 val intent = LABELS.getOrElse(labelIndex) { "GENERAL_SUMMARY" }
+                val prob = extractTopProbability(
+                    if (results.size() > 1) results[1].value else null,
+                    labelIndex.toLong(),
+                )
 
-                Log.d(TAG, "CoachOnnxClassifier predicted labelIndex=$labelIndex intent=$intent")
+                Log.d(TAG, "CoachOnnxClassifier predicted labelIndex=$labelIndex " +
+                        "intent=$intent prob=$prob")
 
-                return intent
+                return Prediction(intent, prob)
             }
         }
     }
@@ -117,6 +146,45 @@ class CoachOnnxClassifier(
             Log.w(TAG, "CoachOnnxClassifier inference failed; falling back", e)
             null
         }
+    }
+
+    /** Same as classifyIntentOrNull but exposes the top probability. */
+    fun classifyOrNull(features: FloatArray): Prediction? {
+        return try {
+            classifyWithProbability(features)
+        } catch (e: Exception) {
+            Log.w(TAG, "CoachOnnxClassifier inference failed; falling back", e)
+            null
+        }
+    }
+
+    /**
+     * Extract the probability for [predictedLabel] from the ZipMap output of
+     * skl2onnx TreeEnsembleClassifier. The wire format is a list of maps
+     * keyed by class id (Long) with Float probability values. Returns 0f
+     * when the structure can't be interpreted — callers must fall back to
+     * a conservative threshold check rather than trust 1.0.
+     */
+    private fun extractTopProbability(value: Any?, predictedLabel: Long): Float {
+        return runCatching {
+            when (value) {
+                is List<*> -> {
+                    val first = value.firstOrNull() as? Map<*, *> ?: return@runCatching 0f
+                    val raw = first[predictedLabel] ?: first[predictedLabel.toInt()]
+                    when (raw) {
+                        is Float -> raw
+                        is Double -> raw.toFloat()
+                        is Number -> raw.toFloat()
+                        else -> 0f
+                    }
+                }
+                is Map<*, *> -> {
+                    val raw = value[predictedLabel] ?: value[predictedLabel.toInt()]
+                    (raw as? Number)?.toFloat() ?: 0f
+                }
+                else -> 0f
+            }
+        }.getOrDefault(0f)
     }
 
     private fun extractLabelIndex(rawLabel: Any?): Int {

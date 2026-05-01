@@ -116,16 +116,6 @@
     };
 
     card.style.display = '';
-    if (card && card.style.display !== 'none') {
-        _ensureSectionLabel(
-          'coach-home-insight',
-          'home-coach-sec-label',
-          'Coach Insight',
-          ''
-        );
-      }
-
-    if (typeof HealthConnect !== 'undefined') HealthConnect.renderHomeBanner();
   }
 
   /* ── Load insight ───────────────────────────────────────────────────────── */
@@ -173,67 +163,65 @@
 
   /* ── Create card DOM ────────────────────────────────────────────────────── */
 
-  function _createInsightCard() {
-    var hcBanner = document.getElementById('hc-home-banner');
-    var screen   = document.getElementById('screen-home');
-    var parent   = (hcBanner && hcBanner.parentNode) ? hcBanner.parentNode : screen;
-    if (!parent) return null;
+function _createInsightCard() {
+  var screen = document.getElementById('screen-home');
+  if (!screen) return null;
 
-    var card = document.createElement('div');
-    card.id  = 'coach-home-insight';
-    card.style.display = 'none';
-    card.setAttribute('role', 'button');
-    card.setAttribute('tabindex', '0');
-    card.setAttribute('aria-label', 'Aurelo Coach daily insight — tap to read full insight');
+  var card = document.createElement('div');
+  card.id = 'coach-home-insight';
+  card.style.display = 'none';
+  card.setAttribute('role', 'button');
+  card.setAttribute('tabindex', '0');
+  card.setAttribute('aria-label', 'Aurelo Coach daily insight — tap to read full insight');
 
-    // Aurelo arch logo — prefix 'chi' on gradient IDs to avoid SVG defs clashes
-    var ARCH_SVG =
-      '<svg width="14" height="14" viewBox="0 0 108 108" fill="none" overflow="visible">' +
-        '<defs>' +
-          '<linearGradient id="chiGa" x1="28" y1="20" x2="80" y2="90" gradientUnits="userSpaceOnUse">' +
-            '<stop offset="0%" stop-color="#FFE082"/>' +
-            '<stop offset="55%" stop-color="#FFAA44"/>' +
-            '<stop offset="100%" stop-color="#FF7020"/>' +
-          '</linearGradient>' +
-        '</defs>' +
-        '<path d="M 22 88 C 22 88 30 30 54 20 C 78 30 86 88 86 88" stroke="url(#chiGa)" stroke-width="9" fill="none" stroke-linecap="round"/>' +
-        '<circle cx="54" cy="20" r="6" fill="#FFE082"/>' +
-      '</svg>';
+  var ARCH_SVG =
+    '<svg width="14" height="14" viewBox="0 0 108 108" fill="none" overflow="visible">' +
+      '<defs>' +
+        '<linearGradient id="chiGa" x1="28" y1="20" x2="80" y2="90" gradientUnits="userSpaceOnUse">' +
+          '<stop offset="0%" stop-color="#FFE082"/>' +
+          '<stop offset="55%" stop-color="#FFAA44"/>' +
+          '<stop offset="100%" stop-color="#FF7020"/>' +
+        '</linearGradient>' +
+      '</defs>' +
+      '<path d="M 22 88 C 22 88 30 30 54 20 C 78 30 86 88 86 88" stroke="url(#chiGa)" stroke-width="9" fill="none" stroke-linecap="round"/>' +
+      '<circle cx="54" cy="20" r="6" fill="#FFE082"/>' +
+    '</svg>';
 
-    card.innerHTML =
-      '<div class="coach-home-insight-inner">' +
-        '<div class="coach-home-insight-hdr">' +
-          '<div class="coach-home-insight-hdr-left">' +
-            '<div class="coach-home-insight-icon">' + ARCH_SVG + '</div>' +
-            '<div class="coach-home-insight-label">Aurelo Coach \xb7 Today</div>' +
-            '<div class="coach-home-insight-hc-badge" style="display:none">Health Connect</div>' +
-          '</div>' +
-          '<div class="coach-home-insight-timestamp"></div>' +
+  card.innerHTML =
+    '<div class="coach-home-insight-inner">' +
+      '<div class="coach-home-insight-hdr">' +
+        '<div class="coach-home-insight-hdr-left">' +
+          '<div class="coach-home-insight-icon">' + ARCH_SVG + '</div>' +
+          '<div class="coach-home-insight-label">Aurelo Coach \xb7 Today</div>' +
+          '<div class="coach-home-insight-hc-badge" style="display:none">Health Connect</div>' +
         '</div>' +
-        '<div class="coach-home-insight-title"></div>' +
-        '<div class="coach-home-insight-body"></div>' +
-        '<div class="coach-home-insight-actions">' +
-          '<div class="coach-home-insight-cta">Ask follow\u2011up \u2192</div>' +
-          '<div class="coach-home-insight-dismiss">Got it</div>' +
-        '</div>' +
-        '<div class="coach-home-insight-source">' +
-          '<svg width="10" height="10" viewBox="0 0 10 10" fill="none">' +
-            '<rect x="1" y="1" width="8" height="8" rx="1.5" stroke="#5C5278" stroke-width="1"/>' +
-            '<path d="M3 5h4M3 3.5h2.5M3 6.5h2" stroke="#5C5278" stroke-width="0.8" stroke-linecap="round"/>' +
-          '</svg>' +
-          'On\u2011device \xb7 Private' +
-        '</div>' +
-      '</div>';
+        '<div class="coach-home-insight-timestamp"></div>' +
+      '</div>' +
+      '<div class="coach-home-insight-title"></div>' +
+      '<div class="coach-home-insight-body"></div>' +
+      '<div class="coach-home-insight-actions">' +
+        '<div class="coach-home-insight-cta">Ask follow\u2011up \u2192</div>' +
+        '<div class="coach-home-insight-dismiss">Got it</div>' +
+      '</div>' +
+      '<div class="coach-home-insight-source">' +
+        '<svg width="10" height="10" viewBox="0 0 10 10" fill="none">' +
+          '<rect x="1" y="1" width="8" height="8" rx="1.5" stroke="#5C5278" stroke-width="1"/>' +
+          '<path d="M3 5h4M3 3.5h2.5M3 6.5h2" stroke="#5C5278" stroke-width="0.8" stroke-linecap="round"/>' +
+        '</svg>' +
+        'On\u2011device \xb7 Private' +
+      '</div>' +
+    '</div>';
 
-    var insertAfter = hcBanner || parent.querySelector('.home-goal-card') || parent.firstElementChild;
-    if (insertAfter && insertAfter.nextSibling) {
-      parent.insertBefore(card, insertAfter.nextSibling);
-    } else {
-      parent.appendChild(card);
-    }
-
-    return card;
+  // ── Insertion: use named anchor if present, otherwise append to screen ──
+  var anchor = document.getElementById('coach-home-insight-anchor');
+  if (anchor && anchor.parentNode) {
+    anchor.parentNode.insertBefore(card, anchor);
+  } else {
+    screen.appendChild(card);
   }
+
+  return card;   // always return the node — never null after this point
+}
 
   /* ── Helpers ────────────────────────────────────────────────────────────── */
 
@@ -249,14 +237,22 @@
       HC_POOR_SLEEP_HIGH_USAGE:        '\uD83D\uDE34 Poor sleep \u2192 more scrolling',
       HC_ACTIVE_DAY_BETTER_FOCUS:      '\uD83D\uDEB6 Active day pattern detected',
       FOCUS_GAP:                       '\uD83C\uDFAF Time to focus',
+      FOCUS_ON_TRACK:                  '\uD83C\uDFAF Focus sessions on track',
+      FOCUS_BURNOUT:                   '\uD83D\uDCA4 Focus feels hard today',
+      FOCUS_PEAK_TIME:                 '\u23F1 Your best focus window',
       MORNING_DOOM_SCROLL:             '\uD83C\uDF05 Morning phone check',
       ANOMALOUS_SPIKE:                 '\uD83D\uDCCA Usage spike detected',
       BEDTIME_REVENGE_PROCRASTINATION: '\uD83C\uDF19 Late-night pattern',
       PRODUCTIVE_DAY:                  '\u2728 Great day so far',
-      FOCUS_BURNOUT:                   '\uD83D\uDCA4 Focus feels hard',
+      HEALTHY_PATTERN:                 '\u2705 Healthy habit pattern',
       SOCIAL_SPIRAL:                   '\uD83D\uDCF1 Social apps leading',
+      DOPAMINE_LOOP:                   '\uD83D\uDD01 Dopamine loop detected',
       WEEKEND_BINGE:                   '\uD83D\uDCC5 Weekend usage spike',
-      HEALTHY_PATTERN:                 '\u2B50 Strong habit streak',
+      RECOVERY_DAY:                    '\uD83D\uDCC8 Recovery in progress',
+      FEATURE_EXPLANATION:             '\u2756 How Aurelo works',
+      GOAL_SETTING_ADVICE:             '\uD83C\uDFAF Your daily goal',
+      APP_DEEP_DIVE:                   '\uD83D\uDCF1 App usage breakdown',
+      GENERAL_SUMMARY:                 '\u2756 Your daily summary',
     };
     return map[intent] || '\u2756 Your daily insight';
   }
@@ -268,14 +264,24 @@
       HC_POOR_SLEEP_HIGH_USAGE:        'How did poor sleep affect my usage today?',
       HC_ACTIVE_DAY_BETTER_FOCUS:      'What happens on my active days?',
       FOCUS_GAP:                       "I haven't focused in a while \u2014 what should I do?",
+      FOCUS_ON_TRACK:                  "What's my session completion rate?",
+      FOCUS_BURNOUT:                   "Why can't I focus today?",
+      FOCUS_PEAK_TIME:                 'When is my most focused time?',
       MORNING_DOOM_SCROLL:             'How does morning phone use affect my day?',
-      ANOMALOUS_SPIKE:                 'Why is this day always my worst?',
+      ANOMALOUS_SPIKE:                 'Tell me about my worst day this week',
       BEDTIME_REVENGE_PROCRASTINATION: 'Why do I use my phone at night?',
       PRODUCTIVE_DAY:                  'What is going well this week?',
-      FOCUS_BURNOUT:                   "Why can't I focus today?",
+      HEALTHY_PATTERN:                 "What's my best habit right now?",
       SOCIAL_SPIRAL:                   'Am I on social media too much?',
+      DOPAMINE_LOOP:                   'Do I have a dopamine loop?',
+      WEEKEND_BINGE:                   'How do I control weekend usage?',
+      RECOVERY_DAY:                    'How do I recover today?',
+      FEATURE_EXPLANATION:             'How does the Aurelo Score work?',
+      GOAL_SETTING_ADVICE:             'Is my daily goal set correctly?',
+      APP_DEEP_DIVE:                   "What's my most used app?",
+      GENERAL_SUMMARY:                 'Tell me about my week',
     };
-    return map[intent] || null;
+    return map[intent] || 'Tell me about my week';
   }
 
   /* ── Initialisation ─────────────────────────────────────────────────────── */
@@ -293,6 +299,27 @@
       setTimeout(renderCoachHomeInsight, 800);
     });
   }
+
+  /**
+   * FIX: Refresh the home coach card after a focus or sleep session completes.
+   * Calls refreshHomeInsightSync() on the native bridge to regenerate and
+   * cache a fresh insight (e.g. FOCUS_ON_TRACK instead of FOCUS_GAP), then
+   * re-renders the card so users immediately see current-state feedback.
+   */
+  function _refreshHomeInsightAfterSession() {
+    try {
+      if (typeof window.AppBridge === 'object' && window.AppBridge &&
+          typeof window.AppBridge.refreshHomeInsightSync === 'function') {
+        window.AppBridge.refreshHomeInsightSync();
+      }
+    } catch (_) {}
+    setTimeout(renderCoachHomeInsight, 300);
+  }
+
+  // FIX: Listen for events dispatched by app-focus.js and app-focus-bedtime.js
+  // after a session completes so the home insight card stays current.
+  document.addEventListener('aurelo:focuscomplete', _refreshHomeInsightAfterSession);
+  document.addEventListener('aurelo:sleepcomplete',  _refreshHomeInsightAfterSession);
 
   window.renderCoachHomeInsight = renderCoachHomeInsight;
 

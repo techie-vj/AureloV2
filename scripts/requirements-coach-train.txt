@@ -1,0 +1,12 @@
+# Pinned dependency versions for retraining aurelo_coach.onnx.
+# Match the producer of the existing model so re-trains stay binary-stable.
+#
+# Run:
+#   pip install -r scripts/requirements-coach-train.txt
+#   python scripts/train_coach_onnx.py
+#
+scikit-learn==1.8.0
+skl2onnx==1.20.0
+onnx==1.19.1
+onnxruntime==1.25.1
+numpy>=1.26

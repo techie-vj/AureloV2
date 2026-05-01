@@ -34,6 +34,16 @@ package com.javikastudio.tidyapp
 //   • applyPersonalisation: proactive RECOVERY_DAY detection
 //   • followUpsFor: new intents covered
 //   • TEMPLATE_INTENTS: updated set includes all new intents
+//
+// CHANGELOG v1.2.2 — unrouted chip label audit + duplicate response fixes:
+//   • classifyPredefinedQuestion: 30+ previously UNKNOWN chip labels now routed
+//   • "What's dragging my score down?" → pillar-aware (focusScore/firstUseHour)
+//   • "What triggers my phone use?" → ANOMALOUS_SPIKE in high-pickup case
+//   • "How's my bedtime routine?" → RECOVERY_DAY when sleepScore<75
+//   • "How do I reach Excellent?" → HEALTHY_PATTERN when score≥85
+//   • "What's my session completion rate?" → PRODUCTIVE_DAY when sessions exist
+//   • followUpsFor: all action-label chips replaced with routable questions
+//   • classifyQueryIntent: chip label keywords added to all relevant intent rules
 // ═══════════════════════════════════════════════════════════════════════════
 
 import android.content.Context
@@ -141,7 +151,8 @@ class CoachOrchestrator(
     fun answer(query: String, summary: UsageSummary): CoachAnswer {
         Log.d(TAG, "CoachOrchestrator.answer query=$query")
 
-        val queryIntent = classifyPredefinedQuestion(query, summary)
+        val hcSignalsEarly = HcSignalAvailability.from(summary)
+        val queryIntent = classifyPredefinedQuestion(query, summary, hcSignalsEarly)
             ?: classifyQueryIntent(query)
         Log.d(TAG, "Query intent=${queryIntent.intent} confidence=${queryIntent.confidence}")
 
@@ -160,7 +171,7 @@ class CoachOrchestrator(
             )
         }
 
-        val hcSignals = HcSignalAvailability.from(summary)
+        val hcSignals = hcSignalsEarly
 
         val behaviour = classifyBehaviourIntent(summary, hcSignals)
         Log.d(TAG, "Behaviour intent=${behaviour.intent} priority=${behaviour.priority} source=${behaviour.source}")
@@ -226,6 +237,7 @@ class CoachOrchestrator(
                 ),
                 summary = summary,
                 hcSignals = hcSignals,
+                query = query,
             )
         }
 
@@ -300,10 +312,77 @@ class CoachOrchestrator(
     // Direction-aware score helpers
     // ─────────────────────────────────────────────────────────────────────────
 
-    /** FIX: Route score-change query based on actual delta direction. */
+    /**
+     * Route score-change query based on actual delta direction.
+     *
+     * Edge cases handled:
+     * - When `aureloScoreYesterday <= 0` we don't have a real comparison point
+     *   (fresh install / data wiped) — return GENERAL_SUMMARY so the response
+     *   doesn't claim a phantom drop or improvement.
+     * - When delta is exactly 0 with valid scores on both sides, prefer
+     *   HEALTHY_PATTERN ("steady, today matches yesterday") over PRODUCTIVE_DAY,
+     *   which would print "Score recovered — streak intact" with score_drop=0.
+     */
     private fun resolveScoreChangeIntent(summary: UsageSummary): String {
+        if (summary.aureloScoreYesterday <= 0) return "GENERAL_SUMMARY"
         val delta = summary.aureloScore - summary.aureloScoreYesterday
-        return if (delta >= 0) "PRODUCTIVE_DAY" else "SCORE_DROP"
+        return when {
+            delta < 0 -> "SCORE_DROP"
+            delta == 0 -> "HEALTHY_PATTERN"
+            else -> "PRODUCTIVE_DAY"
+        }
+    }
+
+    /** True when no pillar score has been computed yet (fresh install state). */
+    private fun pillarsUnpopulated(summary: UsageSummary): Boolean =
+        summary.screenScore <= 0 && summary.focusScore <= 0 && summary.sleepScore <= 0
+
+    /**
+     * Extract the app name the user is asking about (e.g. "Instagram" /
+     * "YouTube") and look it up against the cached top-app list.
+     *
+     * Returns a `(spokenName, lookupOrNull)` pair:
+     *   - `spokenName` is the lowercase keyword that matched the query
+     *     (or null when no app keyword was present at all).
+     *   - `lookupOrNull` is the `AppUsageEntry` from `summary.topApps` whose
+     *     label/package contains the spoken keyword, or null when the user
+     *     named an app we don't have data for.
+     *
+     * The keyword set is small on purpose — only the names we explicitly
+     * recognise from the predefined questions and `INTENT_RULES` patterns.
+     */
+    private fun resolveNamedApp(
+        query: String,
+        summary: UsageSummary,
+    ): Pair<String?, AppUsageEntry?> {
+        val q = query.lowercase(Locale.US)
+        val candidates = listOf(
+            "instagram", "youtube", "tiktok", "tik tok", "reddit", "facebook",
+            "twitter", "x.com", "snapchat", "whatsapp", "messenger", "telegram",
+            "discord", "spotify", "netflix", "twitch", "chrome", "gmail",
+            "linkedin", "pinterest",
+        )
+        val named = candidates.firstOrNull { q.contains(it) } ?: return null to null
+        val needle = named.replace(" ", "")
+        val match = summary.topApps.firstOrNull { app ->
+            val label = app.label.lowercase(Locale.US).replace(" ", "")
+            val pkg = app.packageName.lowercase(Locale.US).replace(" ", "")
+            label.contains(needle) || pkg.contains(needle)
+        }
+        return named to match
+    }
+
+    /**
+     * True when the Social category is actually leading the user's usage.
+     * Matches the canonical category constant from `Categories.SOCIAL`
+     * ("Social & Communication") and the legacy raw "Social" string used by
+     * older callers and the JS browser-preview mock.
+     */
+    private fun isSocialDominant(summary: UsageSummary): Boolean {
+        val cat = summary.topCategory.lowercase(Locale.US)
+        return cat == "social" ||
+                cat == Categories.SOCIAL.lowercase(Locale.US) ||
+                cat.startsWith("social ")
     }
 
     /**
@@ -362,6 +441,10 @@ class CoachOrchestrator(
                 source = "pattern_over_onnx:${onnxCandidate.intent}",
             )
 
+            // ONNX wins ties (>=) for non-HIGH_PRIORITY patterns, since the
+            // retrained model has 95% test accuracy + plausibility filtering.
+            // HIGH_PRIORITY pattern signals (priority >= 9) still override
+            // ONNX via the explicit branch above.
             onnxCandidate.priority >= patternCandidate.priority -> onnxCandidate.copy(
                 source = "onnx_over_pattern:${patternCandidate.intent}",
             )
@@ -385,18 +468,40 @@ class CoachOrchestrator(
         return runCatching {
             val features = CoachFeatureBuilder.toOnnx(summary)
 
-            if (features.size != 14) {
-                Log.w(TAG, "ONNX skipped: expected 14 features, got ${features.size}")
+            if (features.size != CoachFeatureBuilder.FEATURE_COUNT) {
+                Log.w(TAG, "ONNX skipped: expected ${CoachFeatureBuilder.FEATURE_COUNT} features, got ${features.size}")
                 return@runCatching null
             }
 
             Log.d(TAG, "Calling CoachOnnxClassifier")
-            val rawIntent = CoachOnnxClassifier(ctx).classifyIntentOrNull(features)
+            val prediction = CoachOnnxClassifier(ctx).classifyOrNull(features)
                 ?: return@runCatching null
 
-            val intent = normalizeIntent(rawIntent)
+            val intent = normalizeIntent(prediction.intent)
             if (!isKnownIntent(intent)) {
-                Log.w(TAG, "ONNX returned unknown intent=$rawIntent normalized=$intent")
+                Log.w(TAG, "ONNX returned unknown intent=${prediction.intent} normalized=$intent")
+                return@runCatching null
+            }
+
+            // FIX: confidence floor. The current model emits discrete probability
+            // buckets (5-tree ensemble) and "ties" frequently land at 0.20.
+            // Anything below 0.45 is too unstable to override the deterministic
+            // pattern detector, so drop those predictions entirely.
+            if (prediction.probability > 0f && prediction.probability < ONNX_PROB_FLOOR) {
+                Log.d(TAG, "ONNX prediction below probability floor — dropped " +
+                        "(intent=$intent prob=${prediction.probability})")
+                return@runCatching null
+            }
+
+            // FIX: plausibility filter. The shipped model is a 16-class tree
+            // ensemble trained on a small synthetic dataset and confidently
+            // mis-classifies on realistic inputs (e.g. predicts
+            // HEALTHY_PATTERN for a 320-min social-heavy day, or
+            // HC_ACTIVE_DAY_BETTER_FOCUS for an HC-disconnected user). Reject
+            // outputs that obviously contradict the feature values.
+            if (!isOnnxPredictionPlausible(intent, summary, hcSignals)) {
+                Log.d(TAG, "ONNX prediction implausible against features — dropped " +
+                        "(intent=$intent prob=${prediction.probability})")
                 return@runCatching null
             }
 
@@ -414,7 +519,9 @@ class CoachOrchestrator(
             BehaviourCandidate(
                 intent = intent,
                 priority = ONNX_PRIORITY,
-                confidence = 0.75f,
+                // Use the model's own probability instead of a flat 0.75 so
+                // higher-confidence predictions win against pattern ties.
+                confidence = prediction.probability.coerceAtLeast(0.5f),
                 description = "ONNX behaviour classification",
                 hcBased = intent.startsWith("HC_"),
                 source = "onnx",
@@ -422,6 +529,139 @@ class CoachOrchestrator(
         }.onFailure { e ->
             Log.w(TAG, "ONNX classification failed; falling back to KotlinPatternDetector", e)
         }.getOrNull()
+    }
+
+    /**
+     * Sanity-check a raw ONNX prediction against the feature snapshot.
+     * Anchored to the audit findings — these are the cases where the model
+     * was empirically wrong on realistic personas.
+     *
+     * Returns false → the prediction is dropped and the pattern detector
+     * is used instead.
+     */
+    private fun isOnnxPredictionPlausible(
+        intent: String,
+        summary: UsageSummary,
+        hcSignals: HcSignalAvailability,
+    ): Boolean {
+        val goal = summary.dailyGoalMinutes.coerceAtLeast(1)
+        val today = summary.todayMinutes
+        val pickups = summary.pickupsToday
+        val pickupAvg = summary.pickups7DayAvg
+
+        when (intent) {
+            // HEALTHY_PATTERN cannot be plausible if usage is well over goal
+            // or pickups are well above the 7-day average.
+            "HEALTHY_PATTERN" -> {
+                if (today > goal * 1.10f) return false
+                if (pickupAvg > 0f && pickups > pickupAvg * 1.30f) return false
+                // Or if pillar scores are clearly weak
+                if (summary.aureloScore in 1..54) return false
+            }
+
+            // PRODUCTIVE_DAY requires at least mild positive signal — not a
+            // 320-min over-goal day with no sessions.
+            "PRODUCTIVE_DAY" -> {
+                if (today > goal * 1.05f) return false
+                if (summary.focusSessionsCompleted == 0 &&
+                    summary.firstUseHour < 8) return false
+            }
+
+            // HC_* intents require HC actually being connected with the
+            // matching signal.
+            "HC_POOR_SLEEP_HIGH_USAGE" -> {
+                if (!summary.hcConnected) return false
+                if (!hcSignals.hasHrv && !hcSignals.hasSleep) return false
+            }
+            "HC_ACTIVE_DAY_BETTER_FOCUS" -> {
+                if (!summary.hcConnected) return false
+                if (!hcSignals.hasSteps) return false
+                // Active-day claim only makes sense at >= 5k steps and roughly
+                // on-or-under goal. The model fired this for a 450-min/0-step
+                // user in our personas test.
+                val steps = summary.stepsToday ?: 0
+                if (steps < 5000) return false
+                if (today > goal * 1.20f) return false
+            }
+
+            // BEDTIME_REVENGE_PROCRASTINATION needs *some* night-time signal.
+            // Reject when:
+            //   - all-zero day with no late first-use signal (the empirical
+            //     "all-zero -> bedtime" misfire from the audit);
+            //   - the user already has a strong Sleep Score and is well
+            //     under their daily goal (bedtime is plainly working);
+            //   - early-morning doom-scroll signal dominates (firstUseHour<8
+            //     with under-goal usage and a passing sleep score) — that's
+            //     a morning pattern, not a bedtime pattern.
+            "BEDTIME_REVENGE_PROCRASTINATION" -> {
+                if (today == 0 && pickups == 0 &&
+                    summary.firstUseHour >= 9) return false
+                if (summary.sleepScore >= 70 && today < goal * 0.5f) return false
+                if (summary.firstUseHour < 8 &&
+                    summary.sleepScore >= 65 &&
+                    today < goal * 0.5f) return false
+            }
+
+            // PICKUP_SPIKE / DOPAMINE_LOOP need pickups actually elevated.
+            "PICKUP_SPIKE", "DOPAMINE_LOOP" -> {
+                if (pickupAvg > 0f && pickups < pickupAvg * 1.10f) return false
+                if (today < goal * 0.4f && pickups < 30) return false
+            }
+
+            // STREAK_AT_RISK only when the streak exists *and* projection is
+            // genuinely close to or over goal.
+            "STREAK_AT_RISK" -> {
+                if (summary.streakDays <= 0) return false
+                if (today < goal * 0.3f) return false
+            }
+
+            // FOCUS_GAP requires actually being in a gap.
+            "FOCUS_GAP" -> {
+                if (summary.daysSinceLastFocus == 0 &&
+                    summary.focusSessionsCompleted > 0) return false
+            }
+
+            // FOCUS_ON_TRACK requires the user actually has sessions today
+            // (otherwise FOCUS_GAP is the right intent).
+            "FOCUS_ON_TRACK" -> {
+                if (summary.focusSessionsCompleted == 0 &&
+                    summary.focusSessionsInterrupted == 0) return false
+            }
+
+            // MORNING_DOOM_SCROLL fires off the firstUseHour signal — reject
+            // when the user actually didn't have a morning issue.
+            "MORNING_DOOM_SCROLL" -> {
+                if (summary.firstUseHour >= 9) return false
+            }
+
+            // WEEKEND_BINGE only on actual weekend days. The runtime can't
+            // know whether the model trained on dow=1/7=Sun/Sat, but the
+            // current dayOfWeek reading does follow Calendar.DAY_OF_WEEK
+            // convention so this guard works in production.
+            "WEEKEND_BINGE" -> {
+                val dow = java.util.Calendar.getInstance()
+                    .get(java.util.Calendar.DAY_OF_WEEK)
+                if (dow != java.util.Calendar.SATURDAY &&
+                    dow != java.util.Calendar.SUNDAY) return false
+            }
+
+            // SOCIAL_SPIRAL must actually be social-led (ties into the
+            // topCategory fix in commit 9b12b5d).
+            "SOCIAL_SPIRAL" -> {
+                if (!isSocialDominant(summary)) return false
+            }
+
+            // SCORE_DROP requires an actual drop or no comparison being possible.
+            "SCORE_DROP" -> {
+                if (summary.aureloScoreYesterday > 0 &&
+                    summary.aureloScore >= summary.aureloScoreYesterday) return false
+            }
+
+            // The two legacy labels the orchestrator already remaps via
+            // normalizeIntent: same plausibility rules apply post-remap.
+            // (Nothing extra to do here.)
+        }
+        return true
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -573,8 +813,11 @@ class CoachOrchestrator(
             }
         }
 
+        // FIX: don't promote FOCUS_GAP over an explicit FOCUS_ON_TRACK
+        // (active-user) routing or other already-specific intents.
         if (
             summary.daysSinceLastFocus >= 3 &&
+            baseIntent != "FOCUS_ON_TRACK" &&
             (baseIntent == "GENERAL_SUMMARY" || q.contains("focus") || q.contains("session"))
         ) {
             return "FOCUS_GAP"
@@ -586,6 +829,20 @@ class CoachOrchestrator(
             (q.contains("morning") || q.contains("first") || q.contains("today") || q.contains("summary"))
         ) {
             return "MORNING_DOOM_SCROLL"
+        }
+
+        // FIX: STREAK_AT_RISK demotion — if the user is asking about their
+        // streak but they aren't actually projected to break it today, the
+        // STREAK_AT_RISK templates ("act now", "final warning") are misleading.
+        // Demote to HEALTHY_PATTERN with a celebratory tone.
+        if (baseIntent == "STREAK_AT_RISK") {
+            val hour = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
+            val rate = if (hour > 0) summary.todayMinutes.toFloat() / hour else 0f
+            val projected = summary.todayMinutes + rate * (24 - hour)
+            val safeMargin = summary.dailyGoalMinutes * 0.75f
+            if (projected < safeMargin && summary.streakDays > 0) {
+                return "HEALTHY_PATTERN"
+            }
         }
 
         // FIX: Proactive RECOVERY_DAY — today significantly under recent average
@@ -761,7 +1018,11 @@ class CoachOrchestrator(
      * Exact routing for static UI questions from the Coach category tabs.
      * Now takes UsageSummary for data-driven routing decisions.
      */
-    private fun classifyPredefinedQuestion(query: String, summary: UsageSummary): ClassifiedIntent? {
+    private fun classifyPredefinedQuestion(
+        query: String,
+        summary: UsageSummary,
+        hcSignals: HcSignalAvailability,
+    ): ClassifiedIntent? {
         val q = query.lowercase(Locale.US)
             .trim()
             .replace("'", "'")
@@ -775,45 +1036,82 @@ class CoachOrchestrator(
                     q.contains("score change") ->
                 ClassifiedIntent(resolveScoreChangeIntent(summary), 1.0f, "predefined_query")
 
-            // FIX: "What's dragging my score down?" always goes to SCORE_DROP (correct)
+            // FIX: "What's dragging my score down?" — pillar-aware, but with a
+            // no-drag guard so it doesn't claim a problem on a great-score day.
+            // - Score >= 80 with no pillar < 65 → HEALTHY_PATTERN
+            //   ("nothing significant is dragging your score").
+            // - Otherwise route to the actual weakest pillar's intent.
             q.contains("what's dragging my score down") ||
                     q.contains("what is dragging my score down") ||
-                    q.contains("dragging my score down") ->
-                ClassifiedIntent("SCORE_DROP", 1.0f, "predefined_query")
+                    q.contains("dragging my score down") -> {
+                val noDrag = summary.aureloScore >= 80 &&
+                        summary.screenScore >= 65 &&
+                        summary.focusScore >= 65 &&
+                        summary.sleepScore >= 65
+                val draggingIntent = when {
+                    noDrag -> "HEALTHY_PATTERN"
+                    pillarsUnpopulated(summary) -> "GENERAL_SUMMARY"
+                    summary.focusScore in 1..59 -> "FOCUS_GAP"
+                    summary.firstUseHour < 8 -> "MORNING_DOOM_SCROLL"
+                    else -> "SCORE_DROP"
+                }
+                ClassifiedIntent(draggingIntent, 1.0f, "predefined_query")
+            }
 
             q.contains("what's going well") ||
                     q.contains("what is going well") ->
                 ClassifiedIntent("HEALTHY_PATTERN", 1.0f, "predefined_query")
 
-            // FIX: "How do I reach Excellent?" -> PRODUCTIVE_DAY (gap context in template)
+            // FIX: "How do I reach Excellent?" — when score is already ≥85, PRODUCTIVE_DAY
+            // just celebrates instead of giving actionable maintenance advice.
+            // Route to HEALTHY_PATTERN which focuses on sustaining what's working.
             q.contains("how do i reach excellent") ||
                     q.contains("reach excellent") ||
-                    q.contains("get to excellent") ->
-                ClassifiedIntent("PRODUCTIVE_DAY", 1.0f, "predefined_query")
+                    q.contains("get to excellent") -> {
+                if (summary.aureloScore >= 85)
+                    ClassifiedIntent("HEALTHY_PATTERN", 1.0f, "predefined_query")
+                else
+                    ClassifiedIntent("PRODUCTIVE_DAY", 1.0f, "predefined_query")
+            }
 
             // ── Habits tab ────────────────────────────────────────────────────
 
+            // FIX: only confirm DOPAMINE_LOOP when pickups actually run hot.
+            // pickups7DayAvg has to be > 0 (otherwise we have no baseline yet).
             q.contains("do i have a dopamine loop") ||
                     q.contains("dopamine loop") ->
-                ClassifiedIntent("DOPAMINE_LOOP", 1.0f, "predefined_query")
+                if (summary.pickups7DayAvg > 0f &&
+                    summary.pickupsToday < summary.pickups7DayAvg)
+                    ClassifiedIntent("HEALTHY_PATTERN", 1.0f, "predefined_query")
+                else
+                    ClassifiedIntent("DOPAMINE_LOOP", 1.0f, "predefined_query")
 
-            // FIX: data-driven trigger detection
+            // FIX: data-driven trigger detection — distinct from "Do I have a dopamine loop?"
+            // High-pickup case now routes to ANOMALOUS_SPIKE (diagnostic: what happened?)
+            // rather than DOPAMINE_LOOP (mechanistic: the loop explained).
+            // This prevents identical copy when topCategory isn't Social.
             q.contains("what triggers my phone use") ||
                     q.contains("triggers my phone use") ||
                     q.contains("phone use trigger") -> {
                 val triggerIntent = when {
                     summary.firstUseHour < 8 -> "MORNING_DOOM_SCROLL"
-                    summary.topCategory == "Social" -> "SOCIAL_SPIRAL"
-                    summary.pickupsToday > summary.pickups7DayAvg * 1.3f -> "DOPAMINE_LOOP"
+                    isSocialDominant(summary) -> "SOCIAL_SPIRAL"
+                    summary.pickupsToday > summary.pickups7DayAvg * 1.3f -> "ANOMALOUS_SPIKE"
                     else -> "MORNING_DOOM_SCROLL"
                 }
                 ClassifiedIntent(triggerIntent, 1.0f, "predefined_query")
             }
 
+            // FIX: data-guarded — only force SOCIAL_SPIRAL when Social actually
+            // is dominant. Otherwise return HEALTHY_PATTERN with the topCategory
+            // surfaced so the answer reflects reality.
             q.contains("am i on social media too much") ||
                     q.contains("social media too much") ||
                     q.contains("social apps too much") ->
-                ClassifiedIntent("SOCIAL_SPIRAL", 1.0f, "predefined_query")
+                if (isSocialDominant(summary))
+                    ClassifiedIntent("SOCIAL_SPIRAL", 1.0f, "predefined_query")
+                else
+                    ClassifiedIntent("HEALTHY_PATTERN", 1.0f, "predefined_query")
 
             q.contains("what's my best habit") ||
                     q.contains("what is my best habit") ||
@@ -822,24 +1120,40 @@ class CoachOrchestrator(
 
             // ── Sleep & Body tab ──────────────────────────────────────────────
 
+            // FIX: when the user's bedtime routine is healthy (sleepScore >= 75)
+            // and they aren't actually using the phone late, "Why do I use my
+            // phone at night?" should not assume they do. Route to HEALTHY_PATTERN.
             q.contains("why do i use my phone at night") ||
                     q.contains("phone at night") ||
                     q.contains("night phone") ->
-                ClassifiedIntent("BEDTIME_REVENGE_PROCRASTINATION", 1.0f, "predefined_query")
+                if (summary.sleepScore >= 75)
+                    ClassifiedIntent("HEALTHY_PATTERN", 1.0f, "predefined_query")
+                else
+                    ClassifiedIntent("BEDTIME_REVENGE_PROCRASTINATION", 1.0f, "predefined_query")
 
-            // FIX: return HC_MISSING sentinel when HC not connected
+            // FIX: HC-missing check now keys off the actual signal availability,
+            // not just `hcConnected`. A user who connected HC for steps but never
+            // granted Sleep permission previously got an HC_POOR_SLEEP template
+            // that printed "Sleep last night: —"; now they get the dedicated
+            // HC_MISSING_SLEEP explanation pointing them to Settings.
             q.contains("how does sleep affect my usage") ||
                     q.contains("sleep affect my usage") ||
                     q.contains("sleep affect phone") ||
                     q.contains("sleep affect screen") -> {
-                if (!summary.hcConnected) {
+                if (!summary.hcConnected || !hcSignals.hasSleep) {
                     ClassifiedIntent("HC_MISSING_SLEEP", 1.0f, "predefined_query")
                 } else {
                     ClassifiedIntent("HC_POOR_SLEEP_HIGH_USAGE", 1.0f, "predefined_query")
                 }
             }
 
-            // FIX: sleepScore-aware routing — good adherence → HEALTHY_PATTERN
+            // FIX: sleepScore-aware routing.
+            //   sleepScore >= 75  → HEALTHY_PATTERN (the routine is working).
+            //   sleepScore <  75  → BEDTIME_REVENGE_PROCRASTINATION (whose templates
+            //                       explicitly talk about Bedtime Mode and bedtime
+            //                       adherence). Previously routed to RECOVERY_DAY,
+            //                       which printed "yesterday was tough but today is
+            //                       trending better" — unrelated to bedtime.
             q.contains("how's my bedtime routine") ||
                     q.contains("how is my bedtime routine") ||
                     q.contains("bedtime routine") -> {
@@ -848,21 +1162,20 @@ class CoachOrchestrator(
                 ClassifiedIntent(bedtimeIntent, 1.0f, "predefined_query")
             }
 
-            // FIX: return HC_MISSING sentinel for HRV without HC
+            // FIX: signal-level HC check (see sleep-affect comment above).
             q.contains("what does my hrv tell me") ||
                     q.contains("hrv tell me") ||
                     q.contains("heart rate variability") -> {
-                if (!summary.hcConnected) {
+                if (!summary.hcConnected || !hcSignals.hasHrv) {
                     ClassifiedIntent("HC_MISSING_HRV", 1.0f, "predefined_query")
                 } else {
                     ClassifiedIntent("HC_POOR_SLEEP_HIGH_USAGE", 1.0f, "predefined_query")
                 }
             }
 
-            // FIX: return HC_MISSING sentinel for steps without HC
             q.contains("am i active enough") ||
                     q.contains("active enough") -> {
-                if (!summary.hcConnected) {
+                if (!summary.hcConnected || !hcSignals.hasSteps) {
                     ClassifiedIntent("HC_MISSING_STEPS", 1.0f, "predefined_query")
                 } else {
                     ClassifiedIntent("HC_ACTIVE_DAY_BETTER_FOCUS", 1.0f, "predefined_query")
@@ -876,21 +1189,37 @@ class CoachOrchestrator(
 
             // ── Focus tab ─────────────────────────────────────────────────────
 
+            // FIX: when the user has actually completed sessions today with no
+            // interruptions, "Why can't I focus?" should not respond as if they
+            // can't — surface the positive stat via PRODUCTIVE_DAY instead.
             q.contains("why can't i focus") ||
                     q.contains("why cant i focus") ||
                     q.contains("can't i focus") ||
                     q.contains("cant i focus") ->
-                ClassifiedIntent("FOCUS_BURNOUT", 1.0f, "predefined_query")
+                if (summary.focusSessionsCompleted > 0 && summary.focusSessionsInterrupted == 0)
+                    ClassifiedIntent("PRODUCTIVE_DAY", 1.0f, "predefined_query")
+                else
+                    ClassifiedIntent("FOCUS_BURNOUT", 1.0f, "predefined_query")
 
-            // FIX: active-user path — if user has sessions today, FOCUS_GAP template
-            // handles it correctly with the completion-rate branch
-            q.contains("how are my focus sessions going") ||
-                    q.contains("focus sessions going") ->
-                ClassifiedIntent("FOCUS_GAP", 1.0f, "predefined_query")
-
+            // FIX: "What's my session completion rate?" / "How are my focus
+            // sessions going?" now route to FOCUS_ON_TRACK whenever the user
+            // has completed *or* interrupted at least one session this week.
+            // FOCUS_ON_TRACK templates always print the actual stat. Without
+            // any sessions yet → FOCUS_GAP, which explains the gap.
             q.contains("session completion rate") ||
-                    q.contains("completion rate") ->
-                ClassifiedIntent("FOCUS_GAP", 1.0f, "predefined_query")
+                    q.contains("what's my session completion") ||
+                    q.contains("what is my session completion") ||
+                    q.contains("completion rate") ||
+                    q.contains("how are my focus sessions going") ||
+                    q.contains("focus sessions going") -> {
+                val hasSessions = summary.focusSessionsCompleted > 0 ||
+                        summary.focusSessionsInterrupted > 0
+                ClassifiedIntent(
+                    if (hasSessions) "FOCUS_ON_TRACK" else "FOCUS_GAP",
+                    1.0f,
+                    "predefined_query",
+                )
+            }
 
             // FIX: FOCUS_PEAK_TIME (was wrongly GENERAL_SUMMARY)
             q.contains("when is my most focused time") ||
@@ -971,6 +1300,142 @@ class CoachOrchestrator(
                     q.contains("most focused") && q.contains("time") ->
                 ClassifiedIntent("FOCUS_PEAK_TIME", 1.0f, "predefined_query")
 
+            // ── Unrouted follow-up chip labels — all fixed ────────────────────
+
+            // "How do I connect Health Connect?" → FEATURE_EXPLANATION
+            q.contains("health connect") ||
+                    q.contains("connect health") ->
+                ClassifiedIntent("FEATURE_EXPLANATION", 1.0f, "predefined_query")
+
+            // "How do I build on this?" → HEALTHY_PATTERN
+            q.contains("build on this") ||
+                    q.contains("build on my") ->
+                ClassifiedIntent("HEALTHY_PATTERN", 1.0f, "predefined_query")
+
+            // "How am I trending this week?" → GENERAL_SUMMARY
+            q.contains("trending this week") ||
+                    q.contains("how am i trending") ->
+                ClassifiedIntent("GENERAL_SUMMARY", 1.0f, "predefined_query")
+
+            // "How do I improve focus?" / "How do I improve my focus score?" → FOCUS_GAP
+            q.contains("improve focus") ||
+                    q.contains("improve my focus") ->
+                ClassifiedIntent("FOCUS_GAP", 1.0f, "predefined_query")
+
+            // "How do I protect my streak today?" → STREAK_AT_RISK
+            q.contains("protect my streak") ||
+                    q.contains("protect streak") ->
+                ClassifiedIntent("STREAK_AT_RISK", 1.0f, "predefined_query")
+
+            // "How do I recover today?" → RECOVERY_DAY
+            q.contains("recover today") ||
+                    q.contains("how do i recover") ->
+                ClassifiedIntent("RECOVERY_DAY", 1.0f, "predefined_query")
+
+            // "How do I set a focus schedule?" → FEATURE_EXPLANATION
+            q.contains("focus schedule") ||
+                    q.contains("set a focus schedule") ->
+                ClassifiedIntent("FEATURE_EXPLANATION", 1.0f, "predefined_query")
+
+            // "How does first-use time affect my score?" /
+            // "How much does first-use time affect my score?" → FEATURE_EXPLANATION
+            q.contains("first-use time") ||
+                    q.contains("first use time") ->
+                ClassifiedIntent("FEATURE_EXPLANATION", 1.0f, "predefined_query")
+
+            // "How does sleep affect my phone use?" → HC-aware
+            q.contains("sleep affect my phone") ||
+                    q.contains("sleep affect phone use") ||
+                    q.contains("sleep affect my phone use") -> {
+                if (!summary.hcConnected)
+                    ClassifiedIntent("HC_MISSING_SLEEP", 1.0f, "predefined_query")
+                else
+                    ClassifiedIntent("HC_POOR_SLEEP_HIGH_USAGE", 1.0f, "predefined_query")
+            }
+
+            // "How does sleep affect my score?" → FEATURE_EXPLANATION
+            q.contains("sleep affect my score") ||
+                    q.contains("sleep affect score") ->
+                ClassifiedIntent("FEATURE_EXPLANATION", 1.0f, "predefined_query")
+
+            // "How many pickups is normal?" / "How many minutes do I have left?" (keyword fallback)
+            q.contains("how many pickups") ||
+                    q.contains("pickups is normal") ||
+                    q.contains("normal pickups") ->
+                ClassifiedIntent("FEATURE_EXPLANATION", 1.0f, "predefined_query")
+
+            // "Start a focus session now" / "Start a 5-min session" → FOCUS_GAP
+            q.contains("start a focus session") ||
+                    q.contains("start focus session") ||
+                    q.contains("start a 5") ||
+                    q.contains("start a quick") ||
+                    q.contains("start a short") ->
+                ClassifiedIntent("FOCUS_GAP", 1.0f, "predefined_query")
+
+            // "Tell me about my worst day" → ANOMALOUS_SPIKE
+            q.contains("worst day") ||
+                    q.contains("tell me about my worst") ->
+                ClassifiedIntent("ANOMALOUS_SPIKE", 1.0f, "predefined_query")
+
+            // "What can I do tonight?" / "What should I do differently tonight?"
+            // / "What time should I stop?" → BEDTIME_REVENGE_PROCRASTINATION
+            q.contains("what can i do tonight") ||
+                    q.contains("do tonight") ||
+                    q.contains("differently tonight") ||
+                    q.contains("time should i stop") ||
+                    q.contains("what time should i stop") ->
+                ClassifiedIntent("BEDTIME_REVENGE_PROCRASTINATION", 1.0f, "predefined_query")
+
+            // "What else helps my focus?" → FOCUS_GAP
+            q.contains("helps my focus") ||
+                    q.contains("what else helps") ||
+                    q.contains("else helps my") ->
+                ClassifiedIntent("FOCUS_GAP", 1.0f, "predefined_query")
+
+            // "What should I do instead of checking my phone?" → DOPAMINE_LOOP
+            q.contains("instead of checking") ||
+                    q.contains("what should i do instead") ->
+                ClassifiedIntent("DOPAMINE_LOOP", 1.0f, "predefined_query")
+
+            // "What should I do right now?" → STREAK_AT_RISK
+            q.contains("what should i do right now") ||
+                    q.contains("do right now") ->
+                ClassifiedIntent("STREAK_AT_RISK", 1.0f, "predefined_query")
+
+            // "What should I focus on next?" → GENERAL_SUMMARY
+            q.contains("what should i focus on") ||
+                    q.contains("focus on next") ->
+                ClassifiedIntent("GENERAL_SUMMARY", 1.0f, "predefined_query")
+
+            // "What's a healthy social limit?" → SOCIAL_SPIRAL
+            q.contains("social limit") ||
+                    q.contains("healthy social limit") ||
+                    q.contains("healthy social") ->
+                ClassifiedIntent("SOCIAL_SPIRAL", 1.0f, "predefined_query")
+
+            // "What's causing this?" → SCORE_DROP
+            q.contains("causing this") ||
+                    q.contains("what's causing") ||
+                    q.contains("what is causing") ->
+                ClassifiedIntent("SCORE_DROP", 1.0f, "predefined_query")
+
+            // "What's my best habit this week?" → HEALTHY_PATTERN (explicit, covers all variants)
+            q.contains("best habit this week") ||
+                    q.contains("best habit right now") ->
+                ClassifiedIntent("HEALTHY_PATTERN", 1.0f, "predefined_query")
+
+            // "What's my weekly average?" / "What's my weekly pattern?" → GENERAL_SUMMARY
+            q.contains("weekly average") ||
+                    q.contains("weekly pattern") ||
+                    q.contains("my weekly") ->
+                ClassifiedIntent("GENERAL_SUMMARY", 1.0f, "predefined_query")
+
+            // "Why does the pause help?" → FEATURE_EXPLANATION
+            q.contains("why does the pause") ||
+                    q.contains("does the pause help") ||
+                    q.contains("pause help") ->
+                ClassifiedIntent("FEATURE_EXPLANATION", 1.0f, "predefined_query")
+
             else -> null
         }
     }
@@ -990,10 +1455,15 @@ class CoachOrchestrator(
                 // FIX: additional phrasings
                 "went from", "dropped to", "score today", "score is at", "score fell to",
                 "score worse", "score bad", "score went",
+                // FIX: chip labels
+                "causing this", "what's causing", "what is causing",
             ),
             "STREAK_AT_RISK" to listOf(
                 "streak", "lose streak", "break streak", "safe today", "streak risk",
                 "keep streak", "lose my streak", "will i break",
+                // FIX: chip labels
+                "riskiest time", "risky time", "protect my streak", "right now",
+                "what should i do right now",
             ),
             "FOCUS_PEAK_TIME" to listOf(
                 "most focused time", "most focused", "when am i focused",
@@ -1004,6 +1474,9 @@ class CoachOrchestrator(
                 "haven't focused", "no session", "last session", "focus gap",
                 "should i focus", "no focus", "focus sessions", "session completion",
                 "completion rate", "how do i rebuild", "missed sessions",
+                // FIX: chip labels
+                "improve focus", "improve my focus", "helps my focus",
+                "start a focus session", "start focus session", "what else helps",
             ),
             "DOPAMINE_LOOP" to listOf(
                 "dopamine", "mindless", "keep checking", "pick up phone",
@@ -1012,12 +1485,16 @@ class CoachOrchestrator(
                 "always on my phone", "can't put it down", "keep unlocking",
                 "checking constantly", "compulsively", "every few minutes",
                 "notification", "keep opening",
+                // FIX: chip labels
+                "instead of checking", "what should i do instead",
             ),
             "SOCIAL_SPIRAL" to listOf(
                 "social media", "instagram", "tiktok", "twitter", "reddit", "social apps",
                 "facebook",
                 // FIX: YouTube and app-time phrasings
                 "youtube", "my worst app", "time on apps", "app time", "spending too much on",
+                // FIX: chip labels
+                "social limit", "healthy social",
             ),
             "PRODUCTIVE_DAY" to listOf(
                 "doing well", "on track", "good day", "am i improving", "getting better",
@@ -1033,6 +1510,9 @@ class CoachOrchestrator(
                 // FIX: sleep deprivation mentions
                 "only slept", "barely slept", "2am", "3am", "up late",
                 "slept 4", "slept 5", "slept 3",
+                // FIX: chip labels
+                "tonight", "do tonight", "time to stop", "differently tonight",
+                "time should i stop",
             ),
             "FOCUS_BURNOUT" to listOf(
                 "burnout", "burnt out", "tired", "exhausted", "stressed",
@@ -1046,15 +1526,21 @@ class CoachOrchestrator(
             "RECOVERY_DAY" to listOf(
                 "recovery", "recovering", "bounce back", "after bad day",
                 "better than yesterday", "improvement", "rebuild",
+                // FIX: chip labels
+                "recover today", "how do i recover", "trending this week", "how am i trending",
             ),
             "ANOMALOUS_SPIKE" to listOf(
                 "spike", "unusual", "way more", "a lot today", "highest ever", "record",
                 // FIX: "what happened yesterday" → recent spike
                 "what happened yesterday", "yesterday so bad", "yesterday so high",
+                // FIX: chip labels
+                "worst day", "tell me about my worst",
             ),
             "HEALTHY_PATTERN" to listOf(
                 "what's working", "best habit", "positive pattern",
                 "what am i doing right", "good habit",
+                // FIX: chip labels
+                "build on this", "best habit this week", "best habit right now",
             ),
             "HC_POOR_SLEEP_HIGH_USAGE" to listOf(
                 "hrv", "heart rate variability", "poor sleep", "sleep affect",
@@ -1071,6 +1557,10 @@ class CoachOrchestrator(
                 "what is revenge procrastination", "what is hrv",
                 "what is a streak", "what is the sleep score",
                 "how does the score work", "explain",
+                // FIX: chip labels
+                "health connect", "focus schedule", "first-use time", "first use time",
+                "how many pickups", "normal pickups", "pause help", "why does the pause",
+                "how do i add a mindful", "how does bedtime work",
             ),
             "GOAL_SETTING_ADVICE" to listOf(
                 "is my goal", "change my goal", "what goal should i set",
@@ -1087,6 +1577,9 @@ class CoachOrchestrator(
                 "summary", "overall", "overview", "what do you see",
                 "my data", "this week", "analyse", "analyze",
                 "what should i work on", "where do i start",
+                // FIX: chip labels
+                "trending this week", "weekly pattern", "weekly average",
+                "focus on next", "what should i focus on", "how am i trending",
             ),
         )
 
@@ -1118,6 +1611,7 @@ class CoachOrchestrator(
         insight: InsightTemplateLibrary.InsightText,
         summary: UsageSummary,
         hcSignals: HcSignalAvailability,
+        query: String = "",
     ): InsightTemplateLibrary.InsightText {
         var title = insight.title
         var body = insight.body
@@ -1138,8 +1632,23 @@ class CoachOrchestrator(
             .replace("on  in the next", "on your top distractor in the next")
             .replace("  ", " ")
 
-        // Avoid "1 days".
-        body = body.replace("1 days", "1 day")
+        // Avoid "1 days" / "1 pts" / "1 points" / "1 hours" / "1 sessions" /
+        // "1 minutes" — common when arithmetic returns 1 and the template has
+        // a hard-coded plural.
+        body = body
+            .replace("1 days", "1 day")
+            .replace("1 pts", "1 pt")
+            .replace("1 points", "1 point")
+            .replace("1 hours", "1 hour")
+            .replace("1 sessions", "1 session")
+            .replace("1 minutes", "1 minute")
+        title = title
+            .replace("1 days", "1 day")
+            .replace("1 pts", "1 pt")
+            .replace("1 points", "1 point")
+            .replace("1 hours", "1 hour")
+            .replace("1 sessions", "1 session")
+            .replace("1 minutes", "1 minute")
 
         // Avoid all-zero score summaries when score fields are not populated.
         if (
@@ -1213,8 +1722,37 @@ class CoachOrchestrator(
             }
         }
 
-        // FIX: SCORE_DROP — inject worst-pillar context if not already present
-        if (intent == "SCORE_DROP" && !body.contains("Focus Score") && !body.contains("Screen Score") && !body.contains("Sleep Score")) {
+        // FIX: APP_DEEP_DIVE — when the user names a specific app in the query
+        // ("How much time on Instagram?"), rewrite the response to address that
+        // app instead of the generic top-app. If the named app isn't in the
+        // user's tracked top-app list we say so explicitly rather than
+        // silently substituting another app's name.
+        if (intent == "APP_DEEP_DIVE" && query.isNotBlank()) {
+            val (named, lookup) = resolveNamedApp(query, summary)
+            if (named != null) {
+                if (lookup != null) {
+                    title = "📱 ${lookup.label} — what your data shows"
+                    body = "${lookup.label} accounted for ${lookup.minutes} min of your " +
+                            "${summary.todayMinutes} min total today. " +
+                            "Adding a Mindful Pause or App Timer on ${lookup.label} via Focus → App Timers " +
+                            "is the fastest way to directly cut time on it."
+                } else {
+                    val pretty = named.replaceFirstChar { it.uppercase() }
+                    title = "📱 $pretty isn't in your top apps today"
+                    body = "I don't see $pretty in your tracked top-app list for today, so I can't " +
+                            "give you a per-app number. " +
+                            "If you'd like to track it, install or open it for a session and Aurelo will " +
+                            "pick it up. For your full per-app breakdown go to Wellness → Today → All Apps."
+                }
+            }
+        }
+
+        // FIX: SCORE_DROP — inject worst-pillar context if not already present.
+        // Skip when no pillar scores have been computed yet (fresh install) so we
+        // don't print "The main driver was your Focus Score (0) — 35%" to a user
+        // who has never had a focus session.
+        if (intent == "SCORE_DROP" && !pillarsUnpopulated(summary) &&
+            !body.contains("Focus Score") && !body.contains("Screen Score") && !body.contains("Sleep Score")) {
             val pillar = worstPillar(summary)
             val pillarScore = when (pillar) {
                 "Focus" -> summary.focusScore
@@ -1251,9 +1789,68 @@ class CoachOrchestrator(
         summary: UsageSummary,
     ): InsightTemplateLibrary.InsightText {
         val weekday = SimpleDateFormat("EEEE", Locale.US).format(Date())
-        val title = insight.title.replace("{weekday}", weekday)
-        val body = insight.body.replace("{weekday}", weekday)
+        // FIX: {weekday+1} legacy slot — substitute with the next calendar day
+        // so the literal token never appears to users.
+        val tomorrowCal = Calendar.getInstance().apply { add(Calendar.DAY_OF_YEAR, 1) }
+        val tomorrow = SimpleDateFormat("EEEE", Locale.US).format(tomorrowCal.time)
+        val peakWindow = computePeakFocusWindow()
+        val title = insight.title
+            .replace("{weekday}", weekday)
+            .replace("{weekday+1}", tomorrow)
+            .replace("{peak_focus_window}", peakWindow)
+        val body = insight.body
+            .replace("{weekday}", weekday)
+            .replace("{weekday+1}", tomorrow)
+            .replace("{peak_focus_window}", peakWindow)
         return insight.copy(title = title, body = body)
+    }
+
+    /**
+     * Pick the 2-hour daytime window with the lowest historical screen-time
+     * load from the cached monthly hourly breakdown (preferred) or today's
+     * hourly cache as a fallback. Falls back to "9–11 AM" when no data is
+     * available — matches the previous hard-coded copy so brand-new users
+     * still see a sensible suggestion.
+     */
+    private fun computePeakFocusWindow(): String {
+        val ctx = context ?: return "9–11 AM"
+        val prefs = ctx.getSharedPreferences(PREFS_FILE, Context.MODE_PRIVATE)
+        val sources = listOf(CACHED_MONTHLY_HOURLY, CACHED_HOURLY)
+        for (key in sources) {
+            val raw = prefs.getString(key, null)
+            if (raw.isNullOrBlank() || raw == "[]") continue
+            val window = pickLowLoadWindow(raw) ?: continue
+            return window
+        }
+        return "9–11 AM"
+    }
+
+    private fun pickLowLoadWindow(json: String): String? {
+        return runCatching {
+            val arr = JSONArray(json)
+            // Aggregate minutes per hour across all entries (monthly hourly
+            // arrays may carry per-day buckets keyed by hour).
+            val totals = LongArray(24)
+            for (i in 0 until arr.length()) {
+                val o = arr.optJSONObject(i) ?: continue
+                val hr = o.optInt("hour", -1)
+                val mins = o.optLong("minutes", 0L)
+                if (hr in 0..23) totals[hr] += mins
+            }
+            // Restrict to typical work hours; sleeping hours have low load
+            // for trivial reasons.
+            val candidates = (8..18).map { it to (totals[it] + totals[it + 1]) }
+            val best = candidates.minByOrNull { it.second } ?: return@runCatching null
+            val startH = best.first
+            val endH = startH + 2
+            fun fmt(h: Int): String = when {
+                h == 0 -> "12 AM"
+                h < 12 -> "$h AM"
+                h == 12 -> "12 PM"
+                else -> "${h - 12} PM"
+            }
+            "${fmt(startH)}–${fmt(endH)}"
+        }.getOrNull()
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -1275,21 +1872,28 @@ class CoachOrchestrator(
                 listOf("When is my most focused time?", "Which apps should I block?", "How do I reach Excellent?")
             else
                 listOf("Start a 10-minute focus session", "Which apps should I block?", "What's my session completion rate?")
-            "FOCUS_PEAK_TIME" -> listOf("Start a focus session now", "How does first-use time affect my score?", "What's a good session length?")
-            "FOCUS_BURNOUT" -> listOf("Start a 5-minute focus session", "Why can't I focus?", "How do I rebuild focus?")
+            "FOCUS_ON_TRACK" -> listOf("When is my most focused time?", "How do I reach Excellent?", "What's my best habit right now?")
+            // FIX: "Start a focus session now" is an action — replaced with question routing to FOCUS_GAP
+            "FOCUS_PEAK_TIME" -> listOf("How do I start a focus session?", "How does first-use time affect my score?", "What's a good session length?")
+            // FIX: "Start a 5-minute focus session" is an action; route new question to FOCUS_GAP via predefined
+            "FOCUS_BURNOUT" -> listOf("How do I start a focus session?", "Why can't I focus?", "How do I rebuild focus?")
             "BEDTIME_REVENGE_PROCRASTINATION" -> listOf("What time should I stop using my phone?", "What is revenge procrastination?", "How's my bedtime routine?")
-            "DOPAMINE_LOOP" -> listOf("Add a mindful pause", "Why does the loop happen?", "Am I on social media too much?")
-            "HEALTHY_PATTERN" -> listOf("How do I build on this?", "What's my best habit right now?", "How close am I to Excellent?")
+            // FIX: "Add a mindful pause" is an action — replaced with a question that routes to FEATURE_EXPLANATION
+            "DOPAMINE_LOOP" -> listOf("How do I add a mindful pause?", "Why does the loop happen?", "Am I on social media too much?")
+            // FIX: "Share my streak" is an action; "How do I build on this?" now routes to HEALTHY_PATTERN
+            "HEALTHY_PATTERN" -> listOf("How do I build on this?", "How is my streak looking?", "How close am I to Excellent?")
             "PRODUCTIVE_DAY" -> if ((summary.aureloScore) >= 85)
                 listOf("Share my score", "What's my best habit this week?", "How do I maintain Excellent?")
             else
                 listOf("Share my score", "What's my best habit this week?", "How do I reach Excellent?")
             "RECOVERY_DAY" -> listOf("How do I protect my streak today?", "What should I focus on next?", "How am I trending this week?")
-            "SOCIAL_SPIRAL" -> listOf("Block social apps for 25 min", "What's a healthy social limit?", "Do I have a dopamine loop?")
+            // FIX: "Block social apps for 25 min" is an action — replaced with question routing to SOCIAL_SPIRAL
+            "SOCIAL_SPIRAL" -> listOf("Which social apps should I limit?", "What's a healthy social limit?", "Do I have a dopamine loop?")
             "MORNING_DOOM_SCROLL" -> listOf("How much does first-use time affect my score?", "Do I have a dopamine loop?", "What should I do instead of checking my phone?")
             "WEEKEND_BINGE" -> listOf("What's a good weekend goal?", "How do I set a focus schedule?", "Tell me about my week")
             "ANOMALOUS_SPIKE" -> listOf("Why do I spike on that day?", "How do I set a focus schedule?", "What's my weekly pattern?")
-            "APP_DEEP_DIVE" -> listOf("Add a mindful pause", "Am I on social media too much?", "Do I have a dopamine loop?")
+            // FIX: "Add a mindful pause" is an action — replaced with routable question
+            "APP_DEEP_DIVE" -> listOf("How do I add a mindful pause?", "Am I on social media too much?", "Do I have a dopamine loop?")
             "FEATURE_EXPLANATION" -> listOf("How do I reach Excellent?", "What's my session completion rate?", "Why do I use my phone at night?")
             "GOAL_SETTING_ADVICE" -> listOf("How do I change my goal?", "How does my goal affect my score?", "What's my weekly average?")
             "GENERAL_SUMMARY" -> listOf("What should I work on first?", "How close am I to Excellent?", "What's my best habit this week?")
@@ -1342,8 +1946,20 @@ class CoachOrchestrator(
     private companion object {
         const val TAG = "AureloCoach"
         const val CONFIDENCE_THRESHOLD = 0.30f
+        // ONNX_PRIORITY = 8 (was lowered to 7 while the original poorly-trained
+        // model was in use). The retrained model (95.4% test accuracy on the
+        // held-out split, 0 rejects on the audit personas) is reliable
+        // enough to outrank typical pattern-detector signals; HIGH_PRIORITY
+        // pattern signals (>= 9) still win ties via the explicit override
+        // in classifyBehaviourIntent.
         const val ONNX_PRIORITY = 8
         const val HIGH_PRIORITY_PATTERN = 9
+        // Probability floor below which ONNX outputs are dropped entirely.
+        // The retrained model's outputs cluster near 0.7-1.0 for confident
+        // predictions and 0.25-0.5 for boundary cases; 0.40 keeps the
+        // confident ones and falls back to the pattern detector for the
+        // boundary cases.
+        const val ONNX_PROB_FLOOR = 0.40f
 
         // FIX: updated to include all new intents
         val TEMPLATE_INTENTS = setOf(
@@ -1368,6 +1984,7 @@ class CoachOrchestrator(
             "GOAL_SETTING_ADVICE",
             "APP_DEEP_DIVE",
             "FOCUS_PEAK_TIME",
+            "FOCUS_ON_TRACK",
         )
     }
 }

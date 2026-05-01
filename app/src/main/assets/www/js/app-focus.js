@@ -811,6 +811,16 @@ window.FocusTab = (function () {
     if (IS_NATIVE) {
       try { if (typeof N.recordFocusComplete === 'function') N.recordFocusComplete(durationMins); } catch (_) {}
       try { if (typeof N.checkAndTriggerRateApp === 'function') N.checkAndTriggerRateApp('focus_complete'); } catch (_) {}
+      // FIX: Invalidate Today and Week tab insight caches so the next visit
+      // produces a fresh insight reflecting the just-completed session
+      // (e.g. FOCUS_ON_TRACK instead of FOCUS_GAP).
+      try {
+        if (typeof window.AppBridge === 'object' && window.AppBridge &&
+            typeof window.AppBridge.invalidateTabInsightCache === 'function') {
+          window.AppBridge.invalidateTabInsightCache('today');
+          window.AppBridge.invalidateTabInsightCache('week');
+        }
+      } catch (_) {}
     }
     _focusLastTotalMins = durationMins; _focusLastElapsedMins = durationMins;
     _launchConfetti();
@@ -822,6 +832,11 @@ window.FocusTab = (function () {
       // Bust cache and refresh all three home strips atomically.
       if (typeof FocusHome !== 'undefined') FocusHome._refreshStrips();
       else { _invalidateStripCache(); renderFocusStrip(); renderHomeFocusDynamicRow(); renderHomeHabitsDynamicRow(); }
+      // FIX: Notify coach insight cards (home + wellness tabs) that session data
+      // has changed so they refresh their content immediately.
+      try {
+        document.dispatchEvent(new CustomEvent('aurelo:focuscomplete', { detail: { durationMins: durationMins } }));
+      } catch (_) {}
     }, 3500);
   }
 

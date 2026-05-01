@@ -58,6 +58,14 @@
     <!-- ── Health Connect promo banner (rendered by app-health-connect.js) ── -->
     <div id="hc-home-banner" style="padding:0 16px;margin-bottom:12px;display:none" onclick="if(typeof openSettingsWithHC==='function'){openSettingsWithHC();}else{activateTab('settings');requestAnimationFrame(()=>toggleHCSettingsSection&&toggleHCSettingsSection(true));}" role="button" tabindex="0"></div>
 
+    <!-- ── Focus dynamic row ──── -->
+    <div id="home-focus-dynamic" style="padding:0 14px;margin-bottom:16px"></div>
+    <!-- ── Habits dynamic row ──── -->
+    <div id="home-habits-dynamic" style="padding:0 14px;margin-bottom:16px"></div>
+
+    <!-- Coach insight anchor — independent of HC banner -->
+    <div id="coach-home-insight-anchor"></div>
+
     <!-- ── First-run snapshot card ── -->
     <div id="first-run-card" style="display:none">
         <div class="frc-icon" id="frc-icon">✨</div>
@@ -78,11 +86,6 @@
         <div onclick="event.stopPropagation(); dismissInsightBanner()" class="hib-close" role="button" tabindex="0" aria-label="Dismiss insight">×</div>
     </div>
     <div id="ghost-banner" style="display:none"><div id="ghost-banner-sub"></div></div>
-
-    <!-- ── Focus dynamic row ──── -->
-    <div id="home-focus-dynamic" style="padding:0 14px;margin-bottom:16px"></div>
-    <!-- ── Habits dynamic row ──── -->
-    <div id="home-habits-dynamic" style="padding:0 14px;margin-bottom:16px"></div>
 
     <!-- legacy stubs — JS backward compat -->
     <div id="home-focus-strip" style="display:none"></div>

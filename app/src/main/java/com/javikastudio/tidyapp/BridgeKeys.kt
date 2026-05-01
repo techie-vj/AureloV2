@@ -66,6 +66,10 @@ const val KEY_FOCUS_TIME_WEEK_MINS   = "focus_time_week_mins"
 const val KEY_FOCUS_LAST_OUTCOME     = "focus_last_outcome"
 const val KEY_FOCUS_LAST_ELAPSED     = "focus_last_elapsed"
 const val KEY_FOCUS_LAST_TOTAL       = "focus_last_total_mins"
+// Timestamp of the most recent completed focus session — used by the Coach
+// pipeline to compute exact "days since last focus" rather than an approximation
+// based on weekly counters. Written by FocusSessionBridge.recordFocusComplete().
+const val KEY_FOCUS_LAST_COMPLETE_TS = "focus_last_complete_ts"
 // F-06: daily session counters (reset at midnight) for use in Focus Score daily Aurelo composite
 const val KEY_FOCUS_DATE              = "focus_date_v1"
 const val KEY_FOCUS_COMPLETED_TODAY   = "focus_completed_today"

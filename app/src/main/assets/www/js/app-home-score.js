@@ -639,8 +639,29 @@ function _onAureloPillarTap(pillar) {
                  typeof HealthConnect.isConnected === 'function' &&
                  HealthConnect.isConnected();
     if (!hcOk) {
-      if (typeof HealthConnect !== 'undefined' &&
-          typeof HealthConnect.openSettings === 'function') HealthConnect.openSettings();
+      if (typeof openSettingsWithHC === 'function') {
+        openSettingsWithHC();
+      } else {
+        if (typeof activateTab === 'function') activateTab('settings');
+        requestAnimationFrame(function () {
+          // 1. Scroll settings screen to top first
+          var settingsScreen = document.getElementById('screen-settings');
+          if (settingsScreen) settingsScreen.scrollTop = 0;
+
+          // 2. Expand the HC section
+          if (typeof toggleHCSettingsSection === 'function') toggleHCSettingsSection(true);
+
+          // 3. Scroll the HC element into view after expand animation starts
+          setTimeout(function () {
+            var hcSection = document.getElementById('settings-hc-section') ||
+                            document.querySelector('[data-section="health-connect"]') ||
+                            document.querySelector('.settings-hc-section');
+            if (hcSection) {
+              hcSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+          }, 120);
+        });
+      }
     } else {
       _showBodyScoreSheet();
     }
