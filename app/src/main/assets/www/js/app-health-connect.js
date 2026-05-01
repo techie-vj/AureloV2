@@ -228,6 +228,22 @@ const HealthConnect = (function () {
       renderSettingsCard();
       _refreshAllScores();
       if (typeof toast === 'function') toast('Health Connect connected ✓', 'success');
+      // FIX (Issue 3): HC just connected — immediately refresh home + visible wellness
+      // coach cards so users see HC-enriched insights without restarting the app.
+      // The Kotlin bridge already invalidated the Kotlin-side cache; here we also
+      // re-render whatever card is currently on screen.
+      setTimeout(function () {
+        try {
+          if (typeof window.renderCoachHomeInsight === 'function') {
+            window.renderCoachHomeInsight();
+          }
+          // Re-render whichever wellness sub-tab is currently visible.
+          var wellTab = (typeof window._wellnessView === 'string') ? window._wellnessView : null;
+          if (wellTab === 'today'  && typeof window.renderTodayCoachInsight === 'function') window.renderTodayCoachInsight();
+          if (wellTab === 'week'   && typeof window.renderWeekCoachInsight  === 'function') window.renderWeekCoachInsight();
+          if (wellTab === 'month'  && typeof window.renderMonthCoachInsight === 'function') window.renderMonthCoachInsight();
+        } catch (_) {}
+      }, 600);
     } else if (needsSettings) {
       // Permanently denied via standard runtime-permission path (should not happen
       // with the HC SDK PermissionController contract, but kept as a safety net).

@@ -156,18 +156,35 @@ class CoachOrchestrator(
             ?: classifyQueryIntent(query)
         Log.d(TAG, "Query intent=${queryIntent.intent} confidence=${queryIntent.confidence}")
 
-        // FIX: HC-missing sentinel — return explanation response immediately
-        if (queryIntent.intent.startsWith("HC_MISSING_")) {
-            val (missingTitle, missingBody, missingFollowUps) = buildHcMissingResponse(queryIntent.intent, summary)
+        // FIX: HC-related and concept-definition sentinels — return explanation immediately.
+        //
+        // SOCIAL_NOT_DOMINANT: user asked "am I on social media too much" but social is
+        //   not actually their top category. Give a direct on-topic answer.
+        //
+        // REVENGE_DEFINITION: user asked "what is revenge procrastination". Previously this
+        //   routed to FEATURE_EXPLANATION whose NEW_USER variant shows "Welcome to Aurelo
+        //   Coach" — irrelevant. Always return a direct definition.
+        //
+        // HC_MISSING_*: user asked an HC-dependent question but a specific signal is absent.
+        //   Distinguish between "HC not connected / permission not granted" vs
+        //   "HC connected + permission granted but no data recorded yet"
+        //   and give the appropriate message in each case.
+        val earlyIntent = queryIntent.intent
+        if (earlyIntent == "SOCIAL_NOT_DOMINANT" ||
+            earlyIntent == "REVENGE_DEFINITION" ||
+            earlyIntent.startsWith("HC_MISSING_")
+        ) {
+            val (sentinelTitle, sentinelBody, sentinelFollowUps) =
+                buildSentinelResponse(earlyIntent, summary, hcSignalsEarly)
             return CoachAnswer(
                 intent = "GENERAL_SUMMARY",
-                title = missingTitle,
-                body = missingBody,
+                title = sentinelTitle,
+                body = sentinelBody,
                 hcBadge = false,
-                followUps = missingFollowUps,
+                followUps = sentinelFollowUps,
                 confidence = 1.0f,
                 usedFallback = false,
-                source = "hc_missing_explanation",
+                source = "sentinel_response",
             )
         }
 
@@ -269,42 +286,169 @@ class CoachOrchestrator(
     // HC-MISSING response builder
     // ─────────────────────────────────────────────────────────────────────────
 
-    /** FIX: Returns a Triple(title, body, followUps) explaining which HC signal is missing. */
-    private fun buildHcMissingResponse(
+    /**
+     * Unified sentinel response builder.
+     *
+     * Handles:
+     *   SOCIAL_NOT_DOMINANT  — user asked "am I on social media too much" but social is not
+     *                          their dominant category. Returns a direct on-topic answer naming
+     *                          the actual top category instead of the generic HEALTHY_PATTERN.
+     *
+     *   REVENGE_DEFINITION   — user asked "what is revenge procrastination". Previously routed
+     *                          to FEATURE_EXPLANATION (NEW_USER variant = "Welcome to Aurelo
+     *                          Coach"). Always return a clear definition now.
+     *
+     *   HC_MISSING_*         — user asked an HC-dependent question.
+     *                          FIX: distinguishes two distinct failure modes:
+     *                          (a) HC not connected / permission not granted → tell user to go
+     *                              to Settings and connect.
+     *                          (b) HC connected + permission granted but data is absent (e.g.
+     *                              no wearable sync today, no sleep sessions logged, garmin not
+     *                              paired yet) → say the data is not available yet, NOT that
+     *                              they need to grant access (access is already granted).
+     */
+    private fun buildSentinelResponse(
         sentinel: String,
         summary: UsageSummary,
+        hcSignals: HcSignalAvailability,
     ): Triple<String, String, List<String>> {
-        return when (sentinel) {
-            "HC_MISSING_HRV" -> Triple(
-                "Health Connect needed for HRV insights",
-                "To answer that I need your Heart Rate Variability (HRV) data from Health Connect. " +
-                        "Go to Settings → Health Connect to grant access. " +
-                        "In the meantime, your Bedtime Mode Sleep Score and streak reflect your sleep adherence without needing HC.",
-                listOf("How does sleep affect my score?", "How's my bedtime routine?", "What should I work on first?"),
-            )
-            "HC_MISSING_STEPS" -> Triple(
-                "Health Connect needed for activity insights",
-                "To answer that I need your Daily Steps data from Health Connect. " +
-                        "Go to Settings → Health Connect to grant access. " +
-                        "Your screen time and focus patterns already show a lot — " +
-                        "you have a ${summary.streakDays}-day streak and ${summary.todayMinutes} min of screen time today.",
-                listOf("Tell me about my week", "How are my focus sessions going?", "What should I work on first?"),
-            )
-            "HC_MISSING_SLEEP" -> Triple(
-                "Health Connect needed for sleep correlation",
-                "To show how sleep affects your usage I need Sleep session data from Health Connect. " +
-                        "Go to Settings → Health Connect to grant access. " +
-                        if (summary.sleepScore > 0)
-                            "Your Bedtime Mode Sleep Score (${summary.sleepScore}) is already tracking adherence — that's a great start."
+
+        // ── SOCIAL_NOT_DOMINANT ────────────────────────────────────────────────
+        if (sentinel == "SOCIAL_NOT_DOMINANT") {
+            val topCat = summary.topCategory.ifBlank { "your current top category" }
+                .lowercase().replaceFirstChar { it.uppercase() }
+            val topApp = summary.topApps.firstOrNull()?.label?.takeIf { it.isNotBlank() } ?: "your most-used app"
+
+            return Triple(
+                "📱 Social isn't your main habit — here's what is",
+                "Based on your usage, social media is not your dominant category right now. " +
+                        "Your top category is $topCat (led by $topApp). " +
+                        if (summary.streakDays >= 3)
+                            "You have a ${summary.streakDays}-day streak — your screen habits look controlled. " +
+                                    "If you want to fine-tune social limits anyway, App Timers let you set a daily cap per app."
                         else
-                            "Enabling Bedtime Mode will start tracking sleep adherence even without HC.",
-                listOf("How's my bedtime routine?", "What is Bedtime Mode?", "What should I work on first?"),
+                            "If you want to set a proactive limit on social apps anyway, " +
+                                    "App Timers in the Focus tab let you add a daily cap per app without waiting for a problem to form.",
+                listOf("What IS my worst habit?", "How do I set an app timer?", "Tell me about my week"),
             )
-            else -> Triple(
-                "Health Connect data needed",
-                "That insight requires Health Connect data. Go to Settings → Health Connect to connect and grant the relevant permissions.",
-                listOf("Tell me about my week", "Is my streak safe?", "What should I work on first?"),
+        }
+
+        // ── REVENGE_DEFINITION ────────────────────────────────────────────────
+        if (sentinel == "REVENGE_DEFINITION") {
+            return Triple(
+                "🌙 What is revenge procrastination?",
+                "Revenge procrastination is using your phone late at night to reclaim personal time " +
+                        "after a day when you felt you had no control — at the direct cost of your sleep. " +
+                        "The brain associates scrolling with a sense of freedom, which makes it reinforcing " +
+                        "even though it erodes recovery. " +
+                        if (summary.sleepScore > 0 && summary.sleepScore < 60)
+                            "Your current Sleep Score (${summary.sleepScore}) suggests late-night usage may already be affecting your routine. " +
+                                    "Bedtime Mode removes the decision entirely — enable it at a time that feels comfortable."
+                        else if (summary.sleepScore >= 60)
+                            "Your Sleep Score (${summary.sleepScore}) looks reasonable — keep Bedtime Mode active to protect that. " +
+                                    "The pattern tends to resurface on high-stress days."
+                        else
+                            "Bedtime Mode is Aurelo's structural fix — it blocks chosen apps after a set time " +
+                                    "so you don't need willpower. Find it in the Focus tab.",
+                listOf("How's my bedtime routine?", "What is Bedtime Mode?", "Why do I use my phone at night?"),
             )
+        }
+
+        // ── HC_MISSING_* ─────────────────────────────────────────────────────
+        // Determine whether this is a "not connected / no permission" situation
+        // OR a "connected + access granted but data is simply absent" situation.
+        // The two cases need completely different messages.
+        val hcPermissionGranted = summary.hcConnected  // stored flag = permissions accepted
+
+        return when (sentinel) {
+
+            "HC_MISSING_HRV" -> {
+                if (!hcPermissionGranted) {
+                    Triple(
+                        "🫀 Connect Health Connect for HRV insights",
+                        "Heart Rate Variability (HRV) data isn't available because Health Connect isn't connected yet. " +
+                                "Go to Settings → Health Connect to connect and grant access. " +
+                                "HRV shows how well your body recovered overnight — it's one of the most useful signals Aurelo can read.",
+                        listOf("How's my bedtime routine?", "How does sleep affect my score?", "What should I work on first?"),
+                    )
+                } else {
+                    // HC connected, permission granted, but no HRV readings found.
+                    Triple(
+                        "🫀 No HRV data recorded yet",
+                        "Health Connect is connected and HRV access is granted, but there are no Heart Rate Variability readings recorded for today. " +
+                                "HRV is typically recorded automatically by a wearable (Garmin, Samsung, Fitbit, Pixel Watch, etc.). " +
+                                "If your wearable is paired with Health Connect, try opening the wearable companion app to trigger a sync. " +
+                                "Aurelo will pick up the data automatically once it appears.",
+                        listOf("How does sleep affect my score?", "Tell me about my week", "What should I work on first?"),
+                    )
+                }
+            }
+
+            "HC_MISSING_STEPS" -> {
+                if (!hcPermissionGranted) {
+                    Triple(
+                        "🚶 Connect Health Connect for step insights",
+                        "Daily Steps aren't available because Health Connect isn't connected yet. " +
+                                "Go to Settings → Health Connect to connect. " +
+                                "Step count feeds your Screen Score activity modifier — active days earn up to +5 points.",
+                        listOf("Tell me about my week", "How are my focus sessions going?", "What should I work on first?"),
+                    )
+                } else {
+                    Triple(
+                        "🚶 No step data recorded yet today",
+                        "Health Connect is connected and Steps access is granted, but no step count has been recorded today. " +
+                                "Steps are usually logged by Google Fit, your phone's built-in step counter, or a paired wearable. " +
+                                "Make sure the step-source app has Health Connect write access in Settings → Apps → Health Connect. " +
+                                "Your Screen Score activity modifier will apply automatically once steps are synced.",
+                        listOf("Tell me about my week", "How are my focus sessions going?", "What should I work on first?"),
+                    )
+                }
+            }
+
+            "HC_MISSING_SLEEP" -> {
+                if (!hcPermissionGranted) {
+                    Triple(
+                        "😴 Connect Health Connect for sleep insights",
+                        "Sleep correlation data isn't available because Health Connect isn't connected yet. " +
+                                "Go to Settings → Health Connect to connect. " +
+                                if (summary.sleepScore > 0)
+                                    "Your Bedtime Mode Sleep Score (${summary.sleepScore}) is already tracking adherence — HC adds overnight duration and HRV on top."
+                                else
+                                    "Enabling Bedtime Mode will start tracking sleep adherence even without HC.",
+                        listOf("How's my bedtime routine?", "What is Bedtime Mode?", "What should I work on first?"),
+                    )
+                } else {
+                    Triple(
+                        "😴 No sleep sessions recorded yet",
+                        "Health Connect is connected and Sleep access is granted, but no sleep sessions have been recorded. " +
+                                "Sleep data is logged by wearables and apps like Samsung Health, Garmin Connect, or Fitbit. " +
+                                "If your wearable tracked last night's sleep, try opening its companion app to force a sync. " +
+                                if (summary.sleepScore > 0)
+                                    "In the meantime, your Bedtime Mode Sleep Score (${summary.sleepScore}) reflects your bedtime adherence without needing HC sleep sessions."
+                                else
+                                    "Bedtime Mode tracks adherence independently — enable it in the Focus tab.",
+                        listOf("How's my bedtime routine?", "What is Bedtime Mode?", "What should I work on first?"),
+                    )
+                }
+            }
+
+            else -> {
+                if (!hcPermissionGranted) {
+                    Triple(
+                        "🔗 Connect Health Connect",
+                        "That insight requires Health Connect data. Go to Settings → Health Connect to connect and grant the relevant permissions.",
+                        listOf("Tell me about my week", "Is my streak safe?", "What should I work on first?"),
+                    )
+                } else {
+                    Triple(
+                        "📭 Health Connect data not available yet",
+                        "Health Connect is connected, but the required data hasn't been recorded yet. " +
+                                "This usually means your wearable or fitness app hasn't synced today. " +
+                                "Open the companion app for your wearable to trigger a sync, and Aurelo will update automatically.",
+                        listOf("Tell me about my week", "Is my streak safe?", "What should I work on first?"),
+                    )
+                }
+            }
         }
     }
 
@@ -380,9 +524,20 @@ class CoachOrchestrator(
      */
     private fun isSocialDominant(summary: UsageSummary): Boolean {
         val cat = summary.topCategory.lowercase(Locale.US)
-        return cat == "social" ||
-                cat == Categories.SOCIAL.lowercase(Locale.US) ||
-                cat.startsWith("social ")
+        if (cat == "social" ||
+            cat == Categories.SOCIAL.lowercase(Locale.US) ||
+            cat.startsWith("social ")) return true
+
+        // Also check if the top app by usage is a known social/messaging app,
+        // regardless of how the user has categorised it.
+        val topAppPkg = summary.topApps.firstOrNull()?.packageName?.lowercase(Locale.US) ?: ""
+        val topAppLabel = summary.topApps.firstOrNull()?.label?.lowercase(Locale.US) ?: ""
+        val socialKeywords = listOf(
+            "whatsapp", "instagram", "facebook", "tiktok", "twitter", "snapchat",
+            "telegram", "reddit", "discord", "linkedin", "pinterest", "tumblr",
+            "messenger", "signal", "wechat", "line", "viber", "skype", "threads"
+        )
+        return socialKeywords.any { topAppPkg.contains(it) || topAppLabel.contains(it) }
     }
 
     /**
@@ -1103,15 +1258,18 @@ class CoachOrchestrator(
             }
 
             // FIX: data-guarded — only force SOCIAL_SPIRAL when Social actually
-            // is dominant. Otherwise return HEALTHY_PATTERN with the topCategory
-            // surfaced so the answer reflects reality.
+            // is dominant. When social is NOT dominant we return a SOCIAL_NOT_DOMINANT
+            // sentinel so the orchestrator can give a direct on-topic answer
+            // ("No — your actual top category is X") instead of a generic
+            // HEALTHY_PATTERN response ("great early pattern") that doesn't
+            // answer the question.
             q.contains("am i on social media too much") ||
                     q.contains("social media too much") ||
                     q.contains("social apps too much") ->
                 if (isSocialDominant(summary))
                     ClassifiedIntent("SOCIAL_SPIRAL", 1.0f, "predefined_query")
                 else
-                    ClassifiedIntent("HEALTHY_PATTERN", 1.0f, "predefined_query")
+                    ClassifiedIntent("SOCIAL_NOT_DOMINANT", 1.0f, "predefined_query")
 
             q.contains("what's my best habit") ||
                     q.contains("what is my best habit") ||
@@ -1182,10 +1340,13 @@ class CoachOrchestrator(
                 }
             }
 
-            // "What is revenge procrastination?" → FEATURE_EXPLANATION
+            // FIX: "What is revenge procrastination?" previously routed to
+            // FEATURE_EXPLANATION whose NEW_USER variant shows "Welcome to Aurelo Coach"
+            // — completely off-topic. Route to a REVENGE_DEFINITION sentinel so the
+            // orchestrator can always return a direct definition regardless of variant.
             q.contains("what is revenge procrastination") ||
-                    q.contains("revenge procrastination") && q.contains("what") ->
-                ClassifiedIntent("FEATURE_EXPLANATION", 1.0f, "predefined_query")
+                    (q.contains("revenge procrastination") && q.contains("what")) ->
+                ClassifiedIntent("REVENGE_DEFINITION", 1.0f, "predefined_query")
 
             // ── Focus tab ─────────────────────────────────────────────────────
 

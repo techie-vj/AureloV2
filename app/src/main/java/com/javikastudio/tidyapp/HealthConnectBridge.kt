@@ -47,6 +47,11 @@ class HealthConnectBridge(
     // In-memory cache — refreshed by syncHCData() or on app foreground
     @Volatile private var _cachedData: HCDailyData = HCDailyData(isAvailable = false)
 
+    // FIX (Issue 3): Reference to CoachBridge so we can invalidate tab insight caches
+    // when HC connects/disconnects — preventing stale non-HC coach cards without restart.
+    // Injected by AppBridge after both bridges are constructed.
+    internal var coachBridge: CoachBridge? = null
+
     // ── Status ────────────────────────────────────────────────────────────────
 
     /**
@@ -228,14 +233,32 @@ class HealthConnectBridge(
 
         if (allGranted) {
             prefs.edit().putString(HC_CONNECTED, "1").apply()
-            // Immediately fetch fresh data so the UI can update without waiting
+            // Immediately fetch fresh data so the UI can update without waiting.
+            // FIX (Issue 3): also invalidate ALL tab insight caches (today/week/month/home)
+            // after connecting so that coach cards on every tab regenerate with the new
+            // HC data immediately — without requiring an app restart.
             syncInBackground { fresh ->
                 _cachedData = fresh
                 val bodyScore = BodyScoreCalculator.compute(fresh)
+                // Invalidate cached tab insights so the next tab visit re-generates
+                // with HC-aware data (Body Score pillar now active, HC signals fed in).
+                coachBridge?.clearTabInsightCache()
                 webView.post {
                     webView.evaluateJavascript(
                         "if(typeof window.onHCPermissionsResult==='function') " +
                                 "window.onHCPermissionsResult(true, $bodyScore, false, '[]')",
+                        null,
+                    )
+                    // Notify JS to also invalidate its in-memory coach caches and
+                    // re-render whatever coach card is currently visible.
+                    webView.evaluateJavascript(
+                        "try { " +
+                                "if(typeof window.AppBridge==='object' && window.AppBridge && " +
+                                "typeof window.AppBridge.invalidateTabInsightCache==='function') " +
+                                "window.AppBridge.invalidateTabInsightCache('all'); " +
+                                "if(typeof window.renderCoachHomeInsight==='function') " +
+                                "setTimeout(window.renderCoachHomeInsight,400); " +
+                                "} catch(_){}",
                         null,
                     )
                 }
@@ -276,6 +299,9 @@ class HealthConnectBridge(
     fun disconnectHC() {
         prefs.edit().putString(HC_CONNECTED, "0").apply()
         _cachedData = HCDailyData(isAvailable = false)
+        // FIX (Issue 3): invalidate tab caches on disconnect so coach cards
+        // immediately revert to non-HC variants rather than showing stale HC data.
+        coachBridge?.clearTabInsightCache()
         bridgeScope.launch {
             manager.revokeAllPermissions()
         }
