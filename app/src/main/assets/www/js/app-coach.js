@@ -1609,15 +1609,19 @@ window.CoachUI = {
     if (chat) {
       var lastBubble = chat.querySelector('.msg-coach:last-child .msg-coach-bubble');
       if (lastBubble) {
-        var btn = document.createElement('button');
-        btn.textContent = 'Upgrade to Pro →';
-        btn.style.cssText = 'margin-top:8px;padding:9px 18px;border-radius:10px;border:none;background:var(--p);color:#fff;font-family:var(--ff-m);font-size:13px;font-weight:600;cursor:pointer;display:block';
-        btn.addEventListener('click', function() {
-          if (typeof ProTier !== 'undefined' && typeof ProTier.triggerUpsell === 'function') {
-            ProTier.triggerUpsell('COACH');
-          }
-        });
-        lastBubble.appendChild(btn);
+         var btn = document.createElement('button');
+         btn.textContent = 'Upgrade to Pro →';
+         btn.style.cssText = 'margin-top:8px;padding:9px 18px;border-radius:10px;border:none;background:var(--p);color:#fff;font-family:var(--ff-m);font-size:13px;font-weight:600;cursor:pointer;display:block';
+         btn.addEventListener('click', function() {
+         CoachUI.close();
+         if (typeof ProTier !== 'undefined' && typeof ProTier.triggerUpsell === 'function') {
+              ProTier.triggerUpsell('COACH');
+                  setTimeout(function() {
+                    ProTier.triggerUpsell('COACH_UPGRADE');
+                  }, 150);
+              }
+         });
+      lastBubble.appendChild(btn);
       }
     }
   },
