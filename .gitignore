@@ -6,6 +6,7 @@
 # Build and output directories
 /build/
 .gradle/
+.android-sdk/
 .externalNativeBuild/
 .idea
 /captures/

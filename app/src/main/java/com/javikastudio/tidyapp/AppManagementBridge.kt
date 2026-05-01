@@ -169,8 +169,13 @@ class AppManagementBridge(
 
     @JavascriptInterface fun openUrl(url: String) {
         val trimmed = url.trim()
-        if (!trimmed.startsWith("http://") && !trimmed.startsWith("https://") && !trimmed.startsWith("mailto:")) return
-        runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse(trimmed)).apply { flags = Intent.FLAG_ACTIVITY_NEW_TASK }) }
+        if (!SecurityValidators.isSafeExternalUrl(trimmed)) return
+        runCatching {
+            context.startActivity(
+                Intent(Intent.ACTION_VIEW, android.net.Uri.parse(trimmed))
+                    .apply { flags = Intent.FLAG_ACTIVITY_NEW_TASK }
+            )
+        }
     }
 
     @JavascriptInterface fun openPlayStore(pkg: String) {
@@ -198,6 +203,8 @@ class AppManagementBridge(
 
     @Suppress("DEPRECATION")
     @JavascriptInterface fun uninstallApp(pkg: String) {
+        if (!SecurityValidators.isPackageName(pkg)) return
+        if (!isAppInstalled(pkg)) return
         val uri = android.net.Uri.parse("package:$pkg")
         val intent = Intent(Intent.ACTION_DELETE, uri).apply { flags = Intent.FLAG_ACTIVITY_NEW_TASK }
         val activity = context as? android.app.Activity

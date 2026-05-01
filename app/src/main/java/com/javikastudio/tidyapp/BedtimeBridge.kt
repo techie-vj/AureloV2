@@ -24,23 +24,27 @@ class BedtimeBridge(
     private val bridgeScope: CoroutineScope
 ) : AppBridgeController {
 
-    @JavascriptInterface fun getBedtimeSettings(): String = prefs.getString(BEDTIME_SETTINGS_V1, "{}") ?: "{}"
+    init {
+        BedtimePrefs.migratePlainSettings(prefs, securePrefs)
+    }
+
+    @JavascriptInterface fun getBedtimeSettings(): String = BedtimePrefs.getSettings(prefs, securePrefs)
     @JavascriptInterface fun saveBedtimeSettings(json: String) {
         runCatching { JSONObject(json) }.onFailure { return }
-        prefs.edit().putString(BEDTIME_SETTINGS_V1, json).apply()
+        BedtimePrefs.saveSettings(prefs, securePrefs, json)
     }
 
     @JavascriptInterface fun saveBedtimeBlockedApps(appsJson: String) {
         runCatching {
-            val cfg = try { JSONObject(prefs.getString(BEDTIME_SETTINGS_V1,null) ?: "{}") } catch (_:Exception) { JSONObject() }
+            val cfg = try { JSONObject(BedtimePrefs.getSettings(prefs, securePrefs)) } catch (_:Exception) { JSONObject() }
             cfg.put("blockedApps", org.json.JSONArray(appsJson))
-            prefs.edit().putString(BEDTIME_SETTINGS_V1, cfg.toString()).apply()
+            BedtimePrefs.saveSettings(prefs, securePrefs, cfg.toString())
         }
     }
 
     @JavascriptInterface fun getBedtimeBlockedApps(): String {
         return runCatching {
-            val cfg = JSONObject(prefs.getString(BEDTIME_SETTINGS_V1,null) ?: return@runCatching "[]")
+            val cfg = JSONObject(BedtimePrefs.getSettings(prefs, securePrefs))
             when (val v = cfg.opt("blockedApps")) {
                 is org.json.JSONArray -> v.toString()
                 is String -> v
@@ -79,7 +83,12 @@ class BedtimeBridge(
     }
 
     @JavascriptInterface fun scheduleBedtimeAlarms(bedHour: Int, bedMinute: Int, wakeHour: Int, wakeMinute: Int, windDown: Boolean) {
+        if (bedHour !in 0..23 || wakeHour !in 0..23 || bedMinute !in 0..59 || wakeMinute !in 0..59) return
         val am = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+        if (!BedtimePrefs.canScheduleExact(am)) {
+            notifyExactAlarmMissing()
+            return
+        }
         fun nextTriggerMs(hour: Int, minute: Int): Long {
             val cal = Calendar.getInstance().apply { set(Calendar.HOUR_OF_DAY,hour); set(Calendar.MINUTE,minute); set(Calendar.SECOND,0); set(Calendar.MILLISECOND,0) }
             if (cal.timeInMillis <= System.currentTimeMillis()) cal.add(Calendar.DAY_OF_YEAR,1)
@@ -87,12 +96,12 @@ class BedtimeBridge(
         }
         val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT else PendingIntent.FLAG_UPDATE_CURRENT
         val onPi = PendingIntent.getBroadcast(context,7001,Intent("${context.packageName}.BEDTIME_ON").apply { setPackage(context.packageName) },flags)
-        am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP,nextTriggerMs(bedHour,bedMinute),onPi)
+        BedtimePrefs.setExactSafely(context, am, AlarmManager.RTC_WAKEUP,nextTriggerMs(bedHour,bedMinute),onPi) { notifyExactAlarmMissing() }
         val offPi = PendingIntent.getBroadcast(context,7002,Intent("${context.packageName}.BEDTIME_OFF").apply { setPackage(context.packageName) },flags)
-        am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP,nextTriggerMs(wakeHour,wakeMinute),offPi)
+        BedtimePrefs.setExactSafely(context, am, AlarmManager.RTC_WAKEUP,nextTriggerMs(wakeHour,wakeMinute),offPi) { notifyExactAlarmMissing() }
         if (windDown) {
             val windPi = PendingIntent.getBroadcast(context,7003,Intent("${context.packageName}.BEDTIME_WINDOWN").apply { setPackage(context.packageName) },flags)
-            am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP,nextTriggerMs(bedHour,bedMinute)-30*60_000L,windPi)
+            BedtimePrefs.setExactSafely(context, am, AlarmManager.RTC_WAKEUP,nextTriggerMs(bedHour,bedMinute)-30*60_000L,windPi) { notifyExactAlarmMissing() }
         } else cancelWindDownAlarm()
     }
 
@@ -117,7 +126,7 @@ class BedtimeBridge(
 
     @JavascriptInterface fun isInBedtimeWindow(): Boolean {
         return try {
-            val cfg = JSONObject(prefs.getString(BEDTIME_SETTINGS_V1,null) ?: return false)
+            val cfg = JSONObject(BedtimePrefs.getSettings(prefs, securePrefs))
             if (!cfg.optBoolean("enabled",false)) return false
             val bedH=cfg.optInt("bedHour",22); val bedM=cfg.optInt("bedMinute",0)
             val wakeH=cfg.optInt("wakeHour",7); val wakeM=cfg.optInt("wakeMinute",0)
@@ -187,6 +196,15 @@ class BedtimeBridge(
                 context.startForegroundService(intent)
             else
                 context.startService(intent)
+        }
+    }
+
+    private fun notifyExactAlarmMissing() {
+        webView.post {
+            webView.evaluateJavascript(
+                "if(typeof window.onExactAlarmPermissionMissing==='function') window.onExactAlarmPermissionMissing()",
+                null
+            )
         }
     }
 

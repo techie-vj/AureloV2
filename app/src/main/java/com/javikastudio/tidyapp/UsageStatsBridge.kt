@@ -215,6 +215,7 @@ class UsageStatsBridge(
     // ── Background refresh (called from bgExecutor — NOT @JavascriptInterface) ─
     fun refreshUsageStats() {
         if (!hasUsagePermission()) return
+        if (!RefreshCoordinator.tryBeginRefresh("usage-bridge", minIntervalMs = 8_000L)) return
         val snapshot = buildUsageSnapshot()
         val now = System.currentTimeMillis()
         val todayStr = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(java.util.Date(now))

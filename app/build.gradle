@@ -7,7 +7,10 @@ android {
     compileSdk  37
 
     def props = new Properties()
-    file("../local.properties").withInputStream { props.load(it) }
+    def localPropsFile = file("../local.properties")
+    if (localPropsFile.exists()) {
+        localPropsFile.withInputStream { props.load(it) }
+    }
 
     defaultConfig {
         applicationId  "com.javikastudio.tidyapp"
@@ -15,15 +18,17 @@ android {
         targetSdk      36
         versionCode    9
         versionName    "1.4.0"
-        buildConfigField "String", "RSA_KEY", "\"${props['PRODUCTION_RSA_KEY']}\""
+        buildConfigField "String", "RSA_KEY", "\"${props['PRODUCTION_RSA_KEY'] ?: ''}\""
     }
 
     signingConfigs {
         release {
-            storeFile     file(props['RELEASE_STORE_FILE'])
-            storePassword props['RELEASE_STORE_PASSWORD']
-            keyAlias      props['RELEASE_KEY_ALIAS']
-            keyPassword   props['RELEASE_KEY_PASSWORD']
+            if (props['RELEASE_STORE_FILE']) {
+                storeFile     file(props['RELEASE_STORE_FILE'])
+                storePassword props['RELEASE_STORE_PASSWORD']
+                keyAlias      props['RELEASE_KEY_ALIAS']
+                keyPassword   props['RELEASE_KEY_PASSWORD']
+            }
         }
     }
 
@@ -94,4 +99,6 @@ dependencies {
     // rooted devices or via ADB backup.
     implementation 'net.zetetic:sqlcipher-android:4.14.1'
     implementation 'androidx.sqlite:sqlite:2.6.2'
+
+    testImplementation 'junit:junit:4.13.2'
 }

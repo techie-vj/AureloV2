@@ -43,15 +43,48 @@ object PurchaseVerifier {
      * @param signature   purchase.signature from the Purchase object
      */
     fun verify(signedData: String, signature: String): Boolean {
-        // In debug builds or if key not configured, skip verification
-        // Remove this check before release — or it defeats the purpose
-        if (BASE64_PUBLIC_KEY == "REPLACE_WITH_YOUR_PLAY_CONSOLE_RSA_PUBLIC_KEY") {
-            Log.w(TAG, "WARNING: Using dev bypass — replace public key before release!")
-            return true
+        if (!isConfiguredKey(BASE64_PUBLIC_KEY)) {
+            if (BuildConfig.DEBUG) {
+                Log.w(TAG, "Debug billing verification bypass: Play RSA key is not configured")
+                return true
+            }
+            Log.e(TAG, "Play RSA key is not configured; failing purchase verification closed")
+            return false
+        }
+
+        if (signedData.isBlank() || signature.isBlank()) {
+            Log.e(TAG, "Missing purchase data or signature")
+            return false
         }
 
         return try {
-            val publicKey = generatePublicKey(BASE64_PUBLIC_KEY)
+            val publicKey = generatePublicKey(BASE64_PUBLIC_KEY.trim())
+            verify(publicKey, signedData, signature)
+        } catch (e: Exception) {
+            Log.e(TAG, "Verification exception: ${e.message}")
+            false
+        }
+    }
+
+    internal fun isConfiguredKey(key: String?): Boolean {
+        val normalized = key?.trim().orEmpty()
+        if (normalized.isEmpty() ||
+            normalized.equals("null", ignoreCase = true) ||
+            normalized == "REPLACE_WITH_YOUR_PLAY_CONSOLE_RSA_PUBLIC_KEY") {
+            return false
+        }
+        return true
+    }
+
+    /**
+     * Testable verification entry point that never applies the debug bypass.
+     */
+    internal fun verifyWithKey(base64PublicKey: String?, signedData: String, signature: String): Boolean {
+        if (!isConfiguredKey(base64PublicKey) || signedData.isBlank() || signature.isBlank()) {
+            return false
+        }
+        return try {
+            val publicKey = generatePublicKey(base64PublicKey!!.trim())
             verify(publicKey, signedData, signature)
         } catch (e: Exception) {
             Log.e(TAG, "Verification exception: ${e.message}")

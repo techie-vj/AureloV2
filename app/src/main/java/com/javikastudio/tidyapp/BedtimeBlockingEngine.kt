@@ -32,6 +32,7 @@ class BedtimeBlockingEngine(
     private val coordinator: AppMonitorService.OverlayCoordinator,
     private val h:           AppMonitorService.EngineHelpers
 ) {
+    private val securePrefs: SharedPreferences by lazy { SensitivePrefs.get(h.context) }
     companion object {
         object PREFS_KEYS {
             const val BEDTIME_ENABLED      = "bedtime_enabled"
@@ -110,7 +111,7 @@ class BedtimeBlockingEngine(
         val appsJson = intent.getStringExtra("blocked_apps") ?: "[]"
 
         // Re-evaluate whether we're still inside the window using the new config
-        val cfg      = runCatching { JSONObject(prefs.getString("bedtime_settings_v1", null) ?: "{}") }.getOrElse { JSONObject() }
+        val cfg      = runCatching { JSONObject(BedtimePrefs.getSettings(h.context, prefs, securePrefs) ?: "{}") }.getOrElse { JSONObject() }
         val bedH     = cfg.optInt("bedHour", 22);  val bedM  = cfg.optInt("bedMinute", 0)
         val wakeH    = cfg.optInt("wakeHour", 7);  val wakeM = cfg.optInt("wakeMinute", 0)
         val cal      = java.util.Calendar.getInstance()
@@ -165,8 +166,8 @@ class BedtimeBlockingEngine(
                 putBoolean("bedtime_last_night_has_data",       true)
             }
             putInt   ("bedtime_snooze_count", 0)
-            putString("bedtime_app_attempts", "{}")
         }.apply()
+        BedtimePrefs.clearAttempts(securePrefs)
         coordinator.forceRemove()
     }
 
@@ -241,7 +242,7 @@ class BedtimeBlockingEngine(
         val appsJson: String = run {
             val direct = prefs.getString("bedtime_blocked_apps", null)
             if (!direct.isNullOrBlank() && direct != "[]") return@run direct
-            val raw = prefs.getString("bedtime_settings_v1", null) ?: return
+            val raw = BedtimePrefs.getSettings(h.context, prefs, securePrefs) ?: return
             val cfg = runCatching { JSONObject(raw) }.getOrNull() ?: return
             when (val v = cfg.opt("blockedApps")) {
                 is JSONArray -> v.toString()
@@ -291,7 +292,7 @@ class BedtimeBlockingEngine(
     // reboot outside bedtime hours it re-activated blocking immediately.
     private fun isInBedtimeWindow(): Boolean {
         val cfg = runCatching {
-            org.json.JSONObject(prefs.getString("bedtime_settings_v1", null) ?: "{}")
+            org.json.JSONObject(BedtimePrefs.getSettings(h.context, prefs, securePrefs) ?: "{}")
         }.getOrElse { org.json.JSONObject() }
         if (!cfg.optBoolean("enabled", false)) return false
         val bedH  = cfg.optInt("bedHour",    22); val bedM  = cfg.optInt("bedMinute",  0)
@@ -368,9 +369,9 @@ class BedtimeBlockingEngine(
         }
         h.vibrate(longArrayOf(0, 30, 20, 30))
         runCatching {
-            val attempts = JSONObject(prefs.getString("bedtime_app_attempts", "{}") ?: "{}")
+            val attempts = JSONObject(BedtimePrefs.getAttempts(securePrefs))
             attempts.put(pkg, attempts.optInt(pkg, 0) + 1)
-            prefs.edit().putString("bedtime_app_attempts", attempts.toString()).apply()
+            BedtimePrefs.setAttempts(securePrefs, attempts.toString())
         }
         val root  = buildBedtimeOverlayView(pkg, appName)
         val shown = coordinator.show(AppMonitorService.PRIORITY_BEDTIME, root)
@@ -434,7 +435,7 @@ class BedtimeBlockingEngine(
         }, h.linearWrap(Gravity.CENTER_HORIZONTAL).also { it.bottomMargin = h.dpToPx(12) })
 
         // Morning summary countdown line
-        val bedtimeCfg = runCatching { JSONObject(prefs.getString("bedtime_settings_v1", null) ?: "{}") }
+        val bedtimeCfg = runCatching { JSONObject(BedtimePrefs.getSettings(h.context, prefs, securePrefs) ?: "{}") }
             .getOrElse { JSONObject() }
         if (bedtimeCfg.optBoolean("morningSummary", true)) {
             val wakeHour   = if (bedtimeCfg.has("wakeHour"))   bedtimeCfg.getInt("wakeHour")   else 7
@@ -513,7 +514,7 @@ class BedtimeBlockingEngine(
     }
 
     private fun sumAttempts(): Int = runCatching {
-        val obj  = JSONObject(prefs.getString("bedtime_app_attempts", "{}") ?: "{}")
+        val obj  = JSONObject(BedtimePrefs.getAttempts(securePrefs))
         val keys = obj.keys(); var sum = 0
         while (keys.hasNext()) sum += obj.optInt(keys.next(), 0)
         sum

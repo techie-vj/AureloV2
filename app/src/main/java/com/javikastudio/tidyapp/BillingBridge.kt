@@ -25,7 +25,7 @@ class BillingBridge(
 
     @JavascriptInterface fun isProUser(): Boolean = prefs.getBoolean(IS_PRO_USER, false)
 
-    @JavascriptInterface fun setProUser(isPro: Boolean) {
+    fun setProUser(isPro: Boolean) {
         prefs.edit().putBoolean(IS_PRO_USER, isPro).apply()
         if (isPro) WidgetUpdater.updateAll(context)
     }

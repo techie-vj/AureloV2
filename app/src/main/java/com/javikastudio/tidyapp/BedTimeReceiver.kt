@@ -9,10 +9,11 @@ class BedtimeReceiver : BroadcastReceiver() {
 
     override fun onReceive(ctx: Context, intent: Intent) {
         val prefs = ctx.getSharedPreferences("tidyapp_v6", Context.MODE_PRIVATE)
+        val securePrefs = SensitivePrefs.get(ctx)
 
         when (intent.action) {
             "${ctx.packageName}.BEDTIME_ON" -> {
-                val raw = prefs.getString(BEDTIME_SETTINGS_V1, null)
+                val raw = BedtimePrefs.getSettings(ctx, prefs, securePrefs)
                 val cfg = try { org.json.JSONObject(raw ?: "{}") } catch (e: Exception) { org.json.JSONObject() }
                 val grayscale       = cfg.optBoolean("grayscale", true)
                 val dimBrightness   = cfg.optBoolean("dimBrightness", true)
@@ -32,7 +33,7 @@ class BedtimeReceiver : BroadcastReceiver() {
                             android.provider.Settings.System.SCREEN_BRIGHTNESS
                         )
                     }.getOrDefault(180)
-                    prefs.edit().putInt("bedtime_saved_brightness", current).apply()
+                    BedtimePrefs.setSavedBrightness(securePrefs, current)
                     setBrightness(ctx, 10)   // dim to ~4%
                 }
 
@@ -81,17 +82,17 @@ class BedtimeReceiver : BroadcastReceiver() {
                 prefs.edit()
                     .putBoolean(BEDTIME_LAST_NIGHT_HAS_DATA, false)
                     .putInt(BEDTIME_SNOOZE_COUNT, 0)
-                    .putString("bedtime_app_attempts", "{}")
                     .apply()
+                BedtimePrefs.clearAttempts(securePrefs)
                 rescheduleForTomorrow(ctx, prefs, "${ctx.packageName}.BEDTIME_ON", 7001)
             }
 
             "${ctx.packageName}.BEDTIME_OFF" -> {
-                val raw = prefs.getString(BEDTIME_SETTINGS_V1, null)
+                val raw = BedtimePrefs.getSettings(ctx, prefs, securePrefs)
                 val cfg = try { org.json.JSONObject(raw ?: "{}") } catch (e: Exception) { org.json.JSONObject() }
                 val grayscale       = cfg.optBoolean("grayscale", true)
                 val dimBrightness   = cfg.optBoolean("dimBrightness", true)
-                val savedBrightness = prefs.getInt("bedtime_saved_brightness", 180)
+                val savedBrightness = BedtimePrefs.getSavedBrightness(securePrefs)
 
                 setDnd(ctx, false)
                 if (grayscale)      setGrayscale(ctx, false)
@@ -141,11 +142,11 @@ class BedtimeReceiver : BroadcastReceiver() {
 
                     val streak       = prefs.getInt(BEDTIME_STREAK, 0)
                     val snoozeCount      = prefs.getInt(BEDTIME_SNOOZE_COUNT, 0)
-                    val appAttemptsJson  = prefs.getString("bedtime_app_attempts", "{}") ?: "{}"
+                    val appAttemptsJson  = BedtimePrefs.getAttempts(securePrefs)
                     postMorningSummary(ctx, configuredDurationMins, streak, snoozeCount, appAttemptsJson)
 //                    prefs.edit()
 //                        .putInt(BEDTIME_SNOOZE_COUNT, 0)
-//                        .putString("bedtime_app_attempts", "{}")
+//                        .putString(BEDTIME_APP_ATTEMPTS, "{}")
 //                        .apply()
                 }
 
@@ -165,7 +166,7 @@ class BedtimeReceiver : BroadcastReceiver() {
                 if (bedOnTs > 0L) {
                     val snoozeCount   = prefs.getInt(BEDTIME_SNOOZE_COUNT, 0)
                     val attemptsTotal = runCatching {
-                        val obj = org.json.JSONObject(prefs.getString("bedtime_app_attempts", "{}") ?: "{}")
+                        val obj = org.json.JSONObject(BedtimePrefs.getAttempts(securePrefs))
                         var sum = 0; val keys = obj.keys()
                         while (keys.hasNext()) { sum += obj.optInt(keys.next(), 0) }
                         sum
@@ -180,8 +181,8 @@ class BedtimeReceiver : BroadcastReceiver() {
                             .putBoolean(BEDTIME_LAST_NIGHT_KEPT,           true)
                             .putBoolean(BEDTIME_LAST_NIGHT_HAS_DATA,       true)
                             .putInt    (BEDTIME_SNOOZE_COUNT,              0)
-                            .putString("bedtime_app_attempts", "{}")
                             .apply()
+                        BedtimePrefs.clearAttempts(securePrefs)
                     }
                 }
                 rescheduleForTomorrow(ctx, prefs, "${ctx.packageName}.BEDTIME_OFF", 7002)
@@ -204,7 +205,7 @@ class BedtimeReceiver : BroadcastReceiver() {
 
                 // Only re-enable DND if we are still inside the bedtime window.
                 // (If the snooze somehow fired after wake-up time, leave DND off.)
-                val raw2 = prefs.getString(BEDTIME_SETTINGS_V1, null)
+                val raw2 = BedtimePrefs.getSettings(ctx, prefs, securePrefs)
                 val cfg2 = try { org.json.JSONObject(raw2 ?: "{}") } catch (_: Exception) { org.json.JSONObject() }
                 if (cfg2.optBoolean("enabled", false)) {
                     val bedH2  = cfg2.optInt("bedHour",   22); val bedM2  = cfg2.optInt("bedMinute",  0)
@@ -269,7 +270,7 @@ class BedtimeReceiver : BroadcastReceiver() {
         action: String,
         requestCode: Int
     ) {
-        val raw = prefs.getString(BEDTIME_SETTINGS_V1, null) ?: return
+        val raw = BedtimePrefs.getSettings(ctx, prefs, SensitivePrefs.get(ctx)) ?: return
         val cfg = try { org.json.JSONObject(raw) } catch (e: Exception) { return }
         if (!cfg.optBoolean("enabled", false)) return
 
@@ -335,10 +336,9 @@ class BedtimeReceiver : BroadcastReceiver() {
         )
 
         val am = ctx.getSystemService(Context.ALARM_SERVICE) as android.app.AlarmManager
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M)
-            am.setExactAndAllowWhileIdle(android.app.AlarmManager.RTC_WAKEUP, cal.timeInMillis, pi)
-        else
-            am.setExact(android.app.AlarmManager.RTC_WAKEUP, cal.timeInMillis, pi)
+        if (!BedtimePrefs.setExactSafely(ctx, am, android.app.AlarmManager.RTC_WAKEUP, cal.timeInMillis, pi)) {
+            android.util.Log.w("BedtimeReceiver", "Skipping bedtime reschedule; exact alarms unavailable")
+        }
     }
 
     // ── DND ─────────────────────────────────────────────────────────────────────
