@@ -628,8 +628,8 @@ class CoachOrchestrator(
                 return@runCatching null
             }
 
-            Log.d(TAG, "Calling CoachOnnxClassifier")
-            val prediction = CoachOnnxClassifier(ctx).classifyOrNull(features)
+            Log.d(TAG, "Calling CoachTreeClassifier")
+            val prediction = CoachTreeClassifier(ctx).classifyOrNull(features)
                 ?: return@runCatching null
 
             val intent = normalizeIntent(prediction.intent)

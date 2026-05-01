@@ -16,9 +16,13 @@ android {
         applicationId  "com.javikastudio.tidyapp"
         minSdk         26   // Android 8.0 — covers 95%+ of devices
         targetSdk      36
-        versionCode    9
-        versionName    "1.4.0"
+        versionCode    10
+        versionName    "2.0.0"
         buildConfigField "String", "RSA_KEY", "\"${props['PRODUCTION_RSA_KEY'] ?: ''}\""
+        ndk {
+            // Keep arm64 for phones, add x86_64 for ChromeOS/Emulators
+            abiFilters "arm64-v8a", "x86_64"
+        }
     }
 
     signingConfigs {
@@ -54,6 +58,14 @@ android {
     packagingOptions {
         resources { excludes += '/META-INF/{AL2.0,LGPL2.1,DEPENDENCIES}' }
     }
+
+    packaging {
+        jniLibs {
+            // Ensures libraries are not compressed, allowing the OS to
+            // load them directly with the correct 16KB alignment
+            useLegacyPackaging = false
+        }
+    }
 }
 
 dependencies {
@@ -87,9 +99,6 @@ dependencies {
     // Spec §2.2: implementation "androidx.health.connect:connect-client:1.1.0-alpha07"
     implementation 'androidx.health.connect:connect-client:1.2.0-alpha04'
 
-    // onnxruntime for aurelo coach
-    implementation "com.microsoft.onnxruntime:onnxruntime-android:1.25.0"
-
     // In-App Review — shows native Play Store rating dialog without leaving the app
     implementation 'com.google.android.play:review-ktx:2.0.2'
 
@@ -97,7 +106,7 @@ dependencies {
     // The DB stores per-app launch timestamps by time-slot and day-of-week, which
     // constitutes sensitive usage behaviour. Without encryption it is readable on
     // rooted devices or via ADB backup.
-    implementation 'net.zetetic:sqlcipher-android:4.14.1'
+    implementation 'net.zetetic:sqlcipher-android:4.15.0'
     implementation 'androidx.sqlite:sqlite:2.6.2'
 
     testImplementation 'junit:junit:4.13.2'
