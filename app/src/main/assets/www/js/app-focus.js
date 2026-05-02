@@ -1075,6 +1075,13 @@ window.FocusTab = (function () {
     shareCard: typeof shareCard !== 'undefined' ? shareCard : function () {},
     updateFocusSubheader: _updateFocusSubheader,
   };
+  // BUG-1 FIX: Re-render all Focus tab modules immediately when Pro status changes.
+  // Without this, Bedtime Mode / Weekly Challenge only update after a manual tab switch.
+  window.addEventListener('aurelo-pro-changed', function() {
+    if (typeof FocusBedtime   !== 'undefined') FocusBedtime.render();
+    if (typeof FocusChallenge !== 'undefined') FocusChallenge.render();
+    if (typeof FocusTab       !== 'undefined') FocusTab._refreshFocusData();
+  });
 })();
 
 /* ── BUG-10: Expose FOCUS_DIFF globally so app-focus-routine.js can access it ── */

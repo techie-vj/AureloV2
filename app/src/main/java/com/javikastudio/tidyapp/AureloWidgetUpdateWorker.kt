@@ -5,6 +5,7 @@ import android.appwidget.AppWidgetManager
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.content.pm.ApplicationInfo
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
@@ -96,7 +97,7 @@ class AureloWidgetUpdateWorker(
             }
 
             val totalMin = timeMap
-                .filter { isUserApp(it.key) }
+                .filter { isUserApp(it.key, appContext.packageManager) }
                 .values.sum() / 60_000L
 
             val ghostCount = runCatching {
@@ -416,7 +417,7 @@ class AureloWidgetUpdateWorker(
                 }
 
                 val totalMin = timeMap
-                    .filter { isUserApp(it.key) }   // ← add this line
+                    .filter { isUserApp(it.key, context.packageManager) }   // ← add this line
                     .values.sum() / 60_000L
                 val goalMins = prefs.getInt(STREAK_GOAL_MINS, 240).toLong()
                 val streakDays = runCatching {
@@ -505,7 +506,7 @@ class AureloWidgetUpdateWorker(
         }.getOrElse { false }
 
         /** Mirrors the instance isUserApp() — needed because companion funs can't call instance methods. */
-        private fun isUserApp(pkg: String): Boolean {
+        private fun isUserApp(pkg: String, pm: android.content.pm.PackageManager): Boolean {
             // FIX (Issue 6): The previous companion version only checked a short prefix list and
             // did not verify pm.getLaunchIntentForPackage. This allowed OEM/system apps without
             // launch intents to be counted in the widget total, inflating it vs the in-app value
@@ -625,7 +626,15 @@ class AureloWidgetUpdateWorker(
                 "com.coloros.calculator",
                 "com.coloros.camera2",
             )
-            return pkg !in systemExact
+            if (pkg in systemExact) return false
+            return try {
+                val info = pm.getApplicationInfo(pkg, 0)
+                if (pm.getLaunchIntentForPackage(pkg) == null) return false
+                val isSystem  = (info.flags and ApplicationInfo.FLAG_SYSTEM) != 0
+                val isUpdated = (info.flags and ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) != 0
+                // Pure user apps + Play-updated system apps (Chrome, Gmail, YouTube, etc.)
+                !isSystem || isUpdated
+            } catch (_: Exception) { false }
         }
     }
 }

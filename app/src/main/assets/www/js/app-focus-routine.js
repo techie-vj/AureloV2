@@ -1137,6 +1137,12 @@ window.FocusRoutine = (function () {
   }
 
   /* ── Public API ─────────────────────────────────────────────── */
+  // BUG-2/3 FIX: Re-render when Pro tier changes (upgrade unlocks real content)
+  // or when gates are refreshed (prevents teaser rows being stripped without replacement
+  // for free users on visibilitychange foreground-reverify path).
+  window.addEventListener('aurelo-pro-changed',     function() { render(); });
+  window.addEventListener('aurelo-gates-refreshed', function() { render(); });
+
   return {
     load,
     render,

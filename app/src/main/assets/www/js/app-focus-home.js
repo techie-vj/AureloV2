@@ -457,7 +457,10 @@ window.FocusHome = (function () {
     var rateColor = d.rate >= 70 ? 'var(--g)' : d.rate >= 50 ? 'var(--a)' : 'var(--r)';
     var streak = 0; for (var si = 0; si < 7; si++) if (d.focusDays[si]) streak++;
     var challengeHtml = '';
-    if (d.challengeDone !== undefined) {
+    // BUG-4 FIX: Weekly Challenge is a Pro feature. Do not render challenge progress
+    // in the sessions strip for free users — it was appearing here instead of the
+    // Habits tab, and showing for free users who haven't unlocked the feature.
+    if (ProTier.isPro && d.challengeDone !== undefined) {
       var pct = Math.min(100, Math.round((d.challengeDone / d.challengeTarget) * 100));
       challengeHtml = buildStripRow('🏆', d.challengeLabel || 'Weekly Challenge', d.challengeDone + ' of ' + d.challengeTarget,
         '<div style="height:4px;background:var(--border);border-radius:2px;overflow:hidden;flex:1;min-width:60px">' +
@@ -712,9 +715,10 @@ window.FocusHome = (function () {
       }
     }
 
-    // Tier 2b: challenge at risk
+    // Tier 2b: challenge at risk — Pro only
+    // BUG-4 FIX: Challenge is a Pro feature; must not show for free users on Home.
     var d = loadStripData();
-    if (d.challengeLabel && d.challengeDone !== undefined) {
+    if (ProTier.isPro && d.challengeLabel && d.challengeDone !== undefined) {
       var remaining = d.challengeTarget - d.challengeDone, daysLeft = 7 - new Date().getDay();
       if (remaining > 0 && remaining >= daysLeft) {
         var p = _PALETTE.gold;
@@ -771,8 +775,8 @@ window.FocusHome = (function () {
       return;
     }
 
-    // Tier 3c: challenge milestone
-    if (d.challengeDone > 0 && d.challengeTarget > 0 && d.challengeDone < d.challengeTarget) {
+    // Tier 3c: challenge milestone — Pro only
+    if (ProTier.isPro && d.challengeDone > 0 && d.challengeTarget > 0 && d.challengeDone < d.challengeTarget) {
       var p = _PALETTE.gold;
       el.innerHTML = _inlineCard(p, nav,
         _dot(p),

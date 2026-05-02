@@ -103,6 +103,11 @@
       _refreshAllGates();
       // Update header pill
       _updateHeader();
+      // BUG-2 FIX: Notify modules to re-render Pro-gated sections immediately on
+      // tier change. Without this, Focus tab sections (Schedule Routines, Bedtime
+      // Mode, Weekly Challenge) only update after a manual tab switch because
+      // _refreshAllGates() only removes lock overlays; it doesn't trigger re-renders.
+      window.dispatchEvent(new CustomEvent('aurelo-pro-changed', { detail: { isPro: !!isPro } }));
     };
 
     window.onBillingError = function(code, message) {
@@ -331,6 +336,12 @@
       el.remove();
     });
     _updateHeader();
+    // BUG-2/3 FIX: Notify all modules that gates have been refreshed so they can
+    // immediately re-render their Pro/free content without waiting for a tab switch.
+    // This fixes: (a) Pro features not appearing immediately after upgrade on Focus tab,
+    // (b) Schedule Routine section going blank for free users when _refreshAllGates()
+    // strips teaser rows on the visibilitychange foreground-reverify path.
+    window.dispatchEvent(new CustomEvent('aurelo-gates-refreshed', { detail: { isPro: _isPro } }));
   }
 
   function _clearGate(el) {

@@ -23,6 +23,7 @@ class AureloWidgetProvider : AppWidgetProvider() {
         const val ACTION_OPEN_HOME     = "com.javikastudio.tidyapp.ACTION_OPEN_HOME"
         const val ACTION_OPEN_WELLNESS = "com.javikastudio.tidyapp.ACTION_OPEN_WELLNESS"
         const val ACTION_CYCLE_INSIGHT = "com.javikastudio.tidyapp.ACTION_CYCLE_INSIGHT"
+        const val WIDGET_RENDER_TS = "widget_render_ts"
         /** Fired when user taps an app slot; records the launch then opens the app. */
         const val ACTION_LAUNCH_APP    = "com.javikastudio.tidyapp.ACTION_LAUNCH_APP"
         const val EXTRA_PACKAGE        = "pkg"
@@ -198,16 +199,31 @@ class AureloWidgetProvider : AppWidgetProvider() {
         // FIX-08: WorkManager minimum is 15 min, but our AlarmManager fires every 5 min.
         // Refresh usage caches here so each alarm tick has up-to-date screen time / pickups
         // even when the app is fully in the background.
+        // BUG-1 FIX: When UsageStatsBridge.refreshUsageStats() runs (every ~10s while app is
+        // open), it writes CACHED_TOTAL_MINS and then calls pushUpdate() which triggers
+        // onUpdate(). If refreshCachesStatic() then runs and overwrites CACHED_TOTAL_MINS
+        // with its own background calculation (which may be slightly out of sync), the widget
+        // shows a lower value than the app. Guard: skip the widget-side recalculation when
+        // the app already wrote fresh data within the last 15 seconds.
         executor.execute {
             runCatching {
-                if (RefreshCoordinator.shouldRefreshWidgetCaches(context)) {
+                val cachedTs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+                    .getLong(CACHED_USAGE_TS, 0L)
+                val appRefreshRecent = cachedTs > 0L &&
+                        (System.currentTimeMillis() - cachedTs) < 15_000L
+                if (!appRefreshRecent && RefreshCoordinator.shouldRefreshWidgetCaches(context)) {
                     AureloWidgetUpdateWorker.refreshCachesStatic(context)
                 }
             }
         }
         ids.forEach { id ->
             executor.execute {
-                try   { mgr.updateAppWidget(id, buildWidget(context, id)) }
+                try   {
+                    mgr.updateAppWidget(id, buildWidget(context, id))
+                    // Write render timestamp AFTER successful update
+                    context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+                        .edit().putLong(WIDGET_RENDER_TS, System.currentTimeMillis()).apply()
+                }
                 catch (e: Exception) {
                     android.util.Log.e("AureloWidget", "build failed $id", e)
                     try {
@@ -790,7 +806,7 @@ class AureloWidgetProvider : AppWidgetProvider() {
             // FUN-09 FIX: Staleness indicator — shows how old the cached data is.
             // During Doze mode WorkManager intervals can stretch to hours; this sets
             // correct user expectations rather than implying live data.
-            val cachedTs  = prefs.getLong(CACHED_USAGE_TS, 0L)
+            val cachedTs  = prefs.getLong(WIDGET_RENDER_TS, 0L)
             val ageMillis = if (cachedTs > 0L) System.currentTimeMillis() - cachedTs else -1L
             val (label, colour) = when {
                 ageMillis < 0L           -> "Updated just now"  to 0x88FFFFFF.toInt()  // no stamp yet
