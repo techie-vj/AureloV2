@@ -208,6 +208,7 @@ window.FocusTab = (function () {
     if (typeof FocusRoutine  !== 'undefined') { FocusRoutine.load(); FocusRoutine.render(); }
     _syncSessionState();
     _renderFocusSession();
+    _switchFocusSubTab(_focusActiveSubTab);
     _updateFocusSubheader();
     if (!window._focusDynInterval) {
       window._focusDynInterval = setInterval(function () {
@@ -234,6 +235,7 @@ window.FocusTab = (function () {
     renderFocusStaticRow(); renderHabitsStaticRow();
     renderFocusDynamicRow(); renderHabitsDynamicRow();
     _updateFocusSubheader();
+    _switchFocusSubTab(_focusActiveSubTab);
   }
 
   /* ─── Sub-tab switch ─────────────────────────────────────────── */

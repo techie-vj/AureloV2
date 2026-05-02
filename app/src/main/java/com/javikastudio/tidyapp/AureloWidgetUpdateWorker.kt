@@ -111,6 +111,7 @@ class AureloWidgetUpdateWorker(
                 .putInt (CACHED_PICKUPS,       pickups)
                 .putInt (CACHED_GHOST_COUNT,   ghostCount)
                 .putInt (CACHED_STREAK_DAYS,   streakDays)
+                .putLong(CACHED_USAGE_TS,      now)
                 .apply()
 
             // ── Feed LaunchTracker from real usage events ─────────────────────
@@ -426,6 +427,7 @@ class AureloWidgetUpdateWorker(
                     .putLong(CACHED_TOTAL_MINS,  totalMin)
                     .putInt (CACHED_PICKUPS,      pickups)
                     .putInt (CACHED_STREAK_DAYS,  streakDays)
+                    .putLong(CACHED_USAGE_TS,     now)
                 if (firstPickupTs > 0L) editor.putLong("cached_first_pickup_ts", firstPickupTs)
                 editor.apply()
             }

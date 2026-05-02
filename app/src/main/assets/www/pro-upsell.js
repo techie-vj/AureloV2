@@ -270,10 +270,11 @@
       backdrop-filter: blur(4px);
       -webkit-backdrop-filter: blur(4px);
       z-index: 9999;
-      display: flex; align-items: flex-end; justify-content: center;
+      display: none; align-items: flex-end; justify-content: center;
       opacity: 0; transition: opacity 0.25s;
       pointer-events: none;
     }
+    .pu-ready { display:flex; }
     .pu-backdrop.pu-visible {
       opacity: 1; pointer-events: all;
     }
@@ -286,6 +287,8 @@
       transform: translateY(100%);
       transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
       box-sizing: border-box;
+      will-change: transform;
+      -webkit-backface-visibility: hidden; backface-visibility: hidden;
     }
     .pu-backdrop.pu-visible .pu-sheet {
       transform: translateY(0);
@@ -816,8 +819,13 @@
       _fetchLivePricing();
 
       // Show sheet
-      _backdrop.classList.add('pu-visible');
-      document.body.style.overflow = 'hidden';
+      _backdrop.classList.add('pu-ready');
+      requestAnimationFrame(function() {
+        requestAnimationFrame(function() {
+          _backdrop.classList.add('pu-visible');
+          document.body.style.overflow = 'hidden';
+        });
+      });
   }
 
   function hide() {
@@ -825,6 +833,11 @@
     _backdrop.classList.remove('pu-visible');
     document.body.style.overflow = '';
     _currentUpsell = null;
+    setTimeout(function() {
+      if (_backdrop && !_backdrop.classList.contains('pu-visible')) {
+        _backdrop.classList.remove('pu-ready');
+      }
+    }, 320);
   }
 
   function onBillingError(message) {

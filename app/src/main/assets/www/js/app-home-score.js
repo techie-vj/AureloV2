@@ -629,54 +629,24 @@ function renderAureloScore() {
 function _onAureloScoreRowTap() { openAureloScoreSheet(); }
 
 function _onAureloPillarTap(pillar) {
-  if (pillar !== 'screen' &&
-      typeof ProTier !== 'undefined' && !ProTier.isPro) {
-    if (typeof ProTier.triggerUpsell === 'function') ProTier.triggerUpsell('TIDY_SCORE_PILLARS');
-    return;
+  const isPro = typeof ProTier !== 'undefined' && ProTier.isPro;
+  if (!isPro) {
+    if (pillar === 'focus') { ProTier.triggerUpsell('FOCUS_SCHEDULE'); return; }
+    if (pillar === 'sleep') { ProTier.triggerUpsell('BEDTIME_MODE');   return; }
+    if (pillar === 'body')  { ProTier.triggerUpsell('HEALTH_CONNECT'); return; }
   }
   if (pillar === 'body') {
     const hcOk = typeof HealthConnect !== 'undefined' &&
                  typeof HealthConnect.isConnected === 'function' &&
                  HealthConnect.isConnected();
-    if (!hcOk) {
-      if (typeof openSettingsWithHC === 'function') {
-        openSettingsWithHC();
-      } else {
-        if (typeof activateTab === 'function') activateTab('settings');
-        requestAnimationFrame(function () {
-          // 1. Scroll settings screen to top first
-          var settingsScreen = document.getElementById('screen-settings');
-          if (settingsScreen) settingsScreen.scrollTop = 0;
-
-          // 2. Expand the HC section
-          if (typeof toggleHCSettingsSection === 'function') toggleHCSettingsSection(true);
-
-          // 3. Scroll the HC element into view after expand animation starts
-          setTimeout(function () {
-            var hcSection = document.getElementById('settings-hc-section') ||
-                            document.querySelector('[data-section="health-connect"]') ||
-                            document.querySelector('.settings-hc-section');
-            if (hcSection) {
-              hcSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            }
-          }, 120);
-        });
-      }
-    } else {
-      _showBodyScoreSheet();
-    }
+    if (!hcOk) { typeof openSettingsWithHC==='function' ? openSettingsWithHC() : activateTab('settings'); }
+    else { _showBodyScoreSheet(); }
     return;
   }
-  if (pillar === 'focus') {
-    if (typeof openFocusScoreSheet === 'function') { openFocusScoreSheet(); return; }
-    if (typeof FocusScore !== 'undefined') { FocusScore.openFocusScoreSheet(); return; }
-  }
-  if (pillar === 'sleep') {
-    if (typeof openHabitsScoreSheet === 'function') { openHabitsScoreSheet(); return; }
-    if (typeof FocusScore !== 'undefined') { FocusScore.openHabitsScoreSheet(); return; }
-  }
-  if (typeof renderScreenScoreSheet === 'function') { renderScreenScoreSheet(); return; }
-  if (typeof activateTab === 'function') activateTab('wellness');
+  if (pillar === 'focus') { if (typeof FocusScore!=='undefined') { FocusScore.openFocusScoreSheet(); return; } }
+  if (pillar === 'sleep') { if (typeof FocusScore!=='undefined') { FocusScore.openHabitsScoreSheet(); return; } }
+  if (typeof renderScreenScoreSheet==='function') { renderScreenScoreSheet(); return; }
+  activateTab('wellness');
 }
 
 /* ═══ openAureloScoreSheet — bottom sheet ════════════════════ */

@@ -92,6 +92,9 @@ function proTap(featureKey) {
     themes:           'THEME_AMOLED_PLUS',
     focus_history:    'FOCUS_HISTORY',
     focus_schedule:   'FOCUS_SCHEDULE',
+    coach_upgrade:    'AURELO_COACH',
+    health_connect:   'HEALTH_CONNECT',
+    tidy_score_pillars:'GENERIC',
   };
   const mappedKey = KEY_MAP[featureKey] || featureKey;
   if (window.ProTier) {

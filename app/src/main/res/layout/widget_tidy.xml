@@ -1,11 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  Aurelo Smart Routine Widget — v3.2
+  Aurelo Smart Routine Widget — v3.3
   Layout:  app/src/main/res/layout/widget_tidy.xml
   Drawables needed:
     widget_dot_s1/s2/s3_amber/cyan/purple.xml  (3-state pulse, swapped each tick)
     widget_freq_ring_high/mid/low.xml
     widget_slot_bg.xml   widget_search_bg.xml   ic_search_widget.xml
+
+  CHANGES v3.3:
+    [FIX-FONTSCALE] Stats row value TextViews now use autoSizeTextType=uniform
+    so Android automatically scales numbers down at large system font sizes
+    (1.3×, 1.5×, etc.) instead of clipping them against the widget boundary.
+    The stats strip container switches to layout_height="0dp" + layout_weight="1"
+    so it fills only the remaining vertical space, never overflows.
+    Key-label text ("TODAY", "STREAK" …) shortened to ≤7 chars to avoid wrapping.
+
+    [PREVIEW] Meaningful placeholder strings are baked into every TextView so
+    the Android 12+ live previewLayout and the legacy previewImage both show
+    realistic content. Register this file as previewLayout in your
+    appwidget-provider XML (res/xml/appwidget_info.xml):
+        android:previewLayout="@layout/widget_tidy"
 -->
 <LinearLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
@@ -24,7 +38,7 @@
         android:layout_height="wrap_content"
         android:layout_marginBottom="8dp">
 
-        <!-- Left: pulsing dot + routine name -->
+        <!-- Left group: constrained so it never overlaps the centred logo -->
         <LinearLayout
             android:id="@+id/widget_header_left"
             android:orientation="horizontal"
@@ -32,6 +46,7 @@
             android:layout_height="wrap_content"
             android:layout_centerVertical="true"
             android:layout_alignParentStart="true"
+            android:layout_toStartOf="@id/widget_tidy_logo"
             android:gravity="center_vertical">
 
             <ImageView
@@ -42,6 +57,11 @@
                 android:layout_marginEnd="6dp"
                 android:contentDescription="Live"/>
 
+            <!--
+              [FIX-FONTSCALE] Removed fixed maxWidth="130dp" — the left group is
+              now bounded by layout_toStartOf the logo, so it naturally clips
+              without needing a hard pixel cap that breaks at large font scales.
+            -->
             <TextView
                 android:id="@+id/widget_slot_name"
                 android:layout_width="wrap_content"
@@ -50,7 +70,6 @@
                 android:textSize="11sp"
                 android:textStyle="bold"
                 android:singleLine="true"
-                android:maxWidth="130dp"
                 android:ellipsize="end"/>
         </LinearLayout>
 
@@ -64,12 +83,12 @@
             android:scaleType="fitCenter"
             android:contentDescription="Aurelo"/>
 
-        <!-- Right: learning badge -->
+        <!-- Right: learning badge — [PREVIEW] shows a real day count -->
         <TextView
             android:id="@+id/widget_learning_label"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Learning… 1 day"
+            android:text="7 days"
             android:textSize="10sp"
             android:paddingStart="7dp"
             android:paddingEnd="7dp"
@@ -80,7 +99,12 @@
             android:background="@drawable/widget_search_bg"/>
     </RelativeLayout>
 
-    <!-- ── Row 2: App icon slots ───────────────────────────────── -->
+    <!-- ── Row 2: App icon slots ─────────────────────────────────────
+         [PREVIEW] Each slot has a realistic app name and frequency badge.
+         android:src on each ImageView shows ic_launcher as a stand-in at
+         preview time; AureloWidgetProvider replaces them at runtime via
+         RemoteViews.setImageViewBitmap() with the real app icon.
+    ─────────────────────────────────────────────────────────────────── -->
     <LinearLayout
         android:id="@+id/widget_apps_row"
         android:orientation="horizontal"
@@ -95,14 +119,18 @@
             android:background="@drawable/widget_slot_bg">
             <ImageView android:id="@+id/widget_icon_0"
                 android:layout_width="42dp" android:layout_height="42dp"
-                android:scaleType="fitCenter" android:contentDescription="App 1"/>
+                android:scaleType="fitCenter"
+                android:src="@mipmap/ic_launcher"
+                android:contentDescription="App 1"/>
             <TextView android:id="@+id/widget_label_0"
                 android:layout_width="match_parent" android:layout_height="wrap_content"
                 android:textSize="9sp" android:singleLine="true" android:gravity="center"
-                android:layout_marginTop="2dp" android:ellipsize="end"/>
+                android:layout_marginTop="2dp" android:ellipsize="end"
+                android:text="YouTube"/>
             <TextView android:id="@+id/widget_freq_0"
                 android:layout_width="match_parent" android:layout_height="wrap_content"
-                android:textSize="8sp" android:gravity="center" android:textStyle="bold" android:text="–"/>
+                android:textSize="8sp" android:gravity="center" android:textStyle="bold"
+                android:text="HIGH"/>
         </LinearLayout>
 
         <LinearLayout android:id="@+id/widget_slot_1"
@@ -112,14 +140,18 @@
             android:background="@drawable/widget_slot_bg">
             <ImageView android:id="@+id/widget_icon_1"
                 android:layout_width="42dp" android:layout_height="42dp"
-                android:scaleType="fitCenter" android:contentDescription="App 2"/>
+                android:scaleType="fitCenter"
+                android:src="@mipmap/ic_launcher"
+                android:contentDescription="App 2"/>
             <TextView android:id="@+id/widget_label_1"
                 android:layout_width="match_parent" android:layout_height="wrap_content"
                 android:textSize="9sp" android:singleLine="true" android:gravity="center"
-                android:layout_marginTop="2dp" android:ellipsize="end"/>
+                android:layout_marginTop="2dp" android:ellipsize="end"
+                android:text="Spotify"/>
             <TextView android:id="@+id/widget_freq_1"
                 android:layout_width="match_parent" android:layout_height="wrap_content"
-                android:textSize="8sp" android:gravity="center" android:textStyle="bold" android:text="–"/>
+                android:textSize="8sp" android:gravity="center" android:textStyle="bold"
+                android:text="MID"/>
         </LinearLayout>
 
         <LinearLayout android:id="@+id/widget_slot_2"
@@ -129,14 +161,18 @@
             android:background="@drawable/widget_slot_bg">
             <ImageView android:id="@+id/widget_icon_2"
                 android:layout_width="42dp" android:layout_height="42dp"
-                android:scaleType="fitCenter" android:contentDescription="App 3"/>
+                android:scaleType="fitCenter"
+                android:src="@mipmap/ic_launcher"
+                android:contentDescription="App 3"/>
             <TextView android:id="@+id/widget_label_2"
                 android:layout_width="match_parent" android:layout_height="wrap_content"
                 android:textSize="9sp" android:singleLine="true" android:gravity="center"
-                android:layout_marginTop="2dp" android:ellipsize="end"/>
+                android:layout_marginTop="2dp" android:ellipsize="end"
+                android:text="Instagram"/>
             <TextView android:id="@+id/widget_freq_2"
                 android:layout_width="match_parent" android:layout_height="wrap_content"
-                android:textSize="8sp" android:gravity="center" android:textStyle="bold" android:text="–"/>
+                android:textSize="8sp" android:gravity="center" android:textStyle="bold"
+                android:text="MID"/>
         </LinearLayout>
 
         <LinearLayout android:id="@+id/widget_slot_3"
@@ -146,14 +182,18 @@
             android:background="@drawable/widget_slot_bg">
             <ImageView android:id="@+id/widget_icon_3"
                 android:layout_width="42dp" android:layout_height="42dp"
-                android:scaleType="fitCenter" android:contentDescription="App 4"/>
+                android:scaleType="fitCenter"
+                android:src="@mipmap/ic_launcher"
+                android:contentDescription="App 4"/>
             <TextView android:id="@+id/widget_label_3"
                 android:layout_width="match_parent" android:layout_height="wrap_content"
                 android:textSize="9sp" android:singleLine="true" android:gravity="center"
-                android:layout_marginTop="2dp" android:ellipsize="end"/>
+                android:layout_marginTop="2dp" android:ellipsize="end"
+                android:text="Headspace"/>
             <TextView android:id="@+id/widget_freq_3"
                 android:layout_width="match_parent" android:layout_height="wrap_content"
-                android:textSize="8sp" android:gravity="center" android:textStyle="bold" android:text="–"/>
+                android:textSize="8sp" android:gravity="center" android:textStyle="bold"
+                android:text="LOW"/>
         </LinearLayout>
 
         <LinearLayout android:id="@+id/widget_slot_4"
@@ -163,14 +203,18 @@
             android:background="@drawable/widget_slot_bg">
             <ImageView android:id="@+id/widget_icon_4"
                 android:layout_width="42dp" android:layout_height="42dp"
-                android:scaleType="fitCenter" android:contentDescription="App 5"/>
+                android:scaleType="fitCenter"
+                android:src="@mipmap/ic_launcher"
+                android:contentDescription="App 5"/>
             <TextView android:id="@+id/widget_label_4"
                 android:layout_width="match_parent" android:layout_height="wrap_content"
                 android:textSize="9sp" android:singleLine="true" android:gravity="center"
-                android:layout_marginTop="2dp" android:ellipsize="end"/>
+                android:layout_marginTop="2dp" android:ellipsize="end"
+                android:text="WhatsApp"/>
             <TextView android:id="@+id/widget_freq_4"
                 android:layout_width="match_parent" android:layout_height="wrap_content"
-                android:textSize="8sp" android:gravity="center" android:textStyle="bold" android:text="–"/>
+                android:textSize="8sp" android:gravity="center" android:textStyle="bold"
+                android:text="HIGH"/>
         </LinearLayout>
 
         <LinearLayout android:id="@+id/widget_more_btn"
@@ -190,14 +234,15 @@
 
     </LinearLayout>
 
-    <!-- ── Row 3: Insight bar (contextual + emotional intelligence) ─ -->
-    <!-- Tap to cycle through 3 rotating message variants -->
+    <!-- ── Row 3: Insight bar ────────────────────────────────────────
+         [PREVIEW] Uses a concrete streak insight instead of a generic placeholder.
+    ─────────────────────────────────────────────────────────────────── -->
     <TextView
         android:id="@+id/widget_insight_bar"
         android:layout_width="match_parent"
         android:layout_height="36dp"
         android:gravity="center"
-        android:text="🌅 Rise &amp; shine! Start your streak today"
+        android:text="🔥 5-day streak — keep it going today!"
         android:textSize="12sp"
         android:singleLine="true"
         android:ellipsize="marquee"
@@ -206,65 +251,130 @@
         android:layout_marginBottom="6dp"
         android:background="@drawable/widget_search_bg"/>
 
-    <!-- ── Row 4: Stats strip → Wellness ─────────────────────── -->
+    <!-- ── Row 4: Stats strip ──────────────────────────────────────────
+         [FIX-FONTSCALE]
+         Changed layout_height from wrap_content to "0dp" + layout_weight="1"
+         so this strip fills the remaining space flexibly. At large font
+         settings it shrinks rather than overflowing the widget boundary.
+
+         Each value TextView adds:
+           autoSizeTextType="uniform"
+           autoSizeMinTextSize / autoSizeMaxTextSize / autoSizeStepGranularity
+           singleLine="true"   ← prevents value from wrapping mid-number
+           layout_width="match_parent" ← required for autoSize to measure correctly
+
+         Key labels shortened to ≤7 chars ("AURELO" vs "AURELO SCORE") to
+         avoid wrapping at large font scales in the narrow equal-weight columns.
+    ──────────────────────────────────────────────────────────────────── -->
     <LinearLayout
         android:id="@+id/widget_st_row"
         android:orientation="horizontal"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content">
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:gravity="center_vertical">
 
+        <!-- TODAY -->
         <LinearLayout android:orientation="vertical" android:layout_width="0dp"
             android:layout_height="wrap_content" android:layout_weight="1"
-            android:gravity="center" android:paddingTop="5dp" android:paddingBottom="5dp">
+            android:gravity="center" android:paddingTop="4dp" android:paddingBottom="4dp">
             <TextView android:id="@+id/widget_stat_val_0"
-                android:layout_width="wrap_content" android:layout_height="wrap_content"
-                android:text="0m" android:textSize="13sp" android:textStyle="bold"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="1h 42m"
+                android:textSize="13sp"
+                android:autoSizeTextType="uniform"
+                android:autoSizeMinTextSize="8sp"
+                android:autoSizeMaxTextSize="14sp"
+                android:autoSizeStepGranularity="1sp"
+                android:textStyle="bold"
+                android:gravity="center"
+                android:singleLine="true"
                 android:textColor="#FF12D48A"/>
             <TextView android:id="@+id/widget_stat_key_0"
                 android:layout_width="wrap_content" android:layout_height="wrap_content"
-                android:text="TODAY" android:textSize="7.5sp"/>
+                android:text="TODAY" android:textSize="7sp" android:gravity="center"/>
         </LinearLayout>
 
+        <!-- AURELO SCORE -->
         <LinearLayout android:orientation="vertical" android:layout_width="0dp"
             android:layout_height="wrap_content" android:layout_weight="1"
-            android:gravity="center" android:paddingTop="5dp" android:paddingBottom="5dp">
+            android:gravity="center" android:paddingTop="4dp" android:paddingBottom="4dp">
             <TextView android:id="@+id/widget_stat_val_1"
-                android:layout_width="wrap_content" android:layout_height="wrap_content"
-                android:text="--" android:textSize="13sp" android:textStyle="bold"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="78"
+                android:textSize="13sp"
+                android:autoSizeTextType="uniform"
+                android:autoSizeMinTextSize="8sp"
+                android:autoSizeMaxTextSize="14sp"
+                android:autoSizeStepGranularity="1sp"
+                android:textStyle="bold"
+                android:gravity="center"
+                android:singleLine="true"
                 android:textColor="#FFA89CFF"/>
+            <!--
+              [FIX-FONTSCALE] Label shortened from "AURELO SCORE" to "AURELO"
+              to prevent two-line wrapping inside the narrow weight=1 column
+              at system font scale ≥ 1.3.
+              AureloWidgetProvider should continue setting this to "AURELO"
+              (or omit the RemoteViews call — the default here is correct).
+            -->
             <TextView android:id="@+id/widget_stat_key_1"
                 android:layout_width="wrap_content" android:layout_height="wrap_content"
-                android:text="AURELO SCORE" android:textSize="7.5sp"/>
+                android:text="AURELO" android:textSize="7sp" android:gravity="center"/>
         </LinearLayout>
 
+        <!-- STREAK -->
         <LinearLayout android:orientation="vertical" android:layout_width="0dp"
             android:layout_height="wrap_content" android:layout_weight="1"
-            android:gravity="center" android:paddingTop="5dp" android:paddingBottom="5dp">
+            android:gravity="center" android:paddingTop="4dp" android:paddingBottom="4dp">
             <TextView android:id="@+id/widget_stat_val_2"
-                android:layout_width="wrap_content" android:layout_height="wrap_content"
-                android:text="0🔥" android:textSize="13sp" android:textStyle="bold"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="5 🔥"
+                android:textSize="13sp"
+                android:autoSizeTextType="uniform"
+                android:autoSizeMinTextSize="8sp"
+                android:autoSizeMaxTextSize="14sp"
+                android:autoSizeStepGranularity="1sp"
+                android:textStyle="bold"
+                android:gravity="center"
+                android:singleLine="true"
                 android:textColor="#FFA89CFF"/>
             <TextView android:id="@+id/widget_stat_key_2"
                 android:layout_width="wrap_content" android:layout_height="wrap_content"
-                android:text="STREAK" android:textSize="7.5sp"/>
+                android:text="STREAK" android:textSize="7sp" android:gravity="center"/>
         </LinearLayout>
 
+        <!-- PICKUPS -->
         <LinearLayout android:orientation="vertical" android:layout_width="0dp"
             android:layout_height="wrap_content" android:layout_weight="1"
-            android:gravity="center" android:paddingTop="5dp" android:paddingBottom="5dp">
+            android:gravity="center" android:paddingTop="4dp" android:paddingBottom="4dp">
             <TextView android:id="@+id/widget_stat_val_3"
-                android:layout_width="wrap_content" android:layout_height="wrap_content"
-                android:text="–" android:textSize="13sp" android:textStyle="bold"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="24"
+                android:textSize="13sp"
+                android:autoSizeTextType="uniform"
+                android:autoSizeMinTextSize="8sp"
+                android:autoSizeMaxTextSize="14sp"
+                android:autoSizeStepGranularity="1sp"
+                android:textStyle="bold"
+                android:gravity="center"
+                android:singleLine="true"
                 android:textColor="#FFF04E7A"/>
             <TextView android:id="@+id/widget_stat_key_3_view"
                 android:layout_width="wrap_content" android:layout_height="wrap_content"
-                android:text="PICKUPS" android:textSize="7.5sp"/>
+                android:text="PICKUPS" android:textSize="7sp" android:gravity="center"/>
         </LinearLayout>
 
     </LinearLayout>
 
-    <!-- ── Row 5: Staleness indicator (FUN-09) ──────────────────────── -->
-    <!-- Coloured grey when fresh, amber >30 min, red >60 min (Doze mode). -->
+    <!-- ── Row 5: Staleness indicator ──────────────────────────────────
+         [PREVIEW] "Updated just now" is the correct state for a freshly
+         pinned widget. AureloWidgetProvider overwrites with the real delta.
+    ─────────────────────────────────────────────────────────────────── -->
     <TextView
         android:id="@+id/widget_last_updated"
         android:layout_width="match_parent"
