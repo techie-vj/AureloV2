@@ -78,43 +78,132 @@
         .ls-bar-wrap{width:128px!important;height:2px!important;border-radius:999px!important;background:rgba(255,255,255,.06)!important;overflow:hidden!important;animation:none!important;opacity:1!important;}
         .ls-bar{height:100%!important;width:0!important;background:linear-gradient(90deg,#FF7020,#FFAA44 50%,#FFE082)!important;border-radius:999px!important;box-shadow:0 0 14px rgba(255,170,68,.45)!important;animation:none!important;transition:width .12s ease!important;}
 
-        /* ── Light theme splash overrides ── */
+        /* ══════════════════════════════════════════════════
+           LIGHT THEME SPLASH — PREMIUM REDESIGN
+           Philosophy: clean white canvas, single warm light
+           source behind the logo, everything else invisible.
+           Inspired by Calm / Linear / Apple splash patterns.
+        ══════════════════════════════════════════════════ */
+
+        /* 1. BACKGROUND ─ pure white fading to the faintest warm ivory.
+              No cream, no yellow — just clean paper with a breath of warmth. */
         :root[data-theme=light] #loading-screen {
-            background:linear-gradient(160deg,#F0F0FA 0%,#E8E8F5 100%)!important;
+            background:
+                radial-gradient(ellipse 70% 50% at 50% 44%,
+                    rgba(255, 200, 80, .08) 0%,
+                    transparent 68%),
+                linear-gradient(175deg,
+                    #FFFFFF    0%,
+                    #FEFDFB   45%,
+                    #FAF6EF  100%)!important;
         }
-        /* Tone down the aura — was bleaching the background */
+
+        /* 2. AURA ─ large, ultra-soft champagne halo.
+              Feels like sunlight through frosted glass, not a spotlight. */
         :root[data-theme=light] #loading-screen .ls-aura {
-            background:radial-gradient(circle,rgba(108,99,255,.06) 0%,transparent 60%)!important;
-            filter:blur(56px)!important;
-            opacity:.7!important;
+            width: 640px!important;
+            height: 640px!important;
+            top: 44%!important;
+            background: radial-gradient(circle,
+                rgba(255, 195, 70, .16) 0%,
+                rgba(255, 155, 30, .06) 40%,
+                transparent 68%)!important;
+            filter: blur(88px)!important;
+            opacity: 1!important;
+            animation: lsAura 12s ease-in-out infinite alternate!important;
         }
-        /* Grid: hide on light bg — was designed as dark-mode detail */
-        :root[data-theme=light] #loading-screen .ls-grid { opacity:0!important; }
-        /* Vignette: invert to light-edge darkening instead of black corners */
+
+        /* 3. GRID ─ removed entirely. It's visual noise on a light surface. */
+        :root[data-theme=light] #loading-screen .ls-grid {
+            opacity: 0!important;
+            animation: none!important;
+        }
+
+        /* 4. VIGNETTE ─ gone. White edges are cleaner and more premium. */
         :root[data-theme=light] #loading-screen .ls-vignette {
-            background:radial-gradient(circle at 50% 46%,transparent 0 30%,rgba(200,200,220,.25) 60%,rgba(180,180,210,.55) 100%)!important;
+            opacity: 0!important;
         }
-        /* Logo glow: softer for light bg */
+
+        /* 5. LAYOUT ─ the single biggest fix.
+              Logo pulled up to 44% so it visually centres between the top and
+              the text block — no more huge dead zone in the lower half.
+              CSS !important overrides the JS inline top:50% assignment. */
+        :root[data-theme=light] .ls-mark {
+            width:  min(38vw, 158px)!important;
+            height: min(38vw, 158px)!important;
+            top: 44%!important;
+            transform: translate(-50%, -50%)!important;
+        }
+
+        /* 6. LOGO GLOW ─ wide, diffuse, champagne.
+              Three layers: ambient haze → soft ring → subtle depth shadow. */
         :root[data-theme=light] .ls-mark.show svg {
-            filter:drop-shadow(0 0 14px rgba(255,170,68,.35))!important;
+            filter:
+                drop-shadow(0 0 52px rgba(245, 175, 45, .28))
+                drop-shadow(0 0 14px rgba(225, 120, 20, .22))
+                drop-shadow(0  4px  8px rgba(140, 70,  0, .10))!important;
         }
-        /* Wordmark text: deep orange — clearly visible on light bg */
+
+        /* 7. COPY BLOCK ─ raised to balance with logo position.
+              Sits comfortably above the home indicator / bottom inset. */
+        :root[data-theme=light] #ls-copy {
+            bottom: max(88px, 14vh)!important;
+        }
+
+        /* 8. MINI ARCH in wordmark ─ add subtle filter so the gold gradient
+              reads on white (the pale #FFE082 end becomes nearly invisible). */
+        :root[data-theme=light] #ls-title svg {
+            filter: drop-shadow(0 0 5px rgba(200, 110, 0, .30))!important;
+            opacity: 1!important;
+        }
+
+        /* 9. WORDMARK TEXT ─ deep warm gold, refined. Not orange — gold.
+              The gradient goes dark-to-mid so it stays rich against white. */
         :root[data-theme=light] .ls-wordmark-text {
-            background:linear-gradient(135deg,#B85500 30%,#D97010 70%)!important;
-            -webkit-background-clip:text!important;background-clip:text!important;
-            -webkit-text-fill-color:transparent!important;
+            background: linear-gradient(135deg,
+                #92440A  0%,
+                #BE6B14 38%,
+                #DC8C2A 70%,
+                #EFA84A 100%)!important;
+            -webkit-background-clip: text!important;
+            background-clip: text!important;
+            -webkit-text-fill-color: transparent!important;
+            font-size: clamp(24px, 5.5vw, 31px)!important;
+            letter-spacing: 4px!important;
         }
-        /* Tagline text: dark enough to read */
-        :root[data-theme=light] .ls-sub-text {
-            color:rgba(60,55,100,.75)!important;
+
+        /* 10. TAGLINE ─ neutral warm-charcoal at 50% opacity.
+               Clearly readable but doesn't compete with the wordmark. */
+        :root[data-theme=light] #ls-sub {
+            color: rgba(38, 28, 14, .50)!important;
+            -webkit-text-fill-color: rgba(38, 28, 14, .50)!important;
+            letter-spacing: 3px!important;
         }
-        /* Progress bar track: visible on light bg */
-        :root[data-theme=light] .ls-bar-wrap {
-            background:rgba(108,99,255,.12)!important;
+
+        /* 11. STATUS TEXT ─ rich amber, full contrast.
+               Previously nearly invisible at .78 opacity on white. */
+        :root[data-theme=light] #ls-status {
+            color: rgba(155, 78, 5, .82)!important;
+            -webkit-text-fill-color: rgba(155, 78, 5, .82)!important;
         }
-        /* Progress bar: keep orange gradient, drop glow that bleeds on light */
-        :root[data-theme=light] .ls-bar {
-            box-shadow:none!important;
+
+        /* 12. PROGRESS TRACK ─ whisper-thin, barely-there warm tint. */
+        :root[data-theme=light] #ls-bar-wrap {
+            background: rgba(130, 72, 4, .10)!important;
+            height: 2px!important;
+            width: 110px!important;
+        }
+
+        /* 13. PROGRESS BAR ─ warm amber-to-champagne gradient,
+               soft glow that reads clearly against the white track. */
+        :root[data-theme=light] #ls-bar {
+            background: linear-gradient(90deg,
+                #B85C08,
+                #E08A22 50%,
+                #F5B448)!important;
+            box-shadow:
+                0 0 12px rgba(215, 120, 15, .45),
+                0 0  4px rgba(248, 160, 35, .35)!important;
         }
 
         /* ── Warm theme splash overrides ── */
