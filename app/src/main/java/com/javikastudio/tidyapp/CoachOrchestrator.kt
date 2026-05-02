@@ -1899,11 +1899,12 @@ class CoachOrchestrator(
                             "is the fastest way to directly cut time on it."
                 } else {
                     val pretty = named.replaceFirstChar { it.uppercase() }
-                    title = "📱 $pretty isn't in your top apps today"
-                    body = "I don't see $pretty in your tracked top-app list for today, so I can't " +
-                            "give you a per-app number. " +
-                            "If you'd like to track it, install or open it for a session and Aurelo will " +
-                            "pick it up. For your full per-app breakdown go to Wellness → Today → All Apps."
+                    title = "📱 $pretty — live data not available yet"
+                    body  = "I can see overall screen time (${summary.todayMinutes} min today) but " +
+                            "$pretty isn't showing in my current top-app snapshot — this usually means " +
+                            "its session is still active or the usage cache hasn't refreshed since you " +
+                            "last opened Aurelo. For a live per-app breakdown, go to " +
+                            "Wellness → Today → All Apps."
                 }
             }
         }
