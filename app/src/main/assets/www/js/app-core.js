@@ -336,6 +336,13 @@ window.onPageReady = function(alreadyDone) {
       // never removed — the user sees free-tier UI until the next cold start.
       if (typeof renderAll === 'function' && S && S.onboardingDone) renderAll();
 
+      // Notify focus-tab modules (FocusBedtime, FocusChallenge) so they unlock
+      // immediately after purchase without requiring a manual tab switch.
+      // The listener in app-focus.js depends on this dispatch — the event was
+      // registered there but never fired, which was the root cause of Bedtime Mode
+      // and Weekly Challenge not unlocking until the user left and re-entered the tab.
+      window.dispatchEvent(new CustomEvent('aurelo-pro-changed', { detail: { isPro: isPro } }));
+
       // ── Silent restore detection ───────────────────────────────────────────
       // Fires when Play Billing automatically restores a subscription on
       // reinstall or a new device — no user action required. In this path,

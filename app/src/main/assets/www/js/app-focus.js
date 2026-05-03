@@ -24,6 +24,7 @@ window.FocusTab = (function () {
    * ═══════════════════════════════════════════════════════════════ */
   var _focusLoaded          = false;
   var _focusDirty           = false;
+  var _proHookRegistered    = false;   // guard: onProStatusChanged extension registered once
   var _focusSessionActive   = false;
   var _focusSessionSecs     = 0;
   var _focusSessionTimer    = null;
@@ -198,6 +199,29 @@ window.FocusTab = (function () {
   function initFocusTab() {
     if (_focusLoaded) { _refreshFocusData(); return; }
     _focusLoaded = true;
+
+    // Register the onProStatusChanged extension here — inside initFocusTab — so it
+    // chains onto the handler that app-core.js wired up inside onPageReady. Doing this
+    // at IIFE parse time was too early: onPageReady had not yet run, so ProTier and
+    // app-core hadn't registered their handlers yet, meaning the focus extension was
+    // silently overwritten and Bedtime / Challenge never re-rendered on purchase.
+    if (!_proHookRegistered) {
+      _proHookRegistered = true;
+      var _prevProHandler = window.onProStatusChanged;
+      window.onProStatusChanged = function (isPro) {
+        if (typeof _prevProHandler === 'function') _prevProHandler(isPro);
+        // Defer one tick so every ProTier.isPro read inside the render functions
+        // sees the fully-committed value, regardless of chain-handler order.
+        setTimeout(function () {
+          if (typeof FocusChallenge !== 'undefined') FocusChallenge.render();
+          _renderFocusSession();
+          if (typeof FocusBedtime  !== 'undefined') FocusBedtime.render();
+          if (typeof FocusRoutine  !== 'undefined') FocusRoutine.render();
+          renderFocusStaticRow();  renderHabitsStaticRow();
+          renderFocusDynamicRow(); renderHabitsDynamicRow();
+        }, 0);
+      };
+    }
     _loadFocusBlockedApps();
     _loadTimerIgnoreStats();
     if (typeof FocusTimers   !== 'undefined') FocusTimers.render(document.getElementById('focus-timers-wrap'));
@@ -892,29 +916,6 @@ window.FocusTab = (function () {
   }
 
   /* ═══════════════════════════════════════════════════════════════
-   * PRO STATUS HOOK
-   * ═══════════════════════════════════════════════════════════════ */
-  (function () {
-    var _prev = window.onProStatusChanged;
-    window.onProStatusChanged = function (isPro) {
-      if (typeof _prev === 'function') _prev(isPro);
-      // BUG-1/2: If focus tab hasn't loaded yet there is nothing to update — skip silently.
-      // (Removed the erroneous `_focusLoaded = false` assignment that was a no-op dead-write.)
-      if (!_focusLoaded) { return; }
-      // BUG-1/2: Defer one tick so every ProTier.isPro read inside the render functions
-      // sees the fully-committed value, regardless of chain-handler order.
-      setTimeout(function () {
-        if (typeof FocusChallenge !== 'undefined') FocusChallenge.render();
-        _renderFocusSession();
-        if (typeof FocusBedtime  !== 'undefined') FocusBedtime.render();
-        if (typeof FocusRoutine  !== 'undefined') FocusRoutine.render();
-        renderFocusStaticRow();  renderHabitsStaticRow();
-        renderFocusDynamicRow(); renderHabitsDynamicRow();
-      }, 0);
-    };
-  })();
-
-  /* ═══════════════════════════════════════════════════════════════
    * RESUME HOOK
    * ═══════════════════════════════════════════════════════════════ */
   (function () {
@@ -1075,8 +1076,10 @@ window.FocusTab = (function () {
     shareCard: typeof shareCard !== 'undefined' ? shareCard : function () {},
     updateFocusSubheader: _updateFocusSubheader,
   };
-  // BUG-1 FIX: Re-render all Focus tab modules immediately when Pro status changes.
-  // Without this, Bedtime Mode / Weekly Challenge only update after a manual tab switch.
+  // aurelo-pro-changed is dispatched by app-core.js's onProStatusChanged handler
+  // immediately after renderAll(). This covers the case where the focus tab is active
+  // but the onProStatusChanged chain extension in initFocusTab() hasn't run yet
+  // (e.g., purchase completes before the user has ever opened the Focus tab).
   window.addEventListener('aurelo-pro-changed', function() {
     if (typeof FocusBedtime   !== 'undefined') FocusBedtime.render();
     if (typeof FocusChallenge !== 'undefined') FocusChallenge.render();
