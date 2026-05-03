@@ -117,19 +117,40 @@ window.FocusScore = (function () {
     var sessPts = 0, timerPts = 0, mindfulPts = 0;
 
     // ── Sessions pillar (F-06, F-07) ──────────────────────────
+    // Score is DAILY. Weekly data (d.total / d.completed) is only a graceful-
+    // degradation fallback when the native daily bridge returns no duration info.
+    var sessEngageScale = 1;          // exposed in return for score sheet hint
+    var weeklyConsistencyBonus = 0;   // additive pts applied to baseScore below
+
     if (totalSessions > 0 || (d.total > 0)) {
       sessW = 40;
       totalW += sessW;
+
       if (plannedMins > 0) {
-        // F-07: duration-weighted + partial credit for interrupts
+        // ── Primary daily path ──────────────────────────────────
+        // F-07: duration-weighted + partial credit for interrupts.
+        // Engagement scale: a 5-min session completing 100% of its plan should not
+        // yield 40/40 and re-normalise to 100 when sessions is the only active pillar.
+        // 15 min = full credit (the shortest "proper" preset); shorter sessions
+        // scale linearly. Mirrors timerEngageScale / pauseEngageScale pattern.
         var completionRatio = Math.min(1, elapsedMins / plannedMins);
         var completionBonus = completedToday > 0 ? 1.0 : 0.75;
-        sessPts = Math.round(completionRatio * completionBonus * 40);
+        sessEngageScale = Math.min(1, plannedMins / 15);
+        sessPts = Math.round(completionRatio * completionBonus * 40 * sessEngageScale);
+
       } else if (d.total > 0) {
-        // Fallback to weekly ratio if daily data unavailable (graceful degradation)
+        // ── Weekly fallback ─────────────────────────────────────
+        // Native daily duration data unavailable. Give full completion credit —
+        // can't penalise by duration we cannot measure. Score sheet shows a note.
         sessPts = Math.round((d.completed / d.total) * 40);
       }
       earned += sessPts;
+
+      // ── Weekly consistency bonus ────────────────────────────────────────────
+      // Additive bonus applied to baseScore (not to the pillar ratio) so it does
+      // not inflate weight labels. +4 pts per additional session this week beyond
+      // today's, capped at +10. Rewards habit-building without dominating the score.
+      weeklyConsistencyBonus = Math.min(10, Math.max(0, ((d.total || 0) - 1) * 4));
     }
 
     // ── Timers pillar (F-05) ───────────────────────────────────
@@ -166,6 +187,11 @@ window.FocusScore = (function () {
 
     var baseScore = totalW === 0 ? -1 : Math.round((earned / totalW) * 100);
 
+    // Apply weekly consistency bonus before HC boost — both are additive on top.
+    if (baseScore >= 0 && weeklyConsistencyBonus > 0) {
+      baseScore = Math.min(100, baseScore + weeklyConsistencyBonus);
+    }
+
     // F-19: HC-only mode when no Aurelo features are configured
     if (baseScore < 0 && hcActive && hcMindfulPts > 0) {
       hcOnlyMode = true;
@@ -184,6 +210,9 @@ window.FocusScore = (function () {
       completedToday, interruptedToday, totalSessions, plannedMins, elapsedMins,
       // weekly data for history/streak
       weekCompleted: d.completed || 0, weekTotal: d.total || 0,
+      weeklyConsistencyBonus,
+      // engagement scale — used by score sheet duration hint when < 1
+      sessEngageScale,
     };
   }
 
@@ -873,7 +902,19 @@ window.FocusScore = (function () {
         ? res.completedToday+' of '+res.totalSessions+' sessions completed today · '
           + (res.plannedMins > 0 ? Math.round(res.elapsedMins/res.plannedMins*100)+'% duration' : '')
         : (res.weekCompleted+' of '+res.weekTotal+' sessions this week');  // F-26: "this week"
-      components.push({label:'Sessions', weight: res.sessW, pts: res.sessPts, maxPts: res.sessMax, dataLine: sessDataLine});
+      // Engagement hint — shown when sessEngageScale < 1 (short session today)
+      var sessEngaged = res.sessEngageScale < 1
+        ? ' (aim for 15+ min for full credit)'
+        : '';
+      // Weekly consistency bonus row — shown when extra sessions this week earned bonus pts
+      var weekBonusNote = res.weeklyConsistencyBonus > 0
+        ? ' · +' + res.weeklyConsistencyBonus + ' consistency bonus (' + (res.weekTotal - 1) + ' extra session' + ((res.weekTotal - 1) !== 1 ? 's' : '') + ' this week)'
+        : '';
+      // Fallback path note — shown when daily duration data was unavailable
+      var fallbackNote = (res.totalSessions === 0 && res.weekTotal > 0 && res.plannedMins === 0)
+        ? ' · no duration data today'
+        : '';
+      components.push({label:'Sessions', weight: res.sessW, pts: res.sessPts, maxPts: res.sessMax, dataLine: sessDataLine + sessEngaged + weekBonusNote + fallbackNote});
     }
     if (res.timerW > 0) {
       var timerEngaged = d.timerTotal >= 2 ? '' : ' (1 timer — set 2+ for full score)';
@@ -890,6 +931,18 @@ window.FocusScore = (function () {
         + 'Start a Focus session, set App Timers, or configure Mindful Pauses inside Aurelo to activate the full score.'
         + '</div>';
       sheetHtml = sheetHtml.replace('HOW THIS IS CALCULATED', hcOnlyBanner + 'HOW THIS IS CALCULATED');
+    }
+
+    // Single-pillar context note: when only Sessions is active the re-normalised
+    // score can look inflated (e.g. 1 short session → 100 because totalW = 40, not 100).
+    // Show a gentle nudge so users understand how to get a more meaningful reading.
+    var _activePillarCount = (res.sessW > 0 ? 1 : 0) + (res.timerW > 0 ? 1 : 0) + (res.mindfulW > 0 ? 1 : 0);
+    if (_activePillarCount === 1 && !res.hcOnlyMode) {
+      var singlePillarNote = '<div style="background:var(--s2);border:1px solid var(--border2);border-radius:12px;padding:10px 13px;font-family:var(--ff-m);font-size:var(--text-xs);color:var(--t3);line-height:1.5;margin-bottom:16px">'
+        + '💡 Only one pillar is active — your score reflects sessions only. '
+        + 'Set App Timers or configure Mindful Pauses to unlock a richer, more complete Focus Score.'
+        + '</div>';
+      sheetHtml = sheetHtml.replace('HOW THIS IS CALCULATED', singlePillarNote + 'HOW THIS IS CALCULATED');
     }
 
     // HC mindfulness section
