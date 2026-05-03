@@ -33,7 +33,11 @@ data class HCMindfulnessSession(
 data class HCDailyData(
     val isAvailable: Boolean = false,
     // Today
-    val stepsToday: Int = 0,
+    // FIX B1: -1 is the sentinel for "no step records synced yet".
+    // Callers must treat stepsToday < 0 as "data not available", not "zero steps".
+    // This prevents a false low-activity penalty in ScreenScoreEnhancer when HC is
+    // connected but the wearable/phone step-counter hasn't synced for the day yet.
+    val stepsToday: Int = -1,
     val hrvToday: Float? = null,           // RMSSD ms, latest record
     val restingHrToday: Int? = null,       // bpm, latest record
     // Sleep — last night
@@ -79,14 +83,19 @@ class HealthConnectRepository(private val manager: HealthConnectManager) {
         val weekRange  = TimeRangeFilter.between(sevenDaysAgo, now)
 
         // ── Steps today ───────────────────────────────────────────────────
+        // FIX B1: Use -1 (not 0) when no step records exist for today.
+        // The aggregate returns null when Health Connect has zero StepRecord
+        // entries — normal in early morning before any wearable/phone pedometer
+        // has synced. Returning -1 lets ScreenScoreEnhancer and BodyScoreCalculator
+        // distinguish "no data yet" from "genuinely zero steps taken today".
         val stepsToday = runCatching {
             client.aggregate(
                 AggregateRequest(
                     metrics = setOf(StepsRecord.COUNT_TOTAL),
                     timeRangeFilter = todayRange,
                 )
-            )[StepsRecord.COUNT_TOTAL]?.toInt() ?: 0
-        }.getOrElse { 0 }
+            )[StepsRecord.COUNT_TOTAL]?.toInt() ?: -1   // FIX B1: null → -1
+        }.getOrElse { -1 }  // FIX B1: exception → -1, not 0
 
         // ── 7-day average steps ───────────────────────────────────────────
         val avgSteps7d = runCatching {

@@ -541,20 +541,44 @@ class CoachOrchestrator(
     }
 
     /**
-     * FIX: Identify which pillar is weakest right now.
-     * UsageSummary only carries current-day pillar scores (no yesterday breakdown),
-     * so we use the lowest weighted score as the best proxy for what's dragging
-     * the composite — matches the weighted contribution logic in the score engine.
+     * FIX B8: Identify which pillar is weakest using HC-aware weights.
+     * Old code always used no-HC weights (Screen 40%, Focus 35%, Sleep 25%)
+     * even when HC was connected, mis-identifying the dragging pillar for
+     * Body-pillar users. Now mirrors FocusScore.calculateAurelo() (F-23):
+     *   With HC + Sleep:    Screen 35%, Focus 30%, Sleep 20%, Body 15%
+     *   With HC, no Sleep:  Screen 46%, Focus 39%, Body 15%
+     *   No HC + Sleep:      Screen 40%, Focus 35%, Sleep 25%
+     *   No HC, no Sleep:    Screen 55%, Focus 45%
      */
     private fun worstPillar(summary: UsageSummary): String {
-        // Weighted contribution: Screen 40%, Focus 35%, Sleep 25%
-        val screenWeighted = summary.screenScore * 0.40
-        val focusWeighted  = summary.focusScore  * 0.35
-        val sleepWeighted  = summary.sleepScore  * 0.25
-        return when {
-            focusWeighted  <= screenWeighted && focusWeighted  <= sleepWeighted -> "Focus"
-            screenWeighted <= focusWeighted  && screenWeighted <= sleepWeighted -> "Screen"
-            else -> "Sleep"
+        val hcActive   = summary.hcConnected && summary.bodyScore >= 0
+        val sleepAvail = summary.sleepScore > 0
+        val swScreen: Double
+        val swFocus:  Double
+        val swSleep:  Double
+        val swBody:   Double
+        if (hcActive) {
+            swSleep  = if (sleepAvail) 20.0 else  0.0
+            swScreen = if (sleepAvail) 35.0 else 46.0
+            swFocus  = if (sleepAvail) 30.0 else 39.0
+            swBody   = 15.0
+        } else {
+            swSleep  = if (sleepAvail) 25.0 else  0.0
+            swScreen = if (sleepAvail) 40.0 else 55.0
+            swFocus  = if (sleepAvail) 35.0 else 45.0
+            swBody   = 0.0
+        }
+        val screenW = summary.screenScore * swScreen
+        val focusW  = summary.focusScore  * swFocus
+        val sleepW  = if (sleepAvail) summary.sleepScore * swSleep else Double.MAX_VALUE
+        val bodyW   = if (hcActive && summary.bodyScore >= 0) summary.bodyScore * swBody
+                      else Double.MAX_VALUE
+        return when (minOf(screenW, focusW, sleepW, bodyW)) {
+            focusW  -> "Focus"
+            screenW -> "Screen"
+            sleepW  -> "Sleep"
+            bodyW   -> "Body"
+            else    -> "Screen"
         }
     }
 

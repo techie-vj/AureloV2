@@ -40,6 +40,7 @@ data class UsageSummary(
     val screenScore: Int,
     val focusScore: Int,
     val sleepScore: Int,
+    val bodyScore: Int,
     // ── Health Connect signals ─────────────────────────────────────────────
     val hrvToday: Float?,
     val hrv7DayAvg: Float?,
@@ -120,6 +121,7 @@ class UsageSummaryBuilder(
         val screenScore          = prefs.getInt("cached_screen_score", 0)
         val focusScore           = prefs.getInt("cached_focus_score", 0)
         val sleepScore           = prefs.getInt("cached_sleep_score", 0)
+        val bodyScore            = prefs.getInt("cached_body_score", 0)
 
         // ── HC signals ────────────────────────────────────────────────────
         val mindfulnessMins = if (hcData.isAvailable)
@@ -144,6 +146,7 @@ class UsageSummaryBuilder(
             screenScore                   = screenScore,
             focusScore                    = focusScore,
             sleepScore                    = sleepScore,
+            bodyScore                     = bodyScore,
             hrvToday                      = hcData.hrvToday,
             hrv7DayAvg                    = hcData.avgHrv7d,
             stepsToday                    = if (hcData.isAvailable) hcData.stepsToday else null,
@@ -230,6 +233,7 @@ class UsageSummaryBuilder(
         put("screenScore",  summary.screenScore)
         put("focusScore",   summary.focusScore)
         put("sleepScore",   summary.sleepScore)
+        put("bodyScore",   summary.bodyScore)
         // HC — use JSONObject.NULL for null Kotlin values
         put("hrvToday",           summary.hrvToday ?: JSONObject.NULL)
         put("hrv7DayAvg",         summary.hrv7DayAvg ?: JSONObject.NULL)

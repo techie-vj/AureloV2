@@ -347,10 +347,16 @@ function _sleepPillarScore() {
             typeof HealthConnect.getSleepData === 'function') {
           const hcSleep = HealthConnect.getSleepData();
           if (hcSleep) {
-            const dur = hcSleep.durScore  != null ? hcSleep.durScore  : 0;
-            const hrv = hcSleep.oHrvScore != null ? hcSleep.oHrvScore : 0;
-            return Math.min(100, Math.max(0,
-              Math.round(res.score * 0.60 + dur * 0.25 + hrv * 0.15)));
+            // Re-normalise: only accumulate weight for signals that are actually
+            // present. Zero-substituting null signals (old formula) silently capped
+            // users at ~85% whenever wearable HRV was unavailable — the same F-02
+            // bug that was fixed in _getEffectiveSleepScore but not here.
+            const dur = hcSleep.durScore;
+            const hrv = hcSleep.oHrvScore;
+            let totalW = 0.60, wgtSum = res.score * 0.60;
+            if (dur != null) { wgtSum += dur * 0.25; totalW += 0.25; }
+            if (hrv != null) { wgtSum += hrv * 0.15; totalW += 0.15; }
+            return Math.min(100, Math.max(0, Math.round(wgtSum / totalW)));
           }
         }
       } catch (_) {}
@@ -549,9 +555,19 @@ function renderAureloScore() {
     _pillarTileHTML({
       label: 'Sleep', icon: '😴', cls: 'score-sleep',
       value: sleep, isHC: false,
-      sub:   sleep !== null
-               ? (hcConnected ? 'HC enhanced' : 'Bedtime tracking')
-               : 'No data yet',
+      sub: (function() {
+        if (sleep !== null) return hcConnected ? 'HC enhanced' : 'Bedtime tracking';
+        // FIX B9: during pre-wake period show "Check back after HH:MM"
+        // instead of the generic "No data yet" which implies nothing is configured.
+        try {
+          if (typeof FocusScore !== 'undefined' &&
+              typeof FocusScore.calculateSleep === 'function') {
+            var _sr = FocusScore.calculateSleep();
+            if (_sr && _sr.preWakeReason) return _sr.preWakeReason;
+          }
+        } catch (_) {}
+        return 'No data yet';
+      })(),
       onTap: "_onAureloPillarTap('sleep')",
     }),
   ].join('');
@@ -663,7 +679,7 @@ function openAureloScoreSheet() {
   const scores   = _computeAureloScore();
   const { overall, screen, focus, sleep, body } = scores;
   const swScreen = scores.swScreen || 40;
-  const swFocus  = scores.swFocus  || 20;
+  const swFocus  = scores.swFocus  || 35;  // FIX B6: was 20 — not a valid weight for any combination
   const swSleep  = scores.swSleep  || 25;
   const swBody   = scores.swBody   || 15;
   const g        = _aureloGrade(overall);
@@ -836,20 +852,50 @@ function _showBodyScoreSheet() {
   } catch (_) {}
 
   const live = {
-    steps:    (_hcRaw.steps    != null && _hcRaw.steps    >= 0) ? _hcRaw.steps    : null,
-    hrv:      _hcRaw.hrv       ?? null,
-    avgHrv7d: _hcRaw.avgHrv7d  ?? null,
-    rhr:      _hcRaw.restingHR ?? null,
-    avgRhr7d: _hcRaw.avgRhr7d  ?? null,
+    steps:     (_hcRaw.steps    != null && _hcRaw.steps    >= 0) ? _hcRaw.steps    : null,
+    hrv:       _hcRaw.hrv       ?? null,
+    avgHrv7d:  _hcRaw.avgHrv7d  ?? null,
+    rhr:       _hcRaw.restingHR ?? null,
+    avgRhr7d:  _hcRaw.avgRhr7d  ?? null,
+    avgSteps7d: _hcRaw.avgSteps7d ?? null,  // FIX B3: personal step avg for dynamic ceiling
   };
 
-  const hrvPct   = (live.hrv != null && live.avgHrv7d != null && live.avgHrv7d > 0)
-    ? Math.min(100, Math.round(live.hrv / live.avgHrv7d * 100)) : null;
-  const rhrPct   = (live.rhr != null && live.avgRhr7d != null && live.avgRhr7d > 0)
-    ? (live.rhr <= live.avgRhr7d ? 100
-        : Math.max(0, Math.round((1 - (live.rhr - live.avgRhr7d) / 20) * 100))) : null;
-  const stepsPct = live.steps != null
-    ? Math.min(100, Math.round(Math.max(0, (live.steps - 2000) / 6000 * 100))) : null;
+  // FIX B4: floor-based HRV bar matching BodyScoreCalculator.kt F-25
+  // Old: hrv / avgHrv7d * 100 (simple ratio)
+  // New: proportional between (avg * 0.70) floor and avg ceiling
+  const hrvPct = (function() {
+    if (live.hrv == null || live.avgHrv7d == null || live.avgHrv7d <= 0) return null;
+    if (live.hrv >= live.avgHrv7d) return 100;
+    const floor = live.avgHrv7d * 0.70;
+    if (live.hrv <= floor) return 0;
+    return Math.min(100, Math.max(0,
+      Math.round(((live.hrv - floor) / (live.avgHrv7d - floor)) * 100)));
+  })();
+
+  // FIX B2: percentage-based RHR ceiling matching BodyScoreCalculator.kt F-28
+  // Old: (1 - (rhr - avg) / 20) * 100 (absolute +20 bpm)
+  // New: ceiling = avg * 1.40 (40% above personal 7-day average)
+  const rhrPct = (function() {
+    if (live.rhr == null || live.avgRhr7d == null || live.avgRhr7d <= 0) return null;
+    if (live.rhr <= live.avgRhr7d) return 100;
+    const ceiling = live.avgRhr7d * 1.40;
+    if (live.rhr >= ceiling) return 0;
+    return Math.min(100, Math.max(0,
+      Math.round((1 - (live.rhr - live.avgRhr7d) / (ceiling - live.avgRhr7d)) * 100)));
+  })();
+
+  // FIX B3: personal avg ceiling for steps matching BodyScoreCalculator.kt F-24
+  // Old: (steps - 2000) / 6000 * 100 (fixed 8 000 ceiling)
+  // New: ceiling = personal 7-day avg when > 8 000, else 8 000
+  const stepsPct = (function() {
+    if (live.steps == null) return null;
+    const ceiling = (live.avgSteps7d != null && live.avgSteps7d > 8000)
+      ? Math.round(live.avgSteps7d) : 8000;
+    if (live.steps >= ceiling) return 100;
+    if (live.steps <= 2000) return 0;
+    return Math.min(100, Math.max(0,
+      Math.round(((live.steps - 2000) / (ceiling - 2000)) * 100)));
+  })();
 
   const _noData = '<span style="color:var(--t3);font-size:var(--text-xs)">No data</span>';
   const rows = [
@@ -870,7 +916,9 @@ function _showBodyScoreSheet() {
     {
       label: 'Daily Steps', icon: '🦶',
       val:  live.steps != null ? live.steps.toLocaleString() : _noData,
-      sub:  'Goal: 8,000 steps',
+      sub:  (live.avgSteps7d != null && live.avgSteps7d > 8000)
+              ? 'Goal: ' + Math.round(live.avgSteps7d).toLocaleString() + ' (your avg)'
+              : 'Goal: 8,000 steps',  // FIX B3+B5: personalised below
       pct:  stepsPct,
       col:  stepsPct == null ? 'var(--t3)' : stepsPct >= 100 ? 'var(--g)' : stepsPct >= 60 ? 'var(--a)' : 'var(--r)',
     },
@@ -886,7 +934,10 @@ function _showBodyScoreSheet() {
           <div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3)">${r.sub}</div>
         </div>
         <div style="font-family:var(--ff-d);font-size:var(--text-2xl);font-weight:700;
-                    color:${r.col};line-height:1">${r.val}</div>
+                    color:${r.col};line-height:1;text-align:right">
+          <div>${r.val}</div>
+          ${r.weight != null ? `<div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);margin-top:2px">${r.weight}% weight</div>` : ''}
+        </div>
       </div>
       <div style="height:4px;background:var(--border2);border-radius:2px;overflow:hidden">
         <div style="height:100%;width:${r.pct != null ? r.pct : 0}%;
@@ -937,7 +988,8 @@ function _showBodyScoreSheet() {
                     border-radius:12px;padding:10px 13px;font-family:var(--ff-m);
                     font-size:var(--text-xs);color:var(--t3);line-height:1.55;margin-bottom:16px">
           Each signal scored 0–100 against your personal 7-day baseline.
-          Body Score is the average. Equal 33% weight per signal.
+          Weights: Steps 40% · HRV 35% · Resting HR 25%.
+          Missing signals are excluded and remaining weights are renormalized.
         </div>
         <button type="button" onclick="_closeBodyScoreSheet()"
                 style="width:100%;padding:14px;border-radius:14px;background:var(--s2);

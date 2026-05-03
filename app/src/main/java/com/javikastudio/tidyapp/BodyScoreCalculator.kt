@@ -89,6 +89,9 @@ object BodyScoreCalculator {
 
     fun stepsScore(data: HCDailyData): Int? {
         val steps = data.stepsToday
+        // FIX B1: -1 sentinel means no step records synced yet — return null
+        // so the signal is excluded from the weighted average rather than
+        // scoring as 0 (which would pull Body Score to the floor unfairly).
         if (steps < 0) return null
 
         // F-24: use personal ceiling when available and greater than 8000

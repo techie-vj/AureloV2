@@ -10,6 +10,13 @@ package com.javikastudio.tidyapp
 //           New: linear gradient from -3 at ≤2000 steps to 0 at 5000 steps.
 //           The dead zone made 3001 steps feel identical to 5000 steps,
 //           and the cliff at 3000 was confusing and abrupt.
+//
+// FIX B1: stepsToday < 0 is the sentinel emitted by HealthConnectRepository
+//         when no step records have synced yet for today (the HC aggregate
+//         returns null → repository maps it to -1). Previously the repository
+//         defaulted to 0, causing modifier() to award a −3 penalty before
+//         any wearable or phone pedometer had synced — a false "low activity"
+//         signal every morning. Guard: steps < 0 → no modifier applied.
 // ═══════════════════════════════════════════════════════════════════════════
 
 data class HCActivityModifier(
@@ -42,6 +49,13 @@ object ScreenScoreEnhancer {
     fun modifier(data: HCDailyData): HCActivityModifier {
         if (!data.isAvailable) return HCActivityModifier(0, null, 0)
         val steps = data.stepsToday
+
+        // FIX B1: negative sentinel means "no HC step data yet" — no modifier.
+        // HealthConnectRepository sets stepsToday = -1 when the HC aggregate
+        // returns null (no records synced). This is the normal early-morning
+        // state. Penalising it as "low activity" was incorrect.
+        if (steps < 0) return HCActivityModifier(0, null, steps)
+
         return when {
             steps >= 10_000 -> HCActivityModifier(+5, "+5 pts · very active day",  steps)
             steps >= 8_000  -> HCActivityModifier(+3, "+3 pts · active day bonus", steps)

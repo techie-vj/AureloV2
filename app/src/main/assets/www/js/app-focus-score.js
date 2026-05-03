@@ -38,6 +38,8 @@
  *   F-22  Sleep Score pre-wake-time state shown in UI with explanation
  *   F-23  Body pillar weight raised to 15% (from 10%)
  *   F-26  Focus sheet data line corrected to say "this week" not "today"
+ *   B7    Sleep Score streak bonus (+3/night, up to +20) now applied to score
+ *         (bedStreak was fetched but silently dropped from the result)
  * ═══════════════════════════════════════════════════════════════════════════════ */
 window.FocusScore = (function () {
 
@@ -225,10 +227,14 @@ window.FocusScore = (function () {
                     : lastNight.snoozeCount === 2 ? 10
                     : 0;
       var attemptPts = Math.max(0, 20 - (lastNight.appAttemptsTotal || 0) * 5);
+      // FIX B7: Apply streak bonus as specified in spec §7.2: +3 per streak night,
+      // up to a maximum of +20. bedStreak was already fetched above but was never
+      // included in the score — it was silently discarded every calculation cycle.
+      var streakBonus = Math.min(20, (bedStreak || 0) * 3);
       result = {
-        score: adherePts + snoozePts + attemptPts,
-        adherePts, snoozePts, attemptPts,
-        adhereW: 50, snoozeW: 30, attemptW: 20,
+        score: Math.min(100, adherePts + snoozePts + attemptPts + streakBonus),
+        adherePts, snoozePts, attemptPts, streakBonus,
+        adhereW: 50, snoozeW: 30, attemptW: 20, streakW: 20,
         lastNight, bedStreak,
         cfg, // expose cfg for _getEffectiveSleepScore bedtime window calculation
       };
@@ -954,10 +960,9 @@ window.FocusScore = (function () {
     }
 
     var ln = res.lastNight;
+    // improvements are built after the HC blend so impact values can be
+    // scaled by the actual effective weight rather than raw base weights.
     var improvements = [];
-    if (res.adherePts === 0) improvements.push({text:'Respect your bedtime window tonight — no manual disable', impact:50});
-    if (res.snoozePts < 30)  improvements.push({text:'Avoid snoozing — 0 snoozes earns 30 pts, 2+ earns 0', impact:30 - res.snoozePts});
-    if (res.attemptPts < 20) improvements.push({text:'Keep blocked apps closed during the bedtime window', impact:20 - res.attemptPts});
 
     // ── HC sleep data ───────────────────────────────────────────────────────────
     // F-14: pass bedtime window so Kotlin filters HC sessions to those overlapping
@@ -1085,8 +1090,13 @@ window.FocusScore = (function () {
           weight:  _effW_bed,
           pts:     _pts_bed,
           maxPts:  _effW_bed,
+          // Surface snooze and attempt detail so users can see what drove the
+          // Bedtime Mode score — previously only showed "kept/missed" and the
+          // impact of snoozes + blocked attempts was invisible in HC mode.
           dataLine: ln && ln.hasData
             ? (ln.bedtimeKept ? 'Bedtime kept ✓' : 'Bedtime missed')
+              + ' · ' + (ln.snoozeCount || 0) + ' snooze' + ((ln.snoozeCount || 0) !== 1 ? 's' : '')
+              + ' · ' + (ln.appAttemptsTotal || 0) + ' blocked attempt' + ((ln.appAttemptsTotal || 0) !== 1 ? 's' : '')
             : 'No data',
         },
         {
@@ -1105,7 +1115,7 @@ window.FocusScore = (function () {
         },
       ];
     } else {
-      // No HC — base bedtime formula (adherence + snooze + attempts)
+      // No HC — base bedtime formula (adherence + snooze + attempts + streak bonus)
       components = [
         {label:'Bedtime Adherence',    weight:50, pts:res.adherePts, maxPts:50,
           dataLine: ln && ln.hasData
@@ -1120,8 +1130,23 @@ window.FocusScore = (function () {
             ? ((ln.appAttemptsTotal || 0) + ' blocked app attempt'
                + ((ln.appAttemptsTotal || 0) !== 1 ? 's' : '') + ' last night')
             : 'No data'},
+        // FIX B7: show streak bonus row so it's visible and not a mystery
+        {label:'Bedtime Streak Bonus', weight:20, pts:res.streakBonus || 0, maxPts:20,
+          dataLine: res.bedStreak > 0
+            ? res.bedStreak + '-night streak · +' + (res.streakBonus || 0) + ' pts (max +20)'
+            : 'Build a bedtime streak to earn up to +20 pts'},
       ];
     }
+
+    // ── Improvements — built after HC blend so impact values are correctly scaled ─
+    // In HC mode the base score (adherePts + snoozePts + attemptPts) feeds only the
+    // 60% component; potential gains must be multiplied by that component's effective
+    // renormalised weight so "+N pts" reflects what actually changes in effectiveScore.
+    // In non-HC mode the raw base pts are the full score — no scaling needed.
+    var _impactScale = hcActive ? (0.60 / _totalNomW) : 1;
+    if (res.adherePts  === 0) improvements.push({text:'Respect your bedtime window tonight — no manual disable',  impact: Math.round(50 * _impactScale)});
+    if (res.snoozePts  <  30) improvements.push({text:'Avoid snoozing — 0 snoozes earns full points, 2+ earns 0', impact: Math.round((30 - res.snoozePts)  * _impactScale)});
+    if (res.attemptPts <  20) improvements.push({text:'Keep blocked apps closed during the bedtime window',       impact: Math.round((20 - res.attemptPts) * _impactScale)});
 
     var sheetHtml = _buildScoreSheet({
       title:'Sleep Score', score:effectiveScore, scoreKey:_SLEEP_SCORE_KEY,
