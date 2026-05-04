@@ -1608,6 +1608,10 @@ function _buildScoreHistoryCard(ctx, icon, opts) {
     data = w2;
   }
 
+  const validWeekly = data.filter(v => v !== null).length;
+  const validRaw    = rawData.filter(v => v !== null).length;
+  if (validWeekly < validRaw) data = rawData;
+
   const n       = data.length;
   const valid   = data.filter(v => v !== null);
   const avg     = valid.length ? Math.round(valid.reduce((a, b) => a + b, 0) / valid.length) : null;
@@ -2010,7 +2014,9 @@ function _shareText(type, opts) {
         const ch = raw2.slice(i, i + 7).filter(v => v !== null);
         wk.push(ch.length >= 3 ? Math.round(ch.reduce((a, b) => a + b, 0) / ch.length) : null);
       }
-      raw2 = wk;
+      const validWeekly = wk.filter(v => v !== null).length;
+      const validRaw    = raw2.filter(v => v !== null).length;
+      raw2 = validWeekly < validRaw ? raw2 : wk;
     }
 
     const valid2   = raw2.filter(v => v !== null);

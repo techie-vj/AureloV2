@@ -447,7 +447,13 @@ var ScoreHistory = (function () {
 
     /* ── Compute data ── */
     var rawData  = _getData(_pillar, wc.days);
-    var data     = wc.weekly ? _toWeekly(rawData) : rawData;
+    var data = (function() {
+    if (!wc.weekly) return rawData;
+    var weekly      = _toWeekly(rawData);
+    var validWeekly = weekly.filter(function(v){ return v !== null; }).length;
+    var validRaw    = rawData.filter(function(v){ return v !== null; }).length;
+    return validWeekly < validRaw ? rawData : weekly;
+    })();
     _n = data.length;
 
     var valid   = data.filter(function(v){ return v !== null; });
