@@ -788,6 +788,30 @@
   border-color: var(--border);
   background: var(--s1);
 }
+/* "See history →" contextual shortcut — sits between cta and dismiss */
+.coach-home-insight-history {
+  background: transparent;
+  border: none;
+  padding: 7px 4px;
+  font-family: var(--ff-b);
+  font-size: var(--text-xs);
+  color: var(--t3);
+  cursor: pointer;
+  white-space: nowrap;
+  min-height: 32px;
+  display: inline-flex;
+  align-items: center;
+  margin-left: auto;   /* pushes history + dismiss to the right */
+  transition: color 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.coach-home-insight-history:active { color: var(--t2); }
+/* On Pro, tint the history link with the purple accent */
+.aurelo-pro .coach-home-insight-history {
+  color: var(--p2);
+  opacity: 0.75;
+}
+.aurelo-pro .coach-home-insight-history:active { opacity: 1; }
 .coach-home-insight-source {
   display: flex;
   align-items: center;

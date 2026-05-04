@@ -496,8 +496,9 @@ function renderStatsScreenScoreRow() {
     : '';
 
   el.innerHTML =
-    '<div onclick="renderScreenScoreSheet()"'
-    + ' style="background:var(--s2);border:0.5px solid var(--border2);border-radius:14px;'
+    '<div style="display:flex;align-items:center;gap:8px">'
+    + '<div onclick="renderScreenScoreSheet()"'
+    + ' style="flex:1;background:var(--s2);border:0.5px solid var(--border2);border-radius:14px;'
     + 'padding:10px 14px;display:flex;align-items:center;gap:10px;cursor:pointer">'
     + '<div style="font-size:var(--text-2xs);color:var(--t3);flex-shrink:0">SCREEN SCORE</div>'
     + '<div style="font-size:16px;font-weight:600;color:var(--p2);flex-shrink:0">' + displayScore + '</div>'
@@ -507,6 +508,17 @@ function renderStatsScreenScoreRow() {
     + hcChipHtml
     + '<div style="font-size:var(--text-2xs);font-weight:500;color:' + grade.color + ';flex-shrink:0">' + grade.label + '</div>'
     + deltaHtml
+    + '</div>'
+    + '<button onclick="ScoreHistory.open(\'screen\')"'
+    + ' aria-label="View Screen Score history"'
+    + ' style="flex-shrink:0;width:38px;height:38px;border-radius:12px;background:var(--s2);'
+    + 'border:0.5px solid var(--border2);color:var(--t3);display:flex;align-items:center;'
+    + 'justify-content:center;cursor:pointer;-webkit-tap-highlight-color:transparent">'
+    + '<svg width="15" height="15" viewBox="0 0 16 16" fill="none">'
+    + '<polyline points="1,11 5,5 8,8 11,3 15,3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>'
+    + '<polyline points="11,3 15,3 15,7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>'
+    + '</svg>'
+    + '</button>'
     + '</div>';
 }
 

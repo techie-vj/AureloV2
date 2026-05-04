@@ -56,6 +56,7 @@
     // Coach & Health connect
     COACH_UPGRADE:                   { tier:'pro', gate:'lock',    upsell:'coach_upgrade' },
     HEALTH_CONNECT:                   { tier:'pro', gate:'lock',    upsell:'health_connect' },
+    SCORE_HISTORY:                    { tier:'pro', gate:'lock',    upsell:'score_history' },
     // Monetisation
     AD_FREE:                   { tier:'pro', gate:'lock',    upsell:'ad_free' },
   };

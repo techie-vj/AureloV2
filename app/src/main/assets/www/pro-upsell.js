@@ -246,6 +246,19 @@
       cta: 'Unlock Unlimited Coach',
       dismiss: 'Maybe later',
     },
+    score_history: {
+      tag: 'Score History · Pro',
+      headline: 'Are your habits actually improving?',
+      body: 'A single day\'s score tells you almost nothing. Score History plots every pillar — Aurelo, Screen, Focus, Sleep, and Body — across 30, 90, and 365 days so you can see whether your habits are genuinely trending up or just fluctuating.',
+      bullets: [
+        '7-day view free · 30D, 90D, and 1Y unlocked with Pro',
+        'Drag-to-scrub chart with daily score on any data point',
+        'Period average, all-time best, and trend vs prior half',
+      ],
+      dataStat: 'streak',
+      cta: 'Unlock Full Score History',
+      dismiss: 'Maybe later',
+    },
     upgrade_pro: {
       tag: 'Aurelo Pro',
       headline: 'Master your time, without limits.',

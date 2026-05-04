@@ -132,6 +132,34 @@ function _ensureAureloScoreStyles() {
 .aurelo-score-hc-text { color: var(--aurelo-home-hc-text); font-weight: 700; }
 .aurelo-score-dot { color: var(--aurelo-score-subtitle); }
 
+/* ── Score history shortcut button (top-right of card header) ── */
+.aurelo-score-history-btn {
+  flex-shrink: 0;
+  align-self: flex-start;
+  width: 32px; height: 32px;
+  border-radius: var(--rad-sm);
+  background: var(--s2);
+  border: 1px solid var(--border2);
+  color: var(--t3);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s, border-color 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.aurelo-score-history-btn:active {
+  background: var(--s3);
+  color: var(--t1);
+  border-color: var(--border2);
+}
+.aurelo-pro .aurelo-score-history-btn {
+  color: var(--p2);
+  border-color: rgba(108,99,255,0.25);
+  background: rgba(108,99,255,0.06);
+}
+.aurelo-pro .aurelo-score-history-btn:active {
+  background: rgba(108,99,255,0.14);
+}
+
 /* ── Pillars ── */
 .aurelo-pillars-grid {
   display: grid; grid-template-columns: 1fr 1fr;
@@ -633,6 +661,14 @@ function renderAureloScore() {
           <div class="aurelo-score-grade" style="color:${g.color}">${g.label}</div>
           <div class="aurelo-score-meta">${hcLine}</div>
         </div>
+        <button class="aurelo-score-history-btn"
+                onclick="event.stopPropagation();ScoreHistory.open('aurelo')"
+                aria-label="View Aurelo Score history">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <polyline points="1,11 5,5 8,8 11,3 15,3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            <polyline points="11,3 15,3 15,7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
       </div>
       <div class="aurelo-pillars-grid">
         ${regularPillarsHTML}
@@ -787,6 +823,13 @@ function openAureloScoreSheet() {
             swBody, true)}
       </div>
       ${tipsHTML}
+      <div style="margin-bottom:8px">
+        <button class="aurelo-sheet-btn"
+                style="width:100%;display:flex;align-items:center;justify-content:center;gap:8px"
+                onclick="closeAureloScoreSheet();ScoreHistory.open('aurelo')">
+          &#128200; View Score History
+        </button>
+      </div>
       <div class="aurelo-sheet-actions">
         <button class="aurelo-sheet-btn primary"
                 onclick="activateTab('wellness');closeAureloScoreSheet()">
@@ -843,6 +886,10 @@ function _showBodyScoreSheet() {
   if (typeof HealthConnect === 'undefined' || !HealthConnect.isConnected()) return;
 
   const bodyScore  = HealthConnect.getBodyScore();
+  // Save to history so ScoreHistory chart can show Body trends over time
+  if (bodyScore >= 0 && typeof _saveScoreForToday === 'function') {
+    _saveScoreForToday('body_score_history', bodyScore);
+  }
   const gradeColor = bodyScore >= 70 ? 'var(--g)' : bodyScore >= 50 ? 'var(--a)' : 'var(--hc,var(--c))';
 
   let _hcRaw = {};
@@ -991,6 +1038,11 @@ function _showBodyScoreSheet() {
           Weights: Steps 40% · HRV 35% · Resting HR 25%.
           Missing signals are excluded and remaining weights are renormalized.
         </div>
+        <button type="button" onclick="_closeBodyScoreSheet();ScoreHistory.open('body')"
+                style="width:100%;padding:12px 14px;border-radius:14px;background:transparent;
+                       border:1px solid var(--border2);color:var(--t2);font-family:var(--ff-m);
+                       font-size:var(--text-sm);font-weight:600;cursor:pointer;display:flex;
+                       align-items:center;justify-content:center;gap:8px;margin-bottom:8px">&#128200; View Score History</button>
         <button type="button" onclick="_closeBodyScoreSheet()"
                 style="width:100%;padding:14px;border-radius:14px;background:var(--s2);
                        border:1px solid var(--border2);color:var(--t2);font-family:var(--ff-m);

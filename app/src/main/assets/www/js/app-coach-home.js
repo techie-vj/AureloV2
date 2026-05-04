@@ -201,6 +201,7 @@ function _createInsightCard() {
       '<div class="coach-home-insight-body"></div>' +
       '<div class="coach-home-insight-actions">' +
         '<div class="coach-home-insight-cta">Ask follow\u2011up \u2192</div>' +
+        '<div class="coach-home-insight-history" onclick="event.stopPropagation();ScoreHistory.open(\'aurelo\')" role="button" tabindex="0" aria-label="View score history">See history \u2192</div>' +
         '<div class="coach-home-insight-dismiss">Got it</div>' +
       '</div>' +
       '<div class="coach-home-insight-source">' +

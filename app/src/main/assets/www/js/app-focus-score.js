@@ -404,7 +404,9 @@ window.FocusScore = (function () {
     try { var s = IS_NATIVE && N.getStringPref ? N.getStringPref(key) : localStorage.getItem(key); raw = JSON.parse(s||'{}'); } catch(_) {}
     if (raw[today] === score) return;
     raw[today] = score;
-    var keys = Object.keys(raw).sort(); if (keys.length > 8) { var trim = {}; keys.slice(-8).forEach(function(k) { trim[k] = raw[k]; }); raw = trim; }
+    // Keep all daily history — no cap. Scores are tiny integers; even 5 years
+    // of data per key stays well under 20 KB. The 8-day ceiling that was here
+    // has been removed so the history chart can show 7D / 30D / 90D / 1Y views.
     try { if (IS_NATIVE && N.setStringPref) N.setStringPref(key, JSON.stringify(raw)); else localStorage.setItem(key, JSON.stringify(raw)); } catch(_) {}
   }
 
@@ -848,7 +850,10 @@ window.FocusScore = (function () {
       + '<div style="height:6px;background:var(--border);border-radius:3px;overflow:hidden;margin-bottom:20px"><div style="height:100%;width:'+Math.max(0,opts.score)+'%;background:linear-gradient(90deg,var(--p),var(--c));border-radius:3px;transition:width .4s"></div></div>'
       + '<div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);letter-spacing:.8px;margin-bottom:14px">HOW THIS IS CALCULATED</div>'
       + componentsHtml + improvHtml
-      + '<div style="display:flex;gap:8px;margin-top:4px">'
+      + '<div style="margin-bottom:4px">'
+        + '<button type="button" onclick="FocusScore.closeScoreSheet();ScoreHistory.open(\'+(opts.scoreKey===_SLEEP_SCORE_KEY?\'sleep\':\'focus\')+\')" style="width:100%;padding:12px 14px;border-radius:14px;background:transparent;border:1px solid var(--border2);color:var(--t2);font-family:var(--ff-m);font-size:var(--text-sm);font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px">&#128200; View Score History</button>'
+      + '</div>'
+      + '<div style="display:flex;gap:8px;margin-top:8px">'
         + '<button type="button" onclick="shareCard(\''+(opts.scoreKey===_SLEEP_SCORE_KEY?'sleep_score':'focus_score')+'\');" style="flex:1;padding:14px;border-radius:14px;background:rgba(108,99,255,.12);border:1px solid rgba(108,99,255,.30);color:var(--p2);font-family:var(--ff-m);font-size:13px;font-weight:600;cursor:pointer">📤 Share</button>'
         + '<button type="button" onclick="FocusScore.closeScoreSheet()" style="flex:1;padding:14px;border-radius:14px;background:var(--s2);border:1px solid var(--border2);color:var(--t2);font-family:var(--ff-m);font-size:13px;font-weight:600;cursor:pointer">Close</button>'
       + '</div></div></div>';
