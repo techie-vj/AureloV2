@@ -1603,7 +1603,7 @@ function _buildScoreHistoryCard(ctx, icon, opts) {
     const w2 = [];
     for (let i = 0; i < rawData.length; i += 7) {
       const ch = rawData.slice(i, i + 7).filter(v => v !== null);
-      w2.push(ch.length >= 3 ? Math.round(ch.reduce((a, b) => a + b, 0) / ch.length) : null);
+      w2.push(ch.length >= 7 ? Math.round(ch.reduce((a, b) => a + b, 0) / ch.length) : null);
     }
     data = w2;
   }
@@ -2012,7 +2012,7 @@ function _shareText(type, opts) {
       const wk = [];
       for (let i = 0; i < raw2.length; i += 7) {
         const ch = raw2.slice(i, i + 7).filter(v => v !== null);
-        wk.push(ch.length >= 3 ? Math.round(ch.reduce((a, b) => a + b, 0) / ch.length) : null);
+        wk.push(ch.length >= 7 ? Math.round(ch.reduce((a, b) => a + b, 0) / ch.length) : null);
       }
       const validWeekly = wk.filter(v => v !== null).length;
       const validRaw    = raw2.filter(v => v !== null).length;

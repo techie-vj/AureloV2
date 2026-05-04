@@ -133,7 +133,7 @@ var ScoreHistory = (function () {
     var out = [];
     for (var i = 0; i < data.length; i += 7) {
       var chunk = data.slice(i, i + 7).filter(function(v){ return v !== null; });
-      out.push(chunk.length >= 3
+      out.push(chunk.length >= 7
         ? Math.round(chunk.reduce(function(a,b){return a+b;},0) / chunk.length)
         : null);
     }
