@@ -1133,7 +1133,7 @@ function _buildSleepScoreCard(ctx, icon) {
   if (durScore  != null) totalNomW += 0.25;
   if (oHrvScore != null) totalNomW += 0.15;
 
-  if (hasEnhancement && res.score >= 0) {
+  if (hcActive && hasEnhancement && res.score >= 0) {
     let wgtSum = baseScore * 0.60;
     if (durScore  != null) wgtSum += durScore  * 0.25;
     if (oHrvScore != null) wgtSum += oHrvScore * 0.15;
@@ -1193,7 +1193,7 @@ function _buildSleepScoreCard(ctx, icon) {
   ctx.fillStyle = heroG;
   ctx.font = `italic 300 ${score >= 100 ? 192 : 240}px ${FONT_D}`;
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  ctx.fillText(res.score >= 0 ? String(score) : '–', W / 2, 395);
+  ctx.fillText(score >= 0 ? String(score) : '–', W/2, 395)
   ctx.restore();
 
   /* ── Grade ── */
@@ -1213,7 +1213,7 @@ function _buildSleepScoreCard(ctx, icon) {
     ctx.fillStyle = barG; ctx.fill();
   }
 
-  if (hasEnhancement && res.score >= 0) {
+  if (hcActive && hasEnhancement && res.score >= 0) {
     /* ── Row layout: Bedtime Mode | Sleep Duration | Overnight HRV ──
        Mirrors the sheet exactly — shown whenever durScore is available
        (Tier 1 HC wearable, Tier 2 bedtime window, or Tier 3 HC-only)    ── */
