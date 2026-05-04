@@ -854,8 +854,7 @@ window.FocusScore = (function () {
         + '<button type="button" onclick="FocusScore.closeScoreSheet();ScoreHistory.open(\'+(opts.scoreKey===_SLEEP_SCORE_KEY?\'sleep\':\'focus\')+\')" style="width:100%;padding:12px 14px;border-radius:14px;background:transparent;border:1px solid var(--border2);color:var(--t2);font-family:var(--ff-m);font-size:var(--text-sm);font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px">&#128200; View Score History</button>'
       + '</div>'
       + '<div style="display:flex;gap:8px;margin-top:8px">'
-        + '<button type="button" onclick="shareCard(\''+(opts.scoreKey===_SLEEP_SCORE_KEY?'sleep_score':'focus_score')+'\');" style="flex:1;padding:14px;border-radius:14px;background:rgba(108,99,255,.12);border:1px solid rgba(108,99,255,.30);color:var(--p2);font-family:var(--ff-m);font-size:13px;font-weight:600;cursor:pointer">📤 Share</button>'
-        + '<button type="button" onclick="FocusScore.closeScoreSheet()" style="flex:1;padding:14px;border-radius:14px;background:var(--s2);border:1px solid var(--border2);color:var(--t2);font-family:var(--ff-m);font-size:13px;font-weight:600;cursor:pointer">Close</button>'
+        + '<button type="button" onclick="shareCard(\''+(opts.scoreKey===_SLEEP_SCORE_KEY?'sleep_score':opts.scoreKey==='screen_score_history'?'screen_score':'focus_score')+'\');" style="flex:1;padding:14px;border-radius:14px;background:rgba(108,99,255,.12);border:1px solid rgba(108,99,255,.30);color:var(--p2);font-family:var(--ff-m);font-size:13px;font-weight:600;cursor:pointer">📤 Share</button>'
       + '</div></div></div>';
   }
 

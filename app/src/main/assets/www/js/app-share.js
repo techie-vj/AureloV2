@@ -352,117 +352,413 @@ function _buildReferralCard(ctx, icon, opts) {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   _buildAureloScoreCard — AURELO SCORE share card
-   Navy-purple bg · Bodoni Moda hero score · three pillar tiles
+   _buildAureloScoreCard — AURELO SCORE share card  [PREMIUM HERO REDESIGN]
+   The flagship card: deep space dark · giant arch backdrop · gold gradient
+   hero number · 2×2 pillar grid · multi-layer glow depth
    ═══════════════════════════════════════════════════════════════════════════ */
 function _buildAureloScoreCard(ctx, icon) {
   const W = 1080, H = 1080;
   const FONT_D = "'Bodoni Moda', Georgia, serif";
   const FONT_M = "'JetBrains Mono', monospace";
 
-  const data    = (typeof window.getAureloScoreData === 'function') ? window.getAureloScoreData() : null;
-  const score   = data ? data.score   : -1;
-  const sScreen = data ? data.sScreen : -1;
-  const sFocus  = data ? data.sFocus  : -1;
-  const sSleep  = data ? data.sSleep  : -1;
-  const goalMins = data ? data.goalMins : ((typeof S !== 'undefined' && S.streakGoalMins) ? S.streakGoalMins : 240);
-  const gradeColor = score >= 75 ? '#12D48A' : score >= 55 ? '#F7A623' : '#F04E7A';
-  const grade    = score >= 90 ? 'ELITE' : score >= 75 ? 'GREAT' : score >= 55 ? 'GOOD' : score >= 35 ? 'FAIR' : 'START';
+  const data     = (typeof window.getAureloScoreData === 'function') ? window.getAureloScoreData() : null;
+  const score    = data ? data.score        : -1;
+  const sScreen  = data ? data.sScreen      : -1;
+  const sFocus   = data ? data.sFocus       : -1;
+  const sSleep   = data ? data.sSleep       : -1;
+  const sBody    = data ? data.hcBodyScore  : -1;
+  const goalMins = data ? data.goalMins     : ((typeof S !== 'undefined' && S.streakGoalMins) ? S.streakGoalMins : 240);
+  const hasBody  = sBody !== null && sBody >= 0;
 
-  /* ── Background ── */
-  ctx.fillStyle = '#08091A'; ctx.fillRect(0, 0, W, H);
-  const bg = ctx.createLinearGradient(0, 0, W, H);
-  bg.addColorStop(0,    'rgba(108,99,255,0.28)');
-  bg.addColorStop(0.55, 'rgba(5,70,160,0.18)');
-  bg.addColorStop(1,    'rgba(5,200,232,0.14)');
-  ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
-  _shareGlow(ctx, W * 0.85, H * 0.12, 360, 'rgba(108,99,255,0.18)');
-  _shareGlow(ctx, W * 0.15, H * 0.88, 300, 'rgba(5,200,232,0.10)');
+  const gradeColor = score >= 85 ? '#12D48A' : score >= 70 ? '#29DBA0' : score >= 55 ? '#F7A623' : '#F04E7A';
+  const gradeLabel = score >= 85 ? 'EXCELLENT' : score >= 70 ? 'GREAT' : score >= 55 ? 'GOOD' : score >= 35 ? 'FAIR' : 'START';
 
-  /* ── Header ── */
-  _shareDrawHeader(ctx, icon, 'Screen · Focus · Sleep');
+  /* ── Background: deep space ── */
+  ctx.fillStyle = '#020812'; ctx.fillRect(0, 0, W, H);
 
-  /* ── Hero score — Bodoni Moda italic, white→purple gradient ── */
+  /* Layer 1: base gradient overlay */
+  const bgG = ctx.createLinearGradient(0, 0, W, H);
+  bgG.addColorStop(0,    'rgba(88,60,200,0.32)');
+  bgG.addColorStop(0.38, 'rgba(30,20,120,0.22)');
+  bgG.addColorStop(0.70, 'rgba(10,40,130,0.16)');
+  bgG.addColorStop(1,    'rgba(5,190,220,0.18)');
+  ctx.fillStyle = bgG; ctx.fillRect(0, 0, W, H);
+
+  /* Layer 2: radial gold aurora at top-center */
+  _shareGlow(ctx, W * 0.50, H * 0.05, 620, 'rgba(220,160,30,0.09)');
+  _shareGlow(ctx, W * 0.50, H * 0.05, 300, 'rgba(255,200,60,0.07)');
+
+  /* Layer 3: corner depth glows */
+  _shareGlow(ctx, W * 0.88, H * 0.14, 380, 'rgba(108,80,255,0.20)');
+  _shareGlow(ctx, W * 0.12, H * 0.86, 320, 'rgba(5,200,232,0.14)');
+  _shareGlow(ctx, W * 0.82, H * 0.82, 240, 'rgba(108,60,255,0.11)');
+
+  /* ── Giant decorative Aurelo arch backdrop ── */
   ctx.save();
-  const heroG = ctx.createLinearGradient(200, 270, 880, 450);
-  heroG.addColorStop(0, '#FFFFFF');
-  heroG.addColorStop(0.6, '#C4B5FF');
-  heroG.addColorStop(1, '#6C63FF');
-  ctx.fillStyle = heroG;
-  ctx.font = `italic 300 ${score >= 100 ? 188 : 224}px ${FONT_D}`;
-  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  ctx.fillText(score >= 0 ? String(score) : '–', 540, 390);
+  ctx.translate(W / 2, 580);
+  const archScale = 6.8;  // scale 108px viewbox to ~734px wide
+  const archCx = 54 * archScale, archCy = 88 * archScale;
+  ctx.translate(-archCx, -archCy);
+  ctx.scale(archScale, archScale);
+  ctx.beginPath();
+  ctx.moveTo(22, 88);
+  ctx.bezierCurveTo(22, 88, 30, 30, 54, 20);
+  ctx.bezierCurveTo(78, 30, 86, 88, 86, 88);
+  const archBgGrad = ctx.createLinearGradient(28, 20, 80, 90);
+  archBgGrad.addColorStop(0,    'rgba(255,210,80,0.09)');
+  archBgGrad.addColorStop(0.50, 'rgba(255,140,30,0.07)');
+  archBgGrad.addColorStop(1,    'rgba(255,80,20,0.04)');
+  ctx.strokeStyle = archBgGrad;
+  ctx.lineWidth   = 9;
+  ctx.lineCap     = 'round';
+  ctx.stroke();
   ctx.restore();
 
-  /* ── Grade + label ── */
-  ctx.fillStyle = gradeColor;
-  ctx.font = `bold 38px ${FONT_M}`;
+  /* ── Header ── */
+  _shareDrawHeader(ctx, icon, 'Daily Wellness Score');
+
+  /* ── "AURELO SCORE" label above number ── */
+  ctx.fillStyle = 'rgba(220,200,255,0.55)';
+  ctx.font = `600 22px ${FONT_M}`;
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  ctx.fillText(grade + '  ·  AURELO SCORE', 540, 492);
+  ctx.fillText('YOUR AURELO SCORE', W / 2, 228);
+
+  /* ── Hero score glow burst ── */
+  _shareGlow(ctx, W / 2, 390, 260, 'rgba(180,150,255,0.16)');
+  _shareGlow(ctx, W / 2, 390, 130, 'rgba(220,200,255,0.09)');
+
+  /* ── Hero score number — Bodoni Moda, white→gold→purple gradient ── */
+  ctx.save();
+  const heroG = ctx.createLinearGradient(180, 270, 900, 470);
+  heroG.addColorStop(0,    '#FFFFFF');
+  heroG.addColorStop(0.35, '#EDE0FF');
+  heroG.addColorStop(0.65, '#FFD97D');
+  heroG.addColorStop(1,    '#9B84FF');
+  ctx.fillStyle = heroG;
+  const numSz = score >= 100 ? 192 : 240;
+  ctx.font = `italic 300 ${numSz}px ${FONT_D}`;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(score >= 0 ? String(score) : '–', W / 2, 395);
+  ctx.restore();
+
+  /* ── Grade label ── */
+  const gradeGrad = ctx.createLinearGradient(340, 510, 740, 538);
+  gradeGrad.addColorStop(0, gradeColor);
+  gradeGrad.addColorStop(1, gradeColor + 'BB');
+  ctx.fillStyle = gradeGrad;
+  ctx.font = `700 34px ${FONT_M}`;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(gradeLabel, W / 2, 498);
 
   /* ── Overall bar ── */
-  const barX = 120, barY = 538, barW = W - 240, barH = 8;
+  const barX = 140, barY = 534, barW = W - 280, barH = 7;
   _shareRoundRect(ctx, barX, barY, barW, barH, 4);
-  ctx.fillStyle = 'rgba(255,255,255,0.08)'; ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,0.07)'; ctx.fill();
   if (score > 0) {
-    const fillW = Math.round(barW * score / 100);
-    const barG = ctx.createLinearGradient(barX, 0, barX + barW, 0);
-    barG.addColorStop(0, '#6C63FF'); barG.addColorStop(1, '#05C8E8');
-    _shareRoundRect(ctx, barX, barY, fillW, barH, 4);
-    ctx.fillStyle = barG; ctx.fill();
+    const fillPx = Math.round(barW * Math.min(score, 100) / 100);
+    const barFillG = ctx.createLinearGradient(barX, 0, barX + barW, 0);
+    barFillG.addColorStop(0,    '#9B84FF');
+    barFillG.addColorStop(0.50, '#FFD97D');
+    barFillG.addColorStop(1,    '#05C8E8');
+    _shareRoundRect(ctx, barX, barY, fillPx, barH, 4);
+    ctx.fillStyle = barFillG; ctx.fill();
   }
 
-  /* ── Three pillar tiles ── */
+  /* ── 2 × 2 pillar tile grid ── */
   const pillars = [
-    { emoji: '📱', label: 'SCREEN',  score: sScreen, color: '#A89CFF', weight: '40%' },
-    { emoji: '🎯', label: 'FOCUS',   score: sFocus,  color: '#05C8E8', weight: '35%' },
-    { emoji: '🌙', label: 'SLEEP',   score: sSleep,  color: '#B06EFF', weight: '25%' },
+    { emoji: '📱', label: 'SCREEN',  score: sScreen, color: '#A89CFF', weight: hasBody ? '35%' : '40%' },
+    { emoji: '🎯', label: 'FOCUS',   score: sFocus,  color: '#05C8E8', weight: hasBody ? '30%' : '35%' },
+    { emoji: '😴', label: 'SLEEP',   score: sSleep,  color: '#B06EFF', weight: hasBody ? '20%' : '25%' },
+    { emoji: '❤️', label: 'BODY',    score: sBody,   color: '#12D48A', weight: '15%',   isHC: true },
   ];
-  const cW = 292, cH = 196, cGap = 22;
-  const startX = (W - (cW * 3 + cGap * 2)) / 2;
-  const cY = 572;
+
+  const tW = 236, tH = 184, tGapX = 18, tGapY = 16;
+  const gridW = tW * 2 + tGapX;
+  const gridX = (W - gridW) / 2;
+  const gridY = 565;
 
   pillars.forEach((p, i) => {
-    const cx = startX + i * (cW + cGap);
-    _shareRoundRect(ctx, cx, cY, cW, cH, 18);
-    ctx.fillStyle = 'rgba(255,255,255,0.05)'; ctx.fill();
-    ctx.strokeStyle = 'rgba(255,255,255,0.07)'; ctx.lineWidth = 1; ctx.stroke();
+    const col  = i % 2;
+    const row  = Math.floor(i / 2);
+    const tx   = gridX + col * (tW + tGapX);
+    const ty   = gridY + row * (tH + tGapY);
 
-    ctx.font = '40px serif';
+    /* tile bg */
+    _shareRoundRect(ctx, tx, ty, tW, tH, 18);
+    if (p.isHC) {
+      ctx.fillStyle = 'rgba(0,200,200,0.08)'; ctx.fill();
+      ctx.strokeStyle = 'rgba(0,200,200,0.18)'; ctx.lineWidth = 1; ctx.stroke();
+    } else {
+      ctx.fillStyle = 'rgba(255,255,255,0.05)'; ctx.fill();
+      ctx.strokeStyle = 'rgba(255,255,255,0.07)'; ctx.lineWidth = 1; ctx.stroke();
+    }
+
+    /* emoji */
+    ctx.font = '34px serif';
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText(p.emoji, cx + cW / 2, cY + 44);
+    ctx.fillText(p.emoji, tx + tW / 2, ty + 36);
 
-    ctx.fillStyle = p.score >= 0 ? p.color : 'rgba(255,255,255,0.25)';
-    ctx.font = `bold 44px ${FONT_M}`;
-    ctx.fillText(p.score >= 0 ? String(p.score) : '–', cx + cW / 2, cY + 104);
+    /* score number */
+    const hasData = p.score !== null && p.score >= 0;
+    ctx.fillStyle = hasData ? p.color : 'rgba(255,255,255,0.22)';
+    ctx.font = `700 48px ${FONT_M}`;
+    ctx.fillText(hasData ? String(p.score) : '–', tx + tW / 2, ty + 96);
 
-    ctx.fillStyle = 'rgba(136,136,187,0.60)';
-    ctx.font = `400 17px ${FONT_M}`;
-    ctx.fillText(p.label + '  ' + p.weight, cx + cW / 2, cY + 138);
+    /* label + weight */
+    ctx.fillStyle = 'rgba(160,160,210,0.70)';
+    ctx.font = `400 15px ${FONT_M}`;
+    ctx.fillText(p.label + '  ' + p.weight, tx + tW / 2, ty + 130);
 
-    /* Mini bar */
-    const mbX = cx + 20, mbY = cY + 162, mbW = cW - 40, mbH = 4;
+    /* mini bar */
+    const mbX = tx + 18, mbY = ty + 154, mbW = tW - 36, mbH = 4;
     _shareRoundRect(ctx, mbX, mbY, mbW, mbH, 2);
-    ctx.fillStyle = 'rgba(255,255,255,0.08)'; ctx.fill();
-    if (p.score > 0) {
-      _shareRoundRect(ctx, mbX, mbY, Math.round(mbW * p.score / 100), mbH, 2);
+    ctx.fillStyle = 'rgba(255,255,255,0.07)'; ctx.fill();
+    if (hasData && p.score > 0) {
+      const pct = Math.round(mbW * Math.min(p.score, 100) / 100);
+      _shareRoundRect(ctx, mbX, mbY, pct, mbH, 2);
       ctx.fillStyle = p.color; ctx.fill();
+    }
+
+    /* HC badge on body tile */
+    if (p.isHC) {
+      const bdgW = 30, bdgH = 16, bdgX = tx + tW - bdgW - 10, bdgY = ty + 10;
+      _shareRoundRect(ctx, bdgX, bdgY, bdgW, bdgH, 5);
+      ctx.fillStyle = 'rgba(0,200,200,0.20)'; ctx.fill();
+      ctx.strokeStyle = 'rgba(0,200,200,0.40)'; ctx.lineWidth = 1; ctx.stroke();
+      ctx.fillStyle = 'rgba(0,220,220,0.90)';
+      ctx.font = `700 10px ${FONT_M}`;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText('HC', bdgX + bdgW / 2, bdgY + bdgH / 2);
     }
   });
 
-  /* ── Goal + date context ── */
-  ctx.fillStyle = 'rgba(136,136,187,0.50)';
-  ctx.font = `400 21px ${FONT_M}`;
+  /* ── Date + goal pill ── */
+  const dateStr = new Date().toLocaleDateString('default', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+  ctx.fillStyle = 'rgba(136,136,187,0.45)';
+  ctx.font = `400 20px ${FONT_M}`;
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  const dateStr = new Date().toLocaleDateString('default', { month: 'short', day: 'numeric', year: 'numeric' });
-  ctx.fillText('Daily goal · ' + _fmtShare(goalMins) + '  ·  ' + dateStr, 540, 810);
+  ctx.fillText('Goal ' + _fmtShare(goalMins) + '  ·  ' + dateStr, W / 2, 995);
 
   /* ── Footer ── */
   _shareDrawFooter(ctx, H);
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   _buildFocusScoreCard — FOCUS SCORE share card
+   _buildBodyScoreCard — BODY SCORE share card  [NEW]
+   Health Connect powered · dark teal/emerald palette · HRV + HR + Steps
+   ═══════════════════════════════════════════════════════════════════════════ */
+function _buildBodyScoreCard(ctx, icon) {
+  const W = 1080, H = 1080;
+  const FONT_D = "'Bodoni Moda', Georgia, serif";
+  const FONT_M = "'JetBrains Mono', monospace";
+
+  const d          = (typeof window.getBodyScoreData === 'function') ? window.getBodyScoreData() : {};
+  const bodyScore  = (d.bodyScore != null && d.bodyScore >= 0) ? d.bodyScore : -1;
+  const steps      = d.steps      ?? null;
+  const hrv        = d.hrv        ?? null;
+  const avgHrv7d   = d.avgHrv7d   ?? null;
+  const rhr        = d.rhr        ?? null;
+  const avgRhr7d   = d.avgRhr7d   ?? null;
+  const avgSteps7d = d.avgSteps7d ?? null;
+
+  /* grade */
+  const gradeColor = bodyScore >= 70 ? '#12D48A' : bodyScore >= 50 ? '#F7A623' : bodyScore >= 0 ? '#F04E7A' : '#05C8E8';
+  const gradeLabel = bodyScore >= 85 ? 'EXCELLENT' : bodyScore >= 70 ? 'GREAT' : bodyScore >= 50 ? 'GOOD' : bodyScore >= 35 ? 'FAIR' : 'START';
+
+  /* ── Background: deep health teal ── */
+  ctx.fillStyle = '#021212'; ctx.fillRect(0, 0, W, H);
+
+  const bgG = ctx.createLinearGradient(0, 0, W, H);
+  bgG.addColorStop(0,    'rgba(0,160,160,0.24)');
+  bgG.addColorStop(0.40, 'rgba(0,80,100,0.16)');
+  bgG.addColorStop(0.72, 'rgba(0,40,80,0.14)');
+  bgG.addColorStop(1,    'rgba(0,200,120,0.18)');
+  ctx.fillStyle = bgG; ctx.fillRect(0, 0, W, H);
+
+  /* Corner depth glows */
+  _shareGlow(ctx, W * 0.88, H * 0.12, 360, 'rgba(0,200,200,0.20)');
+  _shareGlow(ctx, W * 0.12, H * 0.86, 300, 'rgba(0,180,120,0.16)');
+  _shareGlow(ctx, W * 0.50, H * 0.45, 380, 'rgba(0,200,180,0.08)');
+
+  /* ── Decorative pulse-wave backdrop ── */
+  const waveY = 510;
+  for (let r = 0; r < 4; r++) {
+    const radius = 200 + r * 90;
+    const alpha  = 0.045 - r * 0.009;
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(W / 2, waveY, radius, 0, Math.PI * 2);
+    ctx.strokeStyle = `rgba(0,210,190,${alpha})`;
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  /* ── Header ── */
+  _shareDrawHeader(ctx, icon, 'Health Connect · Body Score');
+
+  /* ── HC badge pill ── */
+  const hcPillW = 140, hcPillH = 34, hcPillX = W - hcPillW - 68, hcPillY = 56;
+  _shareRoundRect(ctx, hcPillX, hcPillY, hcPillW, hcPillH, 17);
+  ctx.fillStyle = 'rgba(0,200,200,0.15)'; ctx.fill();
+  ctx.strokeStyle = 'rgba(0,200,200,0.40)'; ctx.lineWidth = 1.5; ctx.stroke();
+  ctx.fillStyle = 'rgba(0,230,230,0.92)';
+  ctx.font = `700 16px ${FONT_M}`;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText('HEALTH CONNECT', hcPillX + hcPillW / 2, hcPillY + hcPillH / 2);
+
+  /* ── "BODY SCORE" label ── */
+  ctx.fillStyle = 'rgba(0,220,200,0.65)';
+  ctx.font = `600 22px ${FONT_M}`;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText('YOUR BODY SCORE', W / 2, 230);
+
+  /* ── Hero score glow ── */
+  _shareGlow(ctx, W / 2, 390, 250, 'rgba(0,210,180,0.14)');
+  _shareGlow(ctx, W / 2, 390, 120, 'rgba(0,230,200,0.09)');
+
+  /* ── Hero score number ── */
+  ctx.save();
+  const heroG = ctx.createLinearGradient(200, 270, 880, 470);
+  heroG.addColorStop(0,    '#FFFFFF');
+  heroG.addColorStop(0.40, '#B8FFEE');
+  heroG.addColorStop(0.75, '#00D4B0');
+  heroG.addColorStop(1,    '#00A878');
+  ctx.fillStyle = heroG;
+  const numSz = bodyScore >= 100 ? 192 : 240;
+  ctx.font = `italic 300 ${numSz}px ${FONT_D}`;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(bodyScore >= 0 ? String(bodyScore) : '–', W / 2, 395);
+  ctx.restore();
+
+  /* ── Grade label ── */
+  ctx.fillStyle = gradeColor;
+  ctx.font = `700 34px ${FONT_M}`;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(gradeLabel, W / 2, 495);
+
+  /* ── Overall bar ── */
+  const barX = 140, barY = 534, barW = W - 280, barH = 7;
+  _shareRoundRect(ctx, barX, barY, barW, barH, 4);
+  ctx.fillStyle = 'rgba(255,255,255,0.07)'; ctx.fill();
+  if (bodyScore > 0) {
+    const fillPx = Math.round(barW * Math.min(bodyScore, 100) / 100);
+    const bfG = ctx.createLinearGradient(barX, 0, barX + barW, 0);
+    bfG.addColorStop(0, '#00A878'); bfG.addColorStop(1, '#00D4D0');
+    _shareRoundRect(ctx, barX, barY, fillPx, barH, 4);
+    ctx.fillStyle = bfG; ctx.fill();
+  }
+
+  /* ── Three metric rows ── */
+  /* Compute percentages using same logic as app-home-score.js */
+  const hrvPct = (function() {
+    if (hrv == null || avgHrv7d == null || avgHrv7d <= 0) return null;
+    if (hrv >= avgHrv7d) return 100;
+    const floor = avgHrv7d * 0.70;
+    if (hrv <= floor) return 0;
+    return Math.min(100, Math.max(0, Math.round(((hrv - floor) / (avgHrv7d - floor)) * 100)));
+  })();
+
+  const rhrPct = (function() {
+    if (rhr == null || avgRhr7d == null || avgRhr7d <= 0) return null;
+    if (rhr <= avgRhr7d) return 100;
+    const ceiling = avgRhr7d * 1.40;
+    if (rhr >= ceiling) return 0;
+    return Math.min(100, Math.max(0,
+      Math.round((1 - (rhr - avgRhr7d) / (ceiling - avgRhr7d)) * 100)));
+  })();
+
+  const stepsPct = (function() {
+    if (steps == null) return null;
+    const ceiling = (avgSteps7d != null && avgSteps7d > 8000) ? Math.round(avgSteps7d) : 8000;
+    if (steps >= ceiling) return 100;
+    if (steps <= 2000) return 0;
+    return Math.min(100, Math.max(0, Math.round(((steps - 2000) / (ceiling - 2000)) * 100)));
+  })();
+
+  const metrics = [
+    {
+      icon: '💜', label: 'Heart Rate Variability',
+      val:  hrv     != null ? hrv + ' ms'              : null,
+      sub:  avgHrv7d != null ? '7-day avg ' + avgHrv7d + ' ms' : '7-day avg: –',
+      pct:  hrvPct,
+      col:  hrvPct  == null ? 'rgba(160,160,210,0.40)' :
+            hrvPct  >= 100  ? '#12D48A' : hrvPct >= 70 ? '#F7A623' : '#F04E7A',
+    },
+    {
+      icon: '❤️', label: 'Resting Heart Rate',
+      val:  rhr     != null ? rhr + ' bpm'             : null,
+      sub:  avgRhr7d != null ? '7-day avg ' + avgRhr7d + ' bpm' : '7-day avg: –',
+      pct:  rhrPct,
+      col:  rhrPct  == null ? 'rgba(160,160,210,0.40)' :
+            rhrPct  >= 100  ? '#12D48A' : rhrPct >= 70 ? '#F7A623' : '#F04E7A',
+    },
+    {
+      icon: '🦶', label: 'Daily Steps',
+      val:  steps   != null ? steps.toLocaleString()   : null,
+      sub:  (avgSteps7d != null && avgSteps7d > 8000)
+              ? 'Goal: ' + Math.round(avgSteps7d).toLocaleString() + ' (your avg)'
+              : 'Goal: 8,000',
+      pct:  stepsPct,
+      col:  stepsPct == null ? 'rgba(160,160,210,0.40)' :
+            stepsPct >= 100  ? '#12D48A' : stepsPct >= 60 ? '#F7A623' : '#F04E7A',
+    },
+  ];
+
+  const rowH = 110, rowGap = 14, rowX = 72, rowW = W - 144;
+  const startRowY = 566;
+
+  metrics.forEach((m, i) => {
+    const ry = startRowY + i * (rowH + rowGap);
+
+    /* row bg */
+    _shareRoundRect(ctx, rowX, ry, rowW, rowH, 18);
+    ctx.fillStyle = 'rgba(0,200,180,0.06)'; ctx.fill();
+    ctx.strokeStyle = 'rgba(0,200,180,0.13)'; ctx.lineWidth = 1; ctx.stroke();
+
+    /* icon */
+    ctx.font = '30px serif';
+    ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+    ctx.fillText(m.icon, rowX + 20, ry + 34);
+
+    /* label */
+    ctx.fillStyle = 'rgba(210,240,235,0.88)';
+    ctx.font = `700 24px ${FONT_M}`;
+    ctx.fillText(m.label, rowX + 60, ry + 34);
+
+    /* sub-label */
+    ctx.fillStyle = 'rgba(140,190,180,0.55)';
+    ctx.font = `400 18px ${FONT_M}`;
+    ctx.fillText(m.sub, rowX + 60, ry + 60);
+
+    /* value (right-aligned) */
+    ctx.fillStyle = m.val ? m.col : 'rgba(160,160,210,0.35)';
+    ctx.font = `700 34px ${FONT_M}`;
+    ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+    ctx.fillText(m.val || '–', rowX + rowW - 20, ry + 44);
+
+    /* mini progress bar */
+    const pbX = rowX + 20, pbY = ry + rowH - 16, pbW = rowW - 40, pbH = 4;
+    _shareRoundRect(ctx, pbX, pbY, pbW, pbH, 2);
+    ctx.fillStyle = 'rgba(255,255,255,0.07)'; ctx.fill();
+    if (m.pct != null && m.pct > 0) {
+      _shareRoundRect(ctx, pbX, pbY, Math.round(pbW * m.pct / 100), pbH, 2);
+      ctx.fillStyle = m.col; ctx.fill();
+    }
+  });
+
+  /* ── Date context ── */
+  const dateStr = new Date().toLocaleDateString('default', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+  ctx.fillStyle = 'rgba(120,180,170,0.45)';
+  ctx.font = `400 20px ${FONT_M}`;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(dateStr, W / 2, 995);
+
+  /* ── Footer ── */
+  _shareDrawFooter(ctx, H);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
    Indigo-cyan bg · hero score · session / timer / mindful rows
    ═══════════════════════════════════════════════════════════════════════════ */
 function _buildFocusScoreCard(ctx, icon) {
@@ -470,10 +766,12 @@ function _buildFocusScoreCard(ctx, icon) {
   const FONT_D = "'Bodoni Moda', Georgia, serif";
   const FONT_M = "'JetBrains Mono', monospace";
 
-  const d   = (typeof _loadStripData === 'function') ? _loadStripData() : {};
-  const res = (typeof calculateFocusScore === 'function') ? calculateFocusScore(d)
-    : { score: -1, sessW: 0, timerW: 0, mindfulW: 0, sessPts: 0, timerPts: 0, mindfulPts: 0,
-        sessMax: 0, timerMax: 0, mindfulMax: 0 };
+  const d   = (typeof FocusTab !== 'undefined' && typeof FocusTab.loadStripData === 'function')
+              ? FocusTab.loadStripData() : {};
+  const res = (typeof FocusScore !== 'undefined' && typeof FocusScore.calculateFocus === 'function')
+              ? FocusScore.calculateFocus(d)
+              : { score: -1, sessW: 0, timerW: 0, mindfulW: 0, sessPts: 0, timerPts: 0, mindfulPts: 0,
+                  sessMax: 0, timerMax: 0, mindfulMax: 0 };
   const score = res.score >= 0 ? res.score : 0;
   const gradeColor = score >= 75 ? '#12D48A' : score >= 50 ? '#F7A623' : '#05C8E8';
 
@@ -580,6 +878,176 @@ function _buildFocusScoreCard(ctx, icon) {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
+   _buildScreenScoreCard — SCREEN SCORE share card  [NEW]
+   Slate-indigo bg · goal adherence · pickup · first-use rows · HC modifier
+   ═══════════════════════════════════════════════════════════════════════════ */
+function _buildScreenScoreCard(ctx, icon) {
+  const W = 1080, H = 1080;
+  const FONT_D = "'Bodoni Moda', Georgia, serif";
+  const FONT_M = "'JetBrains Mono', monospace";
+
+  /* Pull live data from the wellness module's already-exposed helper */
+  let score = -1, goalMins = 240, todayMins = 0;
+  let goalPct = 0, pickupPct = 0, firstUsePct = 0;
+  let hcModifier = 0, hcLabel = null;
+  let goalDataLine = '', pickupDataLine = '', firstUseDataLine = '';
+
+  try {
+    if (typeof window.calculateScreenScoreWithHealthConnect === 'function') {
+      const vm = window.calculateScreenScoreWithHealthConnect();
+      score     = vm.effectiveScore;
+      hcModifier = (vm.hcMod && vm.hcMod.modifier) || 0;
+      hcLabel    = (vm.hcMod && vm.hcMod.label) || null;
+      const res  = vm.res || {};
+      goalMins   = res.goalMins   || 240;
+      todayMins  = res.todayMins  || 0;
+
+      goalPct      = Math.round((res.goalAdherenceScore || 0) * 0.5);
+      pickupPct    = Math.round((res.pickupScore        || 0) * 0.3);
+      firstUsePct  = Math.round((res.firstUseScore      || 0) * 0.2);
+
+      if (todayMins === 0) {
+        goalDataLine = 'No screen time yet · goal ' + _fmtShare(goalMins);
+      } else if (todayMins < goalMins) {
+        goalDataLine = _fmtShare(todayMins) + ' of ' + _fmtShare(goalMins) + ' goal used';
+      } else {
+        goalDataLine = _fmtShare(todayMins) + ' used · ' + _fmtShare(todayMins - goalMins) + ' over goal';
+      }
+
+      const avg = res.avgPickups || 0;
+      const pu  = res.todayPickups || 0;
+      pickupDataLine = pu + ' pickups'
+        + (avg > 0 ? ' · avg ' + avg + '/day' : '');
+
+      if (!res.firstUseStr || res.firstUseStr === '–') {
+        firstUseDataLine = 'No pickup recorded yet';
+      } else {
+        firstUseDataLine = 'First pickup at ' + res.firstUseStr;
+      }
+    }
+  } catch (_) {}
+
+  const safeScore  = Math.max(0, score);
+  const gradeColor = safeScore >= 85 ? '#12D48A' : safeScore >= 70 ? '#29DBA0' : safeScore >= 55 ? '#F7A623' : '#F04E7A';
+  const gradeLabel = safeScore >= 85 ? 'EXCELLENT' : safeScore >= 70 ? 'GREAT' : safeScore >= 55 ? 'GOOD' : safeScore >= 35 ? 'FAIR' : 'START';
+
+  /* ── Background: deep slate-blue ── */
+  ctx.fillStyle = '#050A18'; ctx.fillRect(0, 0, W, H);
+  const bgG = ctx.createLinearGradient(0, 0, W, H);
+  bgG.addColorStop(0,    'rgba(80,60,220,0.26)');
+  bgG.addColorStop(0.45, 'rgba(20,40,160,0.18)');
+  bgG.addColorStop(1,    'rgba(5,160,200,0.16)');
+  ctx.fillStyle = bgG; ctx.fillRect(0, 0, W, H);
+  _shareGlow(ctx, W * 0.85, H * 0.12, 340, 'rgba(100,80,255,0.18)');
+  _shareGlow(ctx, W * 0.15, H * 0.88, 280, 'rgba(5,180,220,0.12)');
+
+  /* ── Header ── */
+  _shareDrawHeader(ctx, icon, 'Screen Score');
+
+  /* ── "SCREEN SCORE" label ── */
+  ctx.fillStyle = 'rgba(180,170,255,0.60)';
+  ctx.font = `600 22px ${FONT_M}`;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText('TODAY\'S SCREEN SCORE', W / 2, 228);
+
+  /* ── Hero glow + number ── */
+  _shareGlow(ctx, W / 2, 390, 240, 'rgba(130,110,255,0.14)');
+
+  ctx.save();
+  const heroG = ctx.createLinearGradient(200, 270, 880, 470);
+  heroG.addColorStop(0,    '#FFFFFF');
+  heroG.addColorStop(0.50, '#D0C8FF');
+  heroG.addColorStop(1,    '#7B70FF');
+  ctx.fillStyle = heroG;
+  const numSz = safeScore >= 100 ? 192 : 240;
+  ctx.font = `italic 300 ${numSz}px ${FONT_D}`;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(score >= 0 ? String(safeScore) : '–', W / 2, 395);
+  ctx.restore();
+
+  /* ── Grade ── */
+  ctx.fillStyle = gradeColor;
+  ctx.font = `700 34px ${FONT_M}`;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(gradeLabel + (hcLabel ? '  ·  HC ' + (hcModifier > 0 ? '+' : '') + hcModifier + ' pts' : ''), W / 2, 495);
+
+  /* ── Progress bar ── */
+  const barX = 140, barY = 534, barW = W - 280, barH = 7;
+  _shareRoundRect(ctx, barX, barY, barW, barH, 4);
+  ctx.fillStyle = 'rgba(255,255,255,0.07)'; ctx.fill();
+  if (safeScore > 0) {
+    const fillPx = Math.round(barW * Math.min(safeScore, 100) / 100);
+    const bfG = ctx.createLinearGradient(barX, 0, barX + barW, 0);
+    bfG.addColorStop(0, '#7B70FF'); bfG.addColorStop(1, '#05C8E8');
+    _shareRoundRect(ctx, barX, barY, fillPx, barH, 4);
+    ctx.fillStyle = bfG; ctx.fill();
+  }
+
+  /* ── Three component rows ── */
+  const components = [
+    { icon: '🎯', label: 'Daily Goal',     pts: goalPct,     maxPts: 50, data: goalDataLine,    col: '#A89CFF', weight: '50%' },
+    { icon: '📲', label: 'Pickup Freq.',   pts: pickupPct,   maxPts: 30, data: pickupDataLine,  col: '#05C8E8', weight: '30%' },
+    { icon: '🌅', label: 'First Use',      pts: firstUsePct, maxPts: 20, data: firstUseDataLine, col: '#F7A623', weight: '20%' },
+  ];
+
+  const rowH = 110, rowGap = 14, rowX = 72, rowW = W - 144;
+  const startRowY = 564;
+
+  components.forEach((c, i) => {
+    const ry = startRowY + i * (rowH + rowGap);
+
+    _shareRoundRect(ctx, rowX, ry, rowW, rowH, 18);
+    ctx.fillStyle = 'rgba(255,255,255,0.04)'; ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.07)'; ctx.lineWidth = 1; ctx.stroke();
+
+    /* icon */
+    ctx.font = '28px serif';
+    ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+    ctx.fillText(c.icon, rowX + 20, ry + 32);
+
+    /* label + weight */
+    ctx.fillStyle = '#EEEEFF';
+    ctx.font = `700 24px ${FONT_M}`;
+    ctx.fillText(c.label, rowX + 58, ry + 32);
+
+    ctx.fillStyle = 'rgba(140,140,200,0.55)';
+    ctx.font = `400 17px ${FONT_M}`;
+    ctx.fillText('weight ' + c.weight, rowX + 58, ry + 57);
+
+    /* data line */
+    ctx.fillStyle = 'rgba(160,160,220,0.65)';
+    ctx.font = `400 19px ${FONT_M}`;
+    ctx.fillText(c.data, rowX + 58, ry + 80);
+
+    /* pts (right-aligned) */
+    ctx.fillStyle = c.col;
+    ctx.font = `700 32px ${FONT_M}`;
+    ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+    ctx.fillText('+' + c.pts + ' pts', rowX + rowW - 20, ry + 40);
+
+    /* mini progress bar */
+    const pct = c.maxPts > 0 ? Math.round(c.pts / c.maxPts * 100) : 0;
+    const pbX = rowX + 20, pbY = ry + rowH - 14, pbW = rowW - 40, pbH = 4;
+    _shareRoundRect(ctx, pbX, pbY, pbW, pbH, 2);
+    ctx.fillStyle = 'rgba(255,255,255,0.07)'; ctx.fill();
+    if (pct > 0) {
+      _shareRoundRect(ctx, pbX, pbY, Math.round(pbW * pct / 100), pbH, 2);
+      ctx.fillStyle = c.col; ctx.fill();
+    }
+  });
+
+  /* ── Date ── */
+  const dateStr = new Date().toLocaleDateString('default', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+  ctx.fillStyle = 'rgba(130,130,190,0.45)';
+  ctx.font = `400 20px ${FONT_M}`;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText('Goal ' + _fmtShare(goalMins) + '  ·  ' + dateStr, W / 2, 995);
+
+  /* ── Footer ── */
+  _shareDrawFooter(ctx, H);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
    _buildSleepScoreCard — SLEEP SCORE share card
    Midnight-purple bg · hero score · bedtime / snooze / app-block tiles
    ═══════════════════════════════════════════════════════════════════════════ */
@@ -588,11 +1056,101 @@ function _buildSleepScoreCard(ctx, icon) {
   const FONT_D = "'Bodoni Moda', Georgia, serif";
   const FONT_M = "'JetBrains Mono', monospace";
 
-  const res = (typeof calculateSleepScore === 'function') ? calculateSleepScore()
-    : { score: -1, adherePts: 0, snoozePts: 0, attemptPts: 0, bedStreak: 0, lastNight: null };
-  const score = res.score >= 0 ? res.score : 0;
-  const gradeColor = score >= 75 ? '#12D48A' : score >= 50 ? '#F7A623' : '#B06EFF';
-  const ln = res.lastNight || null;
+  /* ── Inline helper: mirrors the private _sleepDurationScore in FocusScore ── */
+  function _durScore(h) {
+    if (h >= 7 && h <= 9) return 100;
+    if (h < 7) return Math.max(0, Math.round(((h - 4) / 3) * 100));
+    return Math.max(0, Math.round((1 - (h - 9) / 2) * 100));
+  }
+
+  /* ── Step 1: base sleep result ── */
+  const res = (typeof FocusScore !== 'undefined' && typeof FocusScore.calculateSleep === 'function')
+              ? FocusScore.calculateSleep()
+              : { score: -1, adherePts: 0, snoozePts: 0, attemptPts: 0, streakBonus: 0,
+                  bedStreak: 0, lastNight: null };
+  const ln       = res.lastNight || null;
+  const baseScore = res.score >= 0 ? res.score : 0;
+
+  /* ── Step 2: bedtime window config (needed for Tier 2) ── */
+  const cfg = (typeof FocusBedtime !== 'undefined' && typeof FocusBedtime.getCfg === 'function')
+              ? FocusBedtime.getCfg() : {};
+  let aureloWindowHours = null;
+  if (cfg.bedHour != null && cfg.wakeHour != null) {
+    const bH  = cfg.bedHour  + (cfg.bedMinute  || 0) / 60;
+    const wH  = cfg.wakeHour + (cfg.wakeMinute || 0) / 60;
+    const win = wH > bH ? wH - bH : (24 - bH) + wH;
+    if (win >= 3 && win <= 14) aureloWindowHours = win;
+  }
+  const aureloWindowKept = !!(ln && ln.bedtimeKept);
+
+  /* ── Step 3: HC data ── */
+  const hcActive = typeof HealthConnect !== 'undefined' &&
+                   typeof HealthConnect.isConnected === 'function' &&
+                   HealthConnect.isConnected();
+  let hcSleep = null;
+  if (hcActive && typeof HealthConnect.getSleepData === 'function') {
+    try { hcSleep = HealthConnect.getSleepData(); } catch (_) {}
+  }
+
+  /* ── Step 4: Duration — same three-tier hierarchy as openHabitsScoreSheet ── */
+  let durScore = null, durLabel = 'No data', hcContributed = false;
+
+  if (hcSleep && hcSleep.durScore != null && aureloWindowHours != null && aureloWindowKept) {
+    // Tier 1: HC wearable + bedtime kept
+    durScore = hcSleep.durScore; hcContributed = true;
+    const dH = hcSleep.sleepDuration != null ? Math.floor(hcSleep.sleepDuration) : null;
+    const dM = hcSleep.sleepDuration != null ? Math.round((hcSleep.sleepDuration % 1) * 60) : null;
+    durLabel = (dH != null ? dH + 'h' + (dM > 0 ? ' ' + dM + 'm' : '') : 'HC data')
+             + ' from Health Connect (target ' + Math.floor(aureloWindowHours) + 'h)';
+  } else if (aureloWindowHours != null && aureloWindowKept) {
+    // Tier 2: no wearable, but bedtime window kept — derive from config
+    durScore = _durScore(aureloWindowHours);
+    const wHr  = Math.floor(aureloWindowHours);
+    const wMin = Math.round((aureloWindowHours % 1) * 60);
+    durLabel = wHr + 'h' + (wMin > 0 ? ' ' + wMin + 'm' : '') + ' from your bedtime window';
+  } else if (hcSleep && hcSleep.durScore != null) {
+    // Tier 3: HC only, bedtime not kept
+    durScore = hcSleep.durScore; hcContributed = true;
+    const dH3 = hcSleep.sleepDuration != null ? Math.floor(hcSleep.sleepDuration) : null;
+    const dM3 = hcSleep.sleepDuration != null ? Math.round((hcSleep.sleepDuration % 1) * 60) : null;
+    durLabel = (dH3 != null ? dH3 + 'h' + (dM3 > 0 ? ' ' + dM3 + 'm' : '') : 'HC data')
+             + ' from Health Connect (bedtime not kept)';
+  }
+
+  /* ── Step 5: Overnight HRV ── */
+  let oHrvScore = (hcSleep && hcSleep.oHrvScore != null) ? hcSleep.oHrvScore : null;
+  if (oHrvScore != null) hcContributed = true;
+  const oHrvLabel = oHrvScore != null
+    ? (hcSleep.overnightHrv != null ? hcSleep.overnightHrv + 'ms overnight' : 'HC data')
+      + (hcSleep.avgOHrv != null ? ' · avg ' + hcSleep.avgOHrv + 'ms' : '')
+    : 'Not available · no wearable HRV data';
+
+  /* ── Step 6: Renormalized blend — identical to openHabitsScoreSheet ── */
+  const hasEnhancement = durScore != null || oHrvScore != null;
+  let effectiveScore = baseScore;
+
+  let totalNomW = 0.60;
+  if (durScore  != null) totalNomW += 0.25;
+  if (oHrvScore != null) totalNomW += 0.15;
+
+  if (hasEnhancement && res.score >= 0) {
+    let wgtSum = baseScore * 0.60;
+    if (durScore  != null) wgtSum += durScore  * 0.25;
+    if (oHrvScore != null) wgtSum += oHrvScore * 0.15;
+    effectiveScore = Math.min(100, Math.max(0, Math.round(wgtSum / totalNomW)));
+  }
+
+  /* Renormalized display weights + pts */
+  const effW_bed = Math.round((0.60 / totalNomW) * 100);
+  const effW_dur = durScore  != null ? Math.round((0.25 / totalNomW) * 100) : 0;
+  const effW_hrv = oHrvScore != null ? Math.round((0.15 / totalNomW) * 100) : 0;
+  const pts_bed  = Math.round(baseScore  * (0.60 / totalNomW));
+  const pts_dur  = durScore  != null ? Math.round(durScore  * (0.25 / totalNomW)) : 0;
+  const pts_hrv  = oHrvScore != null ? Math.round(oHrvScore * (0.15 / totalNomW)) : 0;
+
+  const score = effectiveScore;
+  const gradeColor = score >= 85 ? '#12D48A' : score >= 70 ? '#29DBA0' : score >= 50 ? '#F7A623' : '#B06EFF';
+  const gradeLabel = score >= 85 ? 'EXCELLENT' : score >= 70 ? 'GREAT' : score >= 50 ? 'GOOD' : score >= 35 ? 'FAIR' : 'START';
 
   /* ── Background ── */
   ctx.fillStyle = '#060614'; ctx.fillRect(0, 0, W, H);
@@ -607,29 +1165,47 @@ function _buildSleepScoreCard(ctx, icon) {
   /* ── Header ── */
   _shareDrawHeader(ctx, icon, 'Sleep Score');
 
-  /* ── Subtle moon glow behind hero ── */
-  _shareGlow(ctx, 540, 390, 200, 'rgba(176,110,255,0.10)');
+  /* ── HC badge pill — shown when HC is connected ── */
+  if (hcActive) {
+    const hcPillW = 130, hcPillH = 32, hcPillX = W - hcPillW - 68, hcPillY = 58;
+    _shareRoundRect(ctx, hcPillX, hcPillY, hcPillW, hcPillH, 16);
+    ctx.fillStyle = 'rgba(0,200,200,0.15)'; ctx.fill();
+    ctx.strokeStyle = 'rgba(0,200,200,0.40)'; ctx.lineWidth = 1.5; ctx.stroke();
+    ctx.fillStyle = 'rgba(0,230,230,0.92)';
+    ctx.font = `700 15px ${FONT_M}`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('HEALTH CONNECT', hcPillX + hcPillW / 2, hcPillY + hcPillH / 2);
+  }
 
-  /* ── Hero score ── */
-  ctx.save();
-  const heroG = ctx.createLinearGradient(200, 260, 880, 440);
-  heroG.addColorStop(0, '#FFFFFF'); heroG.addColorStop(1, '#D4B0FF');
-  ctx.fillStyle = heroG;
-  ctx.font = `italic 300 ${score >= 100 ? 188 : 224}px ${FONT_D}`;
+  /* ── "SLEEP SCORE" label ── */
+  ctx.fillStyle = 'rgba(200,175,255,0.60)';
+  ctx.font = `600 22px ${FONT_M}`;
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  ctx.fillText(res.score >= 0 ? String(score) : '–', 540, 390);
+  ctx.fillText('LAST NIGHT\'S SLEEP SCORE', W / 2, 228);
+
+  /* ── Hero glow + number ── */
+  _shareGlow(ctx, W / 2, 390, 220, 'rgba(176,110,255,0.12)');
+  ctx.save();
+  const heroG = ctx.createLinearGradient(200, 260, 880, 470);
+  heroG.addColorStop(0, '#FFFFFF');
+  heroG.addColorStop(0.55, '#E0CCFF');
+  heroG.addColorStop(1, '#B06EFF');
+  ctx.fillStyle = heroG;
+  ctx.font = `italic 300 ${score >= 100 ? 192 : 240}px ${FONT_D}`;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(res.score >= 0 ? String(score) : '–', W / 2, 395);
   ctx.restore();
 
-  /* ── Label ── */
+  /* ── Grade ── */
   ctx.fillStyle = gradeColor;
-  ctx.font = `bold 38px ${FONT_M}`;
+  ctx.font = `700 34px ${FONT_M}`;
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  ctx.fillText('SLEEP  SCORE', 540, 490);
+  ctx.fillText(gradeLabel, W / 2, 495);
 
   /* ── Progress bar ── */
-  const bX = 120, bY = 536, bW = W - 240, bH = 8;
+  const bX = 140, bY = 534, bW = W - 280, bH = 7;
   _shareRoundRect(ctx, bX, bY, bW, bH, 4);
-  ctx.fillStyle = 'rgba(255,255,255,0.08)'; ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,0.07)'; ctx.fill();
   if (score > 0) {
     const barG = ctx.createLinearGradient(bX, 0, bX + bW, 0);
     barG.addColorStop(0, '#6C63FF'); barG.addColorStop(1, '#B06EFF');
@@ -637,56 +1213,151 @@ function _buildSleepScoreCard(ctx, icon) {
     ctx.fillStyle = barG; ctx.fill();
   }
 
-  /* ── Three component tiles ── */
-  const adhere = (ln && ln.hasData) ? (ln.bedtimeKept ? 'Window respected ✓' : 'Window missed') : 'No data yet';
-  const snooze = (ln && ln.hasData) ? ((ln.snoozeCount || 0) + ' snooze' + ((ln.snoozeCount || 0) !== 1 ? 's' : '') + ' last night') : 'No data yet';
-  const attempts = (ln && ln.hasData) ? ((ln.appAttemptsTotal || 0) + ' attempt' + ((ln.appAttemptsTotal || 0) !== 1 ? 's' : '') + ' blocked') : 'No data yet';
+  if (hasEnhancement && res.score >= 0) {
+    /* ── Row layout: Bedtime Mode | Sleep Duration | Overnight HRV ──
+       Mirrors the sheet exactly — shown whenever durScore is available
+       (Tier 1 HC wearable, Tier 2 bedtime window, or Tier 3 HC-only)    ── */
+    const streakDetail = (res.streakBonus || 0) > 0
+      ? ' · +' + res.streakBonus + ' streak bonus' : '';
+    const bedDataLine = ln && ln.hasData
+      ? (ln.bedtimeKept ? 'Bedtime kept ✓' : 'Bedtime missed')
+        + ' · ' + (ln.snoozeCount || 0) + ' snooze' + ((ln.snoozeCount || 0) !== 1 ? 's' : '')
+        + ' · ' + (ln.appAttemptsTotal || 0) + ' blocked' + streakDetail
+      : 'No bedtime data';
 
-  const tiles = [
-    { label: '🌙  BEDTIME',    pts: res.adherePts  || 0, max: 50, data: adhere,   color: '#B06EFF' },
-    { label: '⏰  SNOOZE',     pts: res.snoozePts  || 0, max: 30, data: snooze,   color: '#A89CFF' },
-    { label: '📵  APP BLOCKS', pts: res.attemptPts || 0, max: 20, data: attempts, color: '#7B6FFF' },
-  ];
-  const tW = 292, tH = 192, tGap = 22;
-  const tStartX = (W - (tW * 3 + tGap * 2)) / 2;
-  const tY = 572;
+    const rows = [
+      { icon: '🌙', label: 'Bedtime Mode',    pts: pts_bed, weight: effW_bed, data: bedDataLine, col: '#B06EFF', included: true },
+      { icon: '⏱️', label: 'Sleep Duration',  pts: pts_dur, weight: effW_dur, data: durLabel,    col: '#A89CFF', included: durScore != null },
+      { icon: '💜', label: 'Overnight HRV',   pts: pts_hrv, weight: effW_hrv, data: oHrvLabel,   col: '#9B84FF', included: oHrvScore != null },
+    ];
 
-  tiles.forEach((t, i) => {
-    const tx = tStartX + i * (tW + tGap);
-    _shareRoundRect(ctx, tx, tY, tW, tH, 18);
-    ctx.fillStyle = 'rgba(255,255,255,0.05)'; ctx.fill();
-    ctx.strokeStyle = 'rgba(255,255,255,0.07)'; ctx.lineWidth = 1; ctx.stroke();
+    const rowH = 110, rowGap = 14, rowX = 72, rowW = W - 144, startRowY = 562;
+    rows.forEach((r, i) => {
+      const ry = startRowY + i * (rowH + rowGap);
+      _shareRoundRect(ctx, rowX, ry, rowW, rowH, 18);
+      ctx.fillStyle = r.included ? 'rgba(176,110,255,0.07)' : 'rgba(255,255,255,0.03)'; ctx.fill();
+      ctx.strokeStyle = r.included ? 'rgba(176,110,255,0.18)' : 'rgba(255,255,255,0.06)';
+      ctx.lineWidth = 1; ctx.stroke();
 
-    ctx.fillStyle = t.color;
-    ctx.font = `bold 20px ${FONT_M}`;
-    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText(t.label, tx + tW / 2, tY + 30);
+      ctx.font = '28px serif';
+      ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+      ctx.fillText(r.icon, rowX + 20, ry + 32);
 
-    ctx.fillStyle = '#EEEEFF';
-    ctx.font = `bold 52px ${FONT_M}`;
-    ctx.fillText(String(t.pts), tx + tW / 2, tY + 92);
+      ctx.fillStyle = r.included ? '#EEEEFF' : 'rgba(180,180,220,0.45)';
+      ctx.font = `700 24px ${FONT_M}`;
+      ctx.fillText(r.label, rowX + 58, ry + 32);
 
-    ctx.fillStyle = 'rgba(136,136,187,0.55)';
-    ctx.font = `400 18px ${FONT_M}`;
-    ctx.fillText('of ' + t.max + ' pts', tx + tW / 2, tY + 132);
+      ctx.fillStyle = 'rgba(150,140,210,0.55)';
+      ctx.font = `400 17px ${FONT_M}`;
+      ctx.fillText('weight ' + r.weight + '%' + (!r.included ? ' · not included' : ''), rowX + 58, ry + 57);
 
-    ctx.fillStyle = 'rgba(136,136,187,0.45)';
-    ctx.font = `400 16px ${FONT_M}`;
-    const dataText = t.data.length > 22 ? t.data.slice(0, 20) + '…' : t.data;
-    ctx.fillText(dataText, tx + tW / 2, tY + 162);
-  });
+      const dataText = r.data.length > 52 ? r.data.slice(0, 50) + '…' : r.data;
+      ctx.fillStyle = 'rgba(160,150,220,0.60)';
+      ctx.font = `400 17px ${FONT_M}`;
+      ctx.fillText(dataText, rowX + 58, ry + 80);
 
-  /* ── Bedtime streak pill ── */
-  if ((res.bedStreak || 0) > 0) {
-    const pillW = 460, pillH = 56, pillY = 800;
-    const pillX = (W - pillW) / 2;
-    _shareRoundRect(ctx, pillX, pillY, pillW, pillH, 28);
-    ctx.fillStyle = 'rgba(176,110,255,0.10)'; ctx.fill();
-    ctx.strokeStyle = 'rgba(176,110,255,0.28)'; ctx.lineWidth = 1.5; ctx.stroke();
-    ctx.fillStyle = 'rgba(212,176,255,0.88)';
-    ctx.font = `400 24px ${FONT_M}`;
-    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText('🌙 ' + res.bedStreak + '-night bedtime streak', W / 2, pillY + pillH / 2);
+      ctx.fillStyle = r.included ? r.col : 'rgba(160,160,200,0.30)';
+      ctx.font = `700 32px ${FONT_M}`;
+      ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+      ctx.fillText('+' + r.pts + ' pts', rowX + rowW - 20, ry + 40);
+
+      const pbX = rowX + 20, pbY = ry + rowH - 14, pbW = rowW - 40, pbH = 4;
+      _shareRoundRect(ctx, pbX, pbY, pbW, pbH, 2);
+      ctx.fillStyle = 'rgba(255,255,255,0.07)'; ctx.fill();
+      if (r.included && r.pts > 0 && r.weight > 0) {
+        _shareRoundRect(ctx, pbX, pbY, Math.round(pbW * (r.pts / r.weight)), pbH, 2);
+        ctx.fillStyle = r.col; ctx.fill();
+      }
+    });
+
+    /* streak pill */
+    if ((res.bedStreak || 0) > 0) {
+      const pillY = 950, pillW = 480, pillH = 50, pillX = (W - pillW) / 2;
+      _shareRoundRect(ctx, pillX, pillY, pillW, pillH, 25);
+      ctx.fillStyle = 'rgba(176,110,255,0.10)'; ctx.fill();
+      ctx.strokeStyle = 'rgba(176,110,255,0.28)'; ctx.lineWidth = 1.5; ctx.stroke();
+      ctx.fillStyle = 'rgba(212,176,255,0.88)';
+      ctx.font = `400 22px ${FONT_M}`;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText('🌙 ' + res.bedStreak + '-night bedtime streak', W / 2, pillY + pillH / 2);
+    }
+
+  } else {
+    /* ── Base tile layout (no duration data at all) ──
+       4 tiles: Bedtime | Snooze | App Blocks | Streak Bonus               ── */
+    const adhere   = ln && ln.hasData ? (ln.bedtimeKept ? 'Window kept ✓' : 'Window missed') : 'No data yet';
+    const snooze   = ln && ln.hasData ? (ln.snoozeCount || 0) + ' snooze' + ((ln.snoozeCount || 0) !== 1 ? 's' : '') : 'No data yet';
+    const attempts = ln && ln.hasData ? (ln.appAttemptsTotal || 0) + ' blocked' : 'No data yet';
+    const streakBonusPts = res.streakBonus || 0;
+
+    const tiles = [
+      { label: '🌙 BEDTIME',   pts: res.adherePts  || 0, max: 50, data: adhere,   color: '#B06EFF' },
+      { label: '⏰ SNOOZE',    pts: res.snoozePts  || 0, max: 30, data: snooze,   color: '#A89CFF' },
+      { label: '📵 BLOCKED',  pts: res.attemptPts || 0, max: 20, data: attempts, color: '#7B6FFF' },
+    ];
+
+    /* 3-tile row */
+    const tW = 292, tH = 188, tGap = 22;
+    const tStartX = (W - (tW * 3 + tGap * 2)) / 2, tY = 566;
+    tiles.forEach((t, i) => {
+      const tx = tStartX + i * (tW + tGap);
+      _shareRoundRect(ctx, tx, tY, tW, tH, 18);
+      ctx.fillStyle = 'rgba(255,255,255,0.05)'; ctx.fill();
+      ctx.strokeStyle = 'rgba(255,255,255,0.07)'; ctx.lineWidth = 1; ctx.stroke();
+
+      ctx.fillStyle = t.color;
+      ctx.font = `700 17px ${FONT_M}`;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(t.label, tx + tW / 2, tY + 28);
+
+      ctx.fillStyle = '#EEEEFF';
+      ctx.font = `700 50px ${FONT_M}`;
+      ctx.fillText(String(t.pts), tx + tW / 2, tY + 88);
+
+      ctx.fillStyle = 'rgba(136,136,187,0.55)';
+      ctx.font = `400 16px ${FONT_M}`;
+      ctx.fillText('of ' + t.max + ' pts', tx + tW / 2, tY + 126);
+
+      ctx.fillStyle = 'rgba(136,136,187,0.45)';
+      ctx.font = `400 15px ${FONT_M}`;
+      const dataText = t.data.length > 18 ? t.data.slice(0, 16) + '…' : t.data;
+      ctx.fillText(dataText, tx + tW / 2, tY + 154);
+    });
+
+    /* streak bonus row — full-width, shown only when streak bonus > 0 */
+    if (streakBonusPts > 0) {
+      const sbY = tY + tH + 18, sbH = 70, sbX = tStartX, sbW = tW * 3 + tGap * 2;
+      _shareRoundRect(ctx, sbX, sbY, sbW, sbH, 18);
+      ctx.fillStyle = 'rgba(176,110,255,0.08)'; ctx.fill();
+      ctx.strokeStyle = 'rgba(176,110,255,0.20)'; ctx.lineWidth = 1; ctx.stroke();
+
+      ctx.fillStyle = '#D4B0FF';
+      ctx.font = `700 20px ${FONT_M}`;
+      ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+      ctx.fillText('🌙  STREAK BONUS', sbX + 20, sbY + sbH / 2);
+
+      ctx.font = `400 17px ${FONT_M}`;
+      ctx.fillStyle = 'rgba(200,175,255,0.55)';
+      ctx.fillText(res.bedStreak + '-night streak · +3 pts/night (max +20)', sbX + 218, sbY + sbH / 2);
+
+      ctx.fillStyle = '#B06EFF';
+      ctx.font = `700 28px ${FONT_M}`;
+      ctx.textAlign = 'right';
+      ctx.fillText('+' + streakBonusPts + ' pts', sbX + sbW - 20, sbY + sbH / 2);
+    }
+
+    /* bedtime streak pill */
+    if ((res.bedStreak || 0) > 0) {
+      const pillY = streakBonusPts > 0 ? tY + tH + 108 : tY + tH + 22;
+      const pillW = 460, pillH = 50, pillX = (W - pillW) / 2;
+      _shareRoundRect(ctx, pillX, pillY, pillW, pillH, 25);
+      ctx.fillStyle = 'rgba(176,110,255,0.10)'; ctx.fill();
+      ctx.strokeStyle = 'rgba(176,110,255,0.28)'; ctx.lineWidth = 1.5; ctx.stroke();
+      ctx.fillStyle = 'rgba(212,176,255,0.88)';
+      ctx.font = `400 22px ${FONT_M}`;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText('🌙 ' + res.bedStreak + '-night bedtime streak', W / 2, pillY + pillH / 2);
+    }
   }
 
   /* ── Footer ── */
@@ -869,7 +1540,7 @@ function _buildAppDnaCard(ctx, icon) {
 
 /* ═══════════════════════════════════════════════════════════════════════════
    renderShareCard — unified card renderer. Returns a PNG data URL.
-   type: 'streak' | 'weekly' | 'referral' | 'aurelo' | 'focus_score' | 'sleep_score' | 'appdna'
+   type: 'streak' | 'weekly' | 'referral' | 'aurelo' | 'body_score' | 'focus_score' | 'screen_score' | 'sleep_score' | 'appdna'
    ═══════════════════════════════════════════════════════════════════════════ */
 async function renderShareCard(type, opts) {
   // Ensure Aurelo brand fonts are loaded before any canvas draw calls
@@ -881,13 +1552,15 @@ async function renderShareCard(type, opts) {
   const ctx = canvas.getContext('2d');
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
 
-  if      (type === 'streak')      _buildStreakCard(ctx, icon);
-  else if (type === 'weekly')      _buildWeeklyCard(ctx, icon);
-  else if (type === 'referral')    _buildReferralCard(ctx, icon, opts || {});
-  else if (type === 'aurelo')      _buildAureloScoreCard(ctx, icon);
-  else if (type === 'focus_score') _buildFocusScoreCard(ctx, icon);
-  else if (type === 'sleep_score') _buildSleepScoreCard(ctx, icon);
-  else if (type === 'appdna')      _buildAppDnaCard(ctx, icon);
+  if      (type === 'streak')       _buildStreakCard(ctx, icon);
+  else if (type === 'weekly')       _buildWeeklyCard(ctx, icon);
+  else if (type === 'referral')     _buildReferralCard(ctx, icon, opts || {});
+  else if (type === 'aurelo')       _buildAureloScoreCard(ctx, icon);
+  else if (type === 'body_score')   _buildBodyScoreCard(ctx, icon);
+  else if (type === 'focus_score')  _buildFocusScoreCard(ctx, icon);
+  else if (type === 'screen_score') _buildScreenScoreCard(ctx, icon);
+  else if (type === 'sleep_score')  _buildSleepScoreCard(ctx, icon);
+  else if (type === 'appdna')       _buildAppDnaCard(ctx, icon);
 
   return canvas.toDataURL('image/png');
 }
@@ -923,17 +1596,63 @@ function _shareText(type, opts) {
   }
 
   if (type === 'focus_score') {
-    const fd  = (typeof _loadStripData === 'function') ? _loadStripData() : {};
-    const frs = (typeof calculateFocusScore === 'function') ? calculateFocusScore(fd) : { score: 0 };
+    const fd  = (typeof FocusTab !== 'undefined' && typeof FocusTab.loadStripData === 'function')
+                ? FocusTab.loadStripData() : {};
+    const frs = (typeof FocusScore !== 'undefined' && typeof FocusScore.calculateFocus === 'function')
+                ? FocusScore.calculateFocus(fd) : { score: 0 };
     const sc  = frs.score >= 0 ? frs.score : 0;
     return `🎯 Focus Score: ${sc}/100 today — sessions, app timers and mindful pauses tracked with Aurelo.\n\nPrivate & No Signup 👇\n${storeUrl}`;
   }
 
+
+  if (type === 'screen_score') {
+    let _sc = 0;
+    try {
+      if (typeof window.calculateScreenScoreWithHealthConnect === 'function') {
+        const _vm = window.calculateScreenScoreWithHealthConnect();
+        _sc = Math.max(0, _vm.effectiveScore || 0);
+      }
+    } catch (_) {}
+    const _goal = (typeof S !== 'undefined' && S.streakGoalMins) ? S.streakGoalMins : 240;
+    if (_sc >= 80) return `📱 Screen Score: ${_sc}/100 today — staying under my ${_fmtShare(_goal)} goal with Aurelo.\\n\\nPrivate & No Signup 👇\\n${storeUrl}`;
+    if (_sc >= 55) return `📊 Screen Score: ${_sc}/100 today — working on screen time habits with Aurelo.\\n\\nPrivate & No Signup 👇\\n${storeUrl}`;
+    return `📱 Screen Score: ${_sc}/100 today — tracking and improving screen habits with Aurelo.\\n\\nTry Aurelo 👇\\n${storeUrl}`;
+  }
   if (type === 'sleep_score') {
-    const srs    = (typeof calculateSleepScore === 'function') ? calculateSleepScore() : { score: 0, bedStreak: 0 };
-    const sc     = srs.score >= 0 ? srs.score : 0;
-    const streak = srs.bedStreak || 0;
-    return `🌙 Sleep Score: ${sc}/100${streak > 1 ? ` · ${streak}-night bedtime streak` : ''} — tracking sleep habits with Aurelo.\n\nPrivate & No Signup 👇\n${storeUrl}`;
+    let _sc = 0, _streak = 0;
+    try {
+      if (typeof FocusScore !== 'undefined' && typeof FocusScore.calculateSleep === 'function') {
+        const _srs = FocusScore.calculateSleep();
+        _streak = _srs.bedStreak || 0;
+        if (_srs.score >= 0) {
+          let _hcSleep = null;
+          if (typeof HealthConnect !== 'undefined' && HealthConnect.isConnected &&
+              HealthConnect.isConnected() && typeof HealthConnect.getSleepData === 'function') {
+            try { _hcSleep = HealthConnect.getSleepData(); } catch (_e) {}
+          }
+          const _durScore = _hcSleep && _hcSleep.durScore != null ? _hcSleep.durScore : null;
+          const _oHrv     = _hcSleep && _hcSleep.oHrvScore != null ? _hcSleep.oHrvScore : null;
+          let _nomW = 0.60;
+          if (_durScore != null) _nomW += 0.25;
+          if (_oHrv    != null) _nomW += 0.15;
+          let _wgt = _srs.score * 0.60;
+          if (_durScore != null) _wgt += _durScore * 0.25;
+          if (_oHrv    != null) _wgt += _oHrv    * 0.15;
+          _sc = Math.min(100, Math.max(0, Math.round(_wgt / _nomW)));
+        }
+      }
+    } catch (_e) {}
+    return `🌙 Sleep Score: ${_sc}/100${_streak > 1 ? ` · ${_streak}-night bedtime streak` : ''} — tracking sleep habits with Aurelo.\\n\\nPrivate & No Signup 👇\\n${storeUrl}`;
+  }
+
+  if (type === 'body_score') {
+    const bd = (typeof window.getBodyScoreData === 'function') ? window.getBodyScoreData() : {};
+    const sc = (bd.bodyScore != null && bd.bodyScore >= 0) ? bd.bodyScore : 0;
+    const stepsVal = bd.steps != null ? bd.steps.toLocaleString() : null;
+    const grade = sc >= 85 ? 'excellent' : sc >= 70 ? 'great' : sc >= 50 ? 'good' : 'fair';
+    return stepsVal
+      ? `❤️ Body Score: ${sc}/100 (${grade}) — ${stepsVal} steps today, tracked via Health Connect on Aurelo.\n\nPrivate & No Signup 👇\n${storeUrl}`
+      : `❤️ Body Score: ${sc}/100 (${grade}) — HRV, resting heart rate & steps via Health Connect on Aurelo.\n\nPrivate & No Signup 👇\n${storeUrl}`;
   }
 
   if (type === 'appdna') {

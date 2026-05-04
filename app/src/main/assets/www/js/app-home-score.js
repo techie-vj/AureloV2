@@ -661,14 +661,29 @@ function renderAureloScore() {
           <div class="aurelo-score-grade" style="color:${g.color}">${g.label}</div>
           <div class="aurelo-score-meta">${hcLine}</div>
         </div>
-        <button class="aurelo-score-history-btn"
-                onclick="event.stopPropagation();ScoreHistory.open('aurelo')"
-                aria-label="View Aurelo Score history">
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-            <polyline points="1,11 5,5 8,8 11,3 15,3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-            <polyline points="11,3 15,3 15,7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
-        </button>
+        <div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0;align-self:flex-start">
+          <button class="aurelo-score-history-btn"
+                  onclick="event.stopPropagation();shareCard('aurelo')"
+                  aria-label="Share Aurelo Score"
+                  title="Share Score">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
+              <circle cx="18" cy="5" r="3" stroke="currentColor" stroke-width="1.8"/>
+              <circle cx="6" cy="12" r="3" stroke="currentColor" stroke-width="1.8"/>
+              <circle cx="18" cy="19" r="3" stroke="currentColor" stroke-width="1.8"/>
+              <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+              <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+            </svg>
+          </button>
+          <button class="aurelo-score-history-btn"
+                  onclick="event.stopPropagation();ScoreHistory.open('aurelo')"
+                  aria-label="View Aurelo Score history"
+                  title="Score History">
+            <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
+              <polyline points="1,11 5,5 8,8 11,3 15,3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+              <polyline points="11,3 15,3 15,7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </button>
+        </div>
       </div>
       <div class="aurelo-pillars-grid">
         ${regularPillarsHTML}
@@ -1043,10 +1058,6 @@ function _showBodyScoreSheet() {
                        border:1px solid var(--border2);color:var(--t2);font-family:var(--ff-m);
                        font-size:var(--text-sm);font-weight:600;cursor:pointer;display:flex;
                        align-items:center;justify-content:center;gap:8px;margin-bottom:8px">&#128200; View Score History</button>
-        <button type="button" onclick="_closeBodyScoreSheet()"
-                style="width:100%;padding:14px;border-radius:14px;background:var(--s2);
-                       border:1px solid var(--border2);color:var(--t2);font-family:var(--ff-m);
-                       font-size:var(--text-sm);font-weight:600;cursor:pointer">Close</button>
       </div>
     </div>`;
 
@@ -1097,3 +1108,33 @@ function _getAureloScoreData() {
     goalMins:    (typeof S !== 'undefined' && S.streakGoalMins) || 240,
   };
 }
+
+/* ── Expose score data accessors for share cards ─────── */
+window.getAureloScoreData = _getAureloScoreData;
+
+window.getBodyScoreData = function() {
+  let bodyScore = -1;
+  try {
+    if (typeof HealthConnect !== 'undefined' && HealthConnect.isConnected &&
+        HealthConnect.isConnected() && typeof HealthConnect.getBodyScore === 'function') {
+      bodyScore = HealthConnect.getBodyScore();
+    }
+  } catch (_) {}
+
+  let live = { steps: null, hrv: null, avgHrv7d: null, rhr: null, avgRhr7d: null, avgSteps7d: null };
+  try {
+    const _hcStr = window.AppBridge?.getHCData?.();
+    if (_hcStr) {
+      const _p = JSON.parse(_hcStr);
+      if (_p) {
+        live.steps      = (_p.steps     != null && _p.steps     >= 0) ? _p.steps     : null;
+        live.hrv        = _p.hrv        ?? null;
+        live.avgHrv7d   = _p.avgHrv7d   ?? null;
+        live.rhr        = _p.restingHR  ?? null;
+        live.avgRhr7d   = _p.avgRhr7d   ?? null;
+        live.avgSteps7d = _p.avgSteps7d ?? null;
+      }
+    }
+  } catch (_) {}
+  return { bodyScore, ...live };
+};
