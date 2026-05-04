@@ -600,9 +600,6 @@ var ScoreHistory = (function () {
         +'</div>'
       : '';
 
-    /* ── Share button label ── */
-    var shareKey = { aurelo:'aurelo_score', screen:'screen_score', focus:'focus_score', sleep:'sleep_score', body:'body_score' }[_pillar] || 'aurelo_score';
-
     /* ── Assemble full HTML ── */
     var html = '<div id="sh-backdrop" class="modal-bg" role="dialog" aria-modal="true" aria-label="Score History"'
       +' onclick="if(event.target===this)ScoreHistory.close()">'
@@ -616,7 +613,7 @@ var ScoreHistory = (function () {
             +'<div class="sh-hdr-title" id="sh-hdr-title">'+pc.label+' Score</div>'
           +'</div>'
           +'<div class="sh-hdr-actions">'
-            +'<button class="sh-share-btn" onclick="shareCard && shareCard(\''+shareKey+'\')" aria-label="Share score">↗ Share</button>'
+            +'<button class="sh-share-btn" onclick="shareCard&&shareCard(\'score_history\',{pillar:\''+_pillar+'\',win:\''+_win+'\'})" aria-label="Share score">↗ Share</button>'
             +'<button class="sh-close-btn" onclick="ScoreHistory.close()" aria-label="Close">✕</button>'
           +'</div>'
         +'</div>'

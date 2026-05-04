@@ -1539,8 +1539,412 @@ function _buildAppDnaCard(ctx, icon) {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
+   _buildScoreHistoryCard — SCORE HISTORY share card
+   Context-aware: adapts colour palette, chart, and copy for every
+   combination of pillar (aurelo / screen / focus / sleep / body)
+   and window (7D / 30D / 90D / 1Y).
+   ═══════════════════════════════════════════════════════════════════════════ */
+function _buildScoreHistoryCard(ctx, icon, opts) {
+  const W = 1080, H = 1080;
+  const FONT_D = "'Bodoni Moda', Georgia, serif";
+  const FONT_M = "'JetBrains Mono', monospace";
+
+  const pillar = (opts && opts.pillar) ? opts.pillar : 'aurelo';
+  const win    = (opts && opts.win)    ? opts.win    : '7D';
+
+  /* ── Pillar config ── */
+  const PC = {
+    aurelo: { label:'Aurelo',  fullLabel:'AURELO SCORE',  emoji:'⭐', hex:'#7B6FFF',
+              grad0:'rgba(108,63,255,0.34)',  grad1:'rgba(5,200,232,0.20)',  bg:'#070C1C' },
+    screen: { label:'Screen',  fullLabel:'SCREEN SCORE',  emoji:'📱', hex:'#05C8E8',
+              grad0:'rgba(40,80,220,0.32)',   grad1:'rgba(80,60,220,0.20)',  bg:'#050A18' },
+    focus:  { label:'Focus',   fullLabel:'FOCUS SCORE',   emoji:'🎯', hex:'#12D48A',
+              grad0:'rgba(10,160,120,0.30)',  grad1:'rgba(5,80,180,0.20)',   bg:'#04100E' },
+    sleep:  { label:'Sleep',   fullLabel:'SLEEP SCORE',   emoji:'🌙', hex:'#B06EFF',
+              grad0:'rgba(140,50,255,0.32)',  grad1:'rgba(60,20,100,0.22)',  bg:'#0A0514' },
+    body:   { label:'Body ✦',  fullLabel:'BODY SCORE',    emoji:'❤️', hex:'#F7A623',
+              grad0:'rgba(200,120,0,0.30)',   grad1:'rgba(0,180,140,0.20)',  bg:'#0C0A02' },
+  };
+  const WC = {
+    '7D':  { label:'LAST 7 DAYS',     days:7,   weekly:false },
+    '30D': { label:'LAST 30 DAYS',    days:30,  weekly:false },
+    '90D': { label:'LAST 90 DAYS',    days:90,  weekly:false },
+    '1Y':  { label:'12-MONTH TREND',  days:365, weekly:true  },
+  };
+
+  const pc  = PC[pillar]  || PC.aurelo;
+  const wc  = WC[win]     || WC['7D'];
+  const hex = pc.hex;
+
+  /* ── Load history data ── */
+  const KEY_MAP = {
+    aurelo:'aurelo_score_history', screen:'screen_score_history',
+    focus:'focus_score_history',   sleep:'sleep_score_history',
+    body:'body_score_history',
+  };
+  let hist = {};
+  try {
+    const raw = (typeof IS_NATIVE !== 'undefined' && IS_NATIVE &&
+                 typeof N !== 'undefined' && N.getStringPref)
+      ? N.getStringPref(KEY_MAP[pillar] || 'aurelo_score_history')
+      : localStorage.getItem(KEY_MAP[pillar] || 'aurelo_score_history');
+    hist = JSON.parse(raw || '{}');
+  } catch (_) {}
+
+  const today = new Date();
+  let rawData = [];
+  for (let i = wc.days - 1; i >= 0; i--) {
+    const d = new Date(today); d.setDate(today.getDate() - i);
+    const k = d.toISOString().slice(0, 10);
+    rawData.push(hist[k] !== undefined ? hist[k] : null);
+  }
+  let data = rawData;
+  if (wc.weekly) {
+    const w2 = [];
+    for (let i = 0; i < rawData.length; i += 7) {
+      const ch = rawData.slice(i, i + 7).filter(v => v !== null);
+      w2.push(ch.length >= 3 ? Math.round(ch.reduce((a, b) => a + b, 0) / ch.length) : null);
+    }
+    data = w2;
+  }
+
+  const n       = data.length;
+  const valid   = data.filter(v => v !== null);
+  const avg     = valid.length ? Math.round(valid.reduce((a, b) => a + b, 0) / valid.length) : null;
+  const best    = valid.length ? Math.max(...valid) : null;
+  const bestIdx = best !== null ? data.lastIndexOf(best) : -1;
+  const above70 = valid.filter(v => v >= 70).length;
+
+  const half     = Math.floor(valid.length / 2);
+  const trendVal = half >= 1
+    ? Math.round(valid.slice(half).reduce((a, b) => a + b, 0) / (valid.length - half))
+      - Math.round(valid.slice(0, half).reduce((a, b) => a + b, 0) / half)
+    : 0;
+
+  function _grade(v) {
+    if (v === null || v === undefined) return { label:'—',        color:'rgba(160,160,210,0.55)' };
+    if (v >= 85) return { label:'Excellent', color:'#12D48A' };
+    if (v >= 70) return { label:'Good',      color:'#05C8E8' };
+    if (v >= 55) return { label:'Fair',      color:'#F7A623' };
+    return           { label:'Start',     color:'#F04E7A' };
+  }
+  const g = _grade(avg);
+
+  /* ── Date range string ── */
+  const MO = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const DA = ['Su','Mo','Tu','We','Th','Fr','Sa'];
+  const startD = new Date(today); startD.setDate(today.getDate() - (wc.days - 1));
+  const dateRange = MO[startD.getMonth()] + ' ' + startD.getDate()
+    + ' – ' + MO[today.getMonth()] + ' ' + today.getDate() + ', ' + today.getFullYear();
+
+  /* ══ DRAW ══════════════════════════════════════════════════════════════ */
+
+  /* ── Background ── */
+  ctx.fillStyle = pc.bg; ctx.fillRect(0, 0, W, H);
+  const bgG = ctx.createLinearGradient(0, 0, W, H);
+  bgG.addColorStop(0,    pc.grad0);
+  bgG.addColorStop(0.55, 'rgba(0,0,0,0)');
+  bgG.addColorStop(1,    pc.grad1);
+  ctx.fillStyle = bgG; ctx.fillRect(0, 0, W, H);
+
+  // Depth glows
+  _shareGlow(ctx, W * 0.85, H * 0.10, 400, hex + '1C');
+  _shareGlow(ctx, W * 0.14, H * 0.88, 320, hex + '16');
+  _shareGlow(ctx, W * 0.50, H * 0.38, 280, hex + '0E');
+
+  /* ── Header ── */
+  _shareDrawHeader(ctx, icon, pc.fullLabel + ' HISTORY');
+
+  // Small window pill — top-right of hero number
+  ctx.font = `700 16px ${FONT_M}`;
+  const winPillW = ctx.measureText(wc.label).width + 32;
+  const winPillH = 30, winPillX = W - 80 - winPillW, winPillY = 192;
+  _shareRoundRect(ctx, winPillX, winPillY, winPillW, winPillH, 15);
+  ctx.fillStyle = 'rgba(255,255,255,0.06)'; ctx.fill();
+  ctx.strokeStyle = 'rgba(255,255,255,0.18)'; ctx.lineWidth = 1; ctx.stroke();
+  ctx.fillStyle = 'rgba(220,220,255,0.72)';
+  ctx.font = `700 16px ${FONT_M}`;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(wc.label, winPillX + winPillW / 2, winPillY + winPillH / 2);
+
+  /* ── Hero number — large Bodoni Moda italic, no ring ── */
+  _shareGlow(ctx, W / 2, 338, 230, hex + '1C');
+  _shareGlow(ctx, W / 2, 338, 110, hex + '0E');
+  ctx.save();
+  const heroG = ctx.createLinearGradient(200, 200, 880, 430);
+  heroG.addColorStop(0,    '#FFFFFF');
+  heroG.addColorStop(0.45, 'rgba(240,240,255,0.92)');
+  heroG.addColorStop(1,    hex);
+  ctx.fillStyle = heroG;
+  const numSz = avg !== null && avg >= 100 ? 200 : 240;
+  ctx.font = `italic 300 ${numSz}px ${FONT_D}`;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(avg !== null ? String(avg) : '—', W / 2, 318);
+  ctx.restore();
+
+  /* ── Grade label ── */
+  ctx.fillStyle = g.color;
+  ctx.font = `700 34px ${FONT_M}`;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText((g.label || '—').toUpperCase(), W / 2, 424);
+
+  /* ── Progress bar ── */
+  const bX = 140, bY = 460, bW = W - 280, bH = 7;
+  _shareRoundRect(ctx, bX, bY, bW, bH, 4);
+  ctx.fillStyle = 'rgba(255,255,255,0.07)'; ctx.fill();
+  if (avg !== null && avg > 0) {
+    const fillPx = Math.round(bW * Math.min(avg, 100) / 100);
+    const bfG = ctx.createLinearGradient(bX, 0, bX + bW, 0);
+    bfG.addColorStop(0, hex + 'AA'); bfG.addColorStop(1, hex);
+    _shareRoundRect(ctx, bX, bY, fillPx, bH, 4);
+    ctx.fillStyle = bfG; ctx.fill();
+  }
+
+  /* ── Trend badge ── */
+  const trendColor = trendVal === 0 ? 'rgba(160,160,210,0.70)' : trendVal > 0 ? '#12D48A' : '#F04E7A';
+  const trendArrow = trendVal > 0 ? '↑' : trendVal < 0 ? '↓' : '→';
+  const trendTxt   = trendArrow + ' ' + (trendVal > 0 ? '+' : '') + trendVal + ' pts vs prior half';
+  ctx.font = `700 21px ${FONT_M}`;
+  const tbW = ctx.measureText(trendTxt).width + 48, tbH = 40, tbR = 20;
+  const tbX = (W - tbW) / 2, tbY = 488;
+  _shareRoundRect(ctx, tbX, tbY, tbW, tbH, tbR);
+  ctx.fillStyle = trendVal > 0 ? 'rgba(18,212,138,0.10)' : trendVal < 0 ? 'rgba(240,78,122,0.10)' : 'rgba(160,160,210,0.07)';
+  ctx.fill();
+  ctx.strokeStyle = trendVal > 0 ? 'rgba(18,212,138,0.28)' : trendVal < 0 ? 'rgba(240,78,122,0.28)' : 'rgba(160,160,210,0.18)';
+  ctx.lineWidth = 1.5; ctx.stroke();
+  ctx.fillStyle = trendColor;
+  ctx.font = `700 21px ${FONT_M}`;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(trendTxt, W / 2, tbY + tbH / 2);
+
+  /* ── Date range ── */
+  ctx.fillStyle = 'rgba(160,160,210,0.45)';
+  ctx.font = `400 19px ${FONT_M}`;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(dateRange, W / 2, 548);
+
+  /* ── Sparkline chart ── */
+  const cL = 80, cR = 1000, cTop = 574, cBtm = 748;
+  const cW = cR - cL, cH = cBtm - cTop;
+
+  function toX(i) { return cL + (n > 1 ? i / (n - 1) : 0.5) * cW; }
+  function toY(v) { return cBtm - (v / 100) * cH; }
+
+  // Threshold lines (85 / 70 / 55)
+  ctx.setLineDash([4, 14]);
+  ctx.lineWidth = 0.8;
+  [85, 70, 55].forEach(t => {
+    ctx.beginPath();
+    ctx.moveTo(cL, toY(t)); ctx.lineTo(cR, toY(t));
+    ctx.strokeStyle = 'rgba(255,255,255,0.07)';
+    ctx.stroke();
+  });
+  ctx.setLineDash([]);
+
+  if (valid.length >= 2) {
+    const pts = data.map((v, i) => ({
+      x: toX(i), y: v !== null ? toY(v) : null, v,
+    }));
+
+    // Split into non-null segments for bezier rendering
+    const segs = [];
+    let cur = [];
+    pts.forEach(p => {
+      if (p.v !== null) { cur.push(p); }
+      else { if (cur.length) { segs.push(cur); cur = []; } }
+    });
+    if (cur.length) segs.push(cur);
+
+    const T = 0.28;
+    function buildBezier(seg) {
+      if (seg.length < 2) return '';
+      let d = 'M' + seg[0].x.toFixed(1) + ',' + seg[0].y.toFixed(1);
+      for (let i = 1; i < seg.length; i++) {
+        const p0 = seg[Math.max(0, i - 2)];
+        const p1 = seg[i - 1];
+        const p2 = seg[i];
+        const p3 = seg[Math.min(seg.length - 1, i + 1)];
+        const c1x = (p1.x + (p2.x - p0.x) * T).toFixed(1);
+        const c1y = (p1.y + (p2.y - p0.y) * T).toFixed(1);
+        const c2x = (p2.x - (p3.x - p1.x) * T).toFixed(1);
+        const c2y = (p2.y - (p3.y - p1.y) * T).toFixed(1);
+        d += ' C' + c1x + ',' + c1y + ' ' + c2x + ',' + c2y + ' ' + p2.x.toFixed(1) + ',' + p2.y.toFixed(1);
+      }
+      return d;
+    }
+
+    const fillG = ctx.createLinearGradient(0, cTop, 0, cBtm);
+    fillG.addColorStop(0,   hex + '36');
+    fillG.addColorStop(0.6, hex + '10');
+    fillG.addColorStop(1,   hex + '00');
+
+    segs.forEach(seg => {
+      if (seg.length < 2) return;
+      const linePath = buildBezier(seg);
+      const areaPath = linePath
+        + ' L' + seg[seg.length - 1].x.toFixed(1) + ',' + cBtm
+        + ' L' + seg[0].x.toFixed(1) + ',' + cBtm + ' Z';
+
+      const lineP = new Path2D(linePath);
+      const areaP = new Path2D(areaPath);
+
+      ctx.fillStyle = fillG;
+      ctx.fill(areaP);
+
+      ctx.strokeStyle = hex;
+      ctx.lineWidth   = n <= 7 ? 3 : n <= 30 ? 2.2 : 1.8;
+      ctx.lineJoin    = 'round'; ctx.lineCap = 'round';
+      ctx.stroke(lineP);
+    });
+
+    // Per-point rendering (7D: labelled dots; other: key markers only)
+    if (n <= 7) {
+      pts.forEach((p, idx) => {
+        if (p.v === null) return;
+        const isLast = (idx === n - 1);
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, isLast ? 7 : 5, 0, Math.PI * 2);
+        ctx.fillStyle = hex; ctx.fill();
+        ctx.fillStyle = 'rgba(240,240,255,0.82)';
+        ctx.font = `bold 18px ${FONT_M}`;
+        ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+        ctx.fillText(String(p.v), p.x, p.y - 11);
+      });
+    } else {
+      // Best marker
+      if (bestIdx >= 0 && pts[bestIdx] && pts[bestIdx].v !== null) {
+        const bp = pts[bestIdx];
+        ctx.beginPath();
+        ctx.arc(bp.x, bp.y, 7, 0, Math.PI * 2);
+        ctx.strokeStyle = hex; ctx.lineWidth = 2; ctx.stroke();
+        ctx.fillStyle = 'rgba(255,255,255,0.90)'; ctx.fill();
+        // Score label (above)
+        ctx.fillStyle = hex;
+        ctx.font = `700 16px ${FONT_M}`;
+        ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+        ctx.fillText(String(bp.v), bp.x, bp.y - 12);
+        ctx.font = `400 13px ${FONT_M}`;
+        ctx.fillStyle = 'rgba(255,255,255,0.45)';
+        ctx.fillText('BEST', bp.x, bp.y - 28);
+      }
+      // Today / latest dot
+      let lastValidIdx = -1;
+      for (let i = pts.length - 1; i >= 0; i--) { if (pts[i].v !== null) { lastValidIdx = i; break; } }
+      if (lastValidIdx >= 0) {
+        const lp = pts[lastValidIdx];
+        ctx.beginPath();
+        ctx.arc(lp.x, lp.y, 11, 0, Math.PI * 2);
+        ctx.fillStyle = hex + '22'; ctx.fill();
+        ctx.beginPath();
+        ctx.arc(lp.x, lp.y, 4.5, 0, Math.PI * 2);
+        ctx.fillStyle = hex; ctx.fill();
+      }
+    }
+  } else {
+    // No data placeholder
+    ctx.fillStyle = 'rgba(180,180,220,0.30)';
+    ctx.font = `italic 300 36px ${FONT_D}`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('History is building…', W / 2, (cTop + cBtm) / 2);
+  }
+
+  // X-axis labels
+  const labelY = cBtm + 14;
+  ctx.textBaseline = 'top';
+  if (win === '7D') {
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(today); d.setDate(today.getDate() - (6 - i));
+      const lbl = i === 6 ? 'Today' : DA[d.getDay()];
+      ctx.textAlign  = i === 0 ? 'left' : i === 6 ? 'right' : 'center';
+      ctx.fillStyle  = i === 6 ? hex : 'rgba(160,160,210,0.48)';
+      ctx.font       = i === 6 ? `700 18px ${FONT_M}` : `400 18px ${FONT_M}`;
+      ctx.fillText(lbl, toX(i), labelY);
+    }
+  } else if (win === '30D') {
+    [0, 7, 14, 21, 29].forEach(i => {
+      const d = new Date(today); d.setDate(today.getDate() - (29 - i));
+      ctx.textAlign = i === 0 ? 'left' : i === 29 ? 'right' : 'center';
+      ctx.fillStyle = i === 29 ? hex : 'rgba(160,160,210,0.48)';
+      ctx.font      = i === 29 ? `700 18px ${FONT_M}` : `400 18px ${FONT_M}`;
+      ctx.fillText(d.getDate() + '/' + (d.getMonth() + 1), toX(i), labelY);
+    });
+  } else if (win === '90D') {
+    for (let m = 2; m >= 0; m--) {
+      const d = new Date(today); d.setDate(1); d.setMonth(today.getMonth() - m);
+      const diff = Math.round((today - d) / 86400000);
+      const i = Math.min(89, Math.max(0, 89 - diff));
+      ctx.textAlign = m === 2 ? 'left' : m === 0 ? 'right' : 'center';
+      ctx.fillStyle = m === 0 ? hex : 'rgba(160,160,210,0.48)';
+      ctx.font      = m === 0 ? `700 18px ${FONT_M}` : `400 18px ${FONT_M}`;
+      ctx.fillText(MO[d.getMonth()], toX(i), labelY);
+    }
+  } else {
+    // 1Y — monthly markers across weekly data
+    const nw = data.length;
+    for (let mm = 0; mm < 12; mm++) {
+      const i = Math.floor(mm * nw / 12);
+      ctx.textAlign = mm === 0 ? 'left' : mm === 11 ? 'right' : 'center';
+      ctx.fillStyle = mm === 11 ? hex : 'rgba(160,160,210,0.48)';
+      ctx.font      = mm === 11 ? `700 18px ${FONT_M}` : `400 18px ${FONT_M}`;
+      ctx.fillText(MO[mm], toX(i), labelY);
+    }
+  }
+
+  /* ── 3 Stat tiles ── */
+  const tileY = 800, tileH = 132, tileGap = 16;
+  const tileW = Math.floor((W - 80 * 2 - tileGap * 2) / 3);
+  const tiles = [
+    {
+      label: 'Period Avg',
+      value: avg !== null ? String(avg) : '—',
+      vCol:  g.color,
+      sub:   avg !== null ? g.label : 'No data yet',
+    },
+    {
+      label: 'All-time Best',
+      value: best !== null ? String(best) : '—',
+      vCol:  hex,
+      sub:   best !== null ? _grade(best).label : '—',
+    },
+    {
+      label: 'Days ≥ Good',
+      value: valid.length ? above70 + '/' + valid.length : '—',
+      vCol:  above70 > 0 ? '#12D48A' : 'rgba(200,200,255,0.35)',
+      sub:   valid.length
+        ? Math.round(above70 / valid.length * 100) + '% hit rate'
+        : 'Collect more data',
+    },
+  ];
+
+  tiles.forEach((t, i) => {
+    const tx = 80 + i * (tileW + tileGap);
+    _shareRoundRect(ctx, tx, tileY, tileW, tileH, 18);
+    ctx.fillStyle = 'rgba(255,255,255,0.04)'; ctx.fill();
+    ctx.strokeStyle = hex + '20'; ctx.lineWidth = 1; ctx.stroke();
+
+    ctx.fillStyle = 'rgba(160,160,210,0.52)';
+    ctx.font = `400 17px ${FONT_M}`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(t.label, tx + tileW / 2, tileY + 26);
+
+    ctx.fillStyle = t.vCol;
+    ctx.font = `bold 40px ${FONT_M}`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(t.value, tx + tileW / 2, tileY + 76);
+
+    ctx.fillStyle = 'rgba(160,160,210,0.45)';
+    ctx.font = `400 16px ${FONT_M}`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(t.sub, tx + tileW / 2, tileY + 109);
+  });
+
+  /* ── Footer ── */
+  _shareDrawFooter(ctx, H);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
    renderShareCard — unified card renderer. Returns a PNG data URL.
-   type: 'streak' | 'weekly' | 'referral' | 'aurelo' | 'body_score' | 'focus_score' | 'screen_score' | 'sleep_score' | 'appdna'
+   type: 'streak' | 'weekly' | 'referral' | 'aurelo' | 'body_score' | 'focus_score' | 'screen_score' | 'sleep_score' | 'appdna' | 'score_history'
    ═══════════════════════════════════════════════════════════════════════════ */
 async function renderShareCard(type, opts) {
   // Ensure Aurelo brand fonts are loaded before any canvas draw calls
@@ -1552,15 +1956,16 @@ async function renderShareCard(type, opts) {
   const ctx = canvas.getContext('2d');
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
 
-  if      (type === 'streak')       _buildStreakCard(ctx, icon);
-  else if (type === 'weekly')       _buildWeeklyCard(ctx, icon);
-  else if (type === 'referral')     _buildReferralCard(ctx, icon, opts || {});
-  else if (type === 'aurelo')       _buildAureloScoreCard(ctx, icon);
-  else if (type === 'body_score')   _buildBodyScoreCard(ctx, icon);
-  else if (type === 'focus_score')  _buildFocusScoreCard(ctx, icon);
-  else if (type === 'screen_score') _buildScreenScoreCard(ctx, icon);
-  else if (type === 'sleep_score')  _buildSleepScoreCard(ctx, icon);
-  else if (type === 'appdna')       _buildAppDnaCard(ctx, icon);
+  if      (type === 'streak')        _buildStreakCard(ctx, icon);
+  else if (type === 'weekly')        _buildWeeklyCard(ctx, icon);
+  else if (type === 'referral')      _buildReferralCard(ctx, icon, opts || {});
+  else if (type === 'aurelo')        _buildAureloScoreCard(ctx, icon);
+  else if (type === 'body_score')    _buildBodyScoreCard(ctx, icon);
+  else if (type === 'focus_score')   _buildFocusScoreCard(ctx, icon);
+  else if (type === 'screen_score')  _buildScreenScoreCard(ctx, icon);
+  else if (type === 'sleep_score')   _buildSleepScoreCard(ctx, icon);
+  else if (type === 'appdna')        _buildAppDnaCard(ctx, icon);
+  else if (type === 'score_history') _buildScoreHistoryCard(ctx, icon, opts || {});
 
   return canvas.toDataURL('image/png');
 }
@@ -1572,8 +1977,79 @@ function _shareText(type, opts) {
   const refCode  = opts && opts.referralCode ? opts.referralCode : null;
   const goalMins = (typeof S !== 'undefined' && S.streakGoalMins) ? S.streakGoalMins : 240;
 
-  if (type === 'referral') {
-    const base = `📱 Aurelo helps you understand and manage your screen time with less friction.\n\nIt automatically organizes your apps into categories, gives you clear screen time insights, and includes features like Focus Mode and App Timers to support healthier phone habits.\n\nCheck it out 👇\n${storeUrl}`;
+  if (type === 'score_history') {
+    const pillar = (opts && opts.pillar) ? opts.pillar : 'aurelo';
+    const win    = (opts && opts.win)    ? opts.win    : '7D';
+
+    const SH_KEY  = { aurelo:'aurelo_score_history', screen:'screen_score_history',
+                      focus:'focus_score_history',   sleep:'sleep_score_history',
+                      body:'body_score_history' };
+    const SH_DAYS = { '7D':7, '30D':30, '90D':90, '1Y':365 };
+    const days    = SH_DAYS[win] || 7;
+    const weekly  = (win === '1Y');
+
+    let hist2 = {};
+    try {
+      const raw2 = (typeof IS_NATIVE !== 'undefined' && IS_NATIVE &&
+                    typeof N !== 'undefined' && N.getStringPref)
+        ? N.getStringPref(SH_KEY[pillar] || 'aurelo_score_history')
+        : localStorage.getItem(SH_KEY[pillar] || 'aurelo_score_history');
+      hist2 = JSON.parse(raw2 || '{}');
+    } catch (_) {}
+
+    const today2 = new Date();
+    let raw2 = [];
+    for (let i = days - 1; i >= 0; i--) {
+      const d = new Date(today2); d.setDate(today2.getDate() - i);
+      const k = d.toISOString().slice(0, 10);
+      raw2.push(hist2[k] !== undefined ? hist2[k] : null);
+    }
+    if (weekly) {
+      const wk = [];
+      for (let i = 0; i < raw2.length; i += 7) {
+        const ch = raw2.slice(i, i + 7).filter(v => v !== null);
+        wk.push(ch.length >= 3 ? Math.round(ch.reduce((a, b) => a + b, 0) / ch.length) : null);
+      }
+      raw2 = wk;
+    }
+
+    const valid2   = raw2.filter(v => v !== null);
+    const avg2     = valid2.length ? Math.round(valid2.reduce((a, b) => a + b, 0) / valid2.length) : null;
+    const best2    = valid2.length ? Math.max(...valid2) : null;
+    const above70b = valid2.filter(v => v >= 70).length;
+    const half2    = Math.floor(valid2.length / 2);
+    const trend2   = half2 >= 1
+      ? Math.round(valid2.slice(half2).reduce((a, b) => a + b, 0) / (valid2.length - half2))
+        - Math.round(valid2.slice(0, half2).reduce((a, b) => a + b, 0) / half2)
+      : 0;
+
+    const SH_EMOJI = { aurelo:'⭐', screen:'📱', focus:'🎯', sleep:'🌙', body:'❤️' };
+    const SH_NAME  = { aurelo:'Aurelo', screen:'Screen', focus:'Focus', sleep:'Sleep', body:'Body' };
+    const SH_WIN   = { '7D':'last 7 days', '30D':'last 30 days', '90D':'last 90 days', '1Y':'past year' };
+    const gradeStr = avg2 !== null
+      ? (avg2 >= 85 ? 'Excellent' : avg2 >= 70 ? 'Good' : avg2 >= 55 ? 'Fair' : 'Start')
+      : null;
+    const trendStr = trend2 > 0
+      ? `trending ↑ +${trend2} pts`
+      : trend2 < 0 ? `trending ↓ ${trend2} pts` : 'holding steady';
+
+    const emoji2   = SH_EMOJI[pillar] || '📊';
+    const pName2   = SH_NAME[pillar]  || 'Aurelo';
+    const winLbl2  = SH_WIN[win]      || 'last 7 days';
+
+    let shText = '';
+    if (avg2 !== null) {
+      shText = `${emoji2} ${pName2} Score — ${winLbl2}: avg ${avg2}/100 (${gradeStr}), ${trendStr}.`;
+      if (valid2.length > 3) shText += `\n${above70b} of ${valid2.length} days scored Good or above.`;
+      if (best2 !== null)    shText += ` Best: ${best2}/100.`;
+    } else {
+      shText = `${emoji2} Tracking my ${pName2} Score with Aurelo — building history day by day.`;
+    }
+    shText += `\n\nTracking with Aurelo — private & no signup 👇\n${storeUrl}`;
+    return shText;
+  }
+
+  if (type === 'referral') {    const base = `📱 Aurelo helps you understand and manage your screen time with less friction.\n\nIt automatically organizes your apps into categories, gives you clear screen time insights, and includes features like Focus Mode and App Timers to support healthier phone habits.\n\nCheck it out 👇\n${storeUrl}`;
     return refCode ? base + `\n\nUse my code ${refCode} for a bonus when you sign up.` : base;
   }
 
