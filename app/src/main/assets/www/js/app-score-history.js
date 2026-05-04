@@ -669,10 +669,28 @@ var ScoreHistory = (function () {
       +'</div>' /* sh-sheet */
       +'</div>'; /* sh-backdrop */
 
+    var wasOpen = !!document.getElementById('sh-backdrop');
+
     /* ── Inject into DOM ── */
     var existing = document.getElementById('sh-backdrop');
+    if (existing && wasOpen) {
+      // Just swap inner content, keep the sheet in place
+      var existingBody = document.getElementById('sh-body');
+      var existingChips = document.getElementById('sh-chips-row');
+      var tempDiv = document.createElement('div');
+      tempDiv.innerHTML = html;
+      var newBody  = tempDiv.querySelector('#sh-body');
+      var newChips = tempDiv.querySelector('#sh-chips-row');
+      if (existingBody && newBody)   existingBody.parentNode.replaceChild(newBody, existingBody);
+      if (existingChips && newChips) existingChips.parentNode.replaceChild(newChips, existingChips);
+      _bindScrub();
+      _updateZoneHighlights(avg);
+      return;
+    }
     if (existing && existing.parentNode) existing.parentNode.removeChild(existing);
     document.body.insertAdjacentHTML('beforeend', html);
+
+    console.log('wasOpen:', wasOpen, 'sh transform:', document.getElementById('sh-sheet') ? document.getElementById('sh-sheet').style.transform : 'not found');
 
     /* ── Animate in ── */
     requestAnimationFrame(function(){
@@ -680,7 +698,10 @@ var ScoreHistory = (function () {
       var sh = document.getElementById('sh-sheet');
       if (!bd) return;
       bd.classList.add('open');
-      if (sh) sh.style.transform = 'translate3d(0,0,0)';
+      if (sh) {
+        if (!wasOpen) sh.classList.add('sh-animating');
+        sh.style.transform = 'translate3d(0,0,0)';
+      }
       _bindScrub();
       _updateZoneHighlights(avg);
     });
