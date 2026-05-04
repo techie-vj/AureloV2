@@ -22,9 +22,22 @@ var ScoreHistory = (function () {
   'use strict';
 
   /* ── SVG chart geometry ──────────────────────────────────────── */
-  var SVG_W  = 375;
-  var DX0    = 0, DX1 = 375, DY0 = 6, DY1 = 128, SVG_H = 148, LABEL_Y = 142;
-  function toY(v) { return DY1 - (v / 100) * (DY1 - DY0); }
+  var SVG_W = 375;
+
+  // Horizontal range stays the same
+  var DX0 = 0, DX1 = 375;
+
+  // Give a bit more space above and below the plotted line
+  var DY0 = 4;     // was 6
+  var DY1 = 132;   // stays similar, adjust if needed
+
+  // Overall SVG height and label baseline moved down
+  var SVG_H = 160; // was 148
+  var LABEL_Y = 150; // was ~142
+
+  function toY(v) {
+    return DY1 - (v / 100) * (DY1 - DY0);
+  }
 
   /* ── Pillar config ───────────────────────────────────────────── */
   var PILLARS = [
@@ -245,60 +258,160 @@ var ScoreHistory = (function () {
   /* ── Main chart SVG ──────────────────────────────────────────── */
   function _chartSvg(paths, pts, labels, bestPt, lastPt, bestIdx, colorRaw) {
     var n = pts.length;
-    var colorA22 = _rgba(_pCfg().cssVar, 0.22);
+    var cssVar = _pCfg().cssVar;
+    var colorA22 = _rgba(cssVar, 0.22);
+    var solidColor = colorRaw || _colorRaw();
 
-    var threshLines = [85,70,55].map(function(t){
-      return '<line x1="'+DX0+'" y1="'+toY(t).toFixed(1)+'" x2="'+DX1+'" y2="'+toY(t).toFixed(1)+'"'
-        +' stroke="var(--border)" stroke-width="0.8" stroke-dasharray="3,12"/>';
+    // Background horizontal threshold lines
+    var threshLines = [85, 70, 55].map(function (t) {
+      var y = toY(t).toFixed(1);
+      return '<line x1="' + DX0 + '" y1="' + y +
+             '" x2="' + DX1 + '" y2="' + y +
+             '" stroke="var(--border)" stroke-width="0.8" stroke-dasharray="3,12" />';
     }).join('');
 
-    var labelItems = labels.map(function(lbl){
-      var x = DX0 + (n>1 ? lbl.i/(n-1) : 0.5)*(DX1-DX0);
-      var isLast = lbl.i === n-1;
-      return '<text x="'+x.toFixed(1)+'" y="'+LABEL_Y+'" text-anchor="middle"'
-        +' fill="'+(isLast ? colorRaw : 'var(--t3)')+'"'
-        +' font-size="'+(isLast?8.5:7.5)+'" font-weight="'+(isLast?700:400)+'"'
-        +' font-family="var(--ff-b)">'+lbl.label+'</text>';
+    // X-axis labels with dynamic text-anchor so edge labels don't overflow
+    var labelItems = labels.map(function (lbl) {
+      var x;
+      if (n <= 1) {
+        x = DX0 + (DX1 - DX0) / 2;
+      } else {
+        x = DX0 + (lbl.i / (n - 1)) * (DX1 - DX0);
+      }
+
+      var anchor;
+      if (lbl.i === 0) {
+        anchor = 'start';
+      } else if (lbl.i === n - 1) {
+        anchor = 'end';
+      } else {
+        anchor = 'middle';
+      }
+
+      var isLast = (lbl.i === n - 1);
+      var fontSize = isLast ? 8.5 : 7.5;
+      var fontWeight = isLast ? 700 : 400;
+      var fill = isLast ? solidColor : 'var(--t3)';
+
+      return '<text x="' + x.toFixed(1) + '" y="' + LABEL_Y +
+             '" text-anchor="' + anchor +
+             '" fill="' + fill +
+             '" font-size="' + fontSize +
+             '" font-weight="' + fontWeight +
+             '" font-family="var(--ff-b)">' +
+             lbl.label +
+             '</text>';
     }).join('');
 
-    var bestMark = (bestPt && bestPt.y !== null && bestIdx !== n-1)
-      ? '<line x1="'+bestPt.x.toFixed(1)+'" y1="'+(DY0+6)+'" x2="'+bestPt.x.toFixed(1)+'" y2="'+(bestPt.y-7).toFixed(1)+'"'
-          +' stroke="'+colorRaw+'" stroke-width="1" stroke-opacity="0.15" stroke-dasharray="2,4"/>'
-        +'<circle cx="'+bestPt.x.toFixed(1)+'" cy="'+bestPt.y.toFixed(1)+'" r="5.5" fill="'+colorRaw+'" fill-opacity="0.1"/>'
-        +'<circle cx="'+bestPt.x.toFixed(1)+'" cy="'+bestPt.y.toFixed(1)+'" r="2.5" fill="'+colorRaw+'"/>'
-        +'<text x="'+bestPt.x.toFixed(1)+'" y="'+(bestPt.y-10).toFixed(1)+'" text-anchor="middle"'
-          +' fill="'+colorRaw+'" fill-opacity="0.5" font-size="6"'
-          +' font-family="var(--ff-m)" letter-spacing="0.1em">BEST</text>'
-      : '';
+    // BEST marker (only if best index is not today to avoid clutter)
+    var bestMark = '';
+    if (bestPt && bestPt.y != null && bestIdx !== n - 1) {
+      bestMark =
+        '<line x1="' + bestPt.x.toFixed(1) +
+        '" y1="' + (DY0 - 6) +
+        '" x2="' + bestPt.x.toFixed(1) +
+        '" y2="' + (bestPt.y - 7).toFixed(1) +
+        '" stroke="' + solidColor +
+        '" stroke-width="1" stroke-opacity="0.15" stroke-dasharray="2,4" />' +
 
-    var todayDot = (lastPt && lastPt.y !== null)
-      ? '<circle cx="'+lastPt.x.toFixed(1)+'" cy="'+lastPt.y.toFixed(1)+'" r="8" fill="'+colorRaw+'" fill-opacity="0.12"/>'
-        +'<circle cx="'+lastPt.x.toFixed(1)+'" cy="'+lastPt.y.toFixed(1)+'" r="3.5" fill="'+colorRaw+'" filter="url(#sh-dg)"/>'
-      : '';
+        '<circle cx="' + bestPt.x.toFixed(1) +
+        '" cy="' + bestPt.y.toFixed(1) +
+        '" r="5.5" fill="' + solidColor +
+        '" fill-opacity="0.10" />' +
 
-    return '<svg id="sh-svg" viewBox="0 0 '+SVG_W+' '+SVG_H+'" width="100%"'
-      +' style="display:block;cursor:crosshair;touch-action:none" preserveAspectRatio="none">'
-      +'<defs>'
-        +'<linearGradient id="sh-grad" x1="0" y1="0" x2="0" y2="1">'
-          +'<stop offset="0%" stop-color="'+colorA22+'"/>'
-          +'<stop offset="100%" stop-color="'+_rgba(_pCfg().cssVar, 0)+'" />'
-        +'</linearGradient>'
-        +'<clipPath id="sh-cc"><rect x="'+DX0+'" y="'+DY0+'" width="'+(DX1-DX0)+'" height="'+(DY1-DY0)+'"/></clipPath>'
-        +'<filter id="sh-lg"><feGaussianBlur stdDeviation="1.5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>'
-        +'<filter id="sh-dg"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>'
-      +'</defs>'
-      + threshLines
-      +'<g clip-path="url(#sh-cc)">'
-        +(paths.area ? '<path d="'+paths.area+'" fill="url(#sh-grad)"/>' : '')
-        +(paths.line ? '<path d="'+paths.line+'" fill="none" stroke="'+colorRaw+'"'
-          +' stroke-width="1.8" stroke-linecap="round" filter="url(#sh-lg)"/>' : '')
-      +'</g>'
-      + bestMark + todayDot
-      +'<g id="sh-crosshair-g"></g>'
-      + labelItems
-      +'<rect id="sh-touch" x="'+DX0+'" y="'+DY0+'" width="'+(DX1-DX0)+'" height="'+(DY1-DY0)+'"'
-        +' fill="transparent" style="cursor:crosshair"/>'
-      +'</svg>';
+        '<circle cx="' + bestPt.x.toFixed(1) +
+        '" cy="' + bestPt.y.toFixed(1) +
+        '" r="2.5" fill="' + solidColor +
+        '" />' +
+
+        '<text x="' + bestPt.x.toFixed(1) +
+        '" y="' + (bestPt.y - 10).toFixed(1) +
+        '" text-anchor="middle" fill="' + solidColor +
+        '" fill-opacity="0.55" font-size="6" font-family="var(--ff-m)" ' +
+        'letter-spacing="0.1em">BEST</text>';
+    }
+
+    // TODAY dot on the last data point (if present)
+    var todayDot = '';
+    if (lastPt && lastPt.y != null) {
+      todayDot =
+        '<circle cx="' + lastPt.x.toFixed(1) +
+        '" cy="' + lastPt.y.toFixed(1) +
+        '" r="8" fill="' + solidColor +
+        '" fill-opacity="0.12" />' +
+
+        '<circle cx="' + lastPt.x.toFixed(1) +
+        '" cy="' + lastPt.y.toFixed(1) +
+        '" r="3.5" fill="' + solidColor +
+        '" filter="url(#sh-dg)" />';
+    }
+
+    // Slightly extend clipPath above DY0 so the curve/headroom is never clipped
+    var clipPadTop = 8;
+    var clipY = DY0 - clipPadTop;
+    var clipH = (DY1 - DY0) + clipPadTop;
+
+    return (
+      '<svg id="sh-svg" viewBox="0 0 ' + SVG_W + ' ' + SVG_H +
+      '" width="100%" style="display:block;cursor:crosshair;touch-action:none" ' +
+      'preserveAspectRatio="none">' +
+
+      '<defs>' +
+        '<linearGradient id="sh-grad" x1="0" y1="0" x2="0" y2="1">' +
+          '<stop offset="0" stop-color="' + colorA22 + '"/>' +
+          '<stop offset="1" stop-color="' + _rgba(cssVar, 0) + '"/>' +
+        '</linearGradient>' +
+
+        '<clipPath id="sh-cc">' +
+          '<rect x="' + DX0 +
+          '" y="' + clipY +
+          '" width="' + (DX1 - DX0) +
+          '" height="' + clipH + '"/>' +
+        '</clipPath>' +
+
+        '<filter id="sh-lg">' +
+          '<feGaussianBlur stdDeviation="1.5" result="b"/>' +
+          '<feMerge>' +
+            '<feMergeNode in="b"/>' +
+            '<feMergeNode in="SourceGraphic"/>' +
+          '</feMerge>' +
+        '</filter>' +
+
+        '<filter id="sh-dg">' +
+          '<feGaussianBlur stdDeviation="3" result="b"/>' +
+          '<feMerge>' +
+            '<feMergeNode in="b"/>' +
+            '<feMergeNode in="SourceGraphic"/>' +
+          '</feMerge>' +
+        '</filter>' +
+      '</defs>' +
+
+      // Background zone lines and filled area
+      '<g clip-path="url(#sh-cc)">' +
+        threshLines +
+        (paths.area
+          ? '<path d="' + paths.area +
+            '" fill="url(#sh-grad)"/>'
+          : '') +
+        (paths.line
+          ? '<path d="' + paths.line +
+            '" fill="none" stroke="' + solidColor +
+            '" stroke-width="1.8" stroke-linecap="round" filter="url(#sh-lg)"/>'
+          : '') +
+      '</g>' +
+
+      '<g id="sh-crosshair-g"></g>' +
+      bestMark +
+      todayDot +
+      '<g>' + labelItems + '</g>' +
+
+      '<rect id="sh-touch" x="' + DX0 +
+      '" y="' + DY0 +
+      '" width="' + (DX1 - DX0) +
+      '" height="' + (DY1 - DY0) +
+      '" fill="transparent" style="cursor:crosshair"/>' +
+      '</svg>'
+    );
   }
 
   /* ── Pro gate overlay ────────────────────────────────────────── */
@@ -483,7 +596,7 @@ var ScoreHistory = (function () {
           +'</div>'
           +'<div class="sh-coach-body">Ask Coach about your '+pc.label+' trends and get personalised insight from your actual usage data.</div>'
           +'<button class="sh-coach-btn" style="border-color:'+_rgba('--p',0.24)+';background:'+_rgba('--p',0.08)+';color:var(--p2)"'
-            +' onclick="ScoreHistory.close();typeof openCoachModal===\'function\'&&openCoachModal()">Ask Coach →</button>'
+            +' onclick="ScoreHistory.close();typeof CoachUI.open(null)===\'function\'&&CoachUI.open(null)">Ask Coach →</button>'
         +'</div>'
       : '';
 
