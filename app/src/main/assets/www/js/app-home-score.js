@@ -434,10 +434,13 @@ function _computeAureloScore() {
   // F-01: weights now match FocusScore.calculateAurelo() canonical weights.
   // Without HC: Screen 40%, Focus 35%, Sleep 25%.
   // With HC body: Screen 35%, Focus 30%, Sleep 20%, Body 15% (F-23).
+  // BUG-04 FIX: When HC is active but sleep is disabled, the old fallback used
+  // { screen:35, focus:30, sleep:0, body:15 } which after renorm made screen=70%.
+  // The canonical calculateAurelo() uses screen=46%, focus=39%, body=15% in that case.
   const hcBodyAvail = body !== null;
   const sleepAvail  = sleep !== null;
   const _sw = hcBodyAvail
-    ? { screen: 35, focus: 30, sleep: sleepAvail ? 20 : 0, body: 15 }
+    ? { screen: sleepAvail ? 35 : 46, focus: sleepAvail ? 30 : 39, sleep: sleepAvail ? 20 : 0, body: 15 }
     : { screen: sleepAvail ? 40 : 55, focus: sleepAvail ? 35 : 45, sleep: sleepAvail ? 25 : 0, body: 0 };
   const weights = [
     { score: screen, weight: _sw.screen },
@@ -542,6 +545,14 @@ function renderAureloScore() {
   if (overall >= 0 && typeof FocusScore !== 'undefined' &&
       typeof FocusScore.saveScoreForToday === 'function') {
     FocusScore.saveScoreForToday(FocusScore.AURELO_SCORE_KEY, overall);
+  }
+
+  // BUG-11 FIX: Body score history was only saved when the user tapped the body tile
+  // (_showBodyScoreSheet). Days without a tap had gaps in the history chart.
+  // Save body score here on every render so trends are always populated.
+  if (body !== null && body >= 0 && typeof FocusScore !== 'undefined' &&
+      typeof FocusScore.saveScoreForToday === 'function') {
+    FocusScore.saveScoreForToday('body_score_history', body);
   }
 
   const goalMins    = (typeof S !== 'undefined' && S.streakGoalMins) || 240;

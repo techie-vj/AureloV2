@@ -75,8 +75,11 @@ window.FocusScore = (function () {
     if (!s) return 0;
     if (typeof s.creditPts === 'number') return Math.max(0, Math.round(s.creditPts));
     if (typeof s.halfPts   === 'number') return Math.max(0, Math.round(s.halfPts));
+    // BUG-01 FIX: Kotlin's HealthConnectRepository already applies 50% credit when
+    // computing pts (durationMins / 2). Do NOT halve again here — that was producing
+    // 25% of the original value (double halving). Use raw pts directly.
     var raw = Number(s.pts || 0);
-    return Math.max(0, Math.round(raw * 0.5));
+    return Math.max(0, Math.round(raw));
   }
 
   /* ── Sleep score cache ─────────────────────────────────────── */
@@ -192,11 +195,10 @@ window.FocusScore = (function () {
 
     var baseScore = totalW === 0 ? -1 : Math.round((earned / totalW) * 100);
 
-    // BUG-5 FIX: When only one pillar is active, re-normalisation causes the score
-    // to hit 100 from a single good session, misleading users on Day 1. Cap at 70
-    // ('Good' grade floor) so the number matches the nudge note in the score sheet.
     var activePillars = (sessW > 0 ? 1 : 0) + (timerW > 0 ? 1 : 0) + (mindfulW > 0 ? 1 : 0);
-    if (activePillars === 1 && baseScore > 70) baseScore = 70;
+    // BUG-09 FIX: Do NOT apply single-pillar cap to baseScore here — it was previously
+    // applied before HC mindfulness was added, allowing HC to bypass the cap entirely.
+    // Cap is now enforced on the final `score` below AFTER HC boost is applied.
 
     // Apply weekly consistency bonus before HC boost — both are additive on top.
     if (baseScore >= 0 && weeklyConsistencyBonus > 0) {
@@ -212,6 +214,15 @@ window.FocusScore = (function () {
     var score = hcActive
       ? Math.min(100, (baseScore >= 0 ? baseScore : 0) + hcMindfulPts)
       : baseScore;
+
+    // BUG-09 FIX: Enforce single-pillar cap on the FINAL score (after HC boost).
+    // When HC mindfulness is contributing, raise the cap from 70 → 80 to reflect that
+    // the user genuinely earned extra credit via wearable data, while still preventing
+    // a single Aurelo pillar day from hitting an unrealistically high score.
+    if (activePillars === 1 && score >= 0) {
+      var _pillarCap = hcActive ? 80 : 70;
+      if (score > _pillarCap) score = _pillarCap;
+    }
 
     return {
       score, sessPts, timerPts, mindfulPts, sessW, timerW, mindfulW,
@@ -247,9 +258,15 @@ window.FocusScore = (function () {
     var pastWake = bedH > wakeH ? (nowH >= wakeH && nowH < bedH) : (nowH >= wakeH || nowH < bedH);
 
     // F-22: return pre-wake sentinel with a descriptive reason so UI can show context
+    // BUG-13 FIX: Only embed the specific time in the message when the user has actually
+    // configured a wake time. Falling back to the default 7 would show "after 7:00 AM"
+    // to night-shift workers or unconfigured users, which could be before their real habit.
     if (!pastWake) {
       var wakeTimeLabel = _fmt12h(cfg.wakeHour != null ? cfg.wakeHour : 7, cfg.wakeMinute || 0);
-      var r0 = { score: -1, bedStreak, preWakeReason: 'Check back after ' + wakeTimeLabel };
+      var preWakeMsg = (cfg.wakeHour != null)
+        ? 'Check back after ' + wakeTimeLabel
+        : 'Check back later today';
+      var r0 = { score: -1, bedStreak, preWakeReason: preWakeMsg };
       _sleepScoreCache = r0; _sleepScoreCacheTs = now;
       return r0;
     }
@@ -263,11 +280,18 @@ window.FocusScore = (function () {
     } else {
       var adherePts = lastNight.bedtimeKept ? 50 : 0;
       // F-12: graduated snooze scoring — was: 0→30, 1→15, 2+→0
-      var snoozePts = lastNight.snoozeCount === 0 ? 30
+      // BUG-06 FIX: Gate both snoozePts and attemptPts on bedtimeKept. "0 snoozes" on a
+      // night where bedtime was never started is semantically irrelevant and should not
+      // award 30 pts. Only nights where bedtime was actually kept can earn these bonuses.
+      var snoozePts = lastNight.bedtimeKept
+                    ? (lastNight.snoozeCount === 0 ? 30
                     : lastNight.snoozeCount === 1 ? 20
                     : lastNight.snoozeCount === 2 ? 10
+                    : 0)
                     : 0;
-      var attemptPts = Math.max(0, 20 - (lastNight.appAttemptsTotal || 0) * 5);
+      var attemptPts = lastNight.bedtimeKept
+                     ? Math.max(0, 20 - (lastNight.appAttemptsTotal || 0) * 5)
+                     : 0;
       // FIX B7: Apply streak bonus as specified in spec §7.2: +3 per streak night,
       // up to a maximum of +20. bedStreak was already fetched above but was never
       // included in the score — it was silently discarded every calculation cycle.
@@ -301,7 +325,29 @@ window.FocusScore = (function () {
    *       influencing the bedtime sleep duration component.
    * ════════════════════════════════════════════════════════════ */
   function _getEffectiveSleepScore(res) {
-    if (!res || res.score < 0) return -1;
+    if (!res || res.score < 0) {
+      // BUG-12 FIX: Even in pre-wake state (score === -1), if the user has a wearable
+      // that logged sleep with duration and/or overnight HRV, compute a provisional score
+      // from HC data alone so the sleep pillar contributes to the Aurelo composite before
+      // the Aurelo bedtime-mode score unlocks after wake time.
+      // Weights renormalized from the HC portions only (dur=0.25, oHrv=0.15 → 62.5/37.5).
+      if (res && res.score < 0) {
+        var _hcProv = null;
+        try {
+          if (typeof HealthConnect !== 'undefined' && HealthConnect.isConnected() &&
+              typeof HealthConnect.getSleepData === 'function') {
+            _hcProv = HealthConnect.getSleepData();
+          }
+        } catch (_) {}
+        if (_hcProv && (_hcProv.durScore != null || _hcProv.oHrvScore != null)) {
+          var _pW = 0, _pSum = 0;
+          if (_hcProv.durScore  != null) { _pSum += _hcProv.durScore  * 0.625; _pW += 0.625; }
+          if (_hcProv.oHrvScore != null) { _pSum += _hcProv.oHrvScore * 0.375; _pW += 0.375; }
+          if (_pW > 0) return Math.min(100, Math.max(0, Math.round(_pSum / _pW)));
+        }
+      }
+      return -1;
+    }
 
     var hcSleep = null;
     var cfg = res.cfg || (typeof FocusBedtime !== 'undefined' ? FocusBedtime.getCfg() : {});
@@ -369,6 +415,15 @@ window.FocusScore = (function () {
     if (screenScore < 0 && typeof calculateScreenScore === 'function') screenScore = calculateScreenScore().score;
 
     var effectiveSleepScore = _getEffectiveSleepScore(sleepRes);
+    // BUG-05 FIX: When Bedtime Mode is enabled and we're in the pre-wake period, the
+    // sleep score returns -1 (sentinel) and the Aurelo composite switches from a 4-pillar
+    // to a 3-pillar model, causing a visible score jump at wake time with zero user action.
+    // Use yesterday's persisted sleep score as a placeholder to keep weights stable all day.
+    // The actual bedtime-mode score unlocks post-wake and replaces this when available.
+    if (effectiveSleepScore < 0 && sleepRes && sleepRes.preWakeReason) {
+      var _yScore = getYesterdayScore(_SLEEP_SCORE_KEY);
+      if (_yScore !== null && _yScore >= 0) effectiveSleepScore = _yScore;
+    }
     var sleepEnabled = effectiveSleepScore >= 0;
 
     // Health Connect Body Score

@@ -253,6 +253,13 @@ function calculateScreenScore() {
       else if (firstUseHour >= 5)          firstUseScore = 20;
       else if (firstUseHour >= 3)          firstUseScore = 10;
       else                                 firstUseScore = 0;
+    } else {
+      // BUG-10 FIX: firstUseStr was present but the regex could not parse it (e.g.
+      // 24-hour format "08:30", missing AM/PM, locale variant). The original default
+      // of 100 incorrectly gave full bonus credit on parse failure — a user who picked
+      // up their phone at 5 AM would appear to have a perfect first-use score.
+      // Default to 0 (conservative) so the score does not silently inflate.
+      firstUseScore = 0;
     }
   }
 
@@ -372,7 +379,11 @@ function renderScreenScoreSheet() {
     var puGain = Math.round((100 - res.pickupScore) * 0.3 * 0.6);
     candidates.push({ score: res.pickupScore, text: 'Reduce pickups below your ' + res.avgPickups + ' daily average', impact: puGain });
   }
-  if (res.firstUseScore < 75) {
+  // BUG-15 FIX: Old threshold was < 75, meaning the improvement tip never appeared
+  // for scores in the 75–99 range (labelled "good start") even though the user could
+  // still improve by delaying to 9 AM. Changed to < 100 so any sub-perfect first-use
+  // score surfaces the actionable tip — closing the gap between label and guidance.
+  if (res.firstUseScore < 100) {
     var fuGain = Math.round((100 - res.firstUseScore) * 0.2 * 0.6);
     candidates.push({ score: res.firstUseScore, text: 'Delay first use past 9 AM tomorrow', impact: fuGain });
   }

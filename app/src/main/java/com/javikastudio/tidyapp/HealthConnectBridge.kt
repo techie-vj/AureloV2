@@ -89,6 +89,7 @@ class HealthConnectBridge(
             put("overnightHrv",     d.overnightHrvMs ?: JSONObject.NULL)
             put("avgHrv7d",         d.avgHrv7d ?: JSONObject.NULL)
             put("avgRhr7d",         d.avgRhr7d ?: JSONObject.NULL)
+            put("avgSteps7d",       d.avgSteps7d ?: JSONObject.NULL)  // BUG-02 FIX: was never serialized — JS always read null, causing the Body Score steps bar to always use the fixed 8,000 ceiling instead of the user's personal average
             put("avgOvernightHrv7d",d.avgOvernightHrv7d ?: JSONObject.NULL)
             put("lastSyncTs",       d.lastSyncTs)
             put("mindfulnessSessions", JSONArray().also { arr ->

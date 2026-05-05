@@ -93,15 +93,24 @@ const HealthConnect = (function () {
       if (!isNaN(score)) return score;
     } catch (_) {}
     // JS fallback (browser / demo)
+    // BUG-03 FIX: Updated to match Kotlin fixes F-15, F-24, F-25, F-28.
+    // Old algorithm used equal 1/3 weights, HRV floor at avg*0.5, RHR ceiling at avg+20,
+    // and a fixed 8,000 step ceiling — all now corrected below.
     var d = _getMockData();
-    var hrvFloor = d.avgHrv7d * 0.5;
+    // F-25: HRV floor tightened to avg*0.70 (was avg*0.50)
+    var hrvFloor = d.avgHrv7d * 0.70;
     var hrvScore = d.hrv >= d.avgHrv7d ? 100
       : Math.max(0, Math.round((d.hrv - hrvFloor) / (d.avgHrv7d - hrvFloor) * 100));
+    // F-28: RHR ceiling = avg*1.40 (was avg+20 absolute)
+    var rhrCeiling = d.avgRhr7d * 1.40;
     var rhrScore = d.restingHR <= d.avgRhr7d ? 100
-      : Math.max(0, Math.round((1 - (d.restingHR - d.avgRhr7d) / 20) * 100));
-    var stepsScore = d.steps >= 8000 ? 100
-      : Math.max(0, Math.round((d.steps - 2000) / (8000 - 2000) * 100));
-    return Math.round((hrvScore + rhrScore + stepsScore) / 3);
+      : Math.max(0, Math.round((1 - (d.restingHR - d.avgRhr7d) / (rhrCeiling - d.avgRhr7d)) * 100));
+    // F-24: personal avg ceiling when avg>8000 (was fixed 8000)
+    var stepsCeiling = (d.avgSteps7d != null && d.avgSteps7d > 8000) ? d.avgSteps7d : 8000;
+    var stepsScore = d.steps >= stepsCeiling ? 100
+      : Math.max(0, Math.round((d.steps - 2000) / (stepsCeiling - 2000) * 100));
+    // F-15: weights 40% steps / 35% HRV / 25% RHR (was equal 1/3 each)
+    return Math.round(stepsScore * 0.40 + hrvScore * 0.35 + rhrScore * 0.25);
   }
 
   /* ── Activity modifier for Screen Score ──────────────────────── */
@@ -114,7 +123,13 @@ const HealthConnect = (function () {
       if (raw) return JSON.parse(raw);
     } catch (_) {}
     // JS fallback
-    var steps = _getMockData().steps;
+    // BUG-14 FIX: Old code read from _getMockData() (hardcoded 8,340 steps) which always
+    // returned a +3 bonus even on real low-activity days on native. Now try _getNativeData()
+    // first and only fall back to mock when genuinely in browser/demo (not IS_NATIVE).
+    var liveData = (typeof IS_NATIVE !== 'undefined' && IS_NATIVE) ? _getNativeData() : null;
+    var steps = (liveData && typeof liveData.steps === 'number' && liveData.steps >= 0)
+      ? liveData.steps
+      : ((typeof IS_NATIVE !== 'undefined' && IS_NATIVE) ? 0 : _getMockData().steps);
     if (steps >= 10000) return { modifier: +5, label: '+5 pts · very active day', steps: steps };
     if (steps >= 8000)  return { modifier: +3, label: '+3 pts · active day bonus', steps: steps };
     if (steps >= 5000)  return { modifier: 0,  label: null,                        steps: steps };

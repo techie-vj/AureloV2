@@ -100,7 +100,13 @@ class HealthConnectRepository(private val manager: HealthConnectManager) {
         // ── 7-day average steps ───────────────────────────────────────────
         val avgSteps7d = runCatching {
             val daily = mutableListOf<Long>()
-            for (d in 0L until 7L) {
+            // BUG-07 FIX: Loop now starts at d=1 (yesterday) instead of d=0 (today).
+            // Including today in the 7-day average created a circular dependency: today's
+            // steps fed into the personal average that then determined today's step score
+            // ceiling (F-24). A sedentary day lowered the ceiling (artificially good score),
+            // an active day raised it (score penalized itself). The baseline should reflect
+            // the true prior-7-day rolling average, unaffected by the current day.
+            for (d in 1L until 8L) {
                 val dayStart = LocalDate.now().minusDays(d).atStartOfDay(ZoneId.systemDefault()).toInstant()
                 val dayEnd   = dayStart.plus(Duration.ofDays(1)).coerceAtMost(now)
                 val count = client.aggregate(
@@ -196,9 +202,12 @@ class HealthConnectRepository(private val manager: HealthConnectManager) {
                 val cal = java.util.Calendar.getInstance()
                 val currentHour = cal.get(java.util.Calendar.HOUR_OF_DAY)
 
-                // Only attempt if we're past wake-up time (before noon) so "last night"
-                // is well-defined. Before 9am or after noon we skip to avoid ambiguity.
-                if (currentHour !in 6..11) return@runCatching Pair(null, null)
+                // Only attempt if we're in a reasonable post-sleep window so "last night"
+                // is well-defined. BUG-08 FIX: Old window was 6..11 which excluded early
+                // risers (before 6 AM) and afternoon checks (after 11 AM). Expanded to
+                // 4..13 so users who wake at 4–5 AM or check at noon still get their
+                // overnight HRV enhancement instead of silently receiving no Sleep Score.
+                if (currentHour !in 4..13) return@runCatching Pair(null, null)
 
                 val overnightEnd   = now
                 val overnightStart = run {
@@ -296,7 +305,7 @@ class HealthConnectRepository(private val manager: HealthConnectManager) {
                         pts           = pts,
                     )
                 }
-                // Spec §6.3: deduplicate against Aurelo-native (handled JS side by timestamp)
+            // Spec §6.3: deduplicate against Aurelo-native (handled JS side by timestamp)
         }.getOrElse { emptyList() }
 
         return HCDailyData(
