@@ -81,9 +81,35 @@ window.FocusHome = (function () {
     };
 
     if (IS_NATIVE) {
+      // Weekly session totals — used for d.total / d.rate (week strip, consistency bonus)
       try { var fs=JSON.parse(N.getFocusStats()||'{}'); d.completed=fs.completed||0; d.interrupted=fs.interrupted||0; d.totalMins=fs.totalMins||0; } catch(_){}
-      try { d.pauseCount  = typeof N.getIntentionPauseCount  === 'function' ? N.getIntentionPauseCount()  : 0; } catch(_){}
-      try { d.resistCount = typeof N.getIntentionResistCount === 'function' ? N.getIntentionResistCount() : 0; } catch(_){}
+
+      // Q2 FIX: getFocusDailyStats() was never called here, so calculateFocus() received
+      // undefined for completedToday / plannedMins / elapsedMins, making totalSessions
+      // always 0 on the daily path. After removing the weekly fallback (BUG-1) sessions
+      // never appeared in the score at all. This call is the missing link.
+      try {
+        var fds = JSON.parse(N.getFocusDailyStats() || '{}');
+        d.completedToday   = fds.completedToday   || 0;
+        d.interruptedToday = fds.interruptedToday || 0;
+        d.totalSessions    = fds.totalSessions    || 0;
+        d.plannedMins      = fds.plannedMins      || 0;
+        d.elapsedMins      = fds.elapsedMins      || 0;
+      } catch(_){}
+
+      // Q1 FIX: respect isIntentionPromptEnabled(). If the user disabled mindful pause
+      // mid-day, any pauses that already occurred today should NOT continue to count —
+      // the disable action signals "I don't want this feature" and we honour that.
+      // If the bridge method is absent (older build), fall back to reading the count.
+      try {
+        var _intentionOn = typeof N.isIntentionPromptEnabled === 'function'
+          ? N.isIntentionPromptEnabled() : true;
+        if (_intentionOn) {
+          d.pauseCount  = typeof N.getIntentionPauseCount  === 'function' ? N.getIntentionPauseCount()  : 0;
+          d.resistCount = typeof N.getIntentionResistCount === 'function' ? N.getIntentionResistCount() : 0;
+        }
+        // else: d.pauseCount / d.resistCount remain 0 — pillar excluded from score
+      } catch(_){}
       try { d.focusDays   = typeof N.getFocusWeekDays  === 'function' ? JSON.parse(N.getFocusWeekDays() ||'[]') : d.focusDays;  } catch(_){}
       // Merge JS-persisted earnedDates so timer/pause earns show ticks too
       try {
@@ -111,6 +137,10 @@ window.FocusHome = (function () {
     d.timerTotal     = timerPkgs.length;
     d.timerOverPkgs  = timerPkgs.filter(function (p) { return (usageMap[p] || 0) >= limits[p]; });
     d.timerOverCount = d.timerOverPkgs.length;
+    // BUG-2 / BUG-6 FIX: count only timer apps that were actually opened today (usage > 0).
+    // Used by calculateFocus() to gate the timer pillar and by maybeEarnFocusStreak()
+    // to prevent the timer streak path from firing when all monitored apps were untouched.
+    d.timerUsedCount = timerPkgs.filter(function (p) { return (usageMap[p] || 0) > 0; }).length;
 
     // Challenge data
     try {
@@ -808,6 +838,12 @@ window.FocusHome = (function () {
     renderFocusStrip();              // #home-focus-strip (Focus & Mindful dual panel)
     renderHomeFocusDynamicRow();     // #home-focus-dynamic (session active / timer / routine)
     renderHomeHabitsDynamicRow();    // #home-habits-dynamic (bedtime / challenge / morning)
+    // ROOT CAUSE FIX 2: renderFocusStaticRow was never called here, so the score pill
+    // on the Focus tab showed stale data after every session completion, timer save, etc.
+    // It is safe to call unconditionally — the function guards on #focus-static-row existing.
+    if (typeof FocusScore !== 'undefined' && typeof FocusScore.renderFocusStaticRow === 'function') {
+      FocusScore.renderFocusStaticRow();
+    }
   }
   window.refreshFocusStrips = function () { FocusHome._refreshStrips(); };
 

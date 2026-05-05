@@ -122,7 +122,11 @@ window.FocusScore = (function () {
     var sessEngageScale = 1;          // exposed in return for score sheet hint
     var weeklyConsistencyBonus = 0;   // additive pts applied to baseScore below
 
-    if (totalSessions > 0 || (d.total > 0)) {
+    // BUG-1 FIX: removed `|| (d.total > 0)` — that weekly condition caused the sessions
+    // pillar to fire on days with zero sessions, falling into the weekly fallback and
+    // producing a phantom score of 100 (F-06 was supposed to fix this but the outer
+    // gate still leaked weekly data). Sessions pillar now only activates for today.
+    if (totalSessions > 0) {
       sessW = 40;
       totalW += sessW;
 
@@ -137,24 +141,25 @@ window.FocusScore = (function () {
         var completionBonus = completedToday > 0 ? 1.0 : 0.75;
         sessEngageScale = Math.min(1, plannedMins / 15);
         sessPts = Math.round(completionRatio * completionBonus * 40 * sessEngageScale);
-
-      } else if (d.total > 0) {
-        // ── Weekly fallback ─────────────────────────────────────
-        // Native daily duration data unavailable. Give full completion credit —
-        // can't penalise by duration we cannot measure. Score sheet shows a note.
-        sessPts = Math.round((d.completed / d.total) * 40);
       }
       earned += sessPts;
 
       // ── Weekly consistency bonus ────────────────────────────────────────────
       // Additive bonus applied to baseScore (not to the pillar ratio) so it does
-      // not inflate weight labels. +4 pts per additional session this week beyond
-      // today's, capped at +10. Rewards habit-building without dominating the score.
-      weeklyConsistencyBonus = Math.min(10, Math.max(0, ((d.total || 0) - 1) * 4));
+      // not inflate weight labels. +4 pts per session done earlier this week,
+      // capped at +10. Rewards habit-building without dominating the score.
+      // BUG-3 FIX: use (d.total - totalSessions) so today's own sessions are not
+      // double-counted as "extra history." Old formula used (d.total - 1), which
+      // assumed exactly 1 session today and over-bonused on multi-session days.
+      var sessionsBeforeToday = Math.max(0, (d.total || 0) - totalSessions);
+      weeklyConsistencyBonus = Math.min(10, Math.max(0, sessionsBeforeToday * 4));
     }
 
     // ── Timers pillar (F-05) ───────────────────────────────────
-    if (d.timerTotal > 0) {
+    // BUG-6 FIX: only activate timer pillar when at least one configured app was
+    // actually opened today. Not opening an app at all is neutral — it should not
+    // inflate the score. d.timerUsedCount is added by loadStripData() in app-focus-home.js.
+    if (d.timerTotal > 0 && (d.timerUsedCount || 0) > 0) {
       timerW = 35;
       totalW += timerW;
       var timerRatio = (d.timerTotal - d.timerOverCount) / d.timerTotal;
@@ -187,6 +192,12 @@ window.FocusScore = (function () {
 
     var baseScore = totalW === 0 ? -1 : Math.round((earned / totalW) * 100);
 
+    // BUG-5 FIX: When only one pillar is active, re-normalisation causes the score
+    // to hit 100 from a single good session, misleading users on Day 1. Cap at 70
+    // ('Good' grade floor) so the number matches the nudge note in the score sheet.
+    var activePillars = (sessW > 0 ? 1 : 0) + (timerW > 0 ? 1 : 0) + (mindfulW > 0 ? 1 : 0);
+    if (activePillars === 1 && baseScore > 70) baseScore = 70;
+
     // Apply weekly consistency bonus before HC boost — both are additive on top.
     if (baseScore >= 0 && weeklyConsistencyBonus > 0) {
       baseScore = Math.min(100, baseScore + weeklyConsistencyBonus);
@@ -210,9 +221,10 @@ window.FocusScore = (function () {
       completedToday, interruptedToday, totalSessions, plannedMins, elapsedMins,
       // weekly data for history/streak
       weekCompleted: d.completed || 0, weekTotal: d.total || 0,
-      weeklyConsistencyBonus,
+      weeklyConsistencyBonus, sessionsBeforeToday,
       // engagement scale — used by score sheet duration hint when < 1
       sessEngageScale,
+      activePillars,
     };
   }
 
@@ -431,7 +443,10 @@ window.FocusScore = (function () {
     }
     var completedToday = daily.completedToday || 0;
     var earned = (completedToday > 0)                                    // completed a session today
-              || (d.timerTotal >= 2 && d.timerOverCount === 0)           // F-11: requires ≥2 timers
+              // BUG-2 FIX: added (d.timerUsedCount || 0) > 0 so the timer path requires
+              // at least one monitored app was actually opened. Previously, just having 2
+              // timers configured and never touching the apps earned the streak daily.
+              || (d.timerTotal >= 2 && d.timerOverCount === 0 && (d.timerUsedCount || 0) > 0)
               || (d.pauseCount >= 3 && d.resistCount > 0);               // mindful: requires ≥3 pauses
     if (!earned) return;
     var today = new Date().toISOString().slice(0,10), cur = getFocusStreak();
@@ -900,33 +915,62 @@ window.FocusScore = (function () {
     if (res.mindfulW > 0 && res.mindfulPts < res.mindfulW) improvements.push({text:'Resist the next mindful pause instead of proceeding',       impact: Math.round((res.mindfulW-res.mindfulPts)*.5)});
 
     var components = [];
-    // F-26: label "this week" for weekly session data; "today" for daily
+    // F-26: session data line uses today's daily counts; fallback to weekly label only
+    // when there are truly no sessions today (post BUG-1 fix this branch is now dead code
+    // but kept as a display-only safety net in case bridge is unavailable).
     if (res.sessW > 0) {
       var sessDataLine = res.totalSessions > 0
-        ? res.completedToday+' of '+res.totalSessions+' sessions completed today · '
-          + (res.plannedMins > 0 ? Math.round(res.elapsedMins/res.plannedMins*100)+'% duration' : '')
-        : (res.weekCompleted+' of '+res.weekTotal+' sessions this week');  // F-26: "this week"
+        ? res.completedToday + ' of ' + res.totalSessions + ' sessions completed today'
+          + (res.plannedMins > 0 ? ' · ' + Math.round(res.elapsedMins / res.plannedMins * 100) + '% duration' : '')
+        : (res.weekCompleted + ' of ' + res.weekTotal + ' sessions this week');
       // Engagement hint — shown when sessEngageScale < 1 (short session today)
       var sessEngaged = res.sessEngageScale < 1
         ? ' (aim for 15+ min for full credit)'
         : '';
-      // Weekly consistency bonus row — shown when extra sessions this week earned bonus pts
-      var weekBonusNote = res.weeklyConsistencyBonus > 0
-        ? ' · +' + res.weeklyConsistencyBonus + ' consistency bonus (' + (res.weekTotal - 1) + ' extra session' + ((res.weekTotal - 1) !== 1 ? 's' : '') + ' this week)'
-        : '';
-      // Fallback path note — shown when daily duration data was unavailable
-      var fallbackNote = (res.totalSessions === 0 && res.weekTotal > 0 && res.plannedMins === 0)
-        ? ' · no duration data today'
-        : '';
-      components.push({label:'Sessions', weight: res.sessW, pts: res.sessPts, maxPts: res.sessMax, dataLine: sessDataLine + sessEngaged + weekBonusNote + fallbackNote});
+      components.push({label: 'Sessions', weight: res.sessW, pts: res.sessPts, maxPts: res.sessMax, dataLine: sessDataLine + sessEngaged});
     }
     if (res.timerW > 0) {
+      var timerUsed = d.timerUsedCount || d.timerTotal;
       var timerEngaged = d.timerTotal >= 2 ? '' : ' (1 timer — set 2+ for full score)';
-      components.push({label:'App Timers', weight: res.timerW, pts: res.timerPts, maxPts: res.timerMax, dataLine:(d.timerTotal-d.timerOverCount)+' of '+d.timerTotal+' timers respected today'+timerEngaged});
+      components.push({label: 'App Timers', weight: res.timerW, pts: res.timerPts, maxPts: res.timerMax, dataLine: (timerUsed - d.timerOverCount) + ' of ' + timerUsed + ' timers respected today' + timerEngaged});
     }
-    if (res.mindfulW > 0) components.push({label:'Mindful Pause', weight: res.mindfulW, pts: res.mindfulPts, maxPts: res.mindfulMax, dataLine:d.resistCount+' of '+d.pauseCount+' pauses resisted today'});
+    if (res.mindfulW > 0) {
+      components.push({label: 'Mindful Pause', weight: res.mindfulW, pts: res.mindfulPts, maxPts: res.mindfulMax, dataLine: d.resistCount + ' of ' + d.pauseCount + ' pauses resisted today'});
+    }
 
-    var sheetHtml = _buildScoreSheet({title:'Focus Score', score:res.score, scoreKey:_FOCUS_SCORE_KEY, components, improvements:improvements.slice(0,3)});
+    // ── Weekly Consistency & Streak Bonus row ──────────────────────────────────
+    // Always shown when sessions pillar is active, mirroring the sleep score's
+    // Bedtime Streak Bonus row. Surfaces the additive consistency bonus and the
+    // focus day-streak so users understand what drives the bonus and how to grow it.
+    if (res.sessW > 0) {
+      var streakObj   = getFocusStreak();
+      var streakDays  = streakObj.count || 0;
+      var sBefore     = res.sessionsBeforeToday || 0;
+      var bonusPts    = res.weeklyConsistencyBonus || 0;
+      var bonusDataLine;
+      if (sBefore > 0) {
+        bonusDataLine = sBefore + ' session' + (sBefore !== 1 ? 's' : '') + ' completed earlier this week · +'+ bonusPts + ' pts (max +10)';
+      } else {
+        bonusDataLine = 'Complete sessions on multiple days this week to earn up to +10 pts';
+      }
+      if (streakDays > 0) {
+        bonusDataLine += ' · 🔥 ' + streakDays + '-day streak';
+      }
+      components.push({
+        label:   'Weekly Consistency Bonus',
+        weight:  10,
+        pts:     bonusPts,
+        maxPts:  10,
+        dataLine: bonusDataLine,
+      });
+      // Prompt for consistency if bonus not yet maxed
+      if (bonusPts < 10) {
+        var needed = Math.ceil((10 - bonusPts) / 4);
+        improvements.push({text: 'Complete ' + needed + ' more session' + (needed !== 1 ? 's' : '') + ' on separate days this week for consistency bonus', impact: 10 - bonusPts});
+      }
+    }
+
+    var sheetHtml = _buildScoreSheet({title: 'Focus Score', score: res.score, scoreKey: _FOCUS_SCORE_KEY, components: components, improvements: improvements.slice(0, 3)});
 
     // F-19: HC-only mode banner
     if (res.hcOnlyMode) {
@@ -937,14 +981,13 @@ window.FocusScore = (function () {
       sheetHtml = sheetHtml.replace('HOW THIS IS CALCULATED', hcOnlyBanner + 'HOW THIS IS CALCULATED');
     }
 
-    // Single-pillar context note: when only Sessions is active the re-normalised
-    // score can look inflated (e.g. 1 short session → 100 because totalW = 40, not 100).
-    // Show a gentle nudge so users understand how to get a more meaningful reading.
-    var _activePillarCount = (res.sessW > 0 ? 1 : 0) + (res.timerW > 0 ? 1 : 0) + (res.mindfulW > 0 ? 1 : 0);
+    // BUG-5 FIX: single-pillar note now mentions the score cap at 70 so users
+    // aren't confused by a sub-100 "Good" score when they've completed their session.
+    var _activePillarCount = res.activePillars || ((res.sessW > 0 ? 1 : 0) + (res.timerW > 0 ? 1 : 0) + (res.mindfulW > 0 ? 1 : 0));
     if (_activePillarCount === 1 && !res.hcOnlyMode) {
       var singlePillarNote = '<div style="background:var(--s2);border:1px solid var(--border2);border-radius:12px;padding:10px 13px;font-family:var(--ff-m);font-size:var(--text-xs);color:var(--t3);line-height:1.5;margin-bottom:16px">'
-        + '💡 Only one pillar is active — your score reflects sessions only. '
-        + 'Set App Timers or configure Mindful Pauses to unlock a richer, more complete Focus Score.'
+        + '💡 Only one pillar is active — score is capped at 70 to keep the number honest. '
+        + 'Set App Timers or configure Mindful Pauses to unlock a richer Focus Score and raise the ceiling to 100.'
         + '</div>';
       sheetHtml = sheetHtml.replace('HOW THIS IS CALCULATED', singlePillarNote + 'HOW THIS IS CALCULATED');
     }

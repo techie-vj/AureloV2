@@ -230,6 +230,12 @@ class AppBridge(private val context: Context, private val webView: WebView) {
     @JavascriptInterface fun updateFocusSession(apps:String,endTs:Long,diff:String) = focusSession.updateFocusSession(apps,endTs,diff)
     @JavascriptInterface fun updateFocusTimer(mins: Int)       = focusSession.updateFocusTimer(mins)
     @JavascriptInterface fun getFocusStats()                   = focusSession.getFocusStats()
+    // ROOT CAUSE FIX: getFocusDailyStats() existed in FocusSessionBridge but was never
+    // delegated here. calculateFocus() in JS checks `typeof N.getFocusDailyStats === 'function'`
+    // before calling it — since this delegation was missing, the check always returned false,
+    // daily = {} always, totalSessions = 0 always. The weekly fallback (now removed as BUG-1)
+    // was the only thing that ever surfaced session scores. Now daily session data flows through.
+    @JavascriptInterface fun getFocusDailyStats()              = focusSession.getFocusDailyStats()
     @JavascriptInterface fun getFocusWeekDays()                = focusSession.getFocusWeekDays()
     @JavascriptInterface fun getAndClearLastFocusOutcome()     = focusSession.getAndClearLastFocusOutcome()
     @JavascriptInterface fun recordFocusComplete(m: Int)       = focusSession.recordFocusComplete(m)
