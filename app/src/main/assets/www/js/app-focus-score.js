@@ -920,11 +920,9 @@ window.FocusScore = (function () {
       + '<div style="height:6px;background:var(--border);border-radius:3px;overflow:hidden;margin-bottom:20px"><div style="height:100%;width:'+Math.max(0,opts.score)+'%;background:linear-gradient(90deg,var(--p),var(--c));border-radius:3px;transition:width .4s"></div></div>'
       + '<div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);letter-spacing:.8px;margin-bottom:14px">HOW THIS IS CALCULATED</div>'
       + componentsHtml + improvHtml
-      + '<div style="margin-bottom:4px">'
-        + '<button type="button" onclick=\"FocusScore.closeScoreSheet();ScoreHistory.open(\''+(opts.scoreKey===_SLEEP_SCORE_KEY?'sleep':opts.scoreKey==='screen_score_history'?'screen':'focus')+'\')" style="width:100%;padding:12px 14px;border-radius:14px;background:transparent;border:1px solid var(--border2);color:var(--t2);font-family:var(--ff-m);font-size:var(--text-sm);font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px">&#128200; View Score History</button>'
-      + '</div>'
-      + '<div style="display:flex;gap:8px;margin-top:8px">'
-        + '<button type="button" onclick="shareCard(\''+(opts.scoreKey===_SLEEP_SCORE_KEY?'sleep_score':opts.scoreKey==='screen_score_history'?'screen_score':'focus_score')+'\');" style="flex:1;padding:14px;border-radius:14px;background:rgba(108,99,255,.12);border:1px solid rgba(108,99,255,.30);color:var(--p2);font-family:var(--ff-m);font-size:13px;font-weight:600;cursor:pointer">📤 Share</button>'
+      + '<div style="display:flex;gap:8px;margin-top:4px">'
+        + '<button type="button" onclick=\"FocusScore.closeScoreSheet();ScoreHistory.open(\''+(opts.scoreKey===_SLEEP_SCORE_KEY?'sleep':opts.scoreKey==='screen_score_history'?'screen':'focus')+'\')" style="flex:1;padding:12px 14px;border-radius:14px;background:transparent;border:1px solid var(--border2);color:var(--t2);font-family:var(--ff-m);font-size:var(--text-sm);font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px">&#128200; View History</button>'
+        + '<button type="button" onclick="shareCard(\''+(opts.scoreKey===_SLEEP_SCORE_KEY?'sleep_score':opts.scoreKey==='screen_score_history'?'screen_score':'focus_score')+'\');" style="flex:1;padding:12px 14px;border-radius:14px;background:rgba(108,99,255,.12);border:1px solid rgba(108,99,255,.30);color:var(--p2);font-family:var(--ff-m);font-size:var(--text-sm);font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px">📤 Share</button>'
       + '</div></div></div>';
   }
 

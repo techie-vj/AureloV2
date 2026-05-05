@@ -849,27 +849,35 @@ function openAureloScoreSheet() {
             swBody, true)}
       </div>
       ${tipsHTML}
-      <div style="margin-bottom:8px">
+      <div style="display:flex;gap:8px;margin-bottom:12px">
         <button class="aurelo-sheet-btn"
-                style="width:100%;display:flex;align-items:center;justify-content:center;gap:8px"
+                style="flex:1;display:flex;align-items:center;justify-content:center;gap:8px"
                 onclick="closeAureloScoreSheet();ScoreHistory.open('aurelo')">
-          &#128200; View Score History
+          &#128200; View History
+        </button>
+        <button class="aurelo-sheet-btn"
+                style="flex:1;display:flex;align-items:center;justify-content:center;gap:8px;
+                       background:rgba(108,99,255,.12);border-color:rgba(108,99,255,.30);color:var(--p2)"
+                onclick="shareCard('aurelo')">
+          📤 Share
         </button>
       </div>
-      <div class="aurelo-sheet-actions">
-        <button class="aurelo-sheet-btn primary"
-                onclick="activateTab('wellness');closeAureloScoreSheet()">
-          See Full Stats
+      <div style="display:flex;align-items:center;justify-content:center;gap:20px;padding-bottom:4px">
+        <button onclick="activateTab('wellness');closeAureloScoreSheet()"
+                style="background:none;border:none;padding:4px 0;cursor:pointer;
+                       font-family:var(--ff-m);font-size:var(--text-xs);font-weight:600;
+                       color:var(--t3);display:flex;align-items:center;gap:5px">
+          <span style="font-size:14px">📊</span> Full Stats
         </button>
         ${!hcConn
-          ? `<button class="aurelo-sheet-btn"
-                     onclick="closeAureloScoreSheet();
-                              typeof openSettingsWithHC==='function'
-                                ?openSettingsWithHC()
-                                :activateTab('settings')">Connect HC</button>`
-          : `<button class="aurelo-sheet-btn"
-                     onclick="closeAureloScoreSheet()">Done</button>`}
-      </div>
+          ? `<span style="width:1px;height:14px;background:var(--border2);display:inline-block"></span>
+             <button onclick="closeAureloScoreSheet();typeof openSettingsWithHC==='function'?openSettingsWithHC():activateTab('settings')"
+                     style="background:none;border:none;padding:4px 0;cursor:pointer;
+                            font-family:var(--ff-m);font-size:var(--text-xs);font-weight:600;
+                            color:var(--hc,var(--c));display:flex;align-items:center;gap:5px">
+               <span style="font-size:14px">⚡</span> Connect HC
+             </button>`
+          : ''}</div>
     </div>`;
 
   document.body.appendChild(backdrop);
@@ -1064,11 +1072,18 @@ function _showBodyScoreSheet() {
           Weights: Steps 40% · HRV 35% · Resting HR 25%.
           Missing signals are excluded and remaining weights are renormalized.
         </div>
-        <button type="button" onclick="_closeBodyScoreSheet();ScoreHistory.open('body')"
-                style="width:100%;padding:12px 14px;border-radius:14px;background:transparent;
-                       border:1px solid var(--border2);color:var(--t2);font-family:var(--ff-m);
-                       font-size:var(--text-sm);font-weight:600;cursor:pointer;display:flex;
-                       align-items:center;justify-content:center;gap:8px;margin-bottom:8px">&#128200; View Score History</button>
+        <div style="display:flex;gap:8px;margin-bottom:8px">
+          <button type="button" onclick="_closeBodyScoreSheet();ScoreHistory.open('body')"
+                  style="flex:1;padding:12px 14px;border-radius:14px;background:transparent;
+                         border:1px solid var(--border2);color:var(--t2);font-family:var(--ff-m);
+                         font-size:var(--text-sm);font-weight:600;cursor:pointer;display:flex;
+                         align-items:center;justify-content:center;gap:8px">&#128200; View History</button>
+          <button type="button" onclick="shareCard('body_score')"
+                  style="flex:1;padding:12px 14px;border-radius:14px;background:rgba(0,200,200,.10);
+                         border:1px solid rgba(0,200,200,.30);color:var(--hc,var(--c));font-family:var(--ff-m);
+                         font-size:var(--text-sm);font-weight:600;cursor:pointer;display:flex;
+                         align-items:center;justify-content:center;gap:8px">📤 Share</button>
+        </div>
       </div>
     </div>`;
 
