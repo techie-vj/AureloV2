@@ -211,8 +211,10 @@ function _buildCatMinsFromWeekly(weeklyApps) {
   return catMins;
 }
 
-// Build per-day calendar cells from MONTHLY_DATA only.
-// No WEEKLY fallback — we show only what queryEvents returned, no flicker.
+// Build per-day calendar cells from MONTHLY_DATA, with WEEKLY backfill for recent days.
+// N.getMonthlyBreakdown() uses Android's monthly UsageStats interval which can lag
+// 2–3 days behind; WEEKLY (getCachedWeeklyData) is always fresh for the last 7 days,
+// so we use it to fill any gaps before the cells are rendered.
 function _buildMonthCalendarData() {
   const now      = new Date();
   const today    = now.getDate();
@@ -226,6 +228,36 @@ function _buildMonthCalendarData() {
       byDay[day] = d.isToday ? Math.max(d.minutes || 0, TODAY_MINS) : (d.minutes || 0);
     }
   });
+
+  // ── WEEKLY backfill: fill gaps caused by Android monthly-stats lag ──────────
+  // WEEKLY entries use {day: "Monday"/"Mon"/…, minutes, isToday, pickups}.
+  // Map each day-name to a calendar date and insert into byDay only if missing.
+  if (WEEKLY && WEEKLY.length) {
+    const todayDow = now.getDay(); // 0=Sun … 6=Sat
+    const DOW_MAP  = { sun:0, mon:1, tue:2, wed:3, thu:4, fri:5, sat:6 };
+    WEEKLY.forEach(d => {
+      const dayKey = (d.day || '').slice(0, 3).toLowerCase();
+      const dow    = d.isToday ? todayDow : DOW_MAP[dayKey];
+      if (dow === undefined) return;
+      // daysAgo: 0 for today, 1–6 for recent past, 7 for same-DOW-last-week
+      const daysAgo = d.isToday ? 0 : ((todayDow - dow + 7) % 7 || 7);
+      const dt = new Date(now);
+      dt.setDate(now.getDate() - daysAgo);
+      // Only backfill days within the current calendar month
+      if (dt.getMonth() !== now.getMonth() || dt.getFullYear() !== now.getFullYear()) return;
+      const calDay = dt.getDate();
+      if (!Object.prototype.hasOwnProperty.call(byDay, calDay)) {
+        byDay[calDay] = d.isToday
+          ? Math.max(d.minutes || 0, TODAY_MINS)
+          : (d.minutes || 0);
+      }
+    });
+  }
+
+  // ── Always anchor today to the live TODAY_MINS counter ─────────────────────
+  if (TODAY_MINS > 0) {
+    byDay[today] = Math.max(byDay[today] || 0, TODAY_MINS);
+  }
 
   const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
   const cells = [];
