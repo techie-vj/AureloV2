@@ -910,13 +910,18 @@ window.FocusScore = (function () {
     return '<div id="score-sheet-backdrop" role="presentation" style="position:fixed;inset:0;background:rgba(0,0,0,.62);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);z-index:9998;display:flex;align-items:flex-end;justify-content:center;opacity:0;transition:opacity .25s;pointer-events:none" onclick="if(event.target===this)FocusScore.closeScoreSheet()">'
       + '<div id="score-sheet" role="dialog" aria-modal="true" aria-label="Score breakdown" style="width:100%;max-width:480px;background:var(--s0);border-radius:24px 24px 0 0;border:1px solid var(--border2);border-bottom:none;padding:12px 20px 44px;padding-bottom:max(44px,calc(env(safe-area-inset-bottom,0px) + 24px));box-sizing:border-box;transform:translate3d(0,100%,0);backface-visibility:hidden;will-change:transform;contain:layout paint;transition:transform .3s cubic-bezier(.32,.72,0,1);max-height:88vh;overflow-y:auto">'
       + '<div style="width:40px;height:4px;background:var(--border2);border-radius:2px;margin:0 auto 18px"></div>'
-      + '<div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:14px"><div>'
-        + '<div style="font-family:var(--ff-d);font-size:20px;font-weight:700;color:var(--t1);letter-spacing:-.3px">'+opts.title+'</div>'
-        + '<div style="display:flex;align-items:center;margin-top:4px"><span style="font-family:var(--ff-d);font-size:32px;font-weight:700;color:'+gradeColor+';line-height:1">'+(opts.score>=0?opts.score:'–')+'</span>'
-        // F-18: show unified grade label in sheet
-        + (opts.score >= 0 ? '<span style="font-family:var(--ff-m);font-size:13px;font-weight:600;color:'+gradeColor+';margin-left:8px">'+g.label+'</span>' : '')
-        + deltaHtml+'</div>'
-      + '</div></div>'
+      + '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:14px">'
+        + '<div style="flex:1">'
+          + '<div style="font-family:var(--ff-d);font-size:20px;font-weight:700;color:var(--t1);letter-spacing:-.3px">'+opts.title+'</div>'
+        + '</div>'
+        + '<div style="text-align:right;flex-shrink:0">'
+          + '<span style="font-family:var(--ff-d);font-size:32px;font-weight:700;color:'+gradeColor+';line-height:1">'+(opts.score>=0?opts.score:'–')+'</span>'
+          + '<div style="display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:6px;margin-top:4px">'
+            + (opts.score >= 0 ? '<span style="font-family:var(--ff-m);font-size:13px;font-weight:600;color:'+gradeColor+'">'+g.label+'</span>' : '')
+            + deltaHtml
+          + '</div>'
+        + '</div>'
+      + '</div>'
       + '<div style="height:6px;background:var(--border);border-radius:3px;overflow:hidden;margin-bottom:20px"><div style="height:100%;width:'+Math.max(0,opts.score)+'%;background:linear-gradient(90deg,var(--p),var(--c));border-radius:3px;transition:width .4s"></div></div>'
       + '<div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);letter-spacing:.8px;margin-bottom:14px">HOW THIS IS CALCULATED</div>'
       + componentsHtml + improvHtml

@@ -354,7 +354,8 @@ function renderScreenScoreSheet() {
     firstUseLabel    = res.firstUseScore >= 100 ? 'great start'
                      : res.firstUseScore >= 75  ? 'good start'
                      : res.firstUseScore >= 50  ? 'fair start'
-                     : 'late start';
+                     : res.firstUseHour >= 5    ? 'late start'    // 5–7am, genuinely late/poor
+                     : 'very early start';                         // 3–5am, penalised but not "late"
     firstUseDataLine = 'First pickup at ' + res.firstUseStr + ' · ' + firstUseLabel;
   }
 

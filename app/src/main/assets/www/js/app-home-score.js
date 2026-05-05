@@ -925,6 +925,7 @@ function _showBodyScoreSheet() {
     _saveScoreForToday('body_score_history', bodyScore);
   }
   const gradeColor = bodyScore >= 70 ? 'var(--g)' : bodyScore >= 50 ? 'var(--a)' : 'var(--hc,var(--c))';
+  const gradeLabel = bodyScore >= 85 ? 'Excellent' : bodyScore >= 70 ? 'Good' : bodyScore >= 55 ? 'Fair' : bodyScore >= 0 ? 'Start' : '';
 
   let _hcRaw = {};
   try {
@@ -1054,6 +1055,8 @@ function _showBodyScoreSheet() {
           <div style="text-align:right;flex-shrink:0">
             <div style="font-family:var(--ff-d);font-size:var(--text-3xl);font-weight:700;
                         color:${gradeColor};line-height:1">${bodyScore >= 0 ? bodyScore : '\u2013'}</div>
+            ${gradeLabel ? `<div style="font-family:var(--ff-m);font-size:13px;font-weight:600;
+                                        color:${gradeColor};margin-top:4px;text-align:right">${gradeLabel}</div>` : ''}
           </div>
         </div>
         <div style="height:6px;background:var(--border2);border-radius:3px;overflow:hidden;margin-bottom:20px">
