@@ -592,17 +592,60 @@ var ScoreHistory = (function () {
         +'</div>'
       : '';
 
-    /* ── Coach CTA ── */
+    /* ── Coach insight card (dynamic per pillar × window) ── */
+    var _ci = _coachInsightForView(_pillar, _win, {
+      avg:      avg,
+      trendVal: trendVal,
+      trendDir: trendDir,
+      above70:  above70,
+      total:    valid.length,
+      best:     best,
+    });
+
+    /* Escape single-quotes in the pre-filled question for the onclick attr */
+    var _ciQ = _ci.question.replace(/'/g, "\\'");
+
+    /* Build the context object passed to CoachUI.open() so the orchestrator
+     * can apply historical framing.  Serialised inline — no JSON.stringify
+     * needed since all values are numbers, strings, or null. */
+    var _ctxAvg   = avg !== null ? avg       : 'null';
+    var _ctxTotal = valid.length;
+    var _ctxA70   = above70;
+    var _ctxTrend = trendVal;
+
     var coachHtml = (isPro)
       ? '<div class="sh-coach-card">'
           +'<div class="sh-coach-hdr">'
             +'<div class="sh-coach-icon" style="background:linear-gradient(135deg,var(--p),var(--c))">✦</div>'
             +'<span class="sh-coach-name">Aurelo Coach</span>'
-            +'<span class="sh-coach-priv">on-device · private</span>'
+            +'<span class="sh-coach-label" style="'
+              +'font-size:10px;font-family:var(--ff-m);color:var(--t3);'
+              +'margin-left:auto;padding:2px 7px;border-radius:20px;'
+              +'background:'+_rgba('--p',0.08)+';border:1px solid '+_rgba('--p',0.18)+'">'
+              +pc.label+' · '+_win
+            +'</span>'
           +'</div>'
-          +'<div class="sh-coach-body">Ask Coach about your '+pc.label+' trends and get personalised insight from your actual usage data.</div>'
+          +'<div class="sh-coach-insight-title" style="'
+            +'font-family:var(--ff-d);font-style:italic;font-size:var(--text-sm);'
+            +'color:var(--t1);margin-bottom:6px;line-height:1.3">'+_ci.title+'</div>'
+          +'<div class="sh-coach-body">'+_ci.body+'</div>'
           +'<button class="sh-coach-btn" style="border-color:'+_rgba('--p',0.24)+';background:'+_rgba('--p',0.08)+';color:var(--p2)"'
-            +' onclick="ScoreHistory.close();typeof CoachUI.open(null)===\'function\'&&CoachUI.open(null)">Ask Coach →</button>'
+            +' onclick="(function(){'
+              /* Build context object inline — values come from _render() scope */
+              +'var ctx={'
+                +'surface:\'score_history\','
+                +'pillar:\''+_pillar+'\','
+                +'window:\''+_win+'\','
+                +'avg:'+_ctxAvg+','
+                +'trend:'+_ctxTrend+','
+                +'above70:'+_ctxA70+','
+                +'total:'+_ctxTotal
+              +'};'
+              +'ScoreHistory.close();'
+              +'setTimeout(function(){'
+                +'typeof CoachUI!==\'undefined\'&&CoachUI.open(\''+_ciQ+'\',ctx);'
+              +'},180);'
+            +'})()">Ask Coach →</button>'
         +'</div>'
       : '';
 
@@ -690,8 +733,6 @@ var ScoreHistory = (function () {
     if (existing && existing.parentNode) existing.parentNode.removeChild(existing);
     document.body.insertAdjacentHTML('beforeend', html);
 
-    console.log('wasOpen:', wasOpen, 'sh transform:', document.getElementById('sh-sheet') ? document.getElementById('sh-sheet').style.transform : 'not found');
-
     /* ── Animate in ── */
     requestAnimationFrame(function(){
       var bd = document.getElementById('sh-backdrop');
@@ -730,6 +771,330 @@ var ScoreHistory = (function () {
       body:   'Steps and HRV are the two signals tracked here. Hitting 8k steps on 5+ days this week is the fastest way to move your Body Score.',
     };
     return baseCopy[pillarId] || baseCopy.aurelo;
+  }
+
+  /* ── Coach insight per pillar × window combination ───────────── */
+  /*
+   * Returns { title, body, question } tuned to each of the 20 combos.
+   * stats = { avg, trendVal, trendDir, above70, total, best, valid[] }
+   *
+   * New intents referenced (keyword classifier — no retraining needed):
+   *   SCORE_HISTORY_WEEKLY_REVIEW, SCORE_HISTORY_MONTHLY_TREND,
+   *   SCORE_HISTORY_QUARTERLY_PATTERN, SCORE_HISTORY_ANNUAL_ARC,
+   *   SCORE_HISTORY_PILLAR_DEEP_DIVE  (one per pillar × window)
+   */
+  function _coachInsightForView(pillarId, winId, stats) {
+    var avg      = stats.avg;
+    var trendVal = stats.trendVal;
+    var trendDir = stats.trendDir;
+    var above70  = stats.above70;
+    var total    = stats.total;
+    var best     = stats.best;
+    var pct      = total > 0 ? Math.round((above70 / total) * 100) : 0;
+    var hasData  = avg !== null && total > 2;
+
+    var avgStr  = hasData ? avg  : '—';
+    var bestStr = best !== null ? best : '—';
+
+    /* helper: trend phrase */
+    function _tp(up, flat, down) {
+      return trendDir === 'up' ? up : trendDir === 'down' ? down : flat;
+    }
+
+    /* helper: grade word */
+    function _gw(v) {
+      if (v === null) return 'unscored';
+      if (v >= 85) return 'Excellent';
+      if (v >= 70) return 'Good';
+      if (v >= 55) return 'Fair';
+      return 'Start';
+    }
+
+    var lookup = {
+
+      /* ── AURELO ─────────────────────────────────────────── */
+      aurelo_7D: {
+        title: _tp('Strong 7-day run', 'Steady week', 'Dip this week'),
+        body: hasData
+          ? 'Your 7-day Aurelo average is ' + avgStr + ' (' + _gw(avg) + '). '
+            + 'You hit Good or above on ' + above70 + ' of ' + total + ' days. '
+            + _tp(
+                'The upward trend suggests at least one pillar improved — check Screen or Focus.',
+                'Consistent, but there\'s room to push past ' + (avg < 70 ? '70 for Good' : '85 for Excellent') + '.',
+                'A drop over 7 days usually points to screen time creep or missed focus sessions.'
+              )
+          : 'Not enough data yet. Your 7-day picture builds after a few daily scores are recorded.',
+        question: 'Why did my Aurelo score ' + _tp('improve', 'stay flat', 'drop') + ' this week?',
+      },
+
+      aurelo_30D: {
+        title: _tp('Positive month', 'Steady month', 'Month needs a reset'),
+        body: hasData
+          ? pct + '% of your days this month reached Good or above (70+). '
+            + 'Your 30-day average of ' + avgStr + ' is ' + _gw(avg) + '. '
+            + _tp(
+                'An upward trend over 30 days signals genuine habit change — keep reinforcing what\'s working.',
+                'Consistency this month is solid. Identify your two or three lowest-scoring days to find the pattern.',
+                'A month-long dip often means a stressor or schedule change disrupted multiple pillars at once.'
+              )
+          : 'Collect at least a week of daily scores to see your 30-day picture take shape.',
+        question: 'What\'s driving my 30-day Aurelo trend?',
+      },
+
+      aurelo_90D: {
+        title: _tp('Strong quarter', 'Stable quarter', 'Quarter needs attention'),
+        body: hasData
+          ? 'Over 90 days your average Aurelo score is ' + avgStr + '. '
+            + 'You reached Good or above on ' + above70 + ' of ' + total + ' data points (' + pct + '%). '
+            + _tp(
+                'Quarterly growth means your habits are genuinely compounding — the hardest part (starting) is behind you.',
+                'A flat quarterly line is more common than it looks — look for two-week blocks where scores dipped.',
+                'A declining quarter often traces back to one pillar pulling the others down. Sleep drift is the most common culprit.'
+              )
+          : 'You need roughly 30+ days of data before 90-day patterns become meaningful.',
+        question: 'Show me my quarterly Aurelo pattern and which pillar dropped most.',
+      },
+
+      aurelo_1Y: {
+        title: _tp('Growing year', 'Holding across the year', 'Annual dip to address'),
+        body: hasData
+          ? 'Your yearly Aurelo average is ' + avgStr + ' across ' + total + ' data points. '
+            + 'Your personal best was ' + bestStr + '. '
+            + _tp(
+                'Year-on-year growth is the most reliable signal of lasting habit change. You\'re on the right trajectory.',
+                'An annual plateau often means you\'ve hit a ceiling in one pillar — Body Score or Sleep are worth investigating.',
+                'A year-long downward arc usually reflects a lifestyle change. Reconnecting your daily goal to your actual schedule can help.'
+              )
+          : 'Build up several months of data for your yearly arc to appear.',
+        question: 'What does my annual Aurelo trend tell me about my habits?',
+      },
+
+      /* ── SCREEN ─────────────────────────────────────────── */
+      screen_7D: {
+        title: _tp('Good screen week', 'Screen use steady', 'Screen time crept up'),
+        body: hasData
+          ? '7-day Screen average: ' + avgStr + ' (' + _gw(avg) + '). '
+            + _tp(
+                'Staying under goal for most of the week is the single biggest driver of a high Screen Score.',
+                'Goal adherence is the heaviest component (50%). Your first-use time and pickup frequency are the next two levers.',
+                'Overshooting your daily goal by even 30 min can cost 15–20 pts. Check which app is eating the most extra time.'
+              )
+          : 'A few more days of tracking will build your weekly Screen picture.',
+        question: 'Which habit is hurting my Screen Score most this week?',
+      },
+
+      screen_30D: {
+        title: _tp('Screen improving month', 'Consistent screen month', 'Screen creep this month'),
+        body: hasData
+          ? 'Your 30-day Screen average is ' + avgStr + '. '
+            + 'You met your daily goal on roughly ' + above70 + ' of ' + total + ' tracked days. '
+            + _tp(
+                'Consistent goal adherence this month is paying off — late-evening sessions are the easiest remaining win.',
+                'Weekend overage is the most common 30-day pattern. Check if Sat/Sun pull your monthly average down.',
+                'Screen score declines over a month usually mean one app — typically social or streaming — expanded its footprint.'
+              )
+          : 'Keep tracking daily for a full monthly screen picture.',
+        question: 'Are my weekends hurting my monthly Screen Score?',
+      },
+
+      screen_90D: {
+        title: _tp('Quarter of better screen habits', 'Stable screen quarter', 'Screen habits slipped this quarter'),
+        body: hasData
+          ? '90-day Screen average: ' + avgStr + '. '
+            + _tp(
+                'Three months of improvement suggests your screen goal is well-calibrated to your lifestyle.',
+                'A flat 90-day Screen score often means your goal needs tightening — try dropping it by 15 min.',
+                'Declining screen scores over a quarter often correlate with a new app entering your top 3. Check your app breakdown.'
+              )
+          : 'Collect more data to see your quarterly screen trend.',
+        question: 'What caused my screen score to ' + _tp('improve', 'stay flat', 'decline') + ' over 3 months?',
+      },
+
+      screen_1Y: {
+        title: _tp('Best screen year', 'Steady screen year', 'A screen year to learn from'),
+        body: hasData
+          ? 'Your yearly Screen Score average is ' + avgStr + ' (personal best: ' + bestStr + '). '
+            + _tp(
+                'Annual growth in Screen Score is strongly correlated with a lower daily goal. What changed that made it achievable?',
+                'A flat annual Screen line often means your goal and your actual usage have reached equilibrium — tighten the goal to restart progress.',
+                'A declining annual screen score almost always points to an app that grew in usage over the year.'
+              )
+          : 'Continue tracking daily to see your yearly screen arc.',
+        question: 'What does my yearly Screen Score arc say about my phone habits?',
+      },
+
+      /* ── FOCUS ─────────────────────────────────────────── */
+      focus_7D: {
+        title: _tp('Focus strengthening', 'Focus steady', 'Focus slipped this week'),
+        body: hasData
+          ? '7-day Focus average: ' + avgStr + ' (' + _gw(avg) + '). '
+            + _tp(
+                'Completing sessions this week is paying off. Two deep sessions per week can sustain a Good Focus Score.',
+                'Your session completion rate is the top driver. Even one interrupted session can cost 8–10 pts.',
+                'A focus dip this week usually means sessions were skipped or interrupted. Mindful Pauses can partially offset missed sessions.'
+              )
+          : 'Start your first focus session to build this week\'s picture.',
+        question: 'How can I improve my Focus Score this week?',
+      },
+
+      focus_30D: {
+        title: _tp('Focus building monthly', 'Consistent focus month', 'Focus fading this month'),
+        body: hasData
+          ? '30-day Focus average: ' + avgStr + '. '
+            + 'You scored Good or above on ' + above70 + ' of ' + total + ' days. '
+            + _tp(
+                'A month of consistent sessions builds the habit loop. Scheduling recurring routines is the best way to sustain this.',
+                'Monthly consistency in focus sessions (even short ones) outperforms occasional long sessions.',
+                'A declining Focus Score over a month often signals that session scheduling fell apart — try setting a recurring routine.'
+              )
+          : 'More data needed — complete focus sessions daily to build your monthly picture.',
+        question: 'What\'s the best focus routine for my monthly pattern?',
+      },
+
+      focus_90D: {
+        title: _tp('Quarter of focus gains', 'Focus holding quarterly', 'Focus quarter needs work'),
+        body: hasData
+          ? '90-day Focus average: ' + avgStr + '. '
+            + _tp(
+                'Three months of focus improvement is a strong signal — your session difficulty and length are dialled in.',
+                'A flat 90-day Focus score often means you\'re completing sessions but losing points on Mindful Pause resists or app timer ignores.',
+                'A quarterly focus decline usually traces to scheduled routines being deleted or difficulty levels softened.'
+              )
+          : 'Keep logging focus sessions for a full quarterly view.',
+        question: 'What\'s holding my Focus Score flat over 3 months?',
+      },
+
+      focus_1Y: {
+        title: _tp('A year of focus gains', 'Consistent focus year', 'Focus arc needs a reboot'),
+        body: hasData
+          ? 'Yearly Focus average: ' + avgStr + ' (best: ' + bestStr + '). '
+            + _tp(
+                'Annual focus growth is driven by habit systems, not motivation. Your routines are working.',
+                'A flat annual Focus line often means Mindful Pauses and app timers aren\'t being used alongside sessions.',
+                'A year-long focus decline usually means your blocked-apps list hasn\'t kept up with which apps are actually distracting you now.'
+              )
+          : 'Collect more data across months to see your yearly focus arc.',
+        question: 'What does my yearly Focus trend tell me about my productivity habits?',
+      },
+
+      /* ── SLEEP ─────────────────────────────────────────── */
+      sleep_7D: {
+        title: _tp('Good sleep week', 'Sleep steady', 'Sleep disrupted this week'),
+        body: hasData
+          ? '7-day Sleep average: ' + avgStr + ' (' + _gw(avg) + '). '
+            + _tp(
+                'Keeping your bedtime consistent is worth 55 base points alone — everything else is bonus.',
+                'Snooze count is the fastest-moving variable in your Sleep Score. Each snooze costs 10 pts.',
+                'A sleep dip this week usually means bedtime was pushed back two or more nights. Even 30 min of drift compounds.'
+              )
+          : 'Enable Bedtime Mode and log a few nights to see your sleep picture.',
+        question: 'Why did my sleep score ' + _tp('improve', 'stay flat', 'drop') + ' this week?',
+      },
+
+      sleep_30D: {
+        title: _tp('Improving sleep month', 'Steady sleep month', 'Sleep slipping this month'),
+        body: hasData
+          ? '30-day Sleep average: ' + avgStr + '. '
+            + 'You slept within your bedtime window on ' + above70 + ' of ' + total + ' nights. '
+            + _tp(
+                'Month-long sleep improvement is one of the strongest positive signals in your Aurelo data — it lifts every other pillar.',
+                'Weeknight bedtimes are consistent, but weekend drift is the most common 30-day sleep pattern to address.',
+                'A month-long sleep decline often tracks with increased late-night screen use — check your bedtime app attempts log.'
+              )
+          : 'Log at least 7 nights in Bedtime Mode for a meaningful 30-day sleep picture.',
+        question: 'Are weekends hurting my monthly Sleep Score?',
+      },
+
+      sleep_90D: {
+        title: _tp('Strong sleep quarter', 'Stable sleep quarter', 'Sleep quarter needs work'),
+        body: hasData
+          ? '90-day Sleep average: ' + avgStr + '. '
+            + _tp(
+                'Three months of good sleep adherence is the most underrated driver of your overall Aurelo Score.',
+                'A flat 90-day Sleep score often means your bedtime window is set too late to reflect when you actually want to sleep.',
+                'Seasonal factors (longer evenings, travel) are the most common cause of 90-day sleep declines.'
+              )
+          : 'Keep using Bedtime Mode nightly to build your quarterly sleep picture.',
+        question: 'What\'s affecting my sleep score over the last 3 months?',
+      },
+
+      sleep_1Y: {
+        title: _tp('Best sleep year', 'Steady sleep year', 'Annual sleep drift to address'),
+        body: hasData
+          ? 'Yearly Sleep average: ' + avgStr + ' (best: ' + bestStr + '). '
+            + _tp(
+                'Annual sleep improvement is rare and meaningful — consistent bedtimes have compounding benefits on HRV and focus.',
+                'A flat annual Sleep score often hides seasonal swings — look at which months pulled the average down.',
+                'A year-long sleep decline is strongly correlated with screen use growing in the 9–11 PM window.'
+              )
+          : 'Build up months of Bedtime Mode data for your yearly sleep arc.',
+        question: 'What does my annual Sleep Score pattern reveal about my sleep habits?',
+      },
+
+      /* ── BODY ─────────────────────────────────────────── */
+      body_7D: {
+        title: _tp('Active week', 'Body holding steady', 'Low-activity week'),
+        body: hasData
+          ? '7-day Body average: ' + avgStr + ' (' + _gw(avg) + '). '
+            + 'Body Score draws on steps (33%), resting HR (33%), and HRV (33%). '
+            + _tp(
+                'Steps above 8k/day are the fastest lever — your HRV usually follows active days within 24–48 hours.',
+                'Your body metrics are stable. Resting HR tends to be sticky — sustained activity over 2–3 weeks moves it.',
+                'A low-activity week shows up first in steps, then in HRV by day 3–4. Even a short walk can break the pattern.'
+              )
+          : 'Connect Health Connect and sync a few days of data to see your Body Score.',
+        question: 'How do my steps and HRV correlate with my Body Score this week?',
+      },
+
+      body_30D: {
+        title: _tp('Active month', 'Steady body month', 'Activity dropped this month'),
+        body: hasData
+          ? '30-day Body average: ' + avgStr + '. '
+            + 'Steps and HRV are the two most responsive signals month to month. '
+            + _tp(
+                'Sustained step counts above 8k for 3+ weeks typically moves resting HR down by 2–4 bpm — a meaningful signal.',
+                'A stable monthly Body Score often means your activity level is consistent but you\'re near a plateau.',
+                'A declining month in Body Score often tracks with fewer 8k-step days — check if work or weather changed your routine.'
+              )
+          : 'Sync Health Connect data daily for a meaningful monthly body picture.',
+        question: 'What drove my Body Score ' + _tp('up', 'flat', 'down') + ' this month?',
+      },
+
+      body_90D: {
+        title: _tp('Strong activity quarter', 'Body stable quarterly', 'Activity declining this quarter'),
+        body: hasData
+          ? '90-day Body average: ' + avgStr + '. '
+            + _tp(
+                'Three months of sustained activity shows your baseline fitness is improving — resting HR and HRV trends confirm this.',
+                'A flat 90-day Body score often means activity is consistent but there\'s no progressive overload — mix in higher-step days.',
+                'Seasonal changes often explain quarterly body score declines — winter months typically show 15–20% step reductions.'
+              )
+          : 'Keep Health Connect syncing daily for a full quarterly body arc.',
+        question: 'What does my 90-day Body Score trend say about my physical health?',
+      },
+
+      body_1Y: {
+        title: _tp('Best activity year', 'Steady body year', 'Annual activity decline'),
+        body: hasData
+          ? 'Yearly Body average: ' + avgStr + ' (best: ' + bestStr + '). '
+            + _tp(
+                'Annual Body Score growth is the clearest signal that your physical habits have genuinely changed.',
+                'A flat annual Body score often reflects consistent but non-progressive movement — adding one higher-intensity day per week can shift this.',
+                'A year-long body score decline often tracks with a reduction in incidental movement (commute changes, WFH, etc.) rather than deliberate exercise.'
+              )
+          : 'Build up a full year of Health Connect data to see your annual body arc.',
+        question: 'What does my annual Body Score trend tell me about my physical health journey?',
+      },
+
+    };
+
+    var key  = pillarId + '_' + winId;
+    var def  = {
+      title:    'Coach insight',
+      body:     'Ask Coach for personalised analysis of your ' + pillarId + ' score trends.',
+      question: 'Analyse my ' + pillarId + ' score history.',
+    };
+    return lookup[key] || def;
   }
 
   /* ── Zone highlight update ────────────────────────────────────── */

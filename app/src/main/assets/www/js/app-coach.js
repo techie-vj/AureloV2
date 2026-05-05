@@ -1126,6 +1126,45 @@ var CoachOrchestrator = {
     return KEYWORD_CLASSIFIER.classify(query); // Phase 1
   },
 
+  /* ── History surface framing ─────────────────────────────────────────────
+   * When Coach is opened from Score History, we inject a lightweight
+   * contextual header above the normal response so the answer is framed
+   * in historical terms rather than today's real-time data.
+   *
+   * ctx shape (from CoachUI._context):
+   *   { surface:'score_history', pillar, window, avg, trend, above70, total }
+   *
+   * This is the ONLY place surface context affects output — intents and
+   * templates are unchanged.  Adding a new surface in future requires only
+   * a new branch here and a matching _applyXxxFrame helper.
+   * ─────────────────────────────────────────────────────────────────────── */
+  _applyHistoryFrame: function(response, ctx) {
+    if (!response || !response.text) return response;
+
+    var PILLAR_LABELS = { aurelo:'Aurelo', screen:'Screen', focus:'Focus', sleep:'Sleep', body:'Body' };
+    var WINDOW_LABELS = { '7D':'7-day', '30D':'30-day', '90D':'90-day', '1Y':'annual' };
+
+    var pillarLabel  = PILLAR_LABELS[ctx.pillar]  || ctx.pillar;
+    var windowLabel  = WINDOW_LABELS[ctx.window]  || ctx.window;
+    var hasAvg       = ctx.avg !== null && ctx.avg !== undefined;
+    var trendSign    = ctx.trend > 0 ? '+' : '';
+    var trendStr     = (ctx.trend !== 0) ? (', trending ' + trendSign + ctx.trend + ' pts') : '';
+
+    /* Build the small framing pill shown above the coach response */
+    var frameHtml =
+      '<div style="'
+        + 'display:inline-flex;align-items:center;gap:6px;'
+        + 'padding:4px 10px;border-radius:20px;margin-bottom:10px;'
+        + 'background:rgba(108,99,255,0.07);border:1px solid rgba(108,99,255,0.18);'
+        + 'font-family:var(--ff-m);font-size:11px;color:var(--t3)">'
+        + '✦ ' + windowLabel + ' ' + pillarLabel + ' history'
+        + (hasAvg ? ' · avg ' + ctx.avg : '')
+        + trendStr
+      + '</div><br>';
+
+    return Object.assign({}, response, { text: frameHtml + response.text });
+  },
+
   /** Dynamic routing for predefined questions that need data-driven intent selection. */
   _resolveDynamicIntent: function(query, summary) {
     var q = query.toLowerCase().trim();
@@ -1319,7 +1358,7 @@ var CoachOrchestrator = {
     return null; // no dynamic override
   },
 
-  handleQuery: function(query, summary) {
+  handleQuery: function(query, summary, ctx) {
     // Dynamic intent resolution takes priority (handles predefined question special cases)
     var dynamicIntent = this._resolveDynamicIntent(query, summary);
 
@@ -1337,54 +1376,51 @@ var CoachOrchestrator = {
         'If you have Bedtime Mode enabled, your Sleep Score shows last night\'s bedtime adherence.'), confidence: 1, usedFallback: false };
     }
 
+    var response, intent, confidence, usedFallback;
+
     if (dynamicIntent) {
-      return {
-        intent:       dynamicIntent,
-        response:     TemplateLibrary.get(dynamicIntent, summary),
-        confidence:   1.0,
-        usedFallback: false
-      };
-    }
+      intent       = dynamicIntent;
+      response     = TemplateLibrary.get(dynamicIntent, summary);
+      confidence   = 1.0;
+      usedFallback = false;
+    } else {
+      var classified = this.classifyIntent(query);
+      intent     = classified.intent;
+      confidence = classified.confidence;
 
-    var classified = this.classifyIntent(query);
-    var intent     = classified.intent;
-    var confidence = classified.confidence;
-
-    // HC-only intents — redirect when HC not connected
-    var HC_ONLY = [CoachIntent.HC_POOR_SLEEP_HIGH_USAGE, CoachIntent.HC_ACTIVE_DAY_BETTER_FOCUS];
-    if (HC_ONLY.indexOf(intent) !== -1 && !summary.hcConnected) {
-      return {
-        intent:       CoachIntent.GENERAL_SUMMARY,
-        response:     TemplateLibrary.get(CoachIntent.GENERAL_SUMMARY, summary),
-        confidence:   confidence,
-        usedFallback: true
-      };
-    }
-
-    // Low confidence — graceful fallback with top detected pattern
-    if (confidence < this.CONFIDENCE_THRESHOLD || intent === CoachIntent.UNKNOWN) {
-      var topPattern = PatternDetector.getTopPattern(summary);
-      var hcNote     = summary.hcConnected ? ' + Health Connect data' : '';
-      var fallbackR  = TemplateLibrary.get(topPattern.intent, summary);
-      return {
-        intent:   CoachIntent.UNKNOWN,
-        response: {
+      // HC-only intents — redirect when HC not connected
+      var HC_ONLY = [CoachIntent.HC_POOR_SLEEP_HIGH_USAGE, CoachIntent.HC_ACTIVE_DAY_BETTER_FOCUS];
+      if (HC_ONLY.indexOf(intent) !== -1 && !summary.hcConnected) {
+        intent       = CoachIntent.GENERAL_SUMMARY;
+        response     = TemplateLibrary.get(CoachIntent.GENERAL_SUMMARY, summary);
+        confidence   = confidence;
+        usedFallback = true;
+      } else if (confidence < this.CONFIDENCE_THRESHOLD || intent === CoachIntent.UNKNOWN) {
+        // Low confidence — graceful fallback with top detected pattern
+        var topPattern = PatternDetector.getTopPattern(summary);
+        var hcNote     = summary.hcConnected ? ' + Health Connect data' : '';
+        var fallbackR  = TemplateLibrary.get(topPattern.intent, summary);
+        response = {
           text: "I don't have a specific insight for that — but here's what stands out in your data: " +
                 fallbackR.text +
                 "<br><br><small>Based on " + summary.dataWindowDays + " days of screen data" + hcNote + ".</small>",
           followUps: ChipGenerator.generate(summary).map(function(c) { return c.label; })
-        },
-        confidence:   confidence,
-        usedFallback: true
-      };
+        };
+        intent       = CoachIntent.UNKNOWN;
+        usedFallback = true;
+      } else {
+        response     = TemplateLibrary.get(intent, summary);
+        usedFallback = false;
+      }
     }
 
-    return {
-      intent:       intent,
-      response:     TemplateLibrary.get(intent, summary),
-      confidence:   confidence,
-      usedFallback: false
-    };
+    /* Apply surface framing when the query came from a named surface.
+     * New surfaces: add an _applyXxxFrame branch here — no other changes needed. */
+    if (ctx && ctx.surface === 'score_history' && response) {
+      response = this._applyHistoryFrame(response, ctx);
+    }
+
+    return { intent: intent, response: response, confidence: confidence, usedFallback: usedFallback };
   }
 };
 
@@ -1410,6 +1446,10 @@ window.CoachUI = {
   _summary:     null,
   _loading:     false,
   _initialised: false,
+  /* Surface context — set by open(prefilled, ctx), consumed on first send.
+   * Shape: { surface, pillar, window, avg, trend, above70, total }
+   * null when Coach is opened without a surface context (FAB tap, etc.). */
+  _context:     null,
 
   init: function() {
     try {
@@ -1463,9 +1503,12 @@ window.CoachUI = {
       '</svg>';
   },
 
-  open: function(prefilled) {
+  open: function(prefilled, ctx) {
     try {
       if (!this._initialised) this.init();
+      /* Store surface context for the first send — cleared after use so
+       * subsequent free-form questions in the same session run normally. */
+      this._context = ctx || null;
       var modal = document.getElementById('coach-modal');
       if (modal) modal.classList.add('open');
       if (prefilled) {
@@ -1547,26 +1590,40 @@ window.CoachUI = {
     if (sendBtn) sendBtn.disabled = true;
     this._addUserMsg(query);
     this._showTyping();
+
+    /* Consume the surface context on the first send so follow-up
+     * free-form questions in the same session run without historical
+     * framing (which would be confusing after the first exchange). */
+    var ctx = this._context;
+    this._context = null;
+
     var self = this;
     setTimeout(function() {
       try {
         var result = null;
-        if (window.AppBridge && typeof window.AppBridge.askCoach === 'function') {
+
+        /* When a surface context is present the JS orchestrator must handle
+         * the query — AppBridge operates on today's data only and cannot
+         * apply historical framing. For all other queries try AppBridge first
+         * as usual. */
+        if (!ctx && window.AppBridge && typeof window.AppBridge.askCoach === 'function') {
           console.log('[CoachJS] calling AppBridge.askCoach:', query);
           var raw = window.AppBridge.askCoach(query);
           console.log('[CoachJS] AppBridge coach response:', raw);
           if (raw) result = JSON.parse(raw);
         }
+
         if (!result) {
-          console.log('[CoachJS] using JS fallback coach');
-          var fallback = AureloCoach.CoachOrchestrator.handleQuery(query, self._summary);
+          console.log('[CoachJS] using JS orchestrator' + (ctx ? ' (surface: ' + ctx.surface + ')' : ''));
+          var fallback = AureloCoach.CoachOrchestrator.handleQuery(query, self._summary, ctx);
           result = {
-            intent: fallback.intent,
-            response: fallback.response,
-            confidence: fallback.confidence,
+            intent:      fallback.intent,
+            response:    fallback.response,
+            confidence:  fallback.confidence,
             usedFallback: fallback.usedFallback
           };
         }
+
         self._removeTyping();
         if (result.response) {
           self._addCoachMsg(result.response.text, result.response.followUps || []);
