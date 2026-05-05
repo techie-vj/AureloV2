@@ -513,9 +513,12 @@ var ScoreHistory = (function () {
       var col    = on ? colorRaw : 'var(--t2)';
       var bg     = on ? _rgba(pc.cssVar, 0.10) : 'transparent';
       var bord   = on ? colorRaw : 'transparent';
+      var tabOnClick = locked
+        ? ' onclick="typeof ProTier!==\'undefined\'&&ProTier.triggerUpsell&&ProTier.triggerUpsell(\'SCORE_HISTORY\')"'
+        : ' onclick="ScoreHistory._setWin(\''+w.id+'\')"';
       return '<button class="sh-win-tab'+(on?' sh-win-tab-on':'')+(locked?' sh-win-tab-locked':'')+'"'
         +' data-win="'+w.id+'"'
-        +(locked ? '' : ' onclick="ScoreHistory._setWin(\''+w.id+'\')"')
+        + tabOnClick
         +' style="color:'+(locked?'var(--t3)':col)+';border-bottom:1.5px solid '+bord+';background:'+bg+'">'
         +w.id
         +(w.pro ? '<span class="sh-pro-badge">PRO</span>' : '')
@@ -662,7 +665,7 @@ var ScoreHistory = (function () {
             +'<div class="sh-hdr-title" id="sh-hdr-title">'+pc.label+' Score</div>'
           +'</div>'
           +'<div class="sh-hdr-actions">'
-            +'<button class="sh-share-btn" onclick="shareCard&&shareCard(\'score_history\',{pillar:\''+_pillar+'\',win:\''+_win+'\'})" aria-label="Share score">↗ Share</button>'
+            +'<button class="sh-share-btn" onclick="ScoreHistory._share()" aria-label="Share score">↗ Share</button>'
             +'<button class="sh-close-btn" onclick="ScoreHistory.close()" aria-label="Close">✕</button>'
           +'</div>'
         +'</div>'
@@ -732,6 +735,8 @@ var ScoreHistory = (function () {
     }
     if (existing && existing.parentNode) existing.parentNode.removeChild(existing);
     document.body.insertAdjacentHTML('beforeend', html);
+
+    console.log('wasOpen:', wasOpen, 'sh transform:', document.getElementById('sh-sheet') ? document.getElementById('sh-sheet').style.transform : 'not found');
 
     /* ── Animate in ── */
     requestAnimationFrame(function(){
@@ -1257,7 +1262,15 @@ var ScoreHistory = (function () {
     _render();
   }
 
-  return { open:open, close:close, _setPillar:_setPillar, _setWin:_setWin };
+  /* Share wrapper — reads _pillar/_win at call time so the header button
+   * is always accurate regardless of which re-render cycle last ran. */
+  function _share() {
+    if (typeof shareCard === 'function') {
+      shareCard('score_history', { pillar: _pillar, win: _win });
+    }
+  }
+
+  return { open:open, close:close, _setPillar:_setPillar, _setWin:_setWin, _share:_share };
 
 })();
 
