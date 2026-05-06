@@ -986,6 +986,7 @@ function _showBodyScoreSheet() {
       val:  live.hrv  != null ? live.hrv  + ' ms' : _noData,
       sub:  live.avgHrv7d != null ? '7-day avg: ' + live.avgHrv7d + ' ms' : '7-day avg: \u2013',
       pct:  hrvPct,
+      weight: 35,
       col:  hrvPct == null ? 'var(--t3)' : hrvPct >= 100 ? 'var(--g)' : hrvPct >= 70 ? 'var(--a)' : 'var(--r)',
     },
     {
@@ -993,6 +994,7 @@ function _showBodyScoreSheet() {
       val:  live.rhr  != null ? live.rhr  + ' bpm' : _noData,
       sub:  live.avgRhr7d != null ? '7-day avg: ' + live.avgRhr7d + ' bpm' : '7-day avg: \u2013',
       pct:  rhrPct,
+      weight: 25,
       col:  rhrPct == null ? 'var(--t3)' : rhrPct >= 100 ? 'var(--g)' : rhrPct >= 70 ? 'var(--a)' : 'var(--r)',
     },
     {
@@ -1000,8 +1002,9 @@ function _showBodyScoreSheet() {
       val:  live.steps != null ? live.steps.toLocaleString() : _noData,
       sub:  (live.avgSteps7d != null && live.avgSteps7d > 8000)
               ? 'Goal: ' + Math.round(live.avgSteps7d).toLocaleString() + ' (your avg)'
-              : 'Goal: 8,000 steps',  // FIX B3+B5: personalised below
+              : 'Goal: 8,000 steps',
       pct:  stepsPct,
+      weight: 40,
       col:  stepsPct == null ? 'var(--t3)' : stepsPct >= 100 ? 'var(--g)' : stepsPct >= 60 ? 'var(--a)' : 'var(--r)',
     },
   ];

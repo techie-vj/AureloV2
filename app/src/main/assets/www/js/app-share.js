@@ -1768,7 +1768,7 @@ function _buildScoreHistoryCard(ctx, icon, opts) {
   });
   ctx.setLineDash([]);
 
-  if (valid.length >= 2) {
+  if (valid.length >= 1) {
     const pts = data.map((v, i) => ({
       x: toX(i), y: v !== null ? toY(v) : null, v,
     }));

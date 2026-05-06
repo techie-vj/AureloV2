@@ -750,6 +750,9 @@ var ScoreHistory = (function () {
       var newChips = tempDiv.querySelector('#sh-chips-row');
       if (existingBody && newBody)   existingBody.parentNode.replaceChild(newBody, existingBody);
       if (existingChips && newChips) existingChips.parentNode.replaceChild(newChips, existingChips);
+      var existingTitle = document.getElementById('sh-hdr-title');
+      var newTitle = tempDiv.querySelector('#sh-hdr-title');
+      if (existingTitle && newTitle) existingTitle.textContent = newTitle.textContent;
       _bindScrub();
       _updateZoneHighlights(avg);
       return;
