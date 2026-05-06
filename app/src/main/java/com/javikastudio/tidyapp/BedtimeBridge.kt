@@ -209,4 +209,67 @@ class BedtimeBridge(
     }
 
     private fun currentWeekId(): String = java.text.SimpleDateFormat("yyyy-'W'ww", java.util.Locale.US).format(java.util.Date())
+
+    // ── Screen Filter ─────────────────────────────────────────────────────────
+
+    @JavascriptInterface fun getScreenFilterSettings(): String =
+        prefs.getString(SCREEN_FILTER_SETTINGS_V1, "{}") ?: "{}"
+
+    @JavascriptInterface fun saveScreenFilterSettings(json: String) {
+        runCatching { org.json.JSONObject(json) }.onFailure { return }
+        prefs.edit().putString(SCREEN_FILTER_SETTINGS_V1, json).apply()
+    }
+
+    @JavascriptInterface fun applyScreenFilter(warmAlpha: Int, dimAlpha: Int, gradual: Boolean = false) {
+        // JavascriptInterface runs on a background thread; WindowManager requires main thread.
+        android.os.Handler(android.os.Looper.getMainLooper()).post {
+            val engine = _getOrCreateFilterEngine()
+            engine.start(warmAlpha, dimAlpha, gradual)
+        }
+    }
+
+    @JavascriptInterface fun removeScreenFilter() {
+        android.os.Handler(android.os.Looper.getMainLooper()).post {
+            // If no engine exists yet, nothing to remove
+            val engine = AppMonitorService.filterEngineInstance ?: return@post
+            engine.stop(fadeOut = true)
+        }
+    }
+
+    /**
+     * Returns the running engine from AppMonitorService if available,
+     * otherwise creates one directly — so the filter works regardless of
+     * whether AppMonitorService is currently running (e.g. outside bedtime window).
+     */
+    private fun _getOrCreateFilterEngine(): ScreenFilterEngine {
+        AppMonitorService.filterEngineInstance?.let { return it }
+        val wm = context.getSystemService(android.content.Context.WINDOW_SERVICE)
+                as android.view.WindowManager
+        val engine = ScreenFilterEngine(context, wm, prefs)
+        AppMonitorService.filterEngineInstance = engine
+        return engine
+    }
+
+    @JavascriptInterface fun isScreenFilterActive(): Boolean =
+        prefs.getBoolean(SCREEN_FILTER_ACTIVE, false)
+
+    /**
+     * Called by the JS schedule engine (sun-based / custom-time Pro modes).
+     * In v1 the filter is driven by BedtimeReceiver alarms; this persists
+     * the schedule config so BedtimeReceiver can read it on next alarm fire.
+     * Full background scheduling (AlarmManager at sunset/sunrise) is a v2 task.
+     */
+    @JavascriptInterface fun startScreenFilterSchedule(json: String) {
+        runCatching { org.json.JSONObject(json) }.onFailure { return }
+        prefs.edit().putString(SCREEN_FILTER_SETTINGS_V1, json).apply()
+    }
+
+    /** Stops any active filter immediately and clears the schedule flag. */
+    @JavascriptInterface fun stopScreenFilterSchedule() {
+        android.os.Handler(android.os.Looper.getMainLooper()).post {
+            AppMonitorService.filterEngineInstance?.stop(fadeOut = true)
+        }
+        prefs.edit().putBoolean(SCREEN_FILTER_ACTIVE, false).apply()
+    }
+
 }

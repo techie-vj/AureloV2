@@ -285,6 +285,18 @@ class AppBridge(private val context: Context, private val webView: WebView) {
     @JavascriptInterface fun setBedtimeDnd(enable: Boolean)    = bedtime.setBedtimeDnd(enable)
     @JavascriptInterface fun isDndPolicyGranted()              = bedtime.isDndPolicyGranted()
     @JavascriptInterface fun setBedtimeGrayscale(enable:Boolean)= bedtime.setBedtimeGrayscale(enable)
+    // ── Screen Filter delegations ──────────────────────────────────────────────
+    @JavascriptInterface fun getScreenFilterSettings()             = bedtime.getScreenFilterSettings()
+    @JavascriptInterface fun saveScreenFilterSettings(j: String)   = bedtime.saveScreenFilterSettings(j)
+    @JavascriptInterface fun applyScreenFilter(w: Int, d: Int, gradual: Boolean = false) = bedtime.applyScreenFilter(w, d, gradual)
+    @JavascriptInterface fun removeScreenFilter()                   = bedtime.removeScreenFilter()
+    @JavascriptInterface fun isScreenFilterActive()                = bedtime.isScreenFilterActive()
+    // startScreenFilterSchedule / stopScreenFilterSchedule are called by the JS
+    // schedule engine for sun-based and custom-time modes (Pro). In v1 the filter
+    // is started/stopped by BedtimeReceiver alarms, so these are no-ops that keep
+    // the JS bridge calls safe without throwing. Implement scheduling logic here in v2.
+    @JavascriptInterface fun startScreenFilterSchedule(json: String) = bedtime.startScreenFilterSchedule(json)
+    @JavascriptInterface fun stopScreenFilterSchedule()              = bedtime.stopScreenFilterSchedule()
 
     // ── Notifications ──────────────────────────────────────────────────────
     @JavascriptInterface fun getNotifications()                = notification.getNotifications()

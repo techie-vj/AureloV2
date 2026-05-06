@@ -67,6 +67,15 @@ class AppMonitorService : Service() {
         const val ACTION_BEDTIME_SNOOZE_CLEAR = "SNOOZE_BEDTIME_CLEAR"
         const val ACTION_BEDTIME_STOP_SOFT = "STOP_BEDTIME_SOFT"
 
+        // Screen Filter actions
+        const val ACTION_FILTER_START  = "FILTER_START"
+        const val ACTION_FILTER_STOP   = "FILTER_STOP"
+        const val ACTION_FILTER_UPDATE = "FILTER_UPDATE"
+
+        // Direct engine reference — set once in onCreate, cleared in onDestroy.
+        // Allows BedtimeBridge to call the engine without a service-intent round-trip.
+        @Volatile var filterEngineInstance: ScreenFilterEngine? = null
+
         // Overlay priority levels — lower number = higher priority
         const val PRIORITY_BEDTIME   = 0
         const val PRIORITY_FOCUS     = 1
@@ -90,6 +99,7 @@ class AppMonitorService : Service() {
     private lateinit var timerEngine:     TimerBlockingEngine
     private lateinit var intentionEngine: IntentionEngine
     private lateinit var bedtimeEngine:   BedtimeBlockingEngine
+    private lateinit var filterEngine:    ScreenFilterEngine
 
     // Foreground package resolved once per poll tick, shared across all engines
     private var currentFgPkg = ""
@@ -144,6 +154,41 @@ class AppMonitorService : Service() {
                 }
             }
 
+            // ── Camera + user-excluded apps for Screen Filter ────────────────────────
+            // Pause filter when foreground app is camera OR user-configured excluded app.
+            if (currentFgPkg.isNotEmpty()) {
+                val sfRaw = prefs.getString(SCREEN_FILTER_SETTINGS_V1, null)
+                val sfCfg = if (!sfRaw.isNullOrBlank()) runCatching { org.json.JSONObject(sfRaw) }.getOrNull() else null
+
+                val isCam = currentFgPkg.contains("camera", ignoreCase = true) ||
+                            currentFgPkg.contains("cam.", ignoreCase = true) ||
+                            currentFgPkg == "com.google.android.GoogleCamera" ||
+                            try {
+                                packageManager.queryIntentActivities(
+                                    android.content.Intent("android.media.action.IMAGE_CAPTURE"), 0
+                                ).any { it.activityInfo.packageName == currentFgPkg }
+                            } catch (_: Exception) { false }
+
+                // User-configured excluded apps (stored in sfCfg.excludedApps JSON array)
+                // Camera packages are also pre-populated client-side but we check by name here
+                val isUserExcluded = sfCfg?.optJSONArray("excludedApps")?.let { arr ->
+                    (0 until arr.length()).any { arr.optString(it) == currentFgPkg }
+                } ?: false
+
+                val shouldHide = isCam || isUserExcluded
+                if (shouldHide) {
+                    filterEngine.let { if (it.isActive()) it.update(0, 0) }
+                } else {
+                    filterEngine.let {
+                        if (it.isActive()) {
+                            val w = sfCfg?.optInt("warmAlpha", 80) ?: 80
+                            val d = sfCfg?.optInt("dimAlpha",  45) ?: 45
+                            it.update(w, d)
+                        }
+                    }
+                }
+            }
+
             // Dispatch in priority order; each handler returns true if it owns the overlay slot
             val bedtimeWants = bedtimeEngine.onTick(currentFgPkg, now)
             val focusWants   = if (!bedtimeWants) focusEngine.onTick(currentFgPkg, now)
@@ -194,6 +239,8 @@ class AppMonitorService : Service() {
         timerEngine     = TimerBlockingEngine(prefs, coordinator, helpers)
         intentionEngine = IntentionEngine(prefs, coordinator, helpers)
         bedtimeEngine   = BedtimeBlockingEngine(prefs, coordinator, helpers)
+        filterEngine    = ScreenFilterEngine(this, wm, prefs)
+        filterEngineInstance = filterEngine
 
         val filter = IntentFilter().apply {
             addAction("${packageName}.FOCUS_STOP_BROADCAST")
@@ -223,11 +270,24 @@ class AppMonitorService : Service() {
             ACTION_BEDTIME_STOP_SOFT -> bedtimeEngine.stopSoft()
             ACTION_BEDTIME_SNOOZE    -> bedtimeEngine.snooze(intent.getIntExtra("snooze_mins", 15))
             ACTION_BEDTIME_SNOOZE_CLEAR -> bedtimeEngine.clearSnooze()
+            ACTION_FILTER_START  -> {
+                val w = intent.getIntExtra("filter_warm", 60)
+                val d = intent.getIntExtra("filter_dim",  30)
+                val g = intent.getBooleanExtra("filter_gradual", false)
+                filterEngine.start(w, d, g)
+            }
+            ACTION_FILTER_UPDATE -> {
+                val w = intent.getIntExtra("filter_warm", 60)
+                val d = intent.getIntExtra("filter_dim",  30)
+                filterEngine.update(w, d)
+            }
+            ACTION_FILTER_STOP   -> filterEngine.stop()
             ACTION_STOP_ALL -> {
                 bedtimeEngine.stop()
                 focusEngine.stop()
                 timerEngine.clearAll()
                 intentionEngine.disable()
+                filterEngine.stop(fadeOut = false)
                 stopSelf()
                 return START_NOT_STICKY
             }
@@ -237,6 +297,7 @@ class AppMonitorService : Service() {
                 timerEngine.restoreFromPrefs()
                 intentionEngine.restoreFromPrefs()
                 bedtimeEngine.restoreFromPrefs()
+                filterEngine.restoreFromPrefs()
                 if (!pollScheduled) { pollScheduled = true; handler.post(pollRunnable) }
             }
         }
@@ -256,6 +317,8 @@ class AppMonitorService : Service() {
         timerEngine.onDestroy()
         intentionEngine.onDestroy()
         bedtimeEngine.onDestroy()
+        filterEngine.onDestroy()
+        filterEngineInstance = null
     }
 
     override fun onBind(intent: Intent?): IBinder? = null

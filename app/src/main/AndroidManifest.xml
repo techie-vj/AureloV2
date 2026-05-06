@@ -21,6 +21,9 @@
     <!-- DND / Bedtime mode control -->
     <uses-permission android:name="android.permission.ACCESS_NOTIFICATION_POLICY" />
 
+    <!-- Required for sun-based screen filter schedule (sunrise/sunset calculation) -->
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+
     <!-- WorkManager: reschedule background tasks after device reboot -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
@@ -208,6 +211,7 @@
                 <action android:name="${applicationId}.BEDTIME_ON" />
                 <action android:name="${applicationId}.BEDTIME_OFF" />
                 <action android:name="${applicationId}.BEDTIME_WINDOWN" />
+                <action android:name="${applicationId}.BEDTIME_WAKEUP_FADE" />
             </intent-filter>
         </receiver>
 

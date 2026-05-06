@@ -15,8 +15,7 @@ class BedtimeReceiver : BroadcastReceiver() {
             "${ctx.packageName}.BEDTIME_ON" -> {
                 val raw = BedtimePrefs.getSettings(ctx, prefs, securePrefs)
                 val cfg = try { org.json.JSONObject(raw ?: "{}") } catch (e: Exception) { org.json.JSONObject() }
-                val grayscale       = cfg.optBoolean("grayscale", true)
-                val dimBrightness   = cfg.optBoolean("dimBrightness", true)
+                val grayscale = cfg.optBoolean("grayscale", true)
                 val blockedPkgsJson = when (val raw = cfg.opt("blockedApps")) {
                     is org.json.JSONArray -> raw.toString()
                     is String             -> raw
@@ -25,20 +24,24 @@ class BedtimeReceiver : BroadcastReceiver() {
 
                 setDnd(ctx, true)
                 if (grayscale) setGrayscale(ctx, true)
-                if (dimBrightness) {
-                    // Save current brightness before dimming so we can restore it at wake
-                    val current = runCatching {
-                        android.provider.Settings.System.getInt(
-                            ctx.contentResolver,
-                            android.provider.Settings.System.SCREEN_BRIGHTNESS
-                        )
-                    }.getOrDefault(180)
-                    BedtimePrefs.setSavedBrightness(securePrefs, current)
-                    setBrightness(ctx, 10)   // dim to ~4%
-                }
 
                 // Start bedtime app blocking via Focus overlay service
                 startBedtimeBlock(ctx, blockedPkgsJson)
+
+                // Start screen filter — replaces old dimBrightness
+                runCatching {
+                    val sfRaw = prefs.getString(SCREEN_FILTER_SETTINGS_V1, null)
+                    val sfCfg = if (!sfRaw.isNullOrBlank()) org.json.JSONObject(sfRaw) else org.json.JSONObject()
+                    if (sfCfg.optBoolean("bedtimeAutoApply", true)) {
+                        val presetKey = sfCfg.optString("bedtimePreset", "bedtime")
+                        val (warm, dim) = when (presetKey) {
+                            "soft"   -> Pair(40, 15)
+                            "medium" -> Pair(65, 30)
+                            else     -> Pair(80, 45)
+                        }
+                        startScreenFilter(ctx, warm, dim, gradual = sfCfg.optBoolean("fadeIn", true))
+                    }
+                }
 
                 // BUG 8 FIX: Record only the bedtime-on timestamp here; streak
                 // increment has moved to BEDTIME_OFF so it only fires when the
@@ -90,13 +93,13 @@ class BedtimeReceiver : BroadcastReceiver() {
             "${ctx.packageName}.BEDTIME_OFF" -> {
                 val raw = BedtimePrefs.getSettings(ctx, prefs, securePrefs)
                 val cfg = try { org.json.JSONObject(raw ?: "{}") } catch (e: Exception) { org.json.JSONObject() }
-                val grayscale       = cfg.optBoolean("grayscale", true)
-                val dimBrightness   = cfg.optBoolean("dimBrightness", true)
-                val savedBrightness = BedtimePrefs.getSavedBrightness(securePrefs)
+                val grayscale = cfg.optBoolean("grayscale", true)
 
                 setDnd(ctx, false)
-                if (grayscale)      setGrayscale(ctx, false)
-                if (dimBrightness)  setBrightness(ctx, savedBrightness)   // restore user's brightness
+                if (grayscale) setGrayscale(ctx, false)
+
+                // Stop screen filter (replaces old dimBrightness restore)
+                runCatching<Unit> { stopScreenFilter(ctx) }
 
                 // Stop bedtime app blocking
                 stopBedtimeBlock(ctx)
@@ -186,10 +189,51 @@ class BedtimeReceiver : BroadcastReceiver() {
                     }
                 }
                 rescheduleForTomorrow(ctx, prefs, "${ctx.packageName}.BEDTIME_OFF", 7002)
+
+                // Schedule filter fade-out notification 10 min after wake time
+                // (only if fadeOut is enabled in screen filter config)
+                runCatching {
+                    val sfRaw = prefs.getString(SCREEN_FILTER_SETTINGS_V1, null)
+                    val sfCfg = if (!sfRaw.isNullOrBlank()) org.json.JSONObject(sfRaw) else org.json.JSONObject()
+                    if (sfCfg.optBoolean("fadeOut", true) && sfCfg.optBoolean("bedtimeAutoApply", true)) {
+                        val pi = android.app.PendingIntent.getBroadcast(
+                            ctx, 7005,
+                            Intent("${ctx.packageName}.BEDTIME_WAKEUP_FADE"),
+                            android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE
+                        )
+                        val am = ctx.getSystemService(Context.ALARM_SERVICE) as android.app.AlarmManager
+                        val triggerAt = System.currentTimeMillis() + 10 * 60 * 1000L
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && am.canScheduleExactAlarms()) {
+                            am.setExactAndAllowWhileIdle(android.app.AlarmManager.RTC_WAKEUP, triggerAt, pi)
+                        } else {
+                            am.setExact(android.app.AlarmManager.RTC_WAKEUP, triggerAt, pi)
+                        }
+                    }
+                }
+            }
+
+            // ── Wake filter fade-out: fires 10 min after wake time ─────────────────────
+            "${ctx.packageName}.BEDTIME_WAKEUP_FADE" -> {
+                runCatching { stopScreenFilter(ctx) }
+                postWakeFilterFadeNotification(ctx)
             }
 
             "${ctx.packageName}.BEDTIME_WINDOWN" -> {
                 postWindDownNotification(ctx)
+                // Begin gradual screen filter fade-in 30 min before bedtime
+                runCatching {
+                    val sfRaw = prefs.getString(SCREEN_FILTER_SETTINGS_V1, null)
+                    val sfCfg = if (!sfRaw.isNullOrBlank()) org.json.JSONObject(sfRaw) else org.json.JSONObject()
+                    if (sfCfg.optBoolean("bedtimeAutoApply", true) && sfCfg.optBoolean("fadeIn", true)) {
+                        val presetKey = sfCfg.optString("bedtimePreset", "bedtime")
+                        val (warm, dim) = when (presetKey) {
+                            "soft"   -> Pair(40, 15)
+                            "medium" -> Pair(65, 30)
+                            else     -> Pair(80, 45)
+                        }
+                        startScreenFilter(ctx, warm, dim, gradual = true)
+                    }
+                }
                 rescheduleForTomorrow(ctx, prefs, "${ctx.packageName}.BEDTIME_WINDOWN", 7003)
             }
 
@@ -223,7 +267,7 @@ class BedtimeReceiver : BroadcastReceiver() {
                         val grayscale2 = cfg2.optBoolean("grayscale", true)
                         if (grayscale2) setGrayscale(ctx, true)
                         // ✅ Re-dim brightness
-                        if (cfg2.optBoolean("dimBrightness", true)) setBrightness(ctx, 10)
+                        // brightness no longer used — screen filter handles dimming
                         // Tell AppMonitorService to clear in-memory snooze and resume blocking.
                         // Uses a new action; AppMonitorService must handle ACTION_BEDTIME_SNOOZE
                         // by calling bedtimeEngine.clearSnooze().
@@ -390,6 +434,31 @@ class BedtimeReceiver : BroadcastReceiver() {
         }
     }
 
+    // ── Screen Filter helpers ─────────────────────────────────────────────────────
+
+    private fun startScreenFilter(ctx: Context, warmAlpha: Int, dimAlpha: Int, gradual: Boolean) {
+        val intent = Intent(ctx, AppMonitorService::class.java).apply {
+            action = AppMonitorService.ACTION_FILTER_START
+            putExtra("filter_warm",    warmAlpha)
+            putExtra("filter_dim",     dimAlpha)
+            putExtra("filter_gradual", gradual)
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
+            ctx.startForegroundService(intent)
+        else
+            ctx.startService(intent)
+    }
+
+    private fun stopScreenFilter(ctx: Context) {
+        val intent = Intent(ctx, AppMonitorService::class.java).apply {
+            action = AppMonitorService.ACTION_FILTER_STOP
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
+            ctx.startForegroundService(intent)
+        else
+            ctx.startService(intent)
+    }
+
     // ── Bedtime app blocking (delegates to Focus overlay service) ────────────────
 
     private fun startBedtimeBlock(ctx: Context, blockedPkgsJson: String) {
@@ -518,18 +587,60 @@ class BedtimeReceiver : BroadcastReceiver() {
 
     private fun postWindDownNotification(ctx: Context) {
         runCatching {
+            val prefs = ctx.getSharedPreferences("tidyapp_v6", Context.MODE_PRIVATE)
+            val sfRaw = prefs.getString(SCREEN_FILTER_SETTINGS_V1, null)
+            val sfCfg = if (!sfRaw.isNullOrBlank())
+                runCatching { org.json.JSONObject(sfRaw) }.getOrNull() else null
+            val filterOn = sfCfg?.optBoolean("bedtimeAutoApply", true) == true &&
+                           sfCfg?.optBoolean("fadeIn", true) == true
+
+            val nm = ctx.getSystemService(Context.NOTIFICATION_SERVICE)
+                    as android.app.NotificationManager
+            ensureAlertChannel(ctx, nm)
+
+            val builder = androidx.core.app.NotificationCompat.Builder(ctx, "tidyalerts")
+                .setSmallIcon(android.R.drawable.ic_dialog_info)
+                .setColor(0xFF6C63FF.toInt())
+                .setContentTitle("🌙 Bedtime in 30 minutes")
+                .setPriority(androidx.core.app.NotificationCompat.PRIORITY_HIGH)
+                .setAutoCancel(true)
+
+            if (filterOn) {
+                val presetKey = sfCfg?.optString("bedtimePreset", "bedtime") ?: "bedtime"
+                val presetLabel = presetKey.replaceFirstChar { it.uppercaseChar() }
+                builder
+                    .setContentText("Screen filter fading in gradually · $presetLabel preset by bedtime")
+                    .setStyle(
+                        androidx.core.app.NotificationCompat.BigTextStyle()
+                            .bigText(
+                                "Screen filter is fading in now 🌅\n" +
+                                "Blue light + dim will reach $presetLabel intensity at bedtime.\n" +
+                                "Tap to adjust."
+                            )
+                    )
+            } else {
+                builder.setContentText("Time to wrap up and wind down.")
+            }
+
+            nm.notify(7003, builder.build())
+        }
+    }
+
+    private fun postWakeFilterFadeNotification(ctx: Context) {
+        runCatching {
             val nm = ctx.getSystemService(Context.NOTIFICATION_SERVICE)
                     as android.app.NotificationManager
             ensureAlertChannel(ctx, nm)
             val notif = androidx.core.app.NotificationCompat.Builder(ctx, "tidyalerts")
                 .setSmallIcon(android.R.drawable.ic_dialog_info)
-                .setColor(0xFF6C63FF.toInt())
-                .setContentTitle("Wind-down time 🌙")
-                .setContentText("Bedtime starts in 30 minutes. Time to wrap up.")
-                .setPriority(androidx.core.app.NotificationCompat.PRIORITY_HIGH)
+                .setColor(0xFF12D48A.toInt())
+                .setContentTitle("🌄 Good morning!")
+                .setContentText("Screen filter fading off. Full brightness restored in a moment.")
+                .setPriority(androidx.core.app.NotificationCompat.PRIORITY_DEFAULT)
                 .setAutoCancel(true)
                 .build()
-            nm.notify(7003, notif)
+            nm.notify(7005, notif)
         }
     }
+
 }

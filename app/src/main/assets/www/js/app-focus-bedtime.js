@@ -437,6 +437,26 @@ window.FocusBedtime = (function () {
     _bedtimeCfgCache   = newCfg;
     _bedtimeCfgCacheTs = Date.now();
 
+    // Persist bt-sf-tog bedtimeAutoApply state into ScreenFilter config so it
+    // stays in sync with whatever was toggled in the Sleep settings section.
+    // Also persist transition toggle states (fadeIn / fadeOut) if shown.
+    (function () {
+      if (typeof ScreenFilter === 'undefined') return;
+      var sfTog = document.getElementById('bt-sf-tog');
+      var autoApply = sfTog ? sfTog.classList.contains('on') : true;
+      var sfCfg = ScreenFilter.getCfg();
+      var changed = sfCfg.bedtimeAutoApply !== autoApply;
+      sfCfg.bedtimeAutoApply = autoApply;
+      // Only read transition toggles when they are rendered (i.e. autoApply is on)
+      if (autoApply) {
+        var fadeInEl  = document.getElementById('bt-sf-fade-in-tog');
+        var fadeOutEl = document.getElementById('bt-sf-fade-out-tog');
+        if (fadeInEl)  { var fi = fadeInEl.classList.contains('on');  if (sfCfg.fadeIn  !== fi)  { sfCfg.fadeIn  = fi;  changed = true; } }
+        if (fadeOutEl) { var fo = fadeOutEl.classList.contains('on'); if (sfCfg.fadeOut !== fo) { sfCfg.fadeOut = fo; changed = true; } }
+      }
+      if (changed) ScreenFilter.saveCfg(sfCfg);
+    }());
+
     // Set seeded flag so render() skips re-seeding clock state
     window._btClockSeeded = true;
     _applyBedtimeConfig(newCfg);
@@ -831,6 +851,10 @@ window.FocusBedtime = (function () {
   function render() {
     var el = document.getElementById('focus-bedtime-strip');
     if (!el) return;
+    // Render Screen Filter card below bedtime whenever bedtime repaints
+    if (typeof ScreenFilter !== 'undefined') {
+      setTimeout(function () { ScreenFilter.render(); }, 0);
+    }
 
     // ── Pro gate ────────────────────────────────────────────────
     if (!ProTier.isPro) {
@@ -1095,6 +1119,33 @@ window.FocusBedtime = (function () {
                   '<div class="tog-knob"></div>' +
                 '</div>' +
               '</div>' +
+              /* Screen Filter row + transition sub-rows */
+              (function () {
+                var sfAutoApply = (typeof ScreenFilter !== 'undefined' && ScreenFilter.getCfg().bedtimeAutoApply);
+                var sfCfg = (typeof ScreenFilter !== 'undefined') ? ScreenFilter.getCfg() : {};
+                return (
+                  '<div class="sf-bt-row" style="padding:11px 14px;border-top:1px solid var(--border)" onclick="event.stopPropagation()">' +
+                    '<div style="font-size:16px">🌊</div>' +
+                    '<div style="flex:1;margin-left:12px">' +
+                      '<div style="font-size:12px;font-weight:600;color:var(--t1)">Screen Filter</div>' +
+                      '<div style="font-family:var(--ff-m);font-size:10px;color:var(--t3)">Auto-apply on bedtime</div>' +
+                      (typeof ScreenFilter !== 'undefined' ? '<div class="sf-bt-preset-sel" onclick="event.stopPropagation();_sfCycleBtPreset()">' + _getSfBedtimeLabel() + ' ▾</div>' : '') +
+                    '</div>' +
+                    '<div class="tog ' + (sfAutoApply ? 'on' : 'off') + '" id="bt-sf-tog"' +
+                    ' onclick="event.stopPropagation();window._btToggleSfFilter()">' +
+                      '<div class="tog-knob"></div>' +
+                    '</div>' +
+                  '</div>' +
+                  // Transition sub-rows — only shown when Screen Filter auto-apply is ON
+                  (sfAutoApply
+                    ? '<div id="bt-sf-transitions" style="padding:2px 14px 10px 42px;border-top:1px solid rgba(255,255,255,.04)">' +
+                        _sfBtTransRow('fadeIn',  'bt-sf-fade-in-tog',  !!sfCfg.fadeIn,  '🌅 Fade in 30 min before bedtime') +
+                        _sfBtTransRow('fadeOut', 'bt-sf-fade-out-tog', !!sfCfg.fadeOut, '🌄 Fade out 10 min after wake time') +
+                      '</div>'
+                    : '<div id="bt-sf-transitions" style="padding:2px 14px 10px 42px;border-top:1px solid rgba(255,255,255,.04);display:none"></div>')
+                );
+              }()) +
+
               /* Morning summary */
               '<div style="display:flex;align-items:center;gap:12px;padding:11px 14px">' +
                 '<div style="font-size:16px">\u2600\uFE0F</div>' +
@@ -1137,6 +1188,63 @@ window.FocusBedtime = (function () {
   // Named function declarations inside the same IIFE scope are fully hoisted
   // and the last declaration wins — which would override the real implementations
   // above with these forwarding shims, causing infinite recursion on every call.
+  function _getSfBedtimeLabel() {
+    if (typeof ScreenFilter === 'undefined') return 'Bedtime';
+    var p = ScreenFilter.getCfg().bedtimePreset || 'bedtime';
+    return p.charAt(0).toUpperCase() + p.slice(1);
+  }
+
+  /** Build a small transition toggle row for inside the bedtime card. */
+  function _sfBtTransRow(field, togId, on, label) {
+    return (
+      '<div style="display:flex;align-items:center;gap:10px;padding:7px 0;' +
+          'border-top:1px solid rgba(255,255,255,.05)">' +
+        '<span style="font-size:13px;color:var(--t2,rgba(255,255,255,.7));flex:1">' + label + '</span>' +
+        '<div class="sf-sm-tog ' + (on ? 'on' : 'off') + '" id="' + togId + '"' +
+            ' onclick="event.stopPropagation();FocusBedtime.btInlineToggle(\'' + togId + '\')">' +
+          '<div class="sf-sm-knob"></div>' +
+        '</div>' +
+      '</div>'
+    );
+  }
+
+  // Cycle bedtime preset for the row's ▾ selector
+  window._sfCycleBtPreset = function() {
+    if (typeof ScreenFilter === 'undefined') return;
+    var cfg = ScreenFilter.getCfg();
+    var order = ['soft','medium','bedtime'];
+    var idx = order.indexOf(cfg.bedtimePreset || 'bedtime');
+    cfg.bedtimePreset = order[(idx + 1) % order.length];
+    ScreenFilter.saveCfg(cfg);
+    render(); // re-render bedtime card to update label
+  };
+
+  // Hook called by ScreenFilter._preset() when user changes bedtime preset in the
+  // Screen Filter card. Marks bedtime card dirty so the Save button activates —
+  // the preset is stored in ScreenFilter config but bedtime references it, so a
+  // save is needed to push the updated bedtime preset into the native layer.
+  window.onSFPresetChange = function () {
+    // Preset changes in Screen Filter are independent of bedtime config — no dirty mark needed
+  };
+
+  window._btToggleSfFilter = function () {
+    FocusBedtime.btInlineToggle('bt-sf-tog');
+    var tog = document.getElementById('bt-sf-tog');
+    var isOn = tog && tog.classList.contains('on');
+    var transDiv = document.getElementById('bt-sf-transitions');
+    if (!transDiv) return;
+    if (isOn && typeof ScreenFilter !== 'undefined') {
+      // Build transition rows if not yet rendered
+      var sfCfg = ScreenFilter.getCfg();
+      transDiv.innerHTML =
+        _sfBtTransRow('fadeIn',  'bt-sf-fade-in-tog',  !!sfCfg.fadeIn,  '🌅 Fade in 30 min before bedtime') +
+        _sfBtTransRow('fadeOut', 'bt-sf-fade-out-tog', !!sfCfg.fadeOut, '🌄 Fade out 10 min after wake time');
+      transDiv.style.display = 'block';
+    } else {
+      transDiv.style.display = 'none';
+    }
+  };
+
   window._toggleBedtime          = function() { FocusBedtime.toggle(); };
   window._toggleBedtimeSettings  = function() { FocusBedtime.toggleSettings(); };
   window._saveBedtimeInline       = function() { FocusBedtime.save(); };

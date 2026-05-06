@@ -137,6 +137,10 @@ const val IS_PRO_USER      = "is_pro_user"
 // ── Health Connect ────────────────────────────────────────────────────────
 const val HC_CONNECTED = "hc_connected"   // "1" = connected, "0" / absent = disconnected
 
+// ── Screen Filter ────────────────────────────────────────────────────────
+const val SCREEN_FILTER_SETTINGS_V1 = "screen_filter_settings_v1"
+const val SCREEN_FILTER_ACTIVE      = "screen_filter_active"
+
 // ── Rate-app prompt ───────────────────────────────────────────────────────
 const val KEY_RATE_INSTALL_MS    = "rate_install_ms"
 const val KEY_RATE_LAST_SHOWN_MS = "rate_last_shown_ms"
