@@ -561,9 +561,16 @@ function _buildBodyScoreCard(ctx, icon) {
   const avgRhr7d   = d.avgRhr7d   ?? null;
   const avgSteps7d = d.avgSteps7d ?? null;
 
-  /* grade */
-  const gradeColor = bodyScore >= 70 ? '#12D48A' : bodyScore >= 50 ? '#F7A623' : bodyScore >= 0 ? '#F04E7A' : '#05C8E8';
-  const gradeLabel = bodyScore >= 85 ? 'EXCELLENT' : bodyScore >= 70 ? 'GREAT' : bodyScore >= 50 ? 'GOOD' : bodyScore >= 35 ? 'FAIR' : 'START';
+  /* grade — unified system: Excellent(85+)/Good(70+)/Fair(55+)/Start */
+  const gradeColor = bodyScore >= 85 ? '#12D48A'
+                   : bodyScore >= 70 ? '#05C8E8'
+                   : bodyScore >= 55 ? '#F7A623'
+                   : bodyScore >= 0  ? '#F04E7A'
+                   : 'rgba(160,160,210,0.55)';
+  const gradeLabel = bodyScore >= 85 ? 'EXCELLENT'
+                   : bodyScore >= 70 ? 'GOOD'
+                   : bodyScore >= 55 ? 'FAIR'
+                   : 'START';
 
   /* ── Background: deep health teal ── */
   ctx.fillStyle = '#021212'; ctx.fillRect(0, 0, W, H);
@@ -1591,6 +1598,22 @@ function _buildScoreHistoryCard(ctx, icon, opts) {
     hist = JSON.parse(raw || '{}');
   } catch (_) {}
 
+  /* Body pillar: seed today from live HC when pref is missing — same logic as
+   * _getData in app-score-history.js so the share card stays consistent. */
+  if (pillar === 'body') {
+    const _bTodayKey = new Date().toISOString().slice(0, 10);
+    if (hist[_bTodayKey] === undefined) {
+      try {
+        if (typeof HealthConnect !== 'undefined' &&
+            typeof HealthConnect.isConnected === 'function' && HealthConnect.isConnected() &&
+            typeof HealthConnect.getBodyScore === 'function') {
+          const _bLive = HealthConnect.getBodyScore();
+          if (_bLive >= 0) hist[_bTodayKey] = _bLive;
+        }
+      } catch (_) {}
+    }
+  }
+
   const today = new Date();
   let rawData = [];
   for (let i = wc.days - 1; i >= 0; i--) {
@@ -2001,6 +2024,21 @@ function _shareText(type, opts) {
       hist2 = JSON.parse(raw2 || '{}');
     } catch (_) {}
 
+    /* Body pillar: seed today from live HC when pref is missing */
+    if (pillar === 'body') {
+      const _stTodayKey = new Date().toISOString().slice(0, 10);
+      if (hist2[_stTodayKey] === undefined) {
+        try {
+          if (typeof HealthConnect !== 'undefined' &&
+              typeof HealthConnect.isConnected === 'function' && HealthConnect.isConnected() &&
+              typeof HealthConnect.getBodyScore === 'function') {
+            const _stLive = HealthConnect.getBodyScore();
+            if (_stLive >= 0) hist2[_stTodayKey] = _stLive;
+          }
+        } catch (_) {}
+      }
+    }
+
     const today2 = new Date();
     let raw2 = [];
     for (let i = days - 1; i >= 0; i--) {
@@ -2131,7 +2169,7 @@ function _shareText(type, opts) {
     const bd = (typeof window.getBodyScoreData === 'function') ? window.getBodyScoreData() : {};
     const sc = (bd.bodyScore != null && bd.bodyScore >= 0) ? bd.bodyScore : 0;
     const stepsVal = bd.steps != null ? bd.steps.toLocaleString() : null;
-    const grade = sc >= 85 ? 'excellent' : sc >= 70 ? 'great' : sc >= 50 ? 'good' : 'fair';
+    const grade = sc >= 85 ? 'excellent' : sc >= 70 ? 'good' : sc >= 55 ? 'fair' : 'start';
     return stepsVal
       ? `❤️ Body Score: ${sc}/100 (${grade}) — ${stepsVal} steps today, tracked via Health Connect on Aurelo.\n\nPrivate & No Signup 👇\n${storeUrl}`
       : `❤️ Body Score: ${sc}/100 (${grade}) — HRV, resting heart rate & steps via Health Connect on Aurelo.\n\nPrivate & No Signup 👇\n${storeUrl}`;

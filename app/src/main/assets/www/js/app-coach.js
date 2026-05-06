@@ -1795,6 +1795,20 @@ window.CoachUI = {
                q.intent !== CoachIntent.HC_ACTIVE_DAY_BETTER_FOCUS;
       });
     }
+    // FIX P3-08: filter BEDTIME_REVENGE_PROCRASTINATION chips from the Sleep tab when
+    // Bedtime Mode is not enabled (sleepScore <= 0). Without this guard, chips like
+    // "Why do I use my phone at night?" and "How's my bedtime routine?" appeared and
+    // fired a behavioural diagnosis for a routine the user has never set up.
+    // The P1-02 fix routes these to FEATURE_EXPLANATION when sleepScore <= 0, but hiding
+    // the misleading chip labels here is a cleaner user experience.
+    if (tab === 'sleep' && s && (s.sleepScore === undefined || s.sleepScore <= 0)) {
+      qs = qs.filter(function(q) {
+        return q.intent !== CoachIntent.BEDTIME_REVENGE_PROCRASTINATION;
+      });
+      // Surface a feature-introduction chip in place of the removed behaviour chips
+      // so the Sleep tab still has useful content for new users.
+      qs = [{ label: 'What is Bedtime Mode?', intent: CoachIntent.FEATURE_EXPLANATION }].concat(qs);
+    }
     el.innerHTML = '';
     var self = this;
     for (var i = 0; i < qs.length; i++) {
@@ -1815,6 +1829,11 @@ window.CoachUI = {
     if (!container) return;
     var hcRows = '';
     if (s.hcConnected) {
+      // FIX P3-07: hardcoded "7 days" was inaccurate on Days 1–6 when the user has
+      // less than a week of HC history. Compute the actual window from summary.dataWindowDays,
+      // capped at 7 since that's the maximum Aurelo uses for rolling averages.
+      var hcDays = Math.min(7, (s.dataWindowDays && s.dataWindowDays > 0) ? s.dataWindowDays : 1);
+      var hcDaysLabel = hcDays + ' day' + (hcDays !== 1 ? 's' : '');
       var hcTypes = [
         { label: 'Heart rate variability', granted: s.hrvToday !== null },
         { label: 'Sleep sessions',          granted: s.sleepDurationMinutes !== null },
@@ -1828,7 +1847,7 @@ window.CoachUI = {
           hcRows += '<div class="coach-data-row hc-row">' +
             '<div class="coach-data-check hc-check">✓</div>' +
             '<div class="coach-data-label">' + t.label + ' <span class="hc-badge-inline">HC</span></div>' +
-            '<div class="coach-data-meta">7 days</div>' +
+            '<div class="coach-data-meta">' + hcDaysLabel + '</div>' +
           '</div>';
         }
       }

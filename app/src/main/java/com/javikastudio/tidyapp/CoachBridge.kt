@@ -396,6 +396,25 @@ class CoachBridge(
     }
 
     /**
+     * FIX P3-05: When Health Connect is connected mid-day, all tab insight caches
+     * previously kept serving stale pre-HC responses until midnight because nothing
+     * triggered a cache invalidation on connect.
+     *
+     * Call this from HealthConnectBridge immediately after a successful HC connect
+     * or permission grant. It delegates to invalidateTabInsightCache("all"), which
+     * purges the today / week / month / home caches so the very next tab visit
+     * regenerates a fresh, HC-aware coaching response.
+     *
+     * Usage in HealthConnectBridge.kt:
+     *   coachBridge.onHealthConnectConnected()
+     */
+    @JavascriptInterface
+    fun onHealthConnectConnected() {
+        invalidateTabInsightCache("all")
+        Log.d("CoachBridge", "HC connected — all tab + home insight caches invalidated")
+    }
+
+    /**
      * Invalidates one or more tab insight caches from JS.
      * Called after focus-session completion or sleep-score refresh so the next
      * tab visit re-generates an up-to-date insight instead of serving stale copy.

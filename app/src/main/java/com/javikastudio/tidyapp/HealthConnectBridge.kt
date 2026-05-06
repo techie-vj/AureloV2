@@ -367,6 +367,19 @@ class HealthConnectBridge(
                 // Case C: State matches, just refresh data if we are connected
                 storedConnected -> {
                     refreshCachedData()
+                    // Notify JS so it can re-render body-dependent UI and save
+                    // body_score_history. Without this callback the home card has
+                    // already rendered with stale _cachedData (body = -1), the
+                    // BUG-11 save in renderAureloScore() is skipped, and the
+                    // Score History chart stays empty for the body pillar.
+                    val json = getHCData()
+                    webView.post {
+                        webView.evaluateJavascript(
+                            "if(typeof window.onHCDataRefreshed==='function')" +
+                                    " window.onHCDataRefreshed($json)",
+                            null,
+                        )
+                    }
                 }
             }
         }

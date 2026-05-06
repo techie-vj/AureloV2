@@ -1639,9 +1639,13 @@ object InsightTemplateLibrary {
                     hcBased = true
                 ),
                 InsightText(
+                    // FIX P1-03: This template references Body score, which only exists when HC is
+                    // connected. hcBased = true makes isEligible() gate it on summary.hcConnected,
+                    // so non-HC users (even after 30 days) never see "Body score active".
                     title = "✦ Established user summary — {data_window_days} days of data",
                     body  = "Screen {screen_score} · Focus {focus_score} · Sleep {sleep_score} · Body score active. " +
-                            "At {data_window_days} days, your coaching is now personalised to your specific patterns."
+                            "At {data_window_days} days, your coaching is now personalised to your specific patterns.",
+                    hcBased = true
                 )
             )
         )
@@ -1762,8 +1766,8 @@ object InsightTemplateLibrary {
                     // value ("Social & Communication") we accept either.
                     val c = summary.topCategory.lowercase()
                     c == "social" ||
-                        c == Categories.SOCIAL.lowercase() ||
-                        c.startsWith("social ")
+                            c == Categories.SOCIAL.lowercase() ||
+                            c.startsWith("social ")
                 }
             }
         }
@@ -1880,7 +1884,10 @@ object InsightTemplateLibrary {
                 .toString())
             s = s.replace("{pickups_today}",      summary.pickupsToday.toString())
             s = s.replace("{pickups_avg}",        safePickupAvg(summary.pickups7DayAvg))
-            s = s.replace("{first_use_hour}",     summary.firstUseHour.toString())
+            // FIX P1-05: firstUseHour == -1 is the sentinel for "no pickup recorded yet".
+            // Emit a readable string instead of "-1" so templates don't say "first use at -1:00".
+            s = s.replace("{first_use_hour}",
+                if (summary.firstUseHour >= 0) summary.firstUseHour.toString() else "not yet today")
             s = s.replace("{aurelo_score}",       safeScore(summary.aureloScore))
             s = s.replace("{screen_score}",       safeScore(summary.screenScore))
             s = s.replace("{focus_score}",        safeScore(summary.focusScore))

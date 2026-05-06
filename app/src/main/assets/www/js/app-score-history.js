@@ -118,6 +118,27 @@ var ScoreHistory = (function () {
     var p = PILLARS.find(function(x){ return x.id === pillarId; });
     if (!p) return [];
     var hist  = _loadRaw(p.key);
+
+    /* Body pillar: seed today from the live HC bridge when the saved pref entry
+     * is missing. Covers the gap between first HC connect and the first full
+     * render cycle that writes body_score_history (via renderAureloScore).
+     * This is a read-only seed — it does NOT persist to prefs here; the
+     * authoritative write still happens in renderAureloScore / onHCDataRefreshed. */
+    if (pillarId === 'body') {
+      var _todayKey = new Date().toISOString().slice(0, 10);
+      if (hist[_todayKey] === undefined) {
+        try {
+          if (typeof HealthConnect !== 'undefined' &&
+              typeof HealthConnect.isConnected === 'function' &&
+              HealthConnect.isConnected() &&
+              typeof HealthConnect.getBodyScore === 'function') {
+            var _live = HealthConnect.getBodyScore();
+            if (_live >= 0) hist[_todayKey] = _live;
+          }
+        } catch (_) {}
+      }
+    }
+
     var today = new Date();
     var out   = [];
     for (var i = days - 1; i >= 0; i--) {

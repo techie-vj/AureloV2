@@ -96,11 +96,16 @@ class UsageSummaryBuilder(
         val weeklyPickupsRaw = prefs.getString(CACHED_MONTHLY_PICKUPS, "[]") ?: "[]"
         val pickups7DayAvg  = weeklyAverage(weeklyPickupsRaw, 7)
 
-        // First pickup hour from cached first-pickup timestamp
+        // First pickup hour from cached first-pickup timestamp.
+        // FIX P1-05: default was 8 when no pickup was recorded (Day 1 / fresh install),
+        // causing FOCUS_PEAK_TIME and ENCOURAGING templates to emit "first use at 8:00"
+        // even when the user had never opened their phone. Sentinel -1 means "no pickup
+        // recorded yet"; fillSlots() and guards throughout CoachOrchestrator must treat
+        // firstUseHour < 0 as "unknown" rather than an actual early-morning value.
         val firstPickupTs = prefs.getLong(CACHED_FIRST_PICKUP_TS, 0L)
         val firstUseHour  = if (firstPickupTs > 0L)
             java.util.Calendar.getInstance().apply { timeInMillis = firstPickupTs }.get(java.util.Calendar.HOUR_OF_DAY)
-        else 8
+        else -1  // sentinel: no pickup recorded today
 
         // ── Focus signals ─────────────────────────────────────────────────
         val weekId    = currentWeekId()
@@ -160,7 +165,7 @@ class UsageSummaryBuilder(
             // FIX: reflect actual installed-history depth instead of always 7.
             // Falls back to the explicitly-supplied window when caller forces one.
             dataWindowDays                = if (dataWindowDays >= 0) dataWindowDays
-                                            else effectiveDataWindowDays(weekly),
+            else effectiveDataWindowDays(weekly),
         )
     }
 

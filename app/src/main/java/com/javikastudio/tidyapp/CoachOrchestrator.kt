@@ -372,13 +372,15 @@ class CoachOrchestrator(
                         listOf("How's my bedtime routine?", "How does sleep affect my score?", "What should I work on first?"),
                     )
                 } else {
-                    // HC connected, permission granted, but no HRV readings found.
+                    // FIX P2-01: hcConnected is not a per-signal permission flag.
+                    // Don't claim "HRV access is granted" — the user may have connected HC
+                    // without granting the HRV permission specifically.
                     Triple(
-                        "🫀 No HRV data recorded yet",
-                        "Health Connect is connected and HRV access is granted, but there are no Heart Rate Variability readings recorded for today. " +
-                                "HRV is typically recorded automatically by a wearable (Garmin, Samsung, Fitbit, Pixel Watch, etc.). " +
-                                "If your wearable is paired with Health Connect, try opening the wearable companion app to trigger a sync. " +
-                                "Aurelo will pick up the data automatically once it appears.",
+                        "🫀 HRV data not available yet",
+                        "Health Connect is connected, but no Heart Rate Variability readings are available yet. " +
+                                "If HRV access hasn't been granted, go to Settings → Health Connect to check your permissions. " +
+                                "If access is already enabled, your wearable may not have synced today — " +
+                                "open the companion app to trigger a sync and Aurelo will update automatically.",
                         listOf("How does sleep affect my score?", "Tell me about my week", "What should I work on first?"),
                     )
                 }
@@ -394,11 +396,13 @@ class CoachOrchestrator(
                         listOf("Tell me about my week", "How are my focus sessions going?", "What should I work on first?"),
                     )
                 } else {
+                    // FIX P2-01: don't claim Steps access is granted — we can't confirm the per-signal permission.
                     Triple(
-                        "🚶 No step data recorded yet today",
-                        "Health Connect is connected and Steps access is granted, but no step count has been recorded today. " +
-                                "Steps are usually logged by Google Fit, your phone's built-in step counter, or a paired wearable. " +
-                                "Make sure the step-source app has Health Connect write access in Settings → Apps → Health Connect. " +
+                        "🚶 Step data not available yet today",
+                        "Health Connect is connected, but no step count is available yet. " +
+                                "If Steps access hasn't been granted, check Settings → Health Connect → permissions. " +
+                                "If it's already enabled, make sure the step-source app (Google Fit, Samsung Health, " +
+                                "or your phone's built-in counter) has Health Connect write access. " +
                                 "Your Screen Score activity modifier will apply automatically once steps are synced.",
                         listOf("Tell me about my week", "How are my focus sessions going?", "What should I work on first?"),
                     )
@@ -418,11 +422,14 @@ class CoachOrchestrator(
                         listOf("How's my bedtime routine?", "What is Bedtime Mode?", "What should I work on first?"),
                     )
                 } else {
+                    // FIX P2-01: don't claim "Sleep access is granted" — hcConnected is not
+                    // a per-signal flag. The user may have connected HC without granting sleep.
                     Triple(
-                        "😴 No sleep sessions recorded yet",
-                        "Health Connect is connected and Sleep access is granted, but no sleep sessions have been recorded. " +
-                                "Sleep data is logged by wearables and apps like Samsung Health, Garmin Connect, or Fitbit. " +
-                                "If your wearable tracked last night's sleep, try opening its companion app to force a sync. " +
+                        "😴 Sleep data not available yet",
+                        "Health Connect is connected, but no sleep session data is available yet. " +
+                                "If you haven't granted sleep access, go to Settings → Health Connect to check your permissions. " +
+                                "If sleep is already permitted, your wearable or fitness app may not have synced recently — " +
+                                "open the companion app to trigger a sync. " +
                                 if (summary.sleepScore > 0)
                                     "In the meantime, your Bedtime Mode Sleep Score (${summary.sleepScore}) reflects your bedtime adherence without needing HC sleep sessions."
                                 else
@@ -572,7 +579,7 @@ class CoachOrchestrator(
         val focusW  = summary.focusScore  * swFocus
         val sleepW  = if (sleepAvail) summary.sleepScore * swSleep else Double.MAX_VALUE
         val bodyW   = if (hcActive && summary.bodyScore >= 0) summary.bodyScore * swBody
-                      else Double.MAX_VALUE
+        else Double.MAX_VALUE
         return when (minOf(screenW, focusW, sleepW, bodyW)) {
             focusW  -> "Focus"
             screenW -> "Screen"
@@ -742,8 +749,9 @@ class CoachOrchestrator(
             // 320-min over-goal day with no sessions.
             "PRODUCTIVE_DAY" -> {
                 if (today > goal * 1.05f) return false
+                // FIX P1-05: firstUseHour == -1 means no pickup recorded; don't treat as early-morning issue.
                 if (summary.focusSessionsCompleted == 0 &&
-                    summary.firstUseHour < 8) return false
+                    summary.firstUseHour in 0..7) return false
             }
 
             // HC_* intents require HC actually being connected with the
@@ -776,7 +784,8 @@ class CoachOrchestrator(
                 if (today == 0 && pickups == 0 &&
                     summary.firstUseHour >= 9) return false
                 if (summary.sleepScore >= 70 && today < goal * 0.5f) return false
-                if (summary.firstUseHour < 8 &&
+                // FIX P1-05: firstUseHour == -1 means no pickup recorded; don't treat as early-morning signal.
+                if (summary.firstUseHour in 0..7 &&
                     summary.sleepScore >= 65 &&
                     today < goal * 0.5f) return false
             }
@@ -809,8 +818,9 @@ class CoachOrchestrator(
 
             // MORNING_DOOM_SCROLL fires off the firstUseHour signal — reject
             // when the user actually didn't have a morning issue.
+            // FIX P1-05: also reject when firstUseHour == -1 (no pickup recorded yet).
             "MORNING_DOOM_SCROLL" -> {
-                if (summary.firstUseHour >= 9) return false
+                if (summary.firstUseHour < 0 || summary.firstUseHour >= 9) return false
             }
 
             // WEEKEND_BINGE only on actual weekend days. The runtime can't
@@ -883,6 +893,8 @@ class CoachOrchestrator(
             "what is", "how does", "explain", "feature", "what does",
             "trigger", "best time", "most focused", "deep dive",
             "how much time on", "spending on", "how long on",
+            // FIX P1-04: "loop" was missing, causing "why does the loop happen?" → out_of_scope
+            "loop", "habit loop", "maintain", "session length",
         )
 
         return domainTerms.any { q.contains(it) }
@@ -1002,9 +1014,11 @@ class CoachOrchestrator(
             return "FOCUS_GAP"
         }
 
+        // FIX P1-05: guard firstUseHour < 0 (no pickup recorded) — don't promote MORNING_DOOM_SCROLL
+        // when the sentinel value -1 happens to be numerically < 8.
         if (
             baseIntent == "GENERAL_SUMMARY" &&
-            summary.firstUseHour < 8 &&
+            summary.firstUseHour in 0..7 &&
             (q.contains("morning") || q.contains("first") || q.contains("today") || q.contains("summary"))
         ) {
             return "MORNING_DOOM_SCROLL"
@@ -1255,15 +1269,19 @@ class CoachOrchestrator(
 
             // ── Habits tab ────────────────────────────────────────────────────
 
-            // FIX: only confirm DOPAMINE_LOOP when pickups actually run hot.
-            // pickups7DayAvg has to be > 0 (otherwise we have no baseline yet).
+            // FIX P2-02: pickups7DayAvg == 0 means no baseline exists yet (Day 1 / fresh install).
+            // Previously the else branch fired for ALL cases where the guard was false — including
+            // a user with 0 pickups and 0 average, giving them a DOPAMINE_LOOP diagnosis they don't have.
             q.contains("do i have a dopamine loop") ||
                     q.contains("dopamine loop") ->
-                if (summary.pickups7DayAvg > 0f &&
-                    summary.pickupsToday < summary.pickups7DayAvg)
-                    ClassifiedIntent("HEALTHY_PATTERN", 1.0f, "predefined_query")
-                else
-                    ClassifiedIntent("DOPAMINE_LOOP", 1.0f, "predefined_query")
+                when {
+                    summary.pickups7DayAvg <= 0f ->
+                        ClassifiedIntent("GENERAL_SUMMARY", 1.0f, "predefined_query")  // no baseline yet
+                    summary.pickupsToday < summary.pickups7DayAvg ->
+                        ClassifiedIntent("HEALTHY_PATTERN", 1.0f, "predefined_query")
+                    else ->
+                        ClassifiedIntent("DOPAMINE_LOOP", 1.0f, "predefined_query")
+                }
 
             // FIX: data-driven trigger detection — distinct from "Do I have a dopamine loop?"
             // High-pickup case now routes to ANOMALOUS_SPIKE (diagnostic: what happened?)
@@ -1302,16 +1320,20 @@ class CoachOrchestrator(
 
             // ── Sleep & Body tab ──────────────────────────────────────────────
 
-            // FIX: when the user's bedtime routine is healthy (sleepScore >= 75)
-            // and they aren't actually using the phone late, "Why do I use my
-            // phone at night?" should not assume they do. Route to HEALTHY_PATTERN.
+            // FIX P1-02: when Bedtime Mode is not enabled (sleepScore == 0) neither of these
+            // questions should fire a behavioural diagnosis — the user has no routine to diagnose.
+            // Route to FEATURE_EXPLANATION so Coach introduces Bedtime Mode instead.
             q.contains("why do i use my phone at night") ||
                     q.contains("phone at night") ||
                     q.contains("night phone") ->
-                if (summary.sleepScore >= 75)
-                    ClassifiedIntent("HEALTHY_PATTERN", 1.0f, "predefined_query")
-                else
-                    ClassifiedIntent("BEDTIME_REVENGE_PROCRASTINATION", 1.0f, "predefined_query")
+                ClassifiedIntent(
+                    when {
+                        summary.sleepScore <= 0 -> "FEATURE_EXPLANATION"
+                        summary.sleepScore >= 75 -> "HEALTHY_PATTERN"
+                        else -> "BEDTIME_REVENGE_PROCRASTINATION"
+                    },
+                    1.0f, "predefined_query"
+                )
 
             // FIX: HC-missing check now keys off the actual signal availability,
             // not just `hcConnected`. A user who connected HC for steps but never
@@ -1329,18 +1351,15 @@ class CoachOrchestrator(
                 }
             }
 
-            // FIX: sleepScore-aware routing.
-            //   sleepScore >= 75  → HEALTHY_PATTERN (the routine is working).
-            //   sleepScore <  75  → BEDTIME_REVENGE_PROCRASTINATION (whose templates
-            //                       explicitly talk about Bedtime Mode and bedtime
-            //                       adherence). Previously routed to RECOVERY_DAY,
-            //                       which printed "yesterday was tough but today is
-            //                       trending better" — unrelated to bedtime.
+            // FIX P1-02 (continued): same guard for the explicit bedtime routine question.
             q.contains("how's my bedtime routine") ||
                     q.contains("how is my bedtime routine") ||
                     q.contains("bedtime routine") -> {
-                val bedtimeIntent = if (summary.sleepScore >= 75) "HEALTHY_PATTERN"
-                else "BEDTIME_REVENGE_PROCRASTINATION"
+                val bedtimeIntent = when {
+                    summary.sleepScore <= 0 -> "FEATURE_EXPLANATION"   // Bedtime Mode not enabled
+                    summary.sleepScore >= 75 -> "HEALTHY_PATTERN"
+                    else -> "BEDTIME_REVENGE_PROCRASTINATION"
+                }
                 ClassifiedIntent(bedtimeIntent, 1.0f, "predefined_query")
             }
 
@@ -1420,11 +1439,17 @@ class CoachOrchestrator(
                     q.contains("where should i start") ->
                 ClassifiedIntent("GENERAL_SUMMARY", 1.0f, "predefined_query")
 
+            // FIX P2-03: unconditional STREAK_AT_RISK routing bypassed all plausibility checks,
+            // so a Day 1 user with streakDays=0 asking "how many minutes do I have left?"
+            // received "Streak endangered — act now" templates with no streak to protect.
             q.contains("how many minutes do i have left") ||
                     q.contains("minutes do i have left") ||
                     q.contains("minutes left") ||
                     q.contains("time left") ->
-                ClassifiedIntent("STREAK_AT_RISK", 1.0f, "predefined_query")
+                if (summary.streakDays > 0)
+                    ClassifiedIntent("STREAK_AT_RISK", 1.0f, "predefined_query")
+                else
+                    ClassifiedIntent("GENERAL_SUMMARY", 1.0f, "predefined_query")
 
             q.contains("when is my riskiest time") ||
                     q.contains("riskiest time") ||
@@ -1582,6 +1607,39 @@ class CoachOrchestrator(
                     q.contains("what should i do instead") ->
                 ClassifiedIntent("DOPAMINE_LOOP", 1.0f, "predefined_query")
 
+            // FIX P4-01: "How is my streak looking?" chip from HEALTHY_PATTERN follow-ups had no
+            // predefined route → keyword classifier scored "streak" → STREAK_AT_RISK on borderline
+            // days even in a healthy context. Default to HEALTHY_PATTERN; applyPersonalisation()
+            // will demote to STREAK_AT_RISK if the projected usage actually endangers the streak.
+            q.contains("how is my streak looking") ||
+                    q.contains("streak looking") ->
+                if (summary.streakDays > 0)
+                    ClassifiedIntent("HEALTHY_PATTERN", 1.0f, "predefined_query")
+                else
+                    ClassifiedIntent("GENERAL_SUMMARY", 1.0f, "predefined_query")
+
+            // FIX P4-02: "What's a good session length?" chip from FOCUS_PEAK_TIME follow-ups
+            // matched "session" → FOCUS_GAP giving gap/CTA copy instead of session-length guidance.
+            q.contains("what's a good session length") ||
+                    q.contains("good session length") ||
+                    q.contains("session length") ->
+                ClassifiedIntent("FEATURE_EXPLANATION", 1.0f, "predefined_query")
+
+            // FIX P4-03: "Do active days improve my score?" follow-up for HC_ACTIVE_DAY_BETTER_FOCUS
+            // silently fell to GENERAL_SUMMARY when HC was connected but steps were absent.
+            // Now routes to HC_MISSING_STEPS so the user learns exactly what's missing.
+            q.contains("do active days improve") ||
+                    q.contains("active days improve my score") ||
+                    q.contains("active days improve") ->
+                when {
+                    !summary.hcConnected ->
+                        ClassifiedIntent("HC_ACTIVE_DAY_BETTER_FOCUS", 1.0f, "predefined_query")
+                    hcSignals.hasSteps ->
+                        ClassifiedIntent("HC_ACTIVE_DAY_BETTER_FOCUS", 1.0f, "predefined_query")
+                    else ->
+                        ClassifiedIntent("HC_MISSING_STEPS", 1.0f, "predefined_query")
+                }
+
             // "What should I do right now?" → STREAK_AT_RISK
             q.contains("what should i do right now") ||
                     q.contains("do right now") ->
@@ -1592,13 +1650,36 @@ class CoachOrchestrator(
                     q.contains("focus on next") ->
                 ClassifiedIntent("GENERAL_SUMMARY", 1.0f, "predefined_query")
 
+            // FIX P2-07: "Which social apps should I limit?" chip routes to SOCIAL_SPIRAL
+            // via classifyQueryIntent without checking social dominance. Route it through
+            // the same isSocialDominant guard used by "Am I on social media too much?".
+            q.contains("which social apps should i limit") ||
+                    q.contains("social apps should i limit") ->
+                if (isSocialDominant(summary))
+                    ClassifiedIntent("SOCIAL_SPIRAL", 1.0f, "predefined_query")
+                else
+                    ClassifiedIntent("SOCIAL_NOT_DOMINANT", 1.0f, "predefined_query")
+
             // "What's a healthy social limit?" → SOCIAL_SPIRAL
             q.contains("social limit") ||
                     q.contains("healthy social limit") ||
                     q.contains("healthy social") ->
                 ClassifiedIntent("SOCIAL_SPIRAL", 1.0f, "predefined_query")
 
-            // "What's causing this?" → SCORE_DROP
+            // FIX P2-05: "How do I maintain Excellent?" chip had no predefined route →
+            // fell through to out_of_scope. Route to HEALTHY_PATTERN (maintenance advice).
+            q.contains("how do i maintain excellent") ||
+                    q.contains("maintain excellent") ->
+                ClassifiedIntent("HEALTHY_PATTERN", 1.0f, "predefined_query")
+
+            // FIX P2-06: "How does my goal affect my score?" chip had no predefined or keyword
+            // route → matched GENERAL_SUMMARY via fallback. Route to FEATURE_EXPLANATION.
+            q.contains("how does my goal affect my score") ||
+                    q.contains("goal affect my score") ||
+                    q.contains("goal affect score") ->
+                ClassifiedIntent("FEATURE_EXPLANATION", 1.0f, "predefined_query")
+
+            // FIX P2-05 (keyword classifier supplement): also add "maintain excellent" to HEALTHY_PATTERN rules
             q.contains("causing this") ||
                     q.contains("what's causing") ||
                     q.contains("what is causing") ->
@@ -1614,6 +1695,13 @@ class CoachOrchestrator(
                     q.contains("weekly pattern") ||
                     q.contains("my weekly") ->
                 ClassifiedIntent("GENERAL_SUMMARY", 1.0f, "predefined_query")
+
+            // FIX P1-04: "Why does the loop happen?" was generated as a follow-up chip but had
+            // no routing, causing it to fall through to out_of_scope. Route to FEATURE_EXPLANATION.
+            q.contains("why does the loop happen") ||
+                    q.contains("how does the loop work") ||
+                    (q.contains("loop") && q.contains("why")) ->
+                ClassifiedIntent("FEATURE_EXPLANATION", 1.0f, "predefined_query")
 
             // "Why does the pause help?" → FEATURE_EXPLANATION
             q.contains("why does the pause") ||
@@ -1726,6 +1814,8 @@ class CoachOrchestrator(
                 "what am i doing right", "good habit",
                 // FIX: chip labels
                 "build on this", "best habit this week", "best habit right now",
+                // FIX P2-05: "maintain excellent" was unroutable via keyword classifier
+                "maintain excellent", "how to maintain", "how do i maintain",
             ),
             "HC_POOR_SLEEP_HIGH_USAGE" to listOf(
                 "hrv", "heart rate variability", "poor sleep", "sleep affect",
@@ -1742,7 +1832,8 @@ class CoachOrchestrator(
                 "what is revenge procrastination", "what is hrv",
                 "what is a streak", "what is the sleep score",
                 "how does the score work", "explain",
-                // FIX: chip labels
+                // FIX P1-04: chip labels
+                "why does the loop happen", "how does the loop work",
                 "health connect", "focus schedule", "first-use time", "first use time",
                 "how many pickups", "normal pickups", "pause help", "why does the pause",
                 "how do i add a mindful", "how does bedtime work",
@@ -1752,6 +1843,8 @@ class CoachOrchestrator(
                 "goal too high", "goal too low", "adjust my goal",
                 "should i change", "lower my goal", "raise my goal",
                 "what daily goal",
+                // FIX P2-06: chip "How does my goal affect my score?" was unroutable
+                "how does my goal affect", "goal affect my score", "goal affect score",
             ),
             "APP_DEEP_DIVE" to listOf(
                 "how much time on", "how long on", "spending on",
@@ -1907,6 +2000,46 @@ class CoachOrchestrator(
             }
         }
 
+        // ── P3-01: GOAL_SETTING_ADVICE CAUTIONARY — avg_minutes may be 0 on Days 2–6 ────────────
+        // "Your 7-day average (0 min) is significantly above your N min goal" is contradictory.
+        if (body.contains("(0 min)")) {
+            body = body.replace("(0 min)", "(still building)")
+            body = body.replace(
+                Regex("Your 7-day average \\(still building\\) is (significantly|noticeably|well) (above|over) your"),
+                "Your early data suggests you may be running above your"
+            )
+        }
+
+        // ── P3-02: NEW_USER GENERAL_SUMMARY — "build a 0-day baseline" / "1-day baseline" ────────
+        if (summary.dataWindowDays <= 1) {
+            body  = body.replace("0-day baseline", "a solid baseline")
+                .replace("1-day baseline", "a solid baseline")
+            title = title.replace("0-day baseline", "a solid baseline")
+                .replace("1-day baseline", "a solid baseline")
+        }
+
+        // ── P3-06: Zero-value counters — extend existing "1 days" sanitizer to cover zeros ───────
+        if (summary.streakDays == 0) {
+            body  = body.replace("0-day streak", "no active streak")
+                .replace("0 day streak", "no active streak")
+                .replace("a 0-day", "no current")
+            title = title.replace("0-day streak", "no active streak")
+                .replace("0 day streak", "no active streak")
+        }
+        if (summary.focusSessionsCompleted == 0) {
+            body = body.replace("0 sessions", "no sessions yet")
+                .replace("0 session", "no session yet")
+        }
+        if (summary.pickupsToday == 0) {
+            body = body.replace("0 pickups", "no pickups yet today")
+        }
+
+        // ── P1-05 residual: firstUseHour sentinel -1 leaks into body via {first_use_hour} slot ──
+        // fillSlots() substitutes -1 → "not yet today"; clean any ":00" suffix artefacts.
+        body = body
+            .replace("not yet today:00", "not yet today")
+            .replace("at not yet today", "not recorded yet today")
+
         // FIX: APP_DEEP_DIVE — when the user names a specific app in the query
         // ("How much time on Instagram?"), rewrite the response to address that
         // app instead of the generic top-app. If the named app isn't in the
@@ -1945,10 +2078,17 @@ class CoachOrchestrator(
                 "Sleep" -> summary.sleepScore
                 else -> summary.screenScore
             }
+            // FIX P1-01: use HC-aware weights, mirroring worstPillar() / FocusScore.calculateAurelo().
+            // Old code always printed non-HC weights even when Body pillar was active.
+            val hcActiveForContrib = summary.hcConnected && summary.bodyScore >= 0
+            val sleepAvailForContrib = summary.sleepScore > 0
             val pillarContrib = when (pillar) {
-                "Focus" -> "35%"
-                "Sleep" -> "25%"
-                else -> "40%"
+                "Focus" -> if (hcActiveForContrib) (if (sleepAvailForContrib) "30%" else "39%")
+                else (if (sleepAvailForContrib) "35%" else "45%")
+                "Sleep" -> if (hcActiveForContrib) "20%" else "25%"
+                "Body"  -> "15%"
+                else    -> if (hcActiveForContrib) (if (sleepAvailForContrib) "35%" else "46%")
+                else (if (sleepAvailForContrib) "40%" else "55%")
             }
             body += " The main driver was your $pillar Score ($pillarScore) — it contributes $pillarContrib of your Aurelo Score."
         }
@@ -2064,20 +2204,25 @@ class CoachOrchestrator(
             // FIX: "Start a 5-minute focus session" is an action; route new question to FOCUS_GAP via predefined
             "FOCUS_BURNOUT" -> listOf("How do I start a focus session?", "Why can't I focus?", "How do I rebuild focus?")
             "BEDTIME_REVENGE_PROCRASTINATION" -> listOf("What time should I stop using my phone?", "What is revenge procrastination?", "How's my bedtime routine?")
-            // FIX: "Add a mindful pause" is an action — replaced with a question that routes to FEATURE_EXPLANATION
+            // FIX P1-04: "Why does the loop happen?" had no classifyPredefinedQuestion route
+            // → out_of_scope response. Routing is now added above. The chip label is kept.
             "DOPAMINE_LOOP" -> listOf("How do I add a mindful pause?", "Why does the loop happen?", "Am I on social media too much?")
             // FIX: "Share my streak" is an action; "How do I build on this?" now routes to HEALTHY_PATTERN
             "HEALTHY_PATTERN" -> listOf("How do I build on this?", "How is my streak looking?", "How close am I to Excellent?")
+            // FIX P2-04: "Share my score" is a UI action, not a question — it had no
+            // classifyPredefinedQuestion route and fell through to out_of_scope.
             "PRODUCTIVE_DAY" -> if ((summary.aureloScore) >= 85)
-                listOf("Share my score", "What's my best habit this week?", "How do I maintain Excellent?")
+                listOf("What's my best habit this week?", "How do I maintain Excellent?", "What's going well this week?")
             else
-                listOf("Share my score", "What's my best habit this week?", "How do I reach Excellent?")
+                listOf("What's my best habit this week?", "How do I reach Excellent?", "What's going well this week?")
             "RECOVERY_DAY" -> listOf("How do I protect my streak today?", "What should I focus on next?", "How am I trending this week?")
             // FIX: "Block social apps for 25 min" is an action — replaced with question routing to SOCIAL_SPIRAL
             "SOCIAL_SPIRAL" -> listOf("Which social apps should I limit?", "What's a healthy social limit?", "Do I have a dopamine loop?")
             "MORNING_DOOM_SCROLL" -> listOf("How much does first-use time affect my score?", "Do I have a dopamine loop?", "What should I do instead of checking my phone?")
             "WEEKEND_BINGE" -> listOf("What's a good weekend goal?", "How do I set a focus schedule?", "Tell me about my week")
-            "ANOMALOUS_SPIKE" -> listOf("Why do I spike on that day?", "How do I set a focus schedule?", "What's my weekly pattern?")
+            // FIX P3-04: "Why do I spike on that day?" routed to ANOMALOUS_SPIKE again (keyword "spike"),
+            // giving the user the same diagnostic response in a loop. Replace with remediation follow-ups.
+            "ANOMALOUS_SPIKE" -> listOf("How do I prevent spikes?", "How do I set a focus schedule?", "What's my weekly pattern?")
             // FIX: "Add a mindful pause" is an action — replaced with routable question
             "APP_DEEP_DIVE" -> listOf("How do I add a mindful pause?", "Am I on social media too much?", "Do I have a dopamine loop?")
             "FEATURE_EXPLANATION" -> listOf("How do I reach Excellent?", "What's my session completion rate?", "Why do I use my phone at night?")

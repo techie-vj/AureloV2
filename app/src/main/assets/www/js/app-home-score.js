@@ -1111,6 +1111,26 @@ function _closeBodyScoreSheet() {
   setTimeout(() => bd?.remove(), 320);
 }
 
+/* ── HC data-ready handlers ──────────────────────────── */
+// onHCDataRefreshed: fired by HealthConnectBridge after a foreground refresh
+// (Case C in refreshOnForeground). Without this callback the home card had
+// already rendered once with empty _cachedData (body = null), the BUG-11 body
+// history save was skipped, and Score History stayed empty even though the body
+// tile showed a live score (which reads HC data via a later synchronous call).
+window.onHCDataRefreshed = function () {
+  try { renderAureloScore(); } catch (_) {}
+};
+
+// Wrap onHCSyncComplete so a forced sync (Settings → Re-sync) also triggers a
+// re-render + history save, regardless of what other JS listens on that hook.
+(function () {
+  var _prevSync = window.onHCSyncComplete;
+  window.onHCSyncComplete = function (data) {
+    if (typeof _prevSync === 'function') { try { _prevSync(data); } catch (_) {} }
+    try { renderAureloScore(); } catch (_) {}
+  };
+})();
+
 /* ── Backward-compat shims ────────────────────────────── */
 function _onAureloScoreRowTap()    { openAureloScoreSheet(); }
 function _showAureloScoreSheet()   { openAureloScoreSheet(); }
