@@ -264,6 +264,28 @@ function _computeInsightBanner(){
     };
   }
 
+  // Priority 4: Referral nudge — shown to both free AND Pro users, max once per week
+  // Pro users are the best advocates so we extend the banner to them too.
+  if (typeof Referral !== 'undefined' && Referral.shouldShowHomeBanner()) {
+    const isPro = typeof ProTier !== 'undefined' && ProTier.isPro;
+    // For free users: don't compete with other high-priority banners shown above
+    // For Pro users: they won't see the other banners so referral is always eligible
+    if (isPro || true) { // always eligible when no other banner matched above
+      return {
+        icon:'🎁', color:'var(--g)',
+        title: isPro ? 'Enjoying Pro? Give a friend 21 days free →' : 'Know someone who\'d love Aurelo?',
+        body: isPro
+          ? 'Share your referral link — your friend gets 21 days Pro free, you earn when they subscribe.'
+          : 'Your friend gets 21 free Pro days. You earn Pro time when they subscribe.',
+        cta:'Share link',
+        action: () => {
+          Referral.markBannerShown();
+          Referral.open();
+        }
+      };
+    }
+  }
+
   return null;
 }
 

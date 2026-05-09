@@ -55,6 +55,12 @@ class BillingManager(
         fun onProStatusChanged(isPro: Boolean)
         fun onBillingError(code: Int, message: String)
         fun onBillingReady()
+        /**
+         * BUG-03 FIX: called immediately before onProStatusChanged(true) with the plan
+         * that was just confirmed ("monthly" | "annual" | "lifetime").
+         * Default implementation is a no-op so existing callers don't break.
+         */
+        fun onPlanActivated(plan: String) {}
     }
 
     companion object {
@@ -95,6 +101,9 @@ class BillingManager(
     @Volatile private var pendingLaunchPlan: String? = null
     @Volatile private var restoreCallback: ((Boolean) -> Unit)? = null
     @Volatile private var pendingPricingCallback: ((String) -> Unit)? = null
+    // BUG-03 FIX: track the last-launched plan so handlePurchase can call onPlanActivated
+    // with the correct value instead of relying on a hardcoded default.
+    @Volatile private var _lastLaunchedPlan: String = "monthly"
 
     /**
      * Tracks the active subscription purchase token so upgrade/downgrade flows can
@@ -221,6 +230,7 @@ class BillingManager(
 
     /** Queries the lifetime INAPP product and launches the billing flow. */
     private fun _launchLifetime(activity: Activity) {
+        _lastLaunchedPlan = "lifetime" // BUG-03 FIX
         val params = QueryProductDetailsParams.newBuilder()
             .setProductList(listOf(
                 QueryProductDetailsParams.Product.newBuilder()
@@ -250,6 +260,7 @@ class BillingManager(
             listener.onBillingError(-1, "Unknown plan: $plan")
             return
         }
+        _lastLaunchedPlan = plan // BUG-03 FIX: record intended plan before async query
 
         val params = QueryProductDetailsParams.newBuilder()
             .setProductList(listOf(
@@ -657,6 +668,14 @@ class BillingManager(
                     if (purchase.products.any { it == PRODUCT_ID_SUBSCRIPTION }) {
                         activeSubsPurchaseToken = purchase.purchaseToken
                     }
+                    // BUG-03 FIX: derive plan from the product ID set where possible;
+                    // fall back to _lastLaunchedPlan for subscription products where
+                    // the base plan (monthly vs annual) isn’t in the Purchase object.
+                    val activatedPlan = when {
+                        purchase.products.contains(PRODUCT_ID_LIFETIME) -> "lifetime"
+                        else -> _lastLaunchedPlan.takeIf { it != "lifetime" } ?: "monthly"
+                    }
+                    listener.onPlanActivated(activatedPlan)
                     listener.onProStatusChanged(true)
                     if (!purchase.isAcknowledged) acknowledgePurchase(purchase)
                 } else {

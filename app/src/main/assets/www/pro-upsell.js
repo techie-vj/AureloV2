@@ -911,6 +911,25 @@
       if (_restoreLink) _restoreLink.style.display = '';
       if (plans)        plans.style.display        = '';
       if (ctaSub)       ctaSub.style.display       = '';
+
+      // ── Post-conversion: show referral panel once immediately after Pro purchase ──
+      // Only shown for genuine new purchases (not restores). Gives the newly-Pro
+      // user a one-tap way to share their referral link while the excitement is high.
+      setTimeout(function() {
+        const _shownKey = 'referral_post_conversion_shown';
+        let alreadyShown = false;
+        try {
+          alreadyShown = IS_NATIVE && typeof N.getStringPref === 'function'
+            && N.getStringPref(_shownKey) === '1';
+        } catch (_) {}
+        if (!alreadyShown && typeof Referral !== 'undefined') {
+          try {
+            if (IS_NATIVE && typeof N.setStringPref === 'function')
+              N.setStringPref(_shownKey, '1');
+            Referral.open();
+          } catch (_) {}
+        }
+      }, 600);
     }, 3000);
   }
 

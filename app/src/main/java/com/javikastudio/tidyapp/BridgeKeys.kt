@@ -75,7 +75,7 @@ const val KEY_FOCUS_DATE              = "focus_date_v1"
 const val KEY_FOCUS_COMPLETED_TODAY   = "focus_completed_today"
 const val KEY_FOCUS_INTERRUPTED_TODAY = "focus_interrupted_today"
 const val KEY_FOCUS_PLANNED_MINS_TODAY = "focus_planned_mins_today"
-const val KEY_FOCUS_ELAPSED_MINS_TODAY = "focus_elapsed_mins_today" 
+const val KEY_FOCUS_ELAPSED_MINS_TODAY = "focus_elapsed_mins_today"
 
 // ── Intention prompt ──────────────────────────────────────────────────────
 // IMPORTANT: ALL key values here must match the literal strings used in
@@ -145,3 +145,44 @@ const val SCREEN_FILTER_ACTIVE      = "screen_filter_active"
 const val KEY_RATE_INSTALL_MS    = "rate_install_ms"
 const val KEY_RATE_LAST_SHOWN_MS = "rate_last_shown_ms"
 const val KEY_RATE_ATTEMPT_COUNT = "rate_attempt_count"
+// ── Referral ───────────────────────────────────────────────────────────────
+const val REFERRAL_MY_CODE              = "referral_my_code"
+const val REFERRAL_INSTALL_ID           = "referral_install_id"
+const val REFERRAL_REFERRER_CHECKED     = "referral_referrer_checked"
+const val REFERRAL_INCOMING_CODE        = "referral_incoming_code"
+const val REFERRAL_BONUS_GRANTED        = "referral_bonus_granted"
+const val REFERRAL_BONUS_DAYS           = "referral_bonus_days"
+const val REFERRAL_SHARE_COUNT          = "referral_share_count"
+const val REFERRAL_TOTAL_INSTALLS       = "referral_total_installs"
+const val REFERRAL_TOTAL_CONVERSIONS    = "referral_total_conversions"
+const val REFERRAL_TOTAL_DAYS_EARNED    = "referral_total_days_earned"
+const val REFERRAL_LAST_INSTALL_TS      = "referral_last_install_ts"
+const val REFERRAL_LAST_CONVERSION_TS   = "referral_last_conversion_ts"
+const val REFERRAL_LAST_CONVERSION_PLAN = "referral_last_conversion_plan"
+const val REFERRAL_PENDING_CONVERSIONS  = "referral_pending_conversions"
+const val REFERRAL_INSTALLS_THIS_MONTH  = "referral_installs_this_month"
+const val REFERRAL_INSTALLS_MONTH_KEY   = "referral_installs_month_key"
+const val REFERRAL_INSTALL_TS           = "referral_install_ts"
+const val REFERRAL_THIS_USER_CONVERTED  = "referral_this_user_converted"
+const val REFERRAL_THIS_USER_PLAN       = "referral_this_user_plan"
+const val REFERRAL_THIS_USER_CONVERSION_TS = "referral_this_user_conversion_ts"
+
+// ── Home banner dismiss key — ALSO in SecurityValidators.PREF_ALLOWLIST (BUG-04 FIX)
+const val REFERRAL_BANNER_LAST_SHOWN_DATE = "referral_banner_last_shown_date"
+
+const val REFERRAL_CREDITED_FRIEND_CODES      = "referral_credited_friend_codes"
+// BUG-02 FIX: conversion dedup — mirrors install dedup to prevent repeat conversion rewards
+const val REFERRAL_CREDITED_CONVERSION_CODES  = "referral_credited_conv_codes"
+// BUG-08 FIX: was a raw string literal inside ReferralManager — now the canonical constant
+const val REFERRAL_PENDING_NOTIF_SENT         = "referral_pending_notif_sent"
+// ── Referral Pro Extension ───────────────────────────────────────────────────
+// Days banked by monthly/annual referrers — applied when their subscription lapses.
+const val REFERRAL_PENDING_EXTENSION_DAYS  = "referral_pending_ext_days"
+// Unix ms timestamp: extension is active while this > System.currentTimeMillis()
+const val REFERRAL_EXTENSION_EXPIRY_MS     = "referral_extension_expiry_ms"
+// Plan that was active when extension was activated ("monthly" | "annual")
+const val REFERRAL_EXTENSION_SOURCE_PLAN   = "referral_extension_source_plan"
+
+// ── Billing active plan ───────────────────────────────────────────────────────
+// BUG-03 FIX: stores the last confirmed plan so referral rewards use the correct day count.
+const val BILLING_ACTIVE_PLAN = "billing_active_plan"

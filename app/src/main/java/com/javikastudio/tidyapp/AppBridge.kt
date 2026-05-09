@@ -71,7 +71,8 @@ class AppBridge(private val context: Context, private val webView: WebView) {
     private val share = ShareBridge(context,webView,prefs,securePrefs,bridgeScope)
     private val settings = SettingsBridge(context,webView,prefs,securePrefs,bridgeScope,{ _secureStorageAvailable })
     private val permission = PermissionBridge(context,webView,prefs,securePrefs,bridgeScope)
-    private val billing = BillingBridge(context,webView,prefs,securePrefs,bridgeScope,billingManager,entitlementRepo,PurchaseRestoreHandler(context,webView,billingManager,entitlementRepo))
+    internal val referral = ReferralBridge(context,webView,prefs,securePrefs,bridgeScope)
+    private val billing = BillingBridge(context,webView,prefs,securePrefs,bridgeScope,billingManager,entitlementRepo,PurchaseRestoreHandler(context,webView,billingManager,entitlementRepo),referral)
     internal val healthConnect = HealthConnectBridge(context,webView,prefs,securePrefs,bridgeScope)
     internal val coach = CoachBridge(context,webView,prefs,securePrefs,bridgeScope)
 
@@ -359,4 +360,17 @@ class AppBridge(private val context: Context, private val webView: WebView) {
     @JavascriptInterface fun getTabCoachInsight(tab: String, ctx: String)      = coach.getTabCoachInsight(tab, ctx)
     @JavascriptInterface fun getCoachInsightDismissed()                        = coach.getCoachInsightDismissed()
     @JavascriptInterface fun setCoachInsightDismissed()                        = coach.setCoachInsightDismissed()
+
+    // ── Referral ────────────────────────────────────────────────────────────
+    @JavascriptInterface fun getReferralLink()                                 = referral.getReferralLink()
+    @JavascriptInterface fun getReferralCode()                                 = referral.getReferralCode()
+    @JavascriptInterface fun getReferralStats()                                = referral.getReferralStats()
+    @JavascriptInterface fun recordReferralShare()                             = referral.recordReferralShare()
+    @JavascriptInterface fun recordReferralInstall(friendCode: String = "")           = referral.recordReferralInstall(friendCode)
+    @JavascriptInterface fun recordReferralConversion(plan: String)            = referral.recordReferralConversion(plan)
+    @JavascriptInterface fun getReferralBonusDays()                           = referral.getReferralBonusDays()
+    @JavascriptInterface fun wasReferred()                                     = referral.wasReferred()
+    @JavascriptInterface fun isExtensionActive()                               = referral.isExtensionActive()
+    @JavascriptInterface fun getExtensionDaysRemaining()                       = referral.getExtensionDaysRemaining()
+    @JavascriptInterface fun getPendingExtensionDays()                         = referral.getPendingExtensionDays()
 }

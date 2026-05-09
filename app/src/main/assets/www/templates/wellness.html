@@ -96,6 +96,19 @@
         </div>
         <div class="section-label" id="ww-insights-label">Weekly Insights</div>
         <div id="ww-insights" style="margin:0 16px 16px"></div>
+        <!-- Referral nudge — shown after good weeks; populated by app-wellness-week.js -->
+        <div id="ww-referral-nudge" style="display:none;margin:0 16px 16px;border-radius:14px;
+             background:linear-gradient(135deg,rgba(18,212,138,.08),rgba(108,99,255,.06));
+             border:1px solid rgba(18,212,138,.2);padding:14px 16px;
+             align-items:center;gap:12px;cursor:pointer"
+             onclick="if(typeof Referral!=='undefined'){Referral.markBannerShown();Referral.open();}">
+            <div style="font-size:22px;flex-shrink:0">🎁</div>
+            <div style="flex:1">
+                <div style="font-size:13px;font-weight:700;color:var(--t1);margin-bottom:2px">Great week — share the habit</div>
+                <div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t2);line-height:1.5">Give a friend 21 days of Pro free. You earn when they subscribe.</div>
+            </div>
+            <div style="font-family:var(--ff-m);font-size:var(--text-2xs);font-weight:700;color:var(--g);flex-shrink:0">Share →</div>
+        </div>
     </div>
 
     <!-- ── MONTH VIEW ─────────────────────────────────── -->
