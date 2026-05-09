@@ -27,6 +27,7 @@ object SecurityValidators {
         "focus_score_history",
         "sleep_score_history",
         "aurelo_score_history",
+        "body_score_history",      // Bug-1 FIX: missing key caused saveScoreForToday() writes
         "focus_streak_v1",
         "home_morning_dismissed_date",
         "disc_challenge_v1",

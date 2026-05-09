@@ -24,6 +24,10 @@ class MainActivity : AppCompatActivity() {
     internal lateinit var webView: WebView
     private lateinit var bridge: AppBridge
     @Volatile private var scanDone = false
+    // Bug-4 FIX: store pending WebView geolocation callback while we wait for the
+    // OS ACCESS_COARSE_LOCATION permission dialog result (request code 9002).
+    private var pendingGeoCallback: android.webkit.GeolocationPermissions.Callback? = null
+    private var pendingGeoOrigin: String = ""
 
     companion object {
         const val ACTION_WIDGET_PLACED = "com.javikastudio.tidyapp.WIDGET_FIRST_PLACED"
@@ -225,16 +229,35 @@ class MainActivity : AppCompatActivity() {
 
         // GEO-02: grant geolocation permission to the local asset origin so that
         // navigator.geolocation.getCurrentPosition() works for sun-schedule calculation.
-        // The WebView will show the Android system location dialog (ACCESS_COARSE_LOCATION
-        // is declared in the manifest) before calling this; we always approve the
-        // file:///android_asset/ origin. retain=false so permission is re-evaluated
-        // each session rather than cached permanently.
+        // Bug-4 FIX: The previous implementation called callback.invoke() unconditionally,
+        // which grants WebView-level permission but does NOT trigger the Android OS
+        // ACCESS_COARSE_LOCATION system dialog.  Without the OS grant the WebView location
+        // API immediately returns PERMISSION_DENIED, showing "could not get location"
+        // without ever asking the user.  Now we check the OS permission first and, if
+        // missing, request it via requestPermissions() and store the callback; the
+        // callback is resolved in onRequestPermissionsResult (request code 9002).
         webView.webChromeClient = object : android.webkit.WebChromeClient() {
             override fun onGeolocationPermissionsShowPrompt(
                 origin: String,
                 callback: android.webkit.GeolocationPermissions.Callback
             ) {
-                callback.invoke(origin, true, false)
+                if (androidx.core.content.ContextCompat.checkSelfPermission(
+                        this@MainActivity,
+                        android.Manifest.permission.ACCESS_COARSE_LOCATION
+                    ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+                ) {
+                    // OS permission already granted — allow WebView origin immediately.
+                    callback.invoke(origin, true, false)
+                } else {
+                    // Store callback so we can resolve it after the user responds.
+                    pendingGeoCallback = callback
+                    pendingGeoOrigin   = origin
+                    androidx.core.app.ActivityCompat.requestPermissions(
+                        this@MainActivity,
+                        arrayOf(android.Manifest.permission.ACCESS_COARSE_LOCATION),
+                        9002
+                    )
+                }
             }
         }
 
@@ -477,6 +500,18 @@ class MainActivity : AppCompatActivity() {
                     "if(typeof window.onNotifPermResult==='function') window.onNotifPermResult($granted)", null
                 )
             }
+        }
+        // Bug-4 FIX: resolve the pending WebView geolocation callback after the OS
+        // location permission dialog is answered.  Calling callback.invoke() with the
+        // actual grant result lets the WebView either proceed with getCurrentPosition()
+        // (granted) or fire the JS error handler with PERMISSION_DENIED (denied), so
+        // the JS layer shows the correct "grant in Settings" toast instead of a
+        // generic "could not get location" error.
+        if (requestCode == 9002) {
+            val granted = grantResults.isNotEmpty() && grantResults[0] == android.content.pm.PackageManager.PERMISSION_GRANTED
+            pendingGeoCallback?.invoke(pendingGeoOrigin, granted, false)
+            pendingGeoCallback = null
+            pendingGeoOrigin   = ""
         }
     }
 

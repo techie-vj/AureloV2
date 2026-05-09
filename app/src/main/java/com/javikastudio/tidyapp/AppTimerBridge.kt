@@ -48,13 +48,14 @@ class AppTimerBridge(
             val appName = runCatching { context.packageManager.getApplicationLabel(context.packageManager.getApplicationInfo(pkg, 0)).toString() }.getOrDefault(pkg.split(".").last())
             mapObj.put(pkg, JSONObject().apply { put("name",appName); put("used",usedMins); put("limit",mins) })
             prefs.edit().putString(TIMERBLOCK_PKGS_MAP, mapObj.toString()).putBoolean("timerblockmode",true).putString("timerblockpkg",pkg).putInt("timerblocklimit",mins).apply()
-        }
-        if (usedMins < mins) prefs.edit().remove("timerblockts_$pkg").remove("timerblockday_$pkg").apply()
-        val latestMap = runCatching { JSONObject(prefs.getString(TIMERBLOCK_PKGS_MAP, "{}") ?: "{}") }.getOrElse { JSONObject() }
-        if (usedMins >= mins && !latestMap.has(pkg)) {
-            val appName = runCatching { context.packageManager.getApplicationLabel(context.packageManager.getApplicationInfo(pkg, 0)).toString() }.getOrDefault(pkg.split(".").last())
+            // Bug-2 FIX: startTimerSoftBlock() was called via !latestMap.has(pkg) AFTER the
+            // map write above, so latestMap always contained pkg and the condition was always
+            // false — overlay never triggered on first add for an already-expired app.
+            // Call it directly here instead; startTimerSoftBlock's own 5.5-min dedup
+            // prevents double-firing on rapid re-saves.
             startTimerSoftBlock(pkg, appName, usedMins, mins)
         }
+        if (usedMins < mins) prefs.edit().remove("timerblockts_$pkg").remove("timerblockday_$pkg").apply()
     }
 
     @JavascriptInterface fun removeAppLimit(pkg: String) {
