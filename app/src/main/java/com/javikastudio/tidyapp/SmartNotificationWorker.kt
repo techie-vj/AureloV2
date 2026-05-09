@@ -188,6 +188,48 @@ class SmartNotificationWorker(
             hour in 18..22 -> "evening"
             else           -> "night"
         }
+
+        // ── Referral: friend pending nudge ────────────────────────────────────
+        // Fires once when a referred friend has been in trial for ~14 days.
+        if (ReferralManager.shouldFirePendingReferralNudge(prefs)) {
+            ensureReferralChannel(nm)
+            val title = "⏳ Your friend is still trying Aurelo Pro"
+            val body  = "They've had Pro for 14 days — earn ${REFERRAL_INSTALL_DAYS}+ days free when they subscribe."
+            val notif = NotificationCompat.Builder(appContext, REFERRAL_CHANNEL_ID)
+                .setSmallIcon(android.R.drawable.ic_dialog_info)
+                .setColor(0xFF6C63FF.toInt())
+                .setContentTitle(title)
+                .setContentText(body)
+                .setStyle(NotificationCompat.BigTextStyle().bigText(body))
+                .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+                .setAutoCancel(true)
+                .apply { if (pendingIntent != null) setContentIntent(pendingIntent) }
+                .build()
+            nm.notify(REFERRAL_PENDING_NOTIF_ID, notif)
+        }
+
+        // ── Referral: friend converted notification ────────────────────────────
+        // Fires when a friend converted and we have a pending conversion event.
+        val conversionData = ReferralManager.consumePendingConversionNotif(prefs)
+        if (conversionData != null) {
+            ensureReferralChannel(nm)
+            val days = conversionData.optInt("days", 31)
+            val plan = conversionData.optString("plan", "Pro")
+            val title = "🎉 Your friend just joined Aurelo Pro!"
+            val body  = "You've earned +${days} free day${if (days != 1) "s" else ""} of Pro — thanks for spreading the word."
+            val notif = NotificationCompat.Builder(appContext, REFERRAL_CHANNEL_ID)
+                .setSmallIcon(android.R.drawable.ic_dialog_info)
+                .setColor(0xFF12D48A.toInt())
+                .setContentTitle(title)
+                .setContentText(body)
+                .setStyle(NotificationCompat.BigTextStyle().bigText(body))
+                .setPriority(NotificationCompat.PRIORITY_HIGH)
+                .setAutoCancel(true)
+                .apply { if (pendingIntent != null) setContentIntent(pendingIntent) }
+                .build()
+            nm.notify(REFERRAL_CONVERTED_NOTIF_ID, notif)
+        }
+
         val lastSlotKey = prefs.getString("notif_last_slot_key", "") ?: ""
         val expectedKey = "$todayDate-$currentSlot"
         if (lastSlotKey == expectedKey) return Result.success()
@@ -357,12 +399,33 @@ class SmartNotificationWorker(
         }
     }
 
+    private fun ensureReferralChannel(nm: NotificationManager) {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            nm.createNotificationChannel(
+                android.app.NotificationChannel(
+                    REFERRAL_CHANNEL_ID,
+                    "Referral Rewards",
+                    android.app.NotificationManager.IMPORTANCE_DEFAULT
+                ).apply {
+                    description = "Friend install and conversion reward notifications"
+                    lockscreenVisibility = android.app.Notification.VISIBILITY_PUBLIC
+                    setShowBadge(true)
+                    enableVibration(false)
+                }
+            )
+        }
+    }
+
     companion object {
         const val CHANNEL_ID            = "tidy_alerts"
         const val RECAP_CHANNEL_ID      = "tidy_recap"
+        const val REFERRAL_CHANNEL_ID   = "tidy_referral"
         const val RECAP_NOTIF_ID        = 5001   // fixed ID — recap always replaces itself
         const val STREAK_RISK_NOTIF_ID  = 5002   // fixed ID — streak warning replaces itself
         const val PERSONAL_BEST_NOTIF_ID = 5003  // fixed ID — personal best replaces itself
+        const val REFERRAL_PENDING_NOTIF_ID   = 5004
+        const val REFERRAL_CONVERTED_NOTIF_ID = 5005
+        const val REFERRAL_INSTALL_DAYS = 3      // days earned per install reward
         const val WORK_NAME             = "tidy_smart_notifs"
     }
 }

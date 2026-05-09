@@ -373,10 +373,33 @@ window.FocusHome = (function () {
   function buildCompletedStripHtml(d) {
     var ls = typeof FocusTab !== 'undefined' ? FocusTab.getLastState() : {};
     var p  = _PALETTE.green;
+
+    // Occasional referral CTA after session completion (approx 1 in 4 completions)
+    var completedTotal = d.completed || 0;
+    var showReferralCta = completedTotal > 0
+      && completedTotal % 4 === 0
+      && typeof Referral !== 'undefined'
+      && Referral.shouldShowHomeBanner();
+
+    if (showReferralCta) {
+      var cp = _PALETTE.cyan;
+      return '<div style="display:flex;align-items:center;gap:10px;padding:11px 13px;' +
+        'border-radius:14px;background:rgba(5,200,232,.08);border:1px solid rgba(5,200,232,.2);' +
+        'cursor:pointer" onclick="activateTab(\'focus\')">' +
+        _icon('🎁', cp) +
+        _content('Great session! Know someone who\'d love this?',
+                 'Give a friend 21 days of Aurelo Pro free') +
+        '<div onclick="event.stopPropagation();Referral.markBannerShown();Referral.open()" ' +
+        'style="font-family:var(--ff-m);font-size:var(--text-2xs);font-weight:600;' +
+        'color:' + cp.text + ';background:' + cp.icon + ';border-radius:99px;' +
+        'padding:3px 9px;flex-shrink:0;white-space:nowrap;cursor:pointer">Invite</div>' +
+        '</div>';
+    }
+
     return _card(p, "activateTab('focus')",
       _icon('✅', p) +
       _content('Session complete! · ' + (ls.totalMins || 0) + ' min',
-               (d.completed || 0) + ' sessions done this week') +
+               completedTotal + ' sessions done this week') +
       _pill('✓ Done', p));
   }
 

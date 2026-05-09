@@ -106,4 +106,7 @@ dependencies {
     implementation 'androidx.sqlite:sqlite:2.6.2'
 
     testImplementation 'junit:junit:4.13.2'
+
+    // Play Install Referrer — read UTM referrer at first launch for referral attribution
+    implementation 'com.android.installreferrer:installreferrer:2.2'
 }

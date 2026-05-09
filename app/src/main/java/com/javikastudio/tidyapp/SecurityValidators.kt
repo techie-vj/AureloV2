@@ -35,6 +35,9 @@ object SecurityValidators {
         "cached_tidy_score_date",
         "deletedCategories",
         "disc_shown_v1",
+        // BUG-04 FIX: banner last-shown date was missing — getStringPref/setStringPref were
+        // silently blocked, so the once-per-day suppression never persisted.
+        "referral_banner_last_shown_date",
     )
 
     fun isValidPackageName(value: String): Boolean = value.matches(PACKAGE_RE)

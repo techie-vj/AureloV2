@@ -343,6 +343,19 @@ window.onPageReady = function(alreadyDone) {
       // and Weekly Challenge not unlocking until the user left and re-entered the tab.
       window.dispatchEvent(new CustomEvent('aurelo-pro-changed', { detail: { isPro: isPro } }));
 
+      // ── Referral extension activation callback ─────────────────────────────
+      // Fired by BillingBridge when a subscription lapses but referral extension
+      // days were banked — keeps the user Pro without any Play transaction.
+      window.onReferralExtensionActivated = function(days) {
+        // Re-read Pro status — BillingBridge has already set IS_PRO_USER = true
+        ProTier.init();
+        _updateProUI();
+        if (typeof toast === 'function') {
+          toast('🎁 Your referral reward is keeping Pro alive — ' + days + ' day' + (days !== 1 ? 's' : '') + ' extension activated!', 'success');
+        }
+        if (typeof Referral !== 'undefined') Referral.open();
+      };
+
       // ── Silent restore detection ───────────────────────────────────────────
       // Fires when Play Billing automatically restores a subscription on
       // reinstall or a new device — no user action required. In this path,

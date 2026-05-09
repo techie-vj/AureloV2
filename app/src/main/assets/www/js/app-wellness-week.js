@@ -241,4 +241,16 @@ function renderWeekInsights() {
       <div class="tip-ico">${t.icon}</div>
       <div><div style="font-size:12px;font-weight:700;margin-bottom:3px;color:var(--t1)">${t.title}</div><div class="tip-txt">${t.body}</div></div>
     </div>`).join('');
+
+  // Referral nudge — shown at the bottom when it's been a positive week (4+ days under goal)
+  // and Referral module is available. Appears once per week (same "shouldShowHomeBanner" gate).
+  const _wwReferralEl = document.getElementById('ww-referral-nudge');
+  const isGoodWeek = daysUnder >= 4 && validDays.length >= 4;
+  const shouldNudge = isGoodWeek
+    && typeof Referral !== 'undefined'
+    && Referral.shouldShowHomeBanner();
+
+  if (_wwReferralEl) {
+    _wwReferralEl.style.display = shouldNudge ? '' : 'none';
+  }
 }

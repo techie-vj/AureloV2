@@ -43,6 +43,35 @@
         <div id="hc-settings-inner" style="display:none;overflow:hidden;transition:opacity .2s"><!-- rendered by HealthConnect.renderSettingsCard() --></div>
     </div>
 
+    <!-- Refer a Friend — above Daily Goal, right after integrations -->
+    <div class="sg" style="margin-bottom:24px" id="settings-referral-card">
+        <div class="sg-lbl">Referral</div>
+        <div class="sr" onclick="referFriend()" style="background:linear-gradient(135deg,rgba(18,212,138,.07),rgba(108,99,255,.05));border-radius:14px">
+            <div class="sr-ico" style="background:rgba(18,212,138,.15)">🎁</div>
+            <div style="flex:1">
+                <div class="sr-lbl">Refer a Friend</div>
+                <div class="sr-sub">They get 21 days Pro free · You earn when they subscribe</div>
+            </div>
+            <span class="sr-chev">›</span>
+        </div>
+        <!-- Stats mini-row — populated by renderReferralSettingsStats() -->
+        <div id="settings-referral-stats" style="display:none;padding:10px 14px 6px;
+            display:flex;gap:12px;border-top:1px solid var(--border2);margin-top:4px">
+            <div style="flex:1;text-align:center">
+                <div id="srs-installed" style="font-family:var(--ff-d);font-size:16px;font-weight:700;color:var(--t1)">0</div>
+                <div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3)">Installed</div>
+            </div>
+            <div style="flex:1;text-align:center">
+                <div id="srs-converted" style="font-family:var(--ff-d);font-size:16px;font-weight:700;color:var(--t1)">0</div>
+                <div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3)">Converted</div>
+            </div>
+            <div style="flex:1;text-align:center">
+                <div id="srs-days" style="font-family:var(--ff-d);font-size:16px;font-weight:700;color:var(--g)">0</div>
+                <div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3)">Days earned</div>
+            </div>
+        </div>
+    </div>
+
     <!-- Usage Controls -->
     <div class="sg" style="margin-bottom:24px">
         <div class="sg-lbl">Usage Controls</div>
@@ -175,11 +204,6 @@
     <!-- ④ About -->
     <div class="sg" style="margin-bottom:24px">
         <div class="sg-lbl">About</div>
-        <div class="sr" onclick="referFriend()">
-            <div class="sr-ico" style="background:rgba(18,212,138,.15)">🎁</div>
-            <div style="flex:1"><div class="sr-lbl">Refer a Friend</div><div class="sr-sub">Share Aurelo with someone who'd love it</div></div>
-            <span class="sr-chev">›</span>
-        </div>
         <div class="sr" onclick="rateApp()">
             <div class="sr-ico" style="background:rgba(247,166,35,.15)">⭐</div>
             <div style="flex:1"><div class="sr-lbl">Rate Aurelo</div><div class="sr-sub">Enjoying it? Leave a review</div></div>

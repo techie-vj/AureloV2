@@ -50,7 +50,32 @@ function toggleAppThemes(){
 // ── Refer a Friend ────────────────────────────────────────────────────────────
 const TIDY_APP_STORE_URL='https://play.google.com/store/apps/details?id=com.javikastudio.tidyapp';
 function referFriend(){
-shareCard('referral');
+  if (typeof Referral !== 'undefined') { Referral.open(); return; }
+  // Fallback: share plain link if module not loaded yet
+  const link = IS_NATIVE && typeof N.getReferralLink === 'function'
+    ? N.getReferralLink() : TIDY_APP_STORE_URL;
+  if (IS_NATIVE && typeof N.shareText === 'function') N.shareText(link);
+  else if (navigator.share) navigator.share({ url: link }).catch(()=>{});
+}
+
+/** Populates the mini stats row on the Settings referral card. */
+function renderReferralSettingsStats() {
+  const statsRow = document.getElementById('settings-referral-stats');
+  if (!statsRow) return;
+  let stats = { totalInstalls: 0, totalConversions: 0, totalDaysEarned: 0 };
+  if (IS_NATIVE && typeof N.getReferralStats === 'function') {
+    try { stats = JSON.parse(N.getReferralStats() || '{}'); } catch (_) {}
+  }
+  // Only show the row if there's something to display
+  if (stats.totalInstalls > 0 || stats.totalDaysEarned > 0) {
+    const inst = document.getElementById('srs-installed');
+    const conv = document.getElementById('srs-converted');
+    const days = document.getElementById('srs-days');
+    if (inst) inst.textContent = stats.totalInstalls || 0;
+    if (conv) conv.textContent = stats.totalConversions || 0;
+    if (days) days.textContent = stats.totalDaysEarned || 0;
+    statsRow.style.display = 'flex';
+  }
 }
 function renderAppThemeList(){
   var list=document.getElementById('appThemeList');
@@ -683,6 +708,7 @@ function applySettings(){
   // setTog('tog-theme', S.theme!=='light');
   updateStreakGoalSub();
   updateBedtimeSub();
+  renderReferralSettingsStats();
     // Defer so ProTier.init() has run before we read isPro
     setTimeout(function() {
      if (typeof _updateProUI === 'function') _updateProUI();
