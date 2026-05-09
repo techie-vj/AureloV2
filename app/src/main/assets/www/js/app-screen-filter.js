@@ -416,10 +416,9 @@ window.ScreenFilter = (function () {
         '<div class="sf-info-row">' +
           '<span class="sf-info-icon">&#9432;</span>' +
           '<p class="sf-info-text">' +
-            'Screen Filter overlays a tinted layer above all apps to reduce blue light ' +
-            'and brightness. It runs as a transparent overlay that passes touches through ' +
-            '&mdash; it cannot read your screen content. Tap <strong>OFF</strong> above, ' +
-            'or pull down the notification shade and tap the Aurelo notification to disable it.' +
+            'Screen Filter applies a warm tint to ease blue light and reduce brightness. ' +
+            'As a private overlay, it passes touches through—it cannot see or read your screen content.<br><br>' +
+            '<strong>To disable:</strong> Tap <strong>OFF</strong> above, or tap the Aurelo notification in your shade.' +
           '</p>' +
         '</div>' +
 
@@ -478,7 +477,7 @@ window.ScreenFilter = (function () {
         chips +
         '<button class="sf-excl-add" id="sf-excl-add" onclick="ScreenFilter._addExcluded()">+ Add app</button>' +
       '</div>' +
-      '<div class="sf-excl-note">Camera excluded automatically — filter resumes when camera closes</div>'
+      '<div class="sf-excl-note">Auto-pauses for Camera & chosen apps. Resumes when you’re done.</div>'
     );
   }
 
@@ -551,10 +550,10 @@ window.ScreenFilter = (function () {
   }
 
   var PRESET_SUBS = {
-    soft:    'gentle · day use',
-    medium:  'evening',
-    bedtime: 'wind-down',
-    custom:  'your settings'
+    soft:    'Reduces eye strain',
+    medium:  'Blocks blue light',
+    bedtime: 'Melatonin protection',
+    custom:  'Advanced manual control'
   };
 
   function _pBtn(key, label, cur) {

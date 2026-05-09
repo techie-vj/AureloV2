@@ -85,9 +85,10 @@ const Referral = (() => {
 
       <!-- Stats row -->
       <div style="display:flex;gap:8px;margin:0 16px 20px">
-        ${_statPill('👥', installed, 'Installed')}
-        ${_statPill('⚡', converted, 'Converted')}
-        ${_statPill('✦', totalDays + ' days', 'Pro earned')}
+        ${_statPill('shares',     '📢', _stats.shareCount || 0, 'Shared')}
+        ${_statPill('installed',  '👥', installed,              'Installed')}
+        ${_statPill('converted',  '⚡', converted,              'Converted')}
+        ${_statPill('daysEarned', '✦', totalDays + ' days',    'Pro earned')}
       </div>
 
       ${pending > 0 ? `
@@ -127,13 +128,16 @@ const Referral = (() => {
 
         if (extBanked > 0) {
           // Days banked, waiting for subscription to lapse
+          // BUG-07 FIX: copy previously said "when your plan renews" which implies
+          // extension stacks on top of an active sub. Extension only activates on
+          // lapse (setProUser(false)), so the correct framing is "if your subscription ends".
           return `<div style="margin:0 16px 20px;border-radius:12px;
               background:rgba(108,99,255,.08);border:1px solid rgba(108,99,255,.2);
               padding:12px 14px;display:flex;align-items:center;gap:10px">
             <div style="font-size:18px">💎</div>
             <div style="font-family:var(--ff-m);font-size:12px;color:var(--p);flex:1">
               <strong>${extBanked} day${extBanked !== 1 ? 's' : ''} banked</strong>
-              — will extend your Pro automatically when your plan renews.
+              — will activate automatically if your subscription ends, keeping Pro alive at no cost.
             </div>
           </div>`;
         }
@@ -172,11 +176,13 @@ const Referral = (() => {
     `;
   }
 
-  function _statPill(icon, value, label) {
+  // BUG-10 FIX: statKey param added — data-stat attribute enables in-place update by
+  // _afterShare() without replacing root.innerHTML (which resets scroll position).
+  function _statPill(statKey, icon, value, label) {
     return `<div style="flex:1;border-radius:12px;background:var(--s1);
               border:1px solid var(--border2);padding:12px 8px;text-align:center">
       <div style="font-size:16px;margin-bottom:4px">${icon}</div>
-      <div style="font-family:var(--ff-d);font-size:18px;font-weight:700;
+      <div data-stat="${statKey}" style="font-family:var(--ff-d);font-size:18px;font-weight:700;
                   color:var(--t1);margin-bottom:2px">${value}</div>
       <div style="font-family:var(--ff-m);font-size:var(--text-2xs);
                   color:var(--t3)">${label}</div>
@@ -232,7 +238,13 @@ const Referral = (() => {
   function shareLink() {
     if (!_link) return;
     const shareText = `I've been using Aurelo to build better screen time habits. Try it free for 21 days with my link:\n${_link}`;
-    if (IS_NATIVE && typeof N.shareText === 'function') {
+
+    // BUG-09 FIX: previously called N.shareText() — plain text only, no branded card.
+    // Feature Reference §12.10 and §13.1 specify a "visually designed share card".
+    // Now we render a canvas card and share it as an image + text via N.shareImageWithText().
+    if (IS_NATIVE && typeof N.shareImageWithText === 'function') {
+      _renderShareCard(shareText);
+    } else if (IS_NATIVE && typeof N.shareText === 'function') {
       N.shareText(shareText);
       _afterShare();
     } else if (navigator.share) {
@@ -243,12 +255,107 @@ const Referral = (() => {
     }
   }
 
+  /**
+   * BUG-09 FIX: Render the referral share card on a canvas element and share
+   * as a 1080×1080 image + caption, matching the style of other Aurelo score cards
+   * described in Feature Reference §13.1.
+   */
+  function _renderShareCard(shareText) {
+    const SIZE = 1080;
+    const canvas = document.createElement('canvas');
+    canvas.width  = SIZE;
+    canvas.height = SIZE;
+    const ctx = canvas.getContext('2d');
+
+    // Background gradient — indigo-to-emerald matching the referral green/purple palette
+    const bg = ctx.createLinearGradient(0, 0, SIZE, SIZE);
+    bg.addColorStop(0,   '#1A0A3C');
+    bg.addColorStop(0.5, '#0D2B3A');
+    bg.addColorStop(1,   '#0A2A1A');
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, SIZE, SIZE);
+
+    // Aurelo arch wordmark header
+    ctx.font        = 'bold 48px serif';
+    ctx.fillStyle   = '#FFFFFF';
+    ctx.textAlign   = 'center';
+    ctx.fillText('AURELO', SIZE / 2, 90);
+
+    // Referral gift icon
+    ctx.font      = '160px serif';
+    ctx.fillText('🎁', SIZE / 2, 350);
+
+    // Headline
+    ctx.font      = 'bold 72px sans-serif';
+    ctx.fillStyle = '#12D48A';
+    ctx.fillText('Try 21 days free', SIZE / 2, 490);
+
+    // Sub-headline
+    ctx.font      = '42px sans-serif';
+    ctx.fillStyle = 'rgba(255,255,255,0.75)';
+    ctx.fillText('Build better digital habits with Aurelo Pro', SIZE / 2, 570);
+
+    // Link box
+    const boxY = 640, boxH = 90, boxPad = 60;
+    ctx.fillStyle   = 'rgba(255,255,255,0.08)';
+    _roundRect(ctx, boxPad, boxY, SIZE - boxPad * 2, boxH, 20);
+    ctx.fill();
+    ctx.font        = '34px monospace';
+    ctx.fillStyle   = 'rgba(255,255,255,0.6)';
+    const maxLinkLen = 52;
+    const displayLink = _link.length > maxLinkLen ? _link.slice(0, maxLinkLen) + '…' : _link;
+    ctx.fillText(displayLink, SIZE / 2, boxY + 57);
+
+    // Footer
+    ctx.font      = '32px sans-serif';
+    ctx.fillStyle = 'rgba(255,255,255,0.4)';
+    ctx.fillText('javikastudio.com/aurelo', SIZE / 2, 990);
+
+    const base64 = canvas.toDataURL('image/png').split(',')[1];
+    if (base64) {
+      N.shareImageWithText(base64, 'aurelo_referral_card', shareText);
+      _afterShare();
+    } else {
+      // Fallback to text if canvas export fails
+      N.shareText(shareText);
+      _afterShare();
+    }
+  }
+
+  /** Helper: draw a rounded rectangle path (no fill/stroke — caller does that). */
+  function _roundRect(ctx, x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + w - r, y);
+    ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+    ctx.lineTo(x + w, y + h - r);
+    ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+    ctx.lineTo(x + r, y + h);
+    ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+    ctx.lineTo(x, y + r);
+    ctx.quadraticCurveTo(x, y, x + r, y);
+    ctx.closePath();
+  }
+
   function _afterShare() {
     if (IS_NATIVE && typeof N.recordReferralShare === 'function') {
       try { N.recordReferralShare(); } catch (_) {}
     }
-    // Reload stats so share count updates
-    setTimeout(_load, 400);
+    // BUG-10 FIX: previously called _load() which replaces root.innerHTML entirely,
+    // throwing the user back to the top of the panel. Now update only the share-count
+    // stat pill in-place. _stats.shareCount is incremented locally so the update is
+    // instant without an extra bridge round-trip.
+    if (_stats) _stats.shareCount = (_stats.shareCount || 0) + 1;
+    const pills = document.querySelectorAll('#referral-panel-body [data-stat]');
+    if (pills.length > 0) {
+      // Update in-place if rendered pills are present
+      pills.forEach(el => {
+        if (el.dataset.stat === 'shareCount') el.textContent = _stats.shareCount;
+      });
+    } else {
+      // Fallback: full reload only if the panel was not yet rendered
+      setTimeout(_load, 400);
+    }
   }
 
   // ── Home banner helper ─────────────────────────────────────────────────────

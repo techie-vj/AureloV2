@@ -36,13 +36,15 @@ class BillingBridge(
         prefs.edit().putString(BILLING_ACTIVE_PLAN, plan).apply()
     }
 
-    @JavascriptInterface fun isProUser(): Boolean = prefs.getBoolean(IS_PRO_USER, false)
+    @JavascriptInterface fun isProUser(): Boolean = entitlementRepo.isPro
 
     fun setProUser(isPro: Boolean) {
-        prefs.edit().putBoolean(IS_PRO_USER, isPro).apply()
+        entitlementRepo.setProStatus(isPro)
 
         if (isPro) {
             WidgetUpdater.updateAll(context)
+            // Cancel any pending extension-expiry task — user has re-subscribed (BUG-06).
+            ReferralExtensionWorker.cancel(context)
             // BUG-03 FIX: was hardcoded "monthly"; now reads the actual plan stored by
             // recordActivatedPlan() which BillingManager calls before onProStatusChanged.
             val plan = prefs.getString(BILLING_ACTIVE_PLAN, null) ?: _activatedPlan
@@ -59,7 +61,7 @@ class BillingBridge(
                 // BUG-06 FIX: schedule a one-time worker that fires when the extension
                 // expires and revokes Pro access. Without this, the extension runs
                 // indefinitely until the user opens the app and billing re-queries.
-                ReReferralExtensionWorker.scheduleExpiry(context)
+                ReferralExtensionWorker.scheduleExpiry(context)
 
                 // Notify JS so it can refresh Pro UI with extension banner
                 val js = "if(typeof window.onReferralExtensionActivated==='function')" +
@@ -83,6 +85,7 @@ class BillingBridge(
         }
     }
 
+    // Kept for JS backward-compatibility; now delegates to the same source as isProUser().
     @JavascriptInterface fun getProStatus(): Boolean = entitlementRepo.isPro
 
     @JavascriptInterface fun getProPricing() {

@@ -173,6 +173,15 @@ class MainActivity : AppCompatActivity() {
         bridge = AppBridge(this, webView)
         webView.addJavascriptInterface(bridge, "AppBridge")
 
+        // BUG-01 FIX: checkInstallReferrerAndGrantBonus() was fully implemented in
+        // ReferralManager but never called. Every referred install silently received
+        // 0 bonus days. Call it here on first launch (before onboarding completes)
+        // so the Install Referrer API can attribute the install and credit the user.
+        if (!bridge.isOnboardingDone()) {
+            val firstLaunchPrefs = getSharedPreferences("tidyapp_v6", Context.MODE_PRIVATE)
+            ReferralManager.checkInstallReferrerAndGrantBonus(this, firstLaunchPrefs)
+        }
+
         // ── Health Connect permission launcher ───────────────────────────────
         // Health Connect permissions (android.permission.health.*) are NOT
         // standard Android runtime permissions on any API level — they are

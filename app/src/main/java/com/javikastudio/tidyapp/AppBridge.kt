@@ -55,6 +55,12 @@ class AppBridge(private val context: Context, private val webView: WebView) {
             webView.post { webView.evaluateJavascript("if(typeof window.onBillingError==='function') window.onBillingError($code,${org.json.JSONObject.quote(message)})",null) }
         }
         override fun onBillingReady() {}
+        // BUG-03 FIX: forward the confirmed plan to BillingBridge so setProUser(true)
+        // passes the real plan (monthly/annual/lifetime) to the referral system instead
+        // of the previously hardcoded "monthly".
+        override fun onPlanActivated(plan: String) {
+            prefs.edit().putString(BILLING_ACTIVE_PLAN, plan).apply()
+        }
     })
 
     // ── Domain controllers ────────────────────────────────────────────────────
@@ -366,7 +372,11 @@ class AppBridge(private val context: Context, private val webView: WebView) {
     @JavascriptInterface fun getReferralCode()                                 = referral.getReferralCode()
     @JavascriptInterface fun getReferralStats()                                = referral.getReferralStats()
     @JavascriptInterface fun recordReferralShare()                             = referral.recordReferralShare()
-    @JavascriptInterface fun recordReferralInstall(friendCode: String = "")           = referral.recordReferralInstall(friendCode)
+    // BUG-05 FIX: Kotlin default parameters do NOT generate a JVM no-arg overload on
+    // @JavascriptInterface methods. A JS call with no argument fails silently (unresolved
+    // method). Explicit two-overload pattern guarantees both call sites work.
+    @JavascriptInterface fun recordReferralInstall()                           = referral.recordReferralInstall("")
+    @JavascriptInterface fun recordReferralInstall(friendCode: String)         = referral.recordReferralInstall(friendCode)
     @JavascriptInterface fun recordReferralConversion(plan: String)            = referral.recordReferralConversion(plan)
     @JavascriptInterface fun getReferralBonusDays()                           = referral.getReferralBonusDays()
     @JavascriptInterface fun wasReferred()                                     = referral.wasReferred()
