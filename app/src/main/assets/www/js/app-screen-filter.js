@@ -413,13 +413,22 @@ window.ScreenFilter = (function () {
         // SF-26: Transparency / documentation row
         // Users always know what the filter does and can dismiss it without
         // hunting through settings — matches Aurelo Coach transparency philosophy.
-        '<div class="sf-info-row">' +
-          '<span class="sf-info-icon">&#9432;</span>' +
-          '<p class="sf-info-text">' +
-            'Screen Filter applies a warm tint to ease blue light and reduce brightness. ' +
-            'As a private overlay, it passes touches through—it cannot see or read your screen content.<br><br>' +
-            '<strong>To disable:</strong> Tap <strong>OFF</strong> above, or tap the Aurelo notification in your shade.' +
-          '</p>' +
+        '<div class="sf-info-row sf-info--collapsed" id="sf-info-row"' +
+          ' onclick="(function(r){r.classList.toggle(\'sf-info--collapsed\')})(this)">' +
+          '<span class="sf-info-icon" style="margin-top:1px">&#9432;</span>' +
+          '<div style="flex:1;min-width:0">' +
+            '<div class="sf-info-hdr">' +
+              '<span class="sf-info-hdr-label">How it works</span>' +
+              '<span class="sf-info-chevron">&#9660;</span>' +
+            '</div>' +
+            '<div class="sf-info-body">' +
+              '<p class="sf-info-text">' +
+                'Screen Filter applies a warm tint to ease blue light and reduce brightness. ' +
+                'As a private overlay, it passes touches through\u2014it cannot see or read your screen content.<br><br>' +
+                '<strong>To disable:</strong> Tap <strong>OFF</strong> above, or tap the Aurelo notification in your shade.' +
+              '</p>' +
+            '</div>' +
+          '</div>' +
         '</div>' +
 
         // Save / Discard
@@ -569,10 +578,12 @@ window.ScreenFilter = (function () {
     return '<div class="sf-slider-row">' +
       '<div class="sf-slider-lbl"><span>' + label + '</span>' +
         '<span id="sf-' + id + '-val">' + val + '%</span></div>' +
-      '<div class="sf-track-bg">' +
-        '<div class="sf-track-fill" id="sf-' + id + '-fill" style="width:' + val + '%;background:' + color + '"></div>' +
+      '<div class="sf-slider-track-wrap">' +
+        '<div class="sf-track-bg">' +
+          '<div class="sf-track-fill" id="sf-' + id + '-fill" style="width:' + val + '%;background:' + color + '"></div>' +
+        '</div>' +
+        '<input type="range" class="sf-range" id="sf-' + id + '" min="0" max="100" value="' + val + '">' +
       '</div>' +
-      '<input type="range" class="sf-range" id="sf-' + id + '" min="0" max="100" value="' + val + '">' +
     '</div>';
   }
 
