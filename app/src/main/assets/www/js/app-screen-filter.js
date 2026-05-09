@@ -42,6 +42,63 @@ window.ScreenFilter = (function () {
   // FIX 4: day labels Mon→Sun (index 0=Monday … 6=Sunday)
   var DAY_LABELS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 
+  /* ── BUG 2 FIX: sunrise/sunset calculator ───────────────────
+   * Replaces the unreliable N.requestLocationPermission() /
+   * N.hasLocationPermission() bridge calls, which had coarse/fine
+   * mismatch and timing issues on Android 15.
+   * Uses the W3C navigator.geolocation API that WebView handles
+   * natively and correctly on all Android versions. Sunrise/sunset
+   * times are computed on-device in JS from the returned coordinates
+   * and stored in cfg so _isInScheduleWindow() can evaluate them.
+   *
+   * Algorithm: simplified USNO/Almanac method (accurate to ±1 min).
+   * Returns { sunriseHour, sunriseMin, sunsetHour, sunsetMin }
+   * in local device time, or null when the location is inside a
+   * polar day/night period.
+   * ─────────────────────────────────────────────────────────── */
+  function _computeSunTimes(lat, lon) {
+    var D2R    = Math.PI / 180;
+    var R2D    = 180 / Math.PI;
+    var ZENITH = 90.83333; // official + atmospheric refraction
+    var now    = new Date();
+    var start  = new Date(now.getFullYear(), 0, 0);
+    var dayOfYear = Math.floor((now - start) / 86400000);
+    var lngHour   = lon / 15;
+    var tzOff     = -now.getTimezoneOffset() / 60; // local UTC offset in hours
+
+    function calcTime(isSunrise) {
+      var t  = isSunrise
+        ? dayOfYear + (6  - lngHour) / 24
+        : dayOfYear + (18 - lngHour) / 24;
+      var M  = 0.9856 * t - 3.289;
+      var L  = M + 1.916 * Math.sin(M * D2R) + 0.020 * Math.sin(2 * M * D2R) + 282.634;
+      L = ((L % 360) + 360) % 360;
+      var RA = R2D * Math.atan(0.91764 * Math.tan(L * D2R));
+      RA = ((RA % 360) + 360) % 360;
+      RA = RA + (Math.floor(L / 90) * 90 - Math.floor(RA / 90) * 90);
+      RA = RA / 15;
+      var sinDec = 0.39782 * Math.sin(L * D2R);
+      var cosDec = Math.cos(Math.asin(sinDec));
+      var cosH   = (Math.cos(ZENITH * D2R) - sinDec * Math.sin(lat * D2R))
+                 / (cosDec * Math.cos(lat * D2R));
+      if (cosH > 1 || cosH < -1) return null; // polar day or night
+      var H  = isSunrise ? 360 - R2D * Math.acos(cosH) : R2D * Math.acos(cosH);
+      H      = H / 15;
+      var T  = H + RA - 0.06571 * t - 6.622;
+      var UT = ((T - lngHour) % 24 + 24) % 24; // UTC decimal hours
+      var local = ((UT + tzOff) % 24 + 24) % 24;
+      return local; // decimal hours in local time
+    }
+
+    var sunriseH = calcTime(true);
+    var sunsetH  = calcTime(false);
+    if (sunriseH === null || sunsetH === null) return null;
+
+    var srM = Math.round((sunriseH % 1) * 60); var srH = Math.floor(sunriseH); if (srM === 60) { srM = 0; srH++; }
+    var ssM = Math.round((sunsetH  % 1) * 60); var ssH = Math.floor(sunsetH);  if (ssM === 60) { ssM = 0; ssH++; }
+    return { sunriseHour: srH, sunriseMin: srM, sunsetHour: ssH, sunsetMin: ssM };
+  }
+
   var _cfg = null, _cacheTs = 0, _TTL = 2000, _dirty = false;
 
   /* ── Config ──────────────────────────────────────────────── */
@@ -105,16 +162,61 @@ window.ScreenFilter = (function () {
     _applyNative(cfg);
   }
 
+  // BUG 1 FIX: only start overlay if inside the schedule window
   function _applyNative(cfg) {
     if (!IS_NATIVE) return;
     try {
       if (cfg.enabled && !cfg.paused) {
+        if (!_isInScheduleWindow(cfg)) {
+          if (typeof N.removeScreenFilter === 'function') N.removeScreenFilter();
+          return;
+        }
         if (typeof N.applyScreenFilter === 'function')
-          N.applyScreenFilter(cfg.warmAlpha, cfg.dimAlpha, false);
+          N.applyScreenFilter(cfg.warmAlpha, cfg.dimAlpha, !!cfg.fadeIn);
       } else {
         if (typeof N.removeScreenFilter === 'function') N.removeScreenFilter();
       }
     } catch (_) {}
+  }
+
+  // Returns true if current time is inside the filter active window.
+  // 'none'/'': always true.
+  // 'sun':  uses stored sunsetHour/sunriseHour computed by _computeSunTimes()
+  //         — active from sunset tonight until sunrise tomorrow.
+  //         Returns false if coordinates have not been obtained yet.
+  // 'custom': compare H:M against schedStart/End + schedDays [Mon=0..Sun=6].
+  function _isInScheduleWindow(cfg) {
+    if (!cfg) return false;
+    if (cfg.schedule === 'none' || !cfg.schedule) return true;
+
+    // BUG 2 FIX: sun schedule now evaluated in JS using stored computed times.
+    if (cfg.schedule === 'sun') {
+      if (cfg.sunsetHour == null || cfg.sunriseHour == null) return false;
+      var now       = new Date();
+      var cfgDay    = (now.getDay() + 6) % 7; // Mon=0…Sun=6
+      if (Array.isArray(cfg.schedDays) && cfg.schedDays.length === 7) {
+        if (!cfg.schedDays[cfgDay]) return false;
+      }
+      var nowMins     = now.getHours() * 60 + now.getMinutes();
+      var sunsetMins  = cfg.sunsetHour  * 60 + (cfg.sunsetMin  || 0);
+      var sunriseMins = cfg.sunriseHour * 60 + (cfg.sunriseMin || 0);
+      // Active window is overnight: sunset → next-day sunrise
+      if (sunsetMins > sunriseMins) return nowMins >= sunsetMins || nowMins < sunriseMins;
+      return nowMins >= sunsetMins && nowMins < sunriseMins;
+    }
+
+    var now    = new Date();
+    var cfgDay = (now.getDay() + 6) % 7;
+    if (Array.isArray(cfg.schedDays) && cfg.schedDays.length === 7) {
+      if (!cfg.schedDays[cfgDay]) return false;
+    }
+    var nowMins   = now.getHours() * 60 + now.getMinutes();
+    var startMins = (cfg.schedStartHour != null ? cfg.schedStartHour : 21) * 60
+                  + (cfg.schedStartMin  != null ? cfg.schedStartMin  : 0);
+    var endMins   = (cfg.schedEndHour   != null ? cfg.schedEndHour   : 7) * 60
+                  + (cfg.schedEndMin    != null ? cfg.schedEndMin    : 0);
+    if (startMins > endMins) return nowMins >= startMins || nowMins < endMins;
+    return nowMins >= startMins && nowMins < endMins;
   }
 
   function _applyRaw(w, d, gradual) {
@@ -292,17 +394,29 @@ window.ScreenFilter = (function () {
         // FIX 4: sun-based schedule also gets day picker (outside #sf-times)
         (cfg.schedule === 'sun' && isPro ? dayPickerHtml : '') +
 
-        // FIX 1 + 2: excluded apps — camera shown as single chip
+
+ // FIX 1 + 2: excluded apps — camera shown as single chip
         '<div class="sf-sec-lbl">PAUSED FOR APPS</div>' +
         excludedHtml +
+
+        // SF-26: Transparency / documentation row
+        // Users always know what the filter does and can dismiss it without
+        // hunting through settings — matches Aurelo Coach transparency philosophy.
+        '<div class="sf-info-row">' +
+          '<span class="sf-info-icon">&#9432;</span>' +
+          '<p class="sf-info-text">' +
+            'Screen Filter overlays a tinted layer above all apps to reduce blue light ' +
+            'and brightness. It runs as a transparent overlay that passes touches through ' +
+            '&mdash; it cannot read your screen content. Tap <strong>OFF</strong> above, ' +
+            'or pull down the notification shade and tap the Aurelo notification to disable it.' +
+          '</p>' +
+        '</div>' +
 
         // Save / Discard
         '<div class="sf-actions" id="sf-actions" style="display:none">' +
           '<button class="sf-discard" onclick="ScreenFilter._discard()">Discard</button>' +
           '<button class="sf-save"    onclick="ScreenFilter._save()">Save</button>' +
         '</div>' +
-
-      '</div>';
 
     _bindSliders();
     _bindExcludedApps();
@@ -537,7 +651,24 @@ window.ScreenFilter = (function () {
     if (!cfg.enabled) {
       if (!_hasPerm()) { _requestPerm(_togMaster); return; }
       cfg.enabled = true; cfg.paused = false;
-      if (cfg.schedule !== 'none') _startSchedule(cfg);
+      if (cfg.schedule !== 'none') {
+        _startSchedule(cfg);
+        // BUG 1 FIX: inform user when activation is deferred to schedule window
+        if (!_isInScheduleWindow(cfg)) {
+          var hint = cfg.schedule === 'sun'
+            ? 'Filter enabled - will activate at sunset'
+            : (function () {
+                var h = cfg.schedStartHour != null ? cfg.schedStartHour : 21;
+                var m = cfg.schedStartMin  != null ? cfg.schedStartMin  : 0;
+                var ap = h >= 12 ? 'PM' : 'AM'; var h12 = h % 12 || 12;
+                return 'Filter enabled - activates at ' + h12 + ':'
+                     + (m < 10 ? '0' : '') + m + ' ' + ap;
+              })();
+          setTimeout(function () {
+            if (typeof toast === 'function') toast(hint, 'info', 3500);
+          }, 250);
+        }
+      }
     } else {
       cfg.enabled = false; cfg.paused = false;
       _stopSchedule();
@@ -558,39 +689,50 @@ window.ScreenFilter = (function () {
     render();
   }
 
-  /* ── Location permission (for sun-based schedule) ───────────── */
-  function _hasLocationPerm() {
-    if (!IS_NATIVE) return true; // browser preview — assume granted
-    try { return typeof N.hasLocationPermission === 'function' && N.hasLocationPermission(); }
-    catch (_) { return false; }
-  }
-
-  function _requestLocationPerm(cb) {
-    var backdrop = document.createElement('div');
-    backdrop.className = 'sf-backdrop';
-    var sheet = document.createElement('div');
-    sheet.className = 'sf-perm-sheet';
-    sheet.innerHTML =
-      '<div class="sf-drag"></div>' +
-      '<div style="font-size:28px;text-align:center;margin-bottom:10px">📍</div>' +
-      '<div class="sf-perm-title">Location Needed for Sun Schedule</div>' +
-      '<div class="sf-perm-body">Aurelo needs your approximate location to calculate local sunrise and sunset times. It is used only on-device and never sent anywhere.</div>' +
-      '<div class="sf-perm-note"><span>🛡️</span><span>Coarse location only. No GPS tracking. Never leaves your device.</span></div>' +
-      '<button class="sf-btn-prim" id="sf-loc-grant-btn">Allow Location</button>' +
-      '<button class="sf-btn-ghost" id="sf-loc-skip-btn">Not now</button>';
-    document.body.appendChild(backdrop);
-    document.body.appendChild(sheet);
-    var dismiss = function () { sheet.remove(); backdrop.remove(); };
-    document.getElementById('sf-loc-grant-btn').onclick = function () {
-      try { if (typeof N.requestLocationPermission === 'function') N.requestLocationPermission(); } catch (_) {}
-      dismiss();
-      var t = 0, poll = setInterval(function () {
-        if (_hasLocationPerm()) { clearInterval(poll); if (cb) cb(); }
-        if (++t > 120) clearInterval(poll);
-      }, 500);
-    };
-    document.getElementById('sf-loc-skip-btn').onclick = dismiss;
-    backdrop.onclick = dismiss;
+  /* ── Location (for sun-based schedule) ──────────────────────
+   * BUG 2 FIX: All N.hasLocationPermission() / N.requestLocationPermission()
+   * calls replaced with navigator.geolocation.getCurrentPosition().
+   * The W3C Geolocation API is natively handled by the Android WebView
+   * and prompts the system location permission dialog itself — no bridge
+   * required, no coarse/fine mismatch, no polling race.
+   *
+   * _requestSunLocation(onSuccess, onDenied) obtains coordinates once,
+   * computes sunrise/sunset via _computeSunTimes(), and returns the result.
+   * ─────────────────────────────────────────────────────────── */
+  function _requestSunLocation(onSuccess, onDenied) {
+    if (!navigator.geolocation) {
+      if (typeof toast === 'function') toast('Geolocation not available on this device', 'warn', 3500);
+      if (onDenied) onDenied();
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      function (pos) {
+        // Got a position — clear any pending-retry flag.
+        window._sfGeoPending = false;
+        var times = _computeSunTimes(pos.coords.latitude, pos.coords.longitude);
+        if (!times) {
+          if (typeof toast === 'function') toast('Sun times unavailable for polar latitudes — use Custom schedule instead', 'warn', 4000);
+          if (onDenied) onDenied();
+          return;
+        }
+        if (onSuccess) onSuccess(times);
+      },
+      function (err) {
+        // err.code: 1=PERMISSION_DENIED, 2=POSITION_UNAVAILABLE, 3=TIMEOUT
+        if (err.code === 1) {
+          // GEO-03: Set a flag so onAppResume can retry automatically after
+          // the user grants location permission in system Settings and returns.
+          window._sfGeoPending = true;
+          if (typeof toast === 'function')
+            toast('Location permission denied — grant it in Settings › Apps › Aurelo › Permissions, then return here', 'warn', 5000);
+        } else {
+          if (typeof toast === 'function')
+            toast('Could not get location for Sun schedule — check GPS/network and try again', 'warn', 4500);
+        }
+        if (onDenied) onDenied();
+      },
+      { enableHighAccuracy: false, timeout: 10000, maximumAge: 3600000 }
+    );
   }
 
   function _schedApply(key) {
@@ -602,10 +744,33 @@ window.ScreenFilter = (function () {
   }
 
   function _sched(key) {
-    // FIX 2: sun-based schedule requires coarse location permission for
-    // sunrise/sunset calculation — request it before applying the schedule.
-    if (key === 'sun' && !_hasLocationPerm()) {
-      _requestLocationPerm(function () { _schedApply('sun'); });
+    if (key === 'sun') {
+      // BUG 2 FIX: use W3C navigator.geolocation — no N.requestLocationPermission()
+      // bridge call, no polling loop, no coarse/fine mismatch on Android 15.
+      // The WebView handles the system permission dialog natively.
+      _requestSunLocation(
+        function (times) {
+          // Got coordinates → computed sunrise/sunset → store in cfg and apply
+          var cfg = getCfg();
+          cfg.sunriseHour = times.sunriseHour;
+          cfg.sunriseMin  = times.sunriseMin;
+          cfg.sunsetHour  = times.sunsetHour;
+          cfg.sunsetMin   = times.sunsetMin;
+          _cfg = cfg;
+          _cacheTs = Date.now();
+          // Show human-readable confirmation
+          var pad = function (n) { return n < 10 ? '0' + n : '' + n; };
+          if (typeof toast === 'function')
+            toast('Sun schedule set — filter active ' +
+              pad(times.sunsetHour) + ':' + pad(times.sunsetMin) + ' → ' +
+              pad(times.sunriseHour) + ':' + pad(times.sunriseMin), 'success', 3500);
+          _schedApply('sun');
+        },
+        function () {
+          // Denied or error — stay on current schedule (don't switch to 'sun')
+          render();
+        }
+      );
       return;
     }
     _schedApply(key);
@@ -784,11 +949,33 @@ window.ScreenFilter = (function () {
     renderSettingsSection: renderSettingsSection,
     _togMaster: _togMaster, _preset: _preset,
     _sched: _sched, _schedApply: _schedApply, _trans: _trans,
-    _hasLocationPerm: _hasLocationPerm,
     _toggleDay: _toggleDay,
     _openTimePicker: _openTimePicker,
     _addExcluded: _addExcluded, _pickExcluded: _pickExcluded,
     _removeExcluded: _removeExcluded,
     _save: _save, _discard: _discard
+  };
+}());
+
+/* GEO-03: Retry sun-schedule location request when the user returns to the app
+ * after manually granting location permission in system Settings.
+ * MainActivity.onResume() calls window.onAppResume() on every foreground resume.
+ * We check _sfGeoPending (set by _requestSunLocation on PERMISSION_DENIED) and,
+ * if the sun schedule is still selected, silently retry without user interaction. */
+(function () {
+  var _prev = window.onAppResume;
+  window.onAppResume = function () {
+    if (_prev) _prev();
+    if (!window._sfGeoPending) return;
+    try {
+      var cfg = ScreenFilter.getCfg();
+      if (cfg && cfg.schedule === 'sun') {
+        // Retry: if permission is now granted, _requestSunLocation succeeds and
+        // clears _sfGeoPending; if still denied, the flag stays set for next resume.
+        ScreenFilter._sched('sun');
+      } else {
+        window._sfGeoPending = false; // schedule changed while we were waiting
+      }
+    } catch (_) {}
   };
 }());

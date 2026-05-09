@@ -120,6 +120,10 @@ class MainActivity : AppCompatActivity() {
                 // NEVER_ALLOW blocks all HTTP sub-resources to prevent data leakage.
                 mixedContentMode       = WebSettings.MIXED_CONTENT_NEVER_ALLOW
                 cacheMode              = WebSettings.LOAD_DEFAULT
+                // GEO-01: enable W3C navigator.geolocation for sun-based screen filter.
+                // Without this the WebView returns PERMISSION_DENIED silently on all
+                // Android versions regardless of OS location permission status.
+                setGeolocationEnabled(true)
                 // A11Y-01 FIX: textZoom=100 override REMOVED.
                 // Previously suppressed system font-scale (85–200%) which blocked
                 // Accessibility > Font Size for visually impaired users (WCAG 1.4.4).
@@ -218,6 +222,21 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         })
+
+        // GEO-02: grant geolocation permission to the local asset origin so that
+        // navigator.geolocation.getCurrentPosition() works for sun-schedule calculation.
+        // The WebView will show the Android system location dialog (ACCESS_COARSE_LOCATION
+        // is declared in the manifest) before calling this; we always approve the
+        // file:///android_asset/ origin. retain=false so permission is re-evaluated
+        // each session rather than cached permanently.
+        webView.webChromeClient = object : android.webkit.WebChromeClient() {
+            override fun onGeolocationPermissionsShowPrompt(
+                origin: String,
+                callback: android.webkit.GeolocationPermissions.Callback
+            ) {
+                callback.invoke(origin, true, false)
+            }
+        }
 
         webView.webViewClient = object : WebViewClient() {
             override fun onPageFinished(view: WebView, url: String) {

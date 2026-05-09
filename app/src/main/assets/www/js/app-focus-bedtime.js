@@ -121,8 +121,8 @@ window.FocusBedtime = (function () {
       return _bedtimeCfgCache;
     }
     var cfg = {
-      bedHour: 22, wakeHour: 7, grayscale: true, windDown: true,
-      dimBrightness: true, blockedApps: [], enabled: !!S.settings.bedtime,
+      bedHour: 22, wakeHour: 7, windDown: true,
+      blockedApps: [], enabled: !!S.settings.bedtime,
       activeDays: [0,1,2,3,4,5,6],
     };
     if (IS_NATIVE && typeof N.getBedtimeSettings === 'function') {
@@ -135,6 +135,12 @@ window.FocusBedtime = (function () {
         if (!Array.isArray(cfg.activeDays) || cfg.activeDays.length === 0) {
           cfg.activeDays = [0,1,2,3,4,5,6];
         }
+        // SF-23 migration: strip legacy keys that conflict with Screen Filter.
+        // grayscale:true / dimBrightness:true were written by v1 Bedtime; they
+        // are no longer functional (setBedtimeGrayscale is a no-op) and can
+        // activate the system grayscale path unexpectedly on older configs.
+        delete cfg.grayscale;
+        delete cfg.dimBrightness;
       } catch (_) {}
     }
     S.settings.bedtime = cfg.enabled;

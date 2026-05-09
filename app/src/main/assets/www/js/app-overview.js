@@ -145,6 +145,32 @@ window.AppOverview = (function () {
       }
     } catch (_) {}
 
+    // 8. Screen Filter — excluded apps
+    // SF-27: Show which apps have been exempted from the Screen Filter so users
+    // can see at a glance (and tap through to fix) their exclusion list.
+    try {
+      var sfRaw = IS_NATIVE && typeof N.getScreenFilterSettings === 'function'
+        ? N.getScreenFilterSettings()
+        : (typeof ScreenFilter !== 'undefined' ? JSON.stringify(ScreenFilter.getSettings()) : '{}');
+      var sfCfg = JSON.parse(sfRaw || '{}');
+      var sfEnabled = sfCfg.enabled === true;
+      var sfExcluded = Array.isArray(sfCfg.excludedApps) ? sfCfg.excludedApps : [];
+      if (sfEnabled && sfExcluded.length) {
+        var allAppsFlat8 = Object.values(CATS_MAP).flat();
+        features.push({
+          id: 'screen-filter', icon: '🔆', label: 'Screen Filter — Excluded',
+          color: 'rgba(249,115,22,.08)', borderColor: 'rgba(249,115,22,.2)',
+          textColor: '#f97316',
+          apps: sfExcluded.map(function (pkg) {
+            var found = allAppsFlat8.find(function (a) { return a.packageName === pkg; });
+            return { packageName: pkg, name: found ? found.name : pkg.split('.').pop(),
+                     sub: 'filter paused in this app' };
+          }),
+          action: "typeof ScreenFilter !== 'undefined' && typeof ScreenFilter.openSettings === 'function' ? ScreenFilter.openSettings() : openPanel('screen-filter-panel')",
+        });
+      }
+    } catch (_) {}
+
     return features;
   }
 

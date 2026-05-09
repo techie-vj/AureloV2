@@ -241,6 +241,28 @@
   font-family:var(--ff-m,monospace);margin-bottom:4px;
 }
 
+/* ── SF-26: Transparency / documentation info row ─────────── */
+.sf-info-row {
+  display:flex;align-items:flex-start;gap:8px;
+  margin:16px 0 6px;padding:10px 12px;
+  background:var(--s2,rgba(255,255,255,.04));
+  border:1px solid var(--border2,rgba(255,255,255,.08));
+  border-radius:11px;
+}
+.sf-info-icon {
+  font-size:13px;color:var(--t3,rgba(255,255,255,.35));
+  flex-shrink:0;margin-top:1px;line-height:1.4;
+}
+.sf-info-text {
+  font-family:var(--ff-m,monospace);
+  font-size:11px;color:var(--t3,rgba(255,255,255,.35));
+  line-height:1.6;margin:0;
+}
+.sf-info-text strong {
+  color:var(--t2,rgba(255,255,255,.65));
+  font-family:var(--ff-m,monospace);font-weight:600;
+}
+
 /* ── App picker sheet rows ───────────────────────────────────── */
 .sf-app-row {
   display:flex;flex-direction:column;gap:2px;

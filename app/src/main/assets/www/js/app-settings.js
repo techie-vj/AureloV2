@@ -322,11 +322,14 @@ function openBedtimePicker() {
 function _bedtimeToggle(key) {
   _btPickerState[key] = !(_btPickerState[key]);
   const togMap = {
-    grayscale: 'bt-tog-gray', windDown: 'bt-tog-wind',
-    dimBrightness: 'bt-tog-dim', morningSummary: 'bt-tog-morning'
+    windDown: 'bt-tog-wind',
+    morningSummary: 'bt-tog-morning'
+    // grayscale / dimBrightness entries removed (SF-25): DOM elements bt-tog-gray
+    // and bt-tog-dim no longer exist. Legacy calls with those keys are silently
+    // ignored below via the null-safe tog?.className assignment.
   };
   const tog = document.getElementById(togMap[key]);
-  if (tog) tog.className = 'tog ' + (_btPickerState[key] ? 'on' : 'off');
+  if (tog) tog.className = 'tog ' + (_btPickerState[key] ? 'on' : 'off');  // null-safe
 }
 
 function _bedtimePreview() {
@@ -393,12 +396,15 @@ function _saveBedtimePicker() {
   const bedHour   = parseInt(document.getElementById('bt-bed-hour')?.value  ?? cfg.bedHour);
   const wakeHour  = parseInt(document.getElementById('bt-wake-hour')?.value ?? cfg.wakeHour);
 
+  // SF-23 / SF-24: strip legacy keys from the in-memory cfg before building
+  // newCfg so they are never silently re-persisted into the saved config.
+  delete cfg.grayscale;
+  delete cfg.dimBrightness;
+
   const newCfg = {
     bedHour,
     wakeHour,
     windDown:       _btPickerState.windDown        ?? (cfg.windDown ?? true),
-    // grayscale removed — Google API no longer supports it
-    // dimBrightness removed — requires WRITE_SETTINGS, not exposed in UI
     morningSummary: _btPickerState.morningSummary  ?? (cfg.morningSummary ?? true),
     blockedApps:    _btBlockedApps,
     enabled:        true,

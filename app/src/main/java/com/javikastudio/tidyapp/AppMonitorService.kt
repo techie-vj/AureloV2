@@ -154,54 +154,64 @@ class AppMonitorService : Service() {
                 }
             }
 
-            // ── Camera + user-excluded apps for Screen Filter ────────────────────────
-            // Pause filter when foreground app is camera OR user-configured excluded app.
-            if (currentFgPkg.isNotEmpty()) {
+            // ── Blocking engines — plain onTick(), no return-value capture ────────────
+            // Fixes Kotlin type-mismatch: onTick() returns Unit, not Boolean.
+            bedtimeEngine.onTick(currentFgPkg, now)
+            focusEngine.onTick(currentFgPkg, now)
+            timerEngine.onTick(currentFgPkg, now)
+            intentionEngine.onTick(currentFgPkg, now)
+
+            // ── Screen Filter tick ────────────────────────────────────────────────────
+            // Runs AFTER engines so coordinator.activeView reflects the current tick.
+            //
+            // Suppress (detach from WM) when ANY of the following is true:
+            //   1. A blocking overlay is visible — BUG 3 FIX: detaching the view
+            //      rather than setting alpha=0 guarantees no touch-routing
+            //      interference between the filter and the interactive overlay.
+            //      FLAG_NOT_TOUCHABLE alone is not reliable on all Android versions.
+            //   2. Camera app is foreground (always excluded).
+            //   3. App is in user's exclusion list.
+            //      BUG FIX: evaluated even when currentFgPkg=="" (home screen)
+            //      so filter restores after user exits an excluded app.
+            if (filterEngine.isActive()) {
+                val anyOverlay = coordinator.activeView != null  // type-safe Boolean
+
                 val sfRaw = prefs.getString(SCREEN_FILTER_SETTINGS_V1, null)
-                val sfCfg = if (!sfRaw.isNullOrBlank()) runCatching { org.json.JSONObject(sfRaw) }.getOrNull() else null
+                val sfCfg = if (!sfRaw.isNullOrBlank())
+                    runCatching { org.json.JSONObject(sfRaw) }.getOrNull() else null
 
-                val isCam = currentFgPkg.contains("camera", ignoreCase = true) ||
-                            currentFgPkg.contains("cam.", ignoreCase = true) ||
-                            currentFgPkg == "com.google.android.GoogleCamera" ||
-                            try {
-                                packageManager.queryIntentActivities(
-                                    android.content.Intent("android.media.action.IMAGE_CAPTURE"), 0
-                                ).any { it.activityInfo.packageName == currentFgPkg }
-                            } catch (_: Exception) { false }
+                val isCam = currentFgPkg.isNotEmpty() && (
+                        currentFgPkg.contains("camera", ignoreCase = true) ||
+                                currentFgPkg.contains("cam.",    ignoreCase = true) ||
+                                currentFgPkg == "com.google.android.GoogleCamera" ||
+                                try {
+                                    packageManager.queryIntentActivities(
+                                        android.content.Intent("android.media.action.IMAGE_CAPTURE"), 0
+                                    ).any { it.activityInfo.packageName == currentFgPkg }
+                                } catch (_: Exception) { false }
+                        )
 
-                // User-configured excluded apps (stored in sfCfg.excludedApps JSON array)
-                // Camera packages are also pre-populated client-side but we check by name here
-                val isUserExcluded = sfCfg?.optJSONArray("excludedApps")?.let { arr ->
-                    (0 until arr.length()).any { arr.optString(it) == currentFgPkg }
-                } ?: false
+                val isExcluded = currentFgPkg.isNotEmpty() &&
+                        (sfCfg?.optJSONArray("excludedApps")?.let { arr ->
+                            (0 until arr.length()).any { arr.optString(it) == currentFgPkg }
+                        } ?: false)
 
-                val shouldHide = isCam || isUserExcluded
-                if (shouldHide) {
-                    filterEngine.let { if (it.isActive()) it.update(0, 0) }
+                if (anyOverlay || isCam || isExcluded) {
+                    filterEngine.suspend()   // detach view — zero touch interference
                 } else {
-                    filterEngine.let {
-                        if (it.isActive()) {
-                            val w = sfCfg?.optInt("warmAlpha", 80) ?: 80
-                            val d = sfCfg?.optInt("dimAlpha",  45) ?: 45
-                            it.update(w, d)
-                        }
-                    }
+                    val w = sfCfg?.optInt("warmAlpha", 80) ?: 80
+                    val d = sfCfg?.optInt("dimAlpha",  45) ?: 45
+                    filterEngine.resumeFilter()  // re-attach if was suspended
+                    filterEngine.update(w, d)    // paint correct alpha
                 }
             }
 
-            // Dispatch in priority order; each handler returns true if it owns the overlay slot
-            val bedtimeWants = bedtimeEngine.onTick(currentFgPkg, now)
-            val focusWants   = if (!bedtimeWants) focusEngine.onTick(currentFgPkg, now)
-                               else { focusEngine.onTickNoOverlay(currentFgPkg, now); false }
-            val timerWants   = if (!bedtimeWants && !focusWants) timerEngine.onTick(currentFgPkg, now)
-                               else { timerEngine.onTickNoOverlay(currentFgPkg, now); false }
-            if (!bedtimeWants && !focusWants && !timerWants) intentionEngine.onTick(currentFgPkg, now)
-            else intentionEngine.onTickNoOverlay(currentFgPkg, now)
-
             nm.notify(NOTIF_ID, buildNotification(now))
 
+            // SF-20: include filterEngine so service stays alive for filter-only mode
             if (!focusEngine.isActive && !timerEngine.isActive &&
-                !intentionEngine.isActive && !bedtimeEngine.isActive) {
+                !intentionEngine.isActive && !bedtimeEngine.isActive &&
+                !filterEngine.isActive()) {
                 pollScheduled = false
                 stopSelf()
                 return
@@ -341,6 +351,14 @@ class AppMonitorService : Service() {
         fun show(priority: Int, view: View): Boolean {
             if (activeView != null && priority >= activePriority) return false
             forceRemove()
+            // BUG 3 FIX (1): Suspend the screen filter synchronously *before* adding
+            // the blocking overlay to WindowManager. The 500 ms poll loop has a race
+            // window where the filter view and the new blocking overlay both live in WM
+            // simultaneously; on Android 15, FLAG_NOT_TOUCHABLE is insufficient to
+            // fully pass touches through two overlapping TYPE_APPLICATION_OVERLAY
+            // windows, making buttons on the focus/bedtime card unresponsive.
+            // Calling suspend() here eliminates that window entirely.
+            filterEngineInstance?.suspend()
             return runCatching {
                 wm.addView(view, overlayLayoutParams())
                 activeView     = view
@@ -446,6 +464,19 @@ class AppMonitorService : Service() {
                 .apply { openPi?.let { setContentIntent(it) } }.build()
         }
 
+        // SF-NOTIF: filter-only mode — show a minimal indicator so the
+        // user knows the overlay is active and can tap through to disable it.
+        if (filterEngine.isActive()) {
+            return NotificationCompat.Builder(this, CHANNEL_ID)
+                .setSmallIcon(android.R.drawable.ic_dialog_info).setColor(0xFF05C8E8.toInt())
+                .setContentTitle("🌊 Screen Filter active")
+                .setContentText("Tap to manage in Aurelo")
+                .setOngoing(true).setOnlyAlertOnce(true)
+                .setPriority(NotificationCompat.PRIORITY_MIN)
+                .setVisibility(NotificationCompat.VISIBILITY_SECRET)
+                .apply { openPi?.let { setContentIntent(it) } }.build()
+        }
+
         val count = runCatching {
             JSONArray(prefs.getString("focus_intention_apps", "[]") ?: "[]").length()
         }.getOrDefault(0)
@@ -487,7 +518,7 @@ class AppMonitorService : Service() {
         val mode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q)
             ops.unsafeCheckOpNoThrow(android.app.AppOpsManager.OPSTR_GET_USAGE_STATS, android.os.Process.myUid(), packageName)
         else @Suppress("DEPRECATION")
-            ops.checkOpNoThrow(android.app.AppOpsManager.OPSTR_GET_USAGE_STATS, android.os.Process.myUid(), packageName)
+        ops.checkOpNoThrow(android.app.AppOpsManager.OPSTR_GET_USAGE_STATS, android.os.Process.myUid(), packageName)
         return mode == android.app.AppOpsManager.MODE_ALLOWED
     }
 
@@ -525,7 +556,7 @@ class AppMonitorService : Service() {
                 (getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager)
                     .defaultVibrator.vibrate(VibrationEffect.createWaveform(pattern, -1))
             else @Suppress("DEPRECATION")
-                (getSystemService(Context.VIBRATOR_SERVICE) as Vibrator).vibrate(pattern, -1)
+            (getSystemService(Context.VIBRATOR_SERVICE) as Vibrator).vibrate(pattern, -1)
         }
     }
 

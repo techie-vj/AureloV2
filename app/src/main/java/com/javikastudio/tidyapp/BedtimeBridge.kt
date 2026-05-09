@@ -160,17 +160,22 @@ class BedtimeBridge(
     @JavascriptInterface fun isDndPolicyGranted(): Boolean =
         (context.getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager).isNotificationPolicyAccessGranted
 
-    @JavascriptInterface fun setBedtimeGrayscale(enable: Boolean) {
-        runCatching {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-                val cdmClass = Class.forName("android.hardware.display.ColorDisplayManager")
-                val cdm = context.getSystemService(cdmClass)
-                if (cdm != null) cdmClass.getMethod("setSaturationLevel",Int::class.java).invoke(cdm,if(enable) 0 else 100)
-            } else {
-                android.provider.Settings.Secure.putString(context.contentResolver,"accessibility_display_daltonizer_enabled",if(enable) "1" else "0")
-                if (enable) android.provider.Settings.Secure.putString(context.contentResolver,"accessibility_display_daltonizer","0")
-            }
-        }
+    /**
+     * SF-09: Deprecated — system grayscale is no longer supported.
+     *
+     * The previous implementation used ColorDisplayManager.setSaturationLevel() on
+     * API 34+ and the accessibility_display_daltonizer secure setting on older APIs.
+     * Both paths conflicted with the Screen Filter overlay when both were active
+     * simultaneously, producing double-tinted or washed-out rendering.
+     *
+     * This method is intentionally a no-op. The @JavascriptInterface annotation is
+     * kept so that any old JS call paths (e.g. legacy saved config with grayscale:true)
+     * silently succeed rather than throwing "method not found". Use the Screen Filter
+     * feature (applyScreenFilter / removeScreenFilter) instead.
+     */
+    @JavascriptInterface fun setBedtimeGrayscale(@Suppress("UNUSED_PARAMETER") enable: Boolean) {
+        // No-op: system grayscale removed — conflicts with Screen Filter overlay.
+        // Old call sites from JS are safely swallowed here without crashing.
     }
 
     @JavascriptInterface fun hasSecureSettingsPermission(): Boolean =
@@ -190,7 +195,7 @@ class BedtimeBridge(
         runCatching {
             val intent = Intent(context, AppMonitorService::class.java).apply {
                 this.action = action
-                putExtra(extraKey, extraVal)  // ✅ putExtra(String, Int)
+                putExtra(extraKey, extraVal)
             }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
                 context.startForegroundService(intent)
@@ -220,34 +225,49 @@ class BedtimeBridge(
         prefs.edit().putString(SCREEN_FILTER_SETTINGS_V1, json).apply()
     }
 
+    /**
+     * SF-BUG2 FIX: always route through AppMonitorService so there is only ever
+     * ONE ScreenFilterEngine instance in WindowManager.
+     *
+     * The previous implementation called _getOrCreateFilterEngine() which allocated
+     * engine A directly.  When AppMonitorService later started (e.g. for a Focus
+     * session) it created engine B in onCreate() and assigned filterEngineInstance=B,
+     * orphaning engine A's WindowManager view permanently — no subsequent call to
+     * removeScreenFilter() or coordinator.show().suspend() could reach it.
+     *
+     * By routing all start/stop through service intents, the service is the sole
+     * owner of the engine.  coordinator.show() and the poll loop both operate on
+     * the same instance via filterEngineInstance, so suspend/resume and stop all
+     * work correctly regardless of what other engines are running.
+     */
     @JavascriptInterface fun applyScreenFilter(warmAlpha: Int, dimAlpha: Int, gradual: Boolean = false) {
-        // JavascriptInterface runs on a background thread; WindowManager requires main thread.
-        android.os.Handler(android.os.Looper.getMainLooper()).post {
-            val engine = _getOrCreateFilterEngine()
-            engine.start(warmAlpha, dimAlpha, gradual)
+        runCatching {
+            val intent = android.content.Intent(context, AppMonitorService::class.java).apply {
+                action = AppMonitorService.ACTION_FILTER_START
+                putExtra("filter_warm",    warmAlpha)
+                putExtra("filter_dim",     dimAlpha)
+                putExtra("filter_gradual", gradual)
+            }
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O)
+                context.startForegroundService(intent)
+            else
+                context.startService(intent)
         }
     }
 
     @JavascriptInterface fun removeScreenFilter() {
-        android.os.Handler(android.os.Looper.getMainLooper()).post {
-            // If no engine exists yet, nothing to remove
-            val engine = AppMonitorService.filterEngineInstance ?: return@post
-            engine.stop(fadeOut = true)
+        // Clear the active pref immediately so restoreFromPrefs() on sticky restart
+        // does not re-show the filter while the service is winding down.
+        prefs.edit().putBoolean(SCREEN_FILTER_ACTIVE, false).apply()
+        runCatching {
+            val intent = android.content.Intent(context, AppMonitorService::class.java).apply {
+                action = AppMonitorService.ACTION_FILTER_STOP
+            }
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O)
+                context.startForegroundService(intent)
+            else
+                context.startService(intent)
         }
-    }
-
-    /**
-     * Returns the running engine from AppMonitorService if available,
-     * otherwise creates one directly — so the filter works regardless of
-     * whether AppMonitorService is currently running (e.g. outside bedtime window).
-     */
-    private fun _getOrCreateFilterEngine(): ScreenFilterEngine {
-        AppMonitorService.filterEngineInstance?.let { return it }
-        val wm = context.getSystemService(android.content.Context.WINDOW_SERVICE)
-                as android.view.WindowManager
-        val engine = ScreenFilterEngine(context, wm, prefs)
-        AppMonitorService.filterEngineInstance = engine
-        return engine
     }
 
     @JavascriptInterface fun isScreenFilterActive(): Boolean =
@@ -255,9 +275,8 @@ class BedtimeBridge(
 
     /**
      * Called by the JS schedule engine (sun-based / custom-time Pro modes).
-     * In v1 the filter is driven by BedtimeReceiver alarms; this persists
-     * the schedule config so BedtimeReceiver can read it on next alarm fire.
-     * Full background scheduling (AlarmManager at sunset/sunrise) is a v2 task.
+     * Persists the schedule config; the filter start/stop is driven by _applyNative()
+     * in JS which calls applyScreenFilter / removeScreenFilter above.
      */
     @JavascriptInterface fun startScreenFilterSchedule(json: String) {
         runCatching { org.json.JSONObject(json) }.onFailure { return }
@@ -266,10 +285,16 @@ class BedtimeBridge(
 
     /** Stops any active filter immediately and clears the schedule flag. */
     @JavascriptInterface fun stopScreenFilterSchedule() {
-        android.os.Handler(android.os.Looper.getMainLooper()).post {
-            AppMonitorService.filterEngineInstance?.stop(fadeOut = true)
-        }
         prefs.edit().putBoolean(SCREEN_FILTER_ACTIVE, false).apply()
+        runCatching {
+            val intent = android.content.Intent(context, AppMonitorService::class.java).apply {
+                action = AppMonitorService.ACTION_FILTER_STOP
+            }
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O)
+                context.startForegroundService(intent)
+            else
+                context.startService(intent)
+        }
     }
 
 }

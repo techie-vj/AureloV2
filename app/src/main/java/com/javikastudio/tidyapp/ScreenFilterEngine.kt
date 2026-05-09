@@ -53,11 +53,17 @@ class ScreenFilterEngine(
     private val handler = Handler(Looper.getMainLooper())
 
     // Current applied alpha values (0–100 scale)
-    private var currentWarm = 0
-    private var currentDim  = 0
-    private var targetWarm  = 0
-    private var targetDim   = 0
-    private var isShown     = false
+    private var currentWarm  = 0
+    private var currentDim   = 0
+    private var targetWarm   = 0
+    private var targetDim    = 0
+    private var isShown      = false
+    private var isSuspended  = false  // true while view is detached for overlay coexistence
+    // isStopping: set true the instant stop() is called, cleared only in removeView().
+    // Makes isActive() return false immediately so the poll loop stops managing the filter
+    // and neither resumeFilter() nor update() can reattach/repaint the view during the
+    // fade-out window (which keeps isShown=true for up to 20 s).
+    private var isStopping   = false
 
     // ── Public API ────────────────────────────────────────────────────────────
 
@@ -66,6 +72,10 @@ class ScreenFilterEngine(
      * fade from 0 to their target values over ~20 seconds (mimicking f.lux).
      */
     fun start(warmAlpha: Int, dimAlpha: Int, gradual: Boolean = false) {
+        // Clear any in-progress fade-out so re-enabling during the fade works correctly.
+        handler.removeCallbacksAndMessages(null)
+        isStopping = false
+
         targetWarm = warmAlpha.coerceIn(0, 100)
         targetDim  = dimAlpha.coerceIn(0, 100)
 
@@ -93,11 +103,49 @@ class ScreenFilterEngine(
      * Update alpha values on a running filter. No fade — applies immediately.
      */
     fun update(warmAlpha: Int, dimAlpha: Int) {
+        // No-op when suspended (view detached) or stopping (fade in progress).
+        // Without the isStopping guard, the 500 ms poll loop would call update()
+        // with the saved alpha values and cancel the fade-out immediately.
+        if (!isShown || isSuspended || isStopping) return
+        handler.removeCallbacksAndMessages(null)
         targetWarm  = warmAlpha.coerceIn(0, 100)
         targetDim   = dimAlpha.coerceIn(0, 100)
         currentWarm = targetWarm
         currentDim  = targetDim
-        if (isShown) applyLayers(currentWarm, currentDim)
+        applyLayers(currentWarm, currentDim)
+    }
+
+    /**
+     * BUG 3 FIX: Detach the filter view from WindowManager while a blocking
+     * overlay (Focus / Bedtime / Timer / MindfulPause) is on screen.
+     *
+     * Setting alpha=0 and relying on FLAG_NOT_TOUCHABLE is insufficient on
+     * some Android versions: even a fully transparent TYPE_APPLICATION_OVERLAY
+     * window can disrupt touch routing to the interactive overlay above it,
+     * making buttons on the focus/bedtime card unresponsive. Detaching the view
+     * entirely guarantees zero interference.
+     */
+    fun suspend() {
+        if (!isShown || isSuspended) return
+        isSuspended = true
+        handler.removeCallbacksAndMessages(null)
+        filterView?.let { runCatching { wm.removeView(it) } }
+    }
+
+    /**
+     * Re-attach the filter view after [suspend] and restore the last applied alpha.
+     * The caller should immediately follow with [update] to set the correct values.
+     */
+    fun resumeFilter() {
+        // isStopping guard: if stop() was called while the filter was suspended
+        // (e.g. during a focus session), we must NOT reattach the view when the
+        // focus overlay is dismissed — that would make a "disabled" filter reappear.
+        if (!isShown || !isSuspended || isStopping) return
+        isSuspended = false
+        filterView?.let {
+            runCatching { wm.addView(it, overlayParams()) }
+            applyLayers(currentWarm, currentDim)
+        }
     }
 
     /**
@@ -109,7 +157,17 @@ class ScreenFilterEngine(
 
         if (!isShown) return
 
-        if (fadeOut && (currentWarm > 0 || currentDim > 0)) {
+        // Mark logically inactive NOW — before the fade — so isActive() returns false
+        // immediately and the poll loop stops calling update()/resumeFilter() on this
+        // engine. Without this, the poll loop would call update() with the saved alpha
+        // values on the very next 500 ms tick, resetting the alpha to full and cancelling
+        // the fade. Also prevents resumeFilter() from reattaching the view after a focus
+        // session ends while the filter is in the middle of fading out.
+        isStopping = true
+
+        // Only run a visible fade when the view is actually attached to WM.
+        // If suspended (already detached by a blocking overlay), go straight to removeView().
+        if (fadeOut && !isSuspended && (currentWarm > 0 || currentDim > 0)) {
             targetWarm = 0
             targetDim  = 0
             scheduleFadeOutStep()
@@ -118,7 +176,7 @@ class ScreenFilterEngine(
         }
     }
 
-    fun isActive(): Boolean = isShown
+    fun isActive(): Boolean = isShown && !isStopping
 
     fun restoreFromPrefs() {
         val wasActive = prefs.getBoolean(FILTER_ACTIVE_KEY, false)
@@ -200,7 +258,10 @@ class ScreenFilterEngine(
     // Gradual fade-out: decrements by 1 each step then removes view
     private fun scheduleFadeOutStep() {
         handler.postDelayed({
-            if (!isShown) return@postDelayed
+            // isStopping is the correct cancellation guard here — isShown stays true
+            // until removeView() is called at the very end of the fade, so it cannot
+            // serve as a cancellation signal (e.g. if start() is called mid-fade).
+            if (!isStopping) return@postDelayed
             if (currentWarm <= 0 && currentDim <= 0) { removeView(); return@postDelayed }
             currentWarm = (currentWarm - 1).coerceAtLeast(0)
             currentDim  = (currentDim  - 1).coerceAtLeast(0)
@@ -210,11 +271,17 @@ class ScreenFilterEngine(
     }
 
     private fun removeView() {
+        // Always attempt wm.removeView() — don't skip when isSuspended.
+        // runCatching absorbs the harmless "not attached" exception when the view
+        // was already removed by suspend(). Clears isStopping so the engine can
+        // be restarted cleanly.
         filterView?.let { runCatching { wm.removeView(it) } }
-        filterView = null
-        warmLayer  = null
-        dimLayer   = null
-        isShown    = false
+        filterView  = null
+        warmLayer   = null
+        dimLayer    = null
+        isShown     = false
+        isSuspended = false
+        isStopping  = false
     }
 
     private fun overlayParams(): WindowManager.LayoutParams {
