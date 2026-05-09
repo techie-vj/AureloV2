@@ -64,7 +64,12 @@ class CoachInsightWorker(
 
             WorkManager.getInstance(context).enqueueUniquePeriodicWork(
                 WORK_NAME,
-                ExistingPeriodicWorkPolicy.KEEP,
+                // H4 FIX: UPDATE (not KEEP) so that after a device reboot or app update the
+                // initialDelay is re-computed from the current time.  KEEP preserved the old
+                // request's delay base, meaning the worker could miss 08:30 by an entire day
+                // after a reboot.  UPDATE cancels-and-replaces the pending work with a fresh
+                // delay calculation while leaving any already-running execution intact.
+                ExistingPeriodicWorkPolicy.UPDATE,
                 request,
             )
         }

@@ -373,7 +373,10 @@ class RoutineAlarmReceiver : BroadcastReceiver() {
      * rare; typically only on first boot before the key is generated), we skip rescheduling
      * and let the app reschedule the next time it is foregrounded.
      */
-    private fun rescheduleAllRoutinesOnBoot(context: Context) {
+    // H5 FIX: elevated to internal so BootReceiver can call this as an explicit
+    // fallback, giving a single reliable boot handler rather than relying solely on
+    // the BOOT_COMPLETED broadcast race between two receivers.
+    internal fun rescheduleAllRoutinesOnBoot(context: Context) {
         val json = try {
             val masterKey = androidx.security.crypto.MasterKey.Builder(context)
                 .setKeyScheme(androidx.security.crypto.MasterKey.KeyScheme.AES256_GCM)

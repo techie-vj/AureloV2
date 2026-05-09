@@ -468,14 +468,20 @@ class BillingManager(
      * this simple parser covers all currently issued billing periods.
      */
     private fun parsePeriodToDays(period: String): Int {
+        // H6 FIX: Previous implementation used drop(1).dropLast(1).toInt() which fails
+        // for compound periods like "P2W3D" and throws NumberFormatException for "PT0S"
+        // (zero-duration), both silently returning 0 and showing "0-day trial" on paywall.
+        // Now uses regex extraction so each component is parsed independently.
+        if (period.isBlank()) return 0
         return try {
-            when {
-                period.endsWith("D") -> period.drop(1).dropLast(1).toInt()
-                period.endsWith("W") -> period.drop(1).dropLast(1).toInt() * 7
-                period.endsWith("M") -> period.drop(1).dropLast(1).toInt() * 30
-                period.endsWith("Y") -> period.drop(1).dropLast(1).toInt() * 365
-                else -> 0
-            }
+            val upper = period.uppercase()
+            // "PT..." indicates a time-only duration (seconds/minutes) with no day value
+            if (upper.startsWith("PT")) return 0
+            val years  = Regex("(\\d+)Y").find(upper)?.groupValues?.get(1)?.toIntOrNull() ?: 0
+            val months = Regex("(\\d+)M").find(upper)?.groupValues?.get(1)?.toIntOrNull() ?: 0
+            val weeks  = Regex("(\\d+)W").find(upper)?.groupValues?.get(1)?.toIntOrNull() ?: 0
+            val days   = Regex("(\\d+)D").find(upper)?.groupValues?.get(1)?.toIntOrNull() ?: 0
+            years * 365 + months * 30 + weeks * 7 + days
         } catch (e: Exception) { 0 }
     }
 

@@ -75,7 +75,13 @@ class BedtimeBlockingEngine(
         parseBlockedApps(appsJson)
         android.util.Log.d("BedtimeEngine", "start: parsed ${blockedPkgs.size} blocked pkgs")
         if (blockedPkgs.isEmpty()) {
-            android.util.Log.w("BedtimeEngine", "start: parseBlockedApps produced empty set — check JSON")
+            // C5 FIX: malformed JSON (e.g. entries missing packageName) produces an empty
+            // blockedPkgs set but bedtime mode should still activate — DND and brightness
+            // reduction work independently of the overlay blocking list.  Without setting
+            // isActive=true here the session silently failed with no user feedback.
+            android.util.Log.w("BedtimeEngine", "start: parseBlockedApps produced empty set — activating without overlay")
+            isActive = true
+            prefs.edit().putBoolean("bedtime_block_active", true).apply()
             return
         }
 

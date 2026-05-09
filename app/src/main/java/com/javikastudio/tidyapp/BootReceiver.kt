@@ -97,6 +97,22 @@ class BootReceiver : BroadcastReceiver() {
                 prefs.edit().putBoolean(SCREEN_FILTER_ACTIVE, false).apply()
             }
         }
+
+        // ── 3. Coach insight worker ───────────────────────────────────────────
+        // H4 FIX: Re-enqueue the daily CoachInsightWorker with UPDATE policy so the
+        // initialDelay is recomputed from the current time after every reboot or
+        // package replacement.  Without this the KEEP policy caused the worker to miss
+        // its 08:30 slot for up to a full 24-hour cycle.
+        CoachInsightWorker.schedule(ctx)
+
+        // ── 4. Focus routine alarms ───────────────────────────────────────────
+        // H5 FIX: Explicitly re-schedule all enabled focus routines here in BootReceiver
+        // in addition to RoutineAlarmReceiver's own BOOT_COMPLETED handler.  Android
+        // delivers BOOT_COMPLETED to all registered receivers but the order is
+        // unspecified; calling this from BootReceiver guarantees routines are re-armed
+        // regardless of receiver execution order.  The call is idempotent — scheduling
+        // the same alarm twice replaces the previous PendingIntent via FLAG_UPDATE_CURRENT.
+        RoutineAlarmReceiver().rescheduleAllRoutinesOnBoot(ctx)
     }
 
     // ── Schedule window check ─────────────────────────────────────────────────

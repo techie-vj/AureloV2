@@ -35,8 +35,41 @@ object SecurityValidators {
         "cached_tidy_score_date",
         "deletedCategories",
         "disc_shown_v1",
-        // BUG-04 FIX: banner last-shown date was missing — getStringPref/setStringPref were
-        // silently blocked, so the once-per-day suppression never persisted.
+        // H7 FIX: The following keys were missing and caused getStringPref()/setStringPref()
+        // calls from JS to return "" silently, breaking the Coach home card, bedtime
+        // display, widget settings, and smart-alert reads from the WebView layer.
+        "coach_daily_insight_json",
+        "coach_daily_insight_date",
+        "coach_insight_dismissed_date",
+        "smart_alerts_enabled",
+        "widget_pulse_step",
+        "widget_section_collapsed",
+        "recap_sent_date",
+        "bedtime_enabled",
+        "bedtime_start_hour",
+        "bedtime_start_min",
+        "bedtime_end_hour",
+        "bedtime_end_min",
+        "bedtime_streak",
+        "bedtime_last_night_stats",
+        "bedtime_last_night_kept",
+        "bedtime_last_night_has_data",
+        "bedtime_last_night_snooze_count",
+        "bedtime_last_night_attempts_total",
+        "focus_date_v1",
+        "focus_completed_today",
+        "focus_interrupted_today",
+        "focus_planned_mins_today",
+        "focus_elapsed_mins_today",
+        "focus_week_id",
+        "focus_week_days",
+        "focus_completed_week",
+        "focus_interrupted_week",
+        "focus_time_week_mins",
+        "focus_last_outcome",
+        "focus_last_elapsed",
+        "focus_last_total_mins",
+        "focus_last_complete_ts",
         "referral_banner_last_shown_date",
     )
 
@@ -74,7 +107,7 @@ object SecurityValidators {
         return runCatching {
             val info = context.packageManager.getApplicationInfo(packageName, 0)
             (info.flags and android.content.pm.ApplicationInfo.FLAG_SYSTEM) == 0 ||
-                (info.flags and android.content.pm.ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) != 0
+                    (info.flags and android.content.pm.ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) != 0
         }.getOrDefault(false)
     }
 }
