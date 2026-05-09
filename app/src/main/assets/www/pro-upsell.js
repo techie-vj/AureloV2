@@ -246,6 +246,20 @@
       cta: 'Unlock Unlimited Coach',
       dismiss: 'Maybe later',
     },
+    screen_filter: {
+      tag: 'Pro Scheduling',
+      headline: 'Let your filter activate itself.',
+      body: 'Sun-based scheduling turns the filter on at sunset and off at sunrise automatically. Custom scheduling lets you set your own start and end times. No manual switching — it just works.',
+      cta: 'Unlock Scheduling',
+      dismiss: 'Maybe later',
+    },
+    screen_filter_unlimited: {
+      tag: 'Unlimited Filter Apps',
+      headline: "You've reached the free limit.",
+      body: 'Free users can pause the screen filter for up to 3 apps. Go Pro to add as many app exceptions as you need — camera, media players, whatever fits your workflow.',
+      cta: 'Go Pro \u00b7 Unlock unlimited',
+      dismiss: 'Keep limit for now',
+    },
     score_history: {
       tag: 'Score History · Pro',
       headline: 'Are your habits actually improving?',

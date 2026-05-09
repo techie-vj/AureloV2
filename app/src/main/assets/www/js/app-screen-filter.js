@@ -590,7 +590,7 @@ window.ScreenFilter = (function () {
   function _schedRow(key, label, sublabel, cur, pro) {
     var proTag = pro ? ' <span class="sf-pro-tag">PRO</span>' : '';
     var click  = pro
-      ? 'typeof ProTier!==\'undefined\'&&ProTier.triggerUpsell(\'screen_filter\')'
+      ? 'typeof ProTier!==\'undefined\'&&ProTier.triggerUpsell(\'SCREEN_FILTER\')' // FIX2: uppercase key matches all other upsell calls
       : 'ScreenFilter._sched(\'' + key + '\')';
     var subHtml = sublabel
       ? '<div class="sf-sched-sub">' + sublabel + '</div>'
@@ -1012,8 +1012,17 @@ window.ScreenFilter = (function () {
   function _togglePendingExclude(pkg) {
     if (!window._sfExclPanel) return;
     var state = window._sfExclPanel;
-    if (state.pending.has(pkg)) { state.pending.delete(pkg); }
-    else                        { state.pending.add(pkg); }
+    if (state.pending.has(pkg)) {
+      state.pending.delete(pkg);
+    } else {
+      // Issue 1 fix: enforce 3-app limit for free users
+      var _isPro = typeof ProTier !== 'undefined' && ProTier.isPro;
+      if (!_isPro && state.pending.size >= 3) {
+        if (typeof ProTier !== 'undefined') ProTier.triggerUpsell('SCREEN_FILTER_APPS_UNLIMITED');
+        return;
+      }
+      state.pending.add(pkg);
+    }
     var chk = document.getElementById('sf-epchk-' + pkg.replace(/\./g, '_'));
     if (chk) chk.classList.toggle('sf-ep-check--on', state.pending.has(pkg));
     // Update Selected pill count + save button

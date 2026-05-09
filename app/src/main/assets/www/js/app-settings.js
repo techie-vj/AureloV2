@@ -663,9 +663,13 @@ function scheduleBedtimeCheck() {
 function updateBedtimeSub() {
   const sub = document.getElementById('bedtime-sub');
   if (!sub) return;
-  if (S.settings.bedtime) {
-    if (typeof _getBedtimeCfg !== 'function') { sub.textContent = 'Enabled'; return; }
-    const cfg = _getBedtimeCfg();
+  // Issue 3 fix: read from _getBedtimeCfg() (native-first) rather than
+  // S.settings.bedtime, which can be stale when bedtime is toggled via the
+  // Focus tab inline card (native prefs updated but S not always synced back).
+  const cfg = typeof _getBedtimeCfg === 'function' ? _getBedtimeCfg() : null;
+  const isEnabled = cfg ? !!cfg.enabled : !!S.settings.bedtime;
+  if (isEnabled) {
+    if (!cfg) { sub.textContent = 'Enabled'; return; }
     function decStr(h, m) {
       const mm = m || 0;
       const am = h < 12;
@@ -883,6 +887,23 @@ function nCall(method,...args){ try{ if(N&&typeof N[method]==='function') return
 /* ═══ BOOT ════════════════════════════════════════════ */
 applySettings();
 if (typeof setCatView === 'function') setCatView(S.catView);
+// Issue 3 fix: applySettings() above runs at parse time, before TemplateLoader
+// has injected templates/settings.html into the DOM. streak-goal-sub and
+// bedtime-sub don't exist yet so updateStreakGoalSub / updateBedtimeSub are
+// silent no-ops. Re-apply once gates are refreshed (fires after onPageReady /
+// ProTier.init() which happens after templates are fully in the DOM).
+window.addEventListener('aurelo-gates-refreshed', applySettings);
+// Belt-and-suspenders: also patch showApp() which is the guaranteed post-template
+// hook (called from loadNativeData after templates are fully in the DOM).
+// aurelo-gates-refreshed only fires on billing callbacks and may be skipped on
+// cold boots where the billing cache is a hit (no async callback).
+(function _patchShowAppForSettings() {
+  var _origShowApp = window.showApp;
+  window.showApp = function () {
+    if (typeof _origShowApp === 'function') _origShowApp.apply(this, arguments);
+    applySettings();
+  };
+})();
 /* ── Play Sync (Improve App Categories) — panel-based flow ─────────────────── */
 
 function setPlaySyncSettingsStep(step, message, percent){

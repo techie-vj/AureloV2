@@ -39,6 +39,9 @@
     WIDGET_STATS_INSIGHT:      { tier:'pro', gate:'blur',    upsell:'widget_insight' },
     // Goals
     STREAK_CALENDAR:           { tier:'pro', gate:'lock',    upsell:'streak_depth' },
+    // Screen Filter
+    SCREEN_FILTER:                   { tier:'pro', gate:'lock',    upsell:'screen_filter' },
+    SCREEN_FILTER_APPS_UNLIMITED:    { tier:'pro', gate:'ceiling', upsell:'screen_filter_unlimited', limit:3 },
     // Focus
     FOCUS_APPS_UNLIMITED:      { tier:'pro', gate:'ceiling', upsell:'focus_unlimited', limit:3 },
     FOCUS_SCHEDULE:            { tier:'pro', gate:'teaser',  upsell:'focus_schedule' },
