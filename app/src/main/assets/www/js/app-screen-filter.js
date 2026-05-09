@@ -39,8 +39,9 @@ window.ScreenFilter = (function () {
     'com.oneplus.camera', 'com.miui.camera', 'com.huawei.camera'
   ];
 
-  // FIX 4: day labels Mon→Sun (index 0=Monday … 6=Sunday)
-  var DAY_LABELS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+  // Sun-first to match Bedtime: index 0=Sunday … 6=Saturday
+  var DAY_LABELS      = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+  var DAY_LABELS_FULL = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
   /* ── BUG 2 FIX: sunrise/sunset calculator ───────────────────
    * Replaces the unreliable N.requestLocationPermission() /
@@ -109,8 +110,9 @@ window.ScreenFilter = (function () {
       schedule: 'none',
       schedStartHour: 21, schedStartMin: 0,
       schedEndHour: 7,   schedEndMin: 0,
-      // FIX 4: 7-element array [Mon..Sun], 1=active 0=skip
+      // 7-element array [Sun..Sat], 1=active 0=skip
       schedDays: [1, 1, 1, 1, 1, 1, 1],
+      schedDaysSunFirst: true,
       fadeIn: true, fadeOut: true,
       // Camera packages always excluded by default — merged on read, not stored
       excludedApps: [],
@@ -137,6 +139,13 @@ window.ScreenFilter = (function () {
     // Ensure schedDays is always a valid 7-element array after merge
     if (!Array.isArray(_cfg.schedDays) || _cfg.schedDays.length !== 7) {
       _cfg.schedDays = [1, 1, 1, 1, 1, 1, 1];
+      _cfg.schedDaysSunFirst = true;
+    }
+    // Migrate old Mon-first (index 0=Mon) → Sun-first (index 0=Sun)
+    if (!_cfg.schedDaysSunFirst) {
+      var old = _cfg.schedDays;
+      _cfg.schedDays = [old[6], old[0], old[1], old[2], old[3], old[4], old[5]];
+      _cfg.schedDaysSunFirst = true;
     }
     // Camera packages merged at read time — NOT stored in prefs
     // FIX 1: do NOT push individual camera pkgs into excludedApps for display;
@@ -193,7 +202,7 @@ window.ScreenFilter = (function () {
     if (cfg.schedule === 'sun') {
       if (cfg.sunsetHour == null || cfg.sunriseHour == null) return false;
       var now       = new Date();
-      var cfgDay    = (now.getDay() + 6) % 7; // Mon=0…Sun=6
+      var cfgDay    = now.getDay(); // 0=Sun…6=Sat — matches schedDays Sun-first
       if (Array.isArray(cfg.schedDays) && cfg.schedDays.length === 7) {
         if (!cfg.schedDays[cfgDay]) return false;
       }
@@ -206,7 +215,7 @@ window.ScreenFilter = (function () {
     }
 
     var now    = new Date();
-    var cfgDay = (now.getDay() + 6) % 7;
+    var cfgDay = now.getDay(); // 0=Sun…6=Sat — matches schedDays Sun-first
     if (Array.isArray(cfg.schedDays) && cfg.schedDays.length === 7) {
       if (!cfg.schedDays[cfgDay]) return false;
     }
@@ -339,9 +348,11 @@ window.ScreenFilter = (function () {
       ? '<div class="sf-bedtime-hint">🌙 Bedtime Mode is controlling the filter. Adjust settings below.</div>'
       : '';
 
-    // FIX 4: show day picker when custom or sun schedule is selected
-    var showDayPicker = isPro && (cfg.schedule === 'custom' || cfg.schedule === 'sun');
-    var dayPickerHtml = showDayPicker ? _buildDayPicker(cfg.schedDays) : '';
+    // FIX 4: separate day picker HTML for each mode so IDs never collide.
+    // custom schedule → 'sf-day-*' IDs (inside #sf-times, always visible when custom active)
+    // sun schedule    → 'sf-sday-*' IDs (outside #sf-times, no overlap)
+    var customDayPickerHtml = (isPro && cfg.schedule === 'custom') ? _buildDayPicker(cfg.schedDays, 'sf-day-')  : '';
+    var sunDayPickerHtml    = (isPro && cfg.schedule === 'sun')    ? _buildDayPicker(cfg.schedDays, 'sf-sday-') : '';
 
     wrap.innerHTML =
       '<div class="' + cardClass + '">' +
@@ -373,12 +384,12 @@ window.ScreenFilter = (function () {
           _slider('Extra Dim',         'dim',  cfg.dimAlpha,  '#7c3aed') +
         '</div>' +
 
-        // When to run — 'No schedule' replaces 'Manual only' + 'Always on'
+        // When to run — renamed options for clarity
         '<div class="sf-sec-lbl">WHEN TO RUN</div>' +
         '<div class="sf-sched-list">' +
-          _schedRow('none',   'No schedule', cfg.schedule, false) +
-          _schedRow('sun',    'Sun-based',    cfg.schedule, !isPro) +
-          _schedRow('custom', 'Custom times', cfg.schedule, !isPro) +
+          _schedRow('none',   'Manual (Always On)',       null,         cfg.schedule, false) +
+          _schedRow('sun',    'Automatic (Sun-based)',    _sunSubLabel(cfg), cfg.schedule, !isPro) +
+          _schedRow('custom', 'Scheduled (Custom times)', null,         cfg.schedule, !isPro) +
         '</div>' +
 
         // FIX 3: custom time pickers — now have onclick via _timePicker()
@@ -387,12 +398,12 @@ window.ScreenFilter = (function () {
             _timePicker('Start', cfg.schedStartHour, cfg.schedStartMin, 'sf-t-start') +
             _timePicker('End',   cfg.schedEndHour,   cfg.schedEndMin,   'sf-t-end') +
           '</div>' +
-          // FIX 4: day picker injected here for custom schedule
-          dayPickerHtml +
+          // Day picker inside #sf-times uses 'sf-day-*' IDs (only rendered when custom is selected)
+          customDayPickerHtml +
         '</div>' +
 
-        // FIX 4: sun-based schedule also gets day picker (outside #sf-times)
-        (cfg.schedule === 'sun' && isPro ? dayPickerHtml : '') +
+        // FIX 4: sun-based schedule day picker outside #sf-times — uses 'sf-sday-*' IDs (no collision)
+        sunDayPickerHtml +
 
 
  // FIX 1 + 2: excluded apps — camera shown as single chip
@@ -418,6 +429,12 @@ window.ScreenFilter = (function () {
           '<button class="sf-save"    onclick="ScreenFilter._save()">Save</button>' +
         '</div>' +
 
+      // Bug-3 FIX: closing </div> for the outer card div was missing, causing the
+      // '+' operator to concatenate _bindSliders() return value (undefined) into
+      // the innerHTML string, which rendered the literal text "undefined" below
+      // the Save/Discard buttons.
+      '</div>';
+
     _bindSliders();
     _bindExcludedApps();
     // FIX 1: restore dirty state after re-render — _markDirty() was called before
@@ -426,28 +443,35 @@ window.ScreenFilter = (function () {
     if (wasDirty) _markDirty();
   }
 
-  /* ── FIX 1: Excluded apps HTML — camera collapsed to one chip ── */
+  /* ── Excluded apps HTML — bedtime-style: 5 chips + overflow ── */
   function _buildExcludedAppsHtml(apps) {
-    // apps here contains only non-camera packages (camera pkgs stripped at save time
-    // and NOT re-merged into the array in v4 — we just show a single auto chip)
-    var chips = '';
+    var nonCam = apps.filter(function (p) { return CAMERA_PKGS.indexOf(p) === -1; });
+    var chips  = '';
 
-    // Single auto chip for camera — always shown first
+    // Camera auto chip always first
     chips +=
       '<div class="sf-excl-chip">' +
         '<span class="sf-excl-lbl">📷 Camera</span>' +
         '<span class="sf-excl-auto">auto</span>' +
       '</div>';
 
-    // User-added apps
-    apps.filter(function (p) { return CAMERA_PKGS.indexOf(p) === -1; })
-      .forEach(function (pkg) {
-        chips +=
-          '<div class="sf-excl-chip">' +
-            '<span class="sf-excl-lbl">' + _pkgLabel(pkg) + '</span>' +
-            '<button class="sf-excl-rm" onclick="ScreenFilter._removeExcluded(\'' + pkg + '\')" aria-label="Remove">\u00d7</button>' +
-          '</div>';
-      });
+    // Show first 5 user-added apps
+    nonCam.slice(0, 5).forEach(function (pkg) {
+      chips +=
+        '<div class="sf-excl-chip">' +
+          '<span class="sf-excl-lbl">' + _pkgLabel(pkg) + '</span>' +
+          '<button class="sf-excl-rm" onclick="ScreenFilter._removeExcluded(\'' + pkg + '\')" aria-label="Remove">\u00d7</button>' +
+        '</div>';
+    });
+
+    // Overflow chip — tapping opens panel with "Selected" filter pre-active
+    if (nonCam.length > 5) {
+      chips +=
+        '<div class="sf-excl-chip sf-excl-overflow" onclick="ScreenFilter._addExcluded(true)" ' +
+          'style="background:var(--s2,rgba(255,255,255,.04));border-color:var(--border2);' +
+          'color:var(--t3);font-family:var(--ff-m);font-size:var(--text-2xs);' +
+          'font-weight:700;cursor:pointer">+' + (nonCam.length - 5) + ' more</div>';
+    }
 
     return (
       '<div class="sf-excl-wrap" id="sf-excl-wrap">' +
@@ -464,21 +488,31 @@ window.ScreenFilter = (function () {
     return last.charAt(0).toUpperCase() + last.slice(1);
   }
 
-  /* ── FIX 4: Day-of-week picker ─────────────────────────────── */
-  function _buildDayPicker(days) {
+  /* ── Day-of-week picker — bedtime-style, Sun-first ──────────── */
+  /* idPrefix distinguishes custom ('sf-day-') from sun ('sf-sday-') pickers so
+   * duplicate IDs never appear when both schedules' HTML coexists in the DOM. */
+  function _buildDayPicker(days, idPrefix) {
+    idPrefix = idPrefix || 'sf-day-';
     var btns = '';
     DAY_LABELS.forEach(function (lbl, i) {
       var on = days[i] !== 0;
+      var borderColor = on ? 'var(--p)' : 'var(--border2,rgba(255,255,255,.12))';
+      var bg          = on ? 'var(--p)' : 'var(--bg,#0d0d1a)';
+      var color       = on ? '#fff'     : 'var(--t3,rgba(255,255,255,.35))';
       btns +=
-        '<button class="sf-day-btn' + (on ? ' sf-day-btn--on' : '') + '" ' +
-          'onclick="ScreenFilter._toggleDay(' + i + ')" ' +
-          'aria-label="' + ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'][i] + '" ' +
-          'aria-pressed="' + on + '">' +
-          lbl +
-        '</button>';
+        '<div id="' + idPrefix + i + '" data-active="' + (on ? '1' : '0') + '"' +
+          ' onclick="ScreenFilter._toggleDay(' + i + ')"' +
+          ' aria-label="' + DAY_LABELS_FULL[i] + '" aria-pressed="' + on + '"' +
+          ' style="flex:1;text-align:center;padding:7px 0 5px;border-radius:8px;cursor:pointer;' +
+          'font-family:var(--ff-m);font-size:var(--text-2xs);font-weight:700;' +
+          'border:1px solid ' + borderColor + ';' +
+          'background:' + bg + ';' +
+          'color:' + color + ';' +
+          '-webkit-tap-highlight-color:transparent">' + lbl + '</div>';
     });
     return (
-      '<div class="sf-sec-lbl" style="margin-top:12px">DAYS</div>' +
+      '<div style="font-family:var(--ff-m);font-size:var(--text-2xs);' +
+      'color:var(--t2,rgba(255,255,255,.6));font-weight:600;margin:14px 0 8px">Active days</div>' +
       '<div class="sf-day-row">' + btns + '</div>'
     );
   }
@@ -489,21 +523,47 @@ window.ScreenFilter = (function () {
       cfg.schedDays = [1, 1, 1, 1, 1, 1, 1];
     cfg.schedDays[idx] = cfg.schedDays[idx] ? 0 : 1;
     _cfg = cfg;
-    _cacheTs = Date.now(); // FIX 5
-    // Update just the toggled button without a full re-render
-    var btns = document.querySelectorAll('.sf-day-btn');
-    if (btns[idx]) {
+    _cacheTs = Date.now();
+    // FIX: sun schedule uses 'sf-sday-' prefix; custom uses 'sf-day-'
+    // This prevents getElementById from accidentally finding the hidden copy
+    // inside #sf-times when sun is selected (duplicate-ID bug).
+    var prefix = cfg.schedule === 'sun' ? 'sf-sday-' : 'sf-day-';
+    var pill = document.getElementById(prefix + idx);
+    if (pill) {
       var on = !!cfg.schedDays[idx];
-      btns[idx].classList.toggle('sf-day-btn--on', on);
-      btns[idx].setAttribute('aria-pressed', on);
+      pill.setAttribute('data-active', on ? '1' : '0');
+      pill.setAttribute('aria-pressed', on);
+      pill.style.borderColor = on ? 'var(--p)' : 'var(--border2,rgba(255,255,255,.12))';
+      pill.style.background  = on ? 'var(--p)' : 'var(--bg,#0d0d1a)';
+      pill.style.color       = on ? '#fff'     : 'var(--t3,rgba(255,255,255,.35))';
     }
     _markDirty();
   }
 
   /* ── HTML helpers ──────────────────────────────────────────── */
+  /* ── Sun schedule sublabel helper ───────────────────────────── */
+  function _sunSubLabel(cfg) {
+    if (cfg.sunsetHour == null || cfg.sunriseHour == null) return null;
+    var pad = function (n) { return n < 10 ? '0' + n : '' + n; };
+    var times = pad(cfg.sunsetHour) + ':' + pad(cfg.sunsetMin || 0) +
+      ' \u2192 ' + pad(cfg.sunriseHour) + ':' + pad(cfg.sunriseMin || 0);
+    return cfg.sunCity ? cfg.sunCity + ' \u00b7 ' + times : times;
+  }
+
+  var PRESET_SUBS = {
+    soft:    'gentle · day use',
+    medium:  'evening',
+    bedtime: 'wind-down',
+    custom:  'your settings'
+  };
+
   function _pBtn(key, label, cur) {
+    var sub = PRESET_SUBS[key] || '';
     return '<button class="sf-pset' + (cur === key ? ' sf-pset--on' : '') +
-      '" onclick="ScreenFilter._preset(\'' + key + '\')">' + label + '</button>';
+      '" onclick="ScreenFilter._preset(\'' + key + '\')">' +
+        '<span class="sf-pset-lbl">' + label + '</span>' +
+        '<span class="sf-pset-sub">' + sub + '</span>' +
+      '</button>';
   }
 
   function _slider(label, id, val, color) {
@@ -517,14 +577,20 @@ window.ScreenFilter = (function () {
     '</div>';
   }
 
-  function _schedRow(key, label, cur, pro) {
+  function _schedRow(key, label, sublabel, cur, pro) {
     var proTag = pro ? ' <span class="sf-pro-tag">PRO</span>' : '';
     var click  = pro
       ? 'typeof ProTier!==\'undefined\'&&ProTier.triggerUpsell(\'screen_filter\')'
       : 'ScreenFilter._sched(\'' + key + '\')';
+    var subHtml = sublabel
+      ? '<div class="sf-sched-sub">' + sublabel + '</div>'
+      : '';
     return '<div class="sf-sched-row' + (pro ? ' sf-sched--pro' : '') + '" onclick="' + click + '">' +
       '<div class="sf-radio' + (cur === key ? ' sf-radio--on' : '') + '"></div>' +
-      '<span class="sf-sched-lbl">' + label + proTag + '</span>' +
+      '<div class="sf-sched-lbl-wrap">' +
+        '<span class="sf-sched-lbl">' + label + proTag + '</span>' +
+        subHtml +
+      '</div>' +
     '</div>';
   }
 
@@ -538,73 +604,122 @@ window.ScreenFilter = (function () {
     '</div>';
   }
 
-  /* FIX 3: bottom-sheet time picker ─────────────────────────── */
+  /* Picker state — module-level so helper fns can access without closure ── */
+  var _sfPickerBd = null, _sfPickerSh = null;
+  var _sfPickerH = 12, _sfPickerM = 0, _sfPickerP = 'AM', _sfPickerTarget = null;
+
+  /* Grid time picker — matches focus-routine style (AM/PM + hour grid + minute grid) */
   function _openTimePicker(blockId) {
     var cfg     = getCfg();
     var isStart = blockId === 'sf-t-start';
     var curH    = isStart ? cfg.schedStartHour : cfg.schedEndHour;
     var curM    = isStart ? cfg.schedStartMin  : cfg.schedEndMin;
 
-    var backdrop = document.createElement('div');
-    backdrop.className = 'sf-backdrop';
-    var sheet = document.createElement('div');
-    sheet.className = 'sf-perm-sheet';
+    _sfPickerTarget = blockId;
+    _sfPickerP = curH >= 12 ? 'PM' : 'AM';
+    _sfPickerH = curH % 12 === 0 ? 12 : curH % 12;
+    _sfPickerM = Math.round(curM / 5) * 5;
+    if (_sfPickerM >= 60) _sfPickerM = 55;
 
-    // Build hour options 00–23
-    var hourOpts = '';
-    for (var h = 0; h < 24; h++) {
-      hourOpts += '<option value="' + h + '"' + (h === curH ? ' selected' : '') + '>' + _f2(h) + '</option>';
+    _sfPickerBd = document.createElement('div');
+    _sfPickerBd.className = 'sf-backdrop';
+    _sfPickerSh = document.createElement('div');
+    _sfPickerSh.className = 'sf-perm-sheet sf-tp-sheet';
+
+    // Hour cells 1–12
+    var hourCells = '';
+    for (var h = 1; h <= 12; h++) {
+      hourCells += '<div class="sf-tp-cell" id="sf-ph-' + h + '" ' +
+        'onclick="ScreenFilter._sfPickerSetH(' + h + ')">' + h + '</div>';
     }
-    // Build minute options in 5-minute steps
-    var minOpts = '';
+    // Minute cells :00 :05 … :55
+    var minCells = '';
     for (var m = 0; m < 60; m += 5) {
-      var mSel = (m === Math.round(curM / 5) * 5) ? ' selected' : '';
-      minOpts += '<option value="' + m + '"' + mSel + '>' + _f2(m) + '</option>';
+      minCells += '<div class="sf-tp-cell" id="sf-pm-' + m + '" ' +
+        'onclick="ScreenFilter._sfPickerSetM(' + m + ')">:' + (m < 10 ? '0' + m : m) + '</div>';
     }
 
-    sheet.innerHTML =
+    _sfPickerSh.innerHTML =
       '<div class="sf-drag"></div>' +
-      '<div class="sf-perm-title" style="margin-bottom:20px">' +
-        (isStart ? '⏰ Start time' : '⏰ End time') +
+      '<div style="display:flex;align-items:center;justify-content:space-between;padding:0 2px 10px">' +
+        '<div style="font-family:var(--ff-d);font-size:15px;font-weight:700;color:var(--t1)">' +
+          (isStart ? 'Start Time' : 'End Time') +
+        '</div>' +
+        '<div style="display:flex;align-items:center;gap:10px">' +
+          '<div style="display:flex;background:var(--s2,rgba(255,255,255,.06));border-radius:10px;' +
+               'border:1px solid var(--border2,rgba(255,255,255,.1));overflow:hidden">' +
+            '<div id="sf-tp-am" onclick="ScreenFilter._sfPickerSetP(\'AM\')" ' +
+              'style="padding:6px 14px;font-family:var(--ff-m);font-size:12px;font-weight:700;cursor:pointer;transition:all .12s">AM</div>' +
+            '<div id="sf-tp-pm" onclick="ScreenFilter._sfPickerSetP(\'PM\')" ' +
+              'style="padding:6px 14px;font-family:var(--ff-m);font-size:12px;font-weight:700;cursor:pointer;transition:all .12s">PM</div>' +
+          '</div>' +
+          '<div onclick="ScreenFilter._sfPickerDone()" ' +
+            'style="font-family:var(--ff-m);font-size:13px;font-weight:700;color:var(--p);cursor:pointer;padding:4px 0 4px 4px">Done</div>' +
+        '</div>' +
       '</div>' +
-      '<div style="display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:24px">' +
-        '<select id="sf-tp-h" class="sf-tp-sel">' + hourOpts + '</select>' +
-        '<span style="font-size:22px;font-weight:700;color:var(--t1,#fff)">:</span>' +
-        '<select id="sf-tp-m" class="sf-tp-sel">' + minOpts + '</select>' +
+      '<div id="sf-tp-display" style="text-align:center;font-family:var(--ff-d);font-size:36px;' +
+        'font-weight:700;color:var(--t1);letter-spacing:-1.5px;padding:2px 16px 12px;line-height:1.1"></div>' +
+      '<div style="padding:0 0 8px">' +
+        '<div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);' +
+             'letter-spacing:.8px;margin-bottom:6px">HOUR</div>' +
+        '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px">' + hourCells + '</div>' +
       '</div>' +
-      '<button class="sf-btn-prim" id="sf-tp-ok">Set</button>' +
-      '<button class="sf-btn-ghost" id="sf-tp-cancel" style="margin-top:8px">Cancel</button>';
+      '<div style="padding:8px 0 16px">' +
+        '<div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);' +
+             'letter-spacing:.8px;margin-bottom:6px">MINUTE</div>' +
+        '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px">' + minCells + '</div>' +
+      '</div>';
 
-    // Inline style for selects (works without external CSS)
-    var selStyle =
-      'font-size:20px;padding:10px 14px;border-radius:10px;' +
-      'background:var(--card2,#1e1e2e);color:var(--t1,#fff);' +
-      'border:1px solid var(--border,#333);min-width:72px;text-align:center;';
-    sheet.querySelectorAll('.sf-tp-sel').forEach(function (s) { s.style.cssText = selStyle; });
+    document.body.appendChild(_sfPickerBd);
+    document.body.appendChild(_sfPickerSh);
+    _sfPickerBd.onclick = function () { _sfPickerDismiss(); };
+    _sfPickerRefresh();
+  }
 
-    document.body.appendChild(backdrop);
-    document.body.appendChild(sheet);
+  function _sfPickerRefresh() {
+    for (var h = 1; h <= 12; h++) {
+      var el = document.getElementById('sf-ph-' + h);
+      if (el) el.classList.toggle('sf-tp-cell--on', h === _sfPickerH);
+    }
+    for (var m = 0; m < 60; m += 5) {
+      var el2 = document.getElementById('sf-pm-' + m);
+      if (el2) el2.classList.toggle('sf-tp-cell--on', m === _sfPickerM);
+    }
+    var amEl = document.getElementById('sf-tp-am');
+    var pmEl = document.getElementById('sf-tp-pm');
+    if (amEl) { amEl.style.background = _sfPickerP === 'AM' ? 'var(--p)' : 'transparent'; amEl.style.color = _sfPickerP === 'AM' ? '#fff' : 'var(--t3)'; }
+    if (pmEl) { pmEl.style.background = _sfPickerP === 'PM' ? 'var(--p)' : 'transparent'; pmEl.style.color = _sfPickerP === 'PM' ? '#fff' : 'var(--t3)'; }
+    var disp = document.getElementById('sf-tp-display');
+    if (disp) disp.textContent = String(_sfPickerH).padStart(2, '0') + ':' + String(_sfPickerM).padStart(2, '0') + ' ' + _sfPickerP;
+  }
 
-    var dismiss = function () { sheet.remove(); backdrop.remove(); };
-    backdrop.onclick = dismiss;
-    document.getElementById('sf-tp-cancel').onclick = dismiss;
-    document.getElementById('sf-tp-ok').onclick = function () {
-      var newH = parseInt(document.getElementById('sf-tp-h').value, 10);
-      var newM = parseInt(document.getElementById('sf-tp-m').value, 10);
-      dismiss();
-      var localCfg = getCfg();
-      if (isStart) { localCfg.schedStartHour = newH; localCfg.schedStartMin = newM; }
-      else          { localCfg.schedEndHour   = newH; localCfg.schedEndMin   = newM; }
-      _cfg = localCfg;
-      _cacheTs = Date.now(); // FIX 5
-      // Update the display value in the block without full re-render
-      var block = document.getElementById(blockId);
-      if (block) {
-        var valEl = block.querySelector('.sf-time-val');
-        if (valEl) valEl.textContent = _f2(newH) + ':' + _f2(newM);
-      }
-      _markDirty();
-    };
+  function _sfPickerSetH(h) { _sfPickerH = h; _sfPickerRefresh(); }
+  function _sfPickerSetM(m) { _sfPickerM = m; _sfPickerRefresh(); }
+  function _sfPickerSetP(p) { _sfPickerP = p; _sfPickerRefresh(); }
+
+  function _sfPickerDismiss() {
+    if (_sfPickerBd) { _sfPickerBd.remove(); _sfPickerBd = null; }
+    if (_sfPickerSh) { _sfPickerSh.remove(); _sfPickerSh = null; }
+  }
+
+  function _sfPickerDone() {
+    var h24 = _sfPickerP === 'AM'
+      ? (_sfPickerH === 12 ? 0  : _sfPickerH)
+      : (_sfPickerH === 12 ? 12 : _sfPickerH + 12);
+    _sfPickerDismiss();
+    if (!_sfPickerTarget) return;
+    var localCfg = getCfg();
+    var isStart  = _sfPickerTarget === 'sf-t-start';
+    if (isStart) { localCfg.schedStartHour = h24; localCfg.schedStartMin = _sfPickerM; }
+    else         { localCfg.schedEndHour   = h24; localCfg.schedEndMin   = _sfPickerM; }
+    _cfg = localCfg;
+    _cacheTs = Date.now();
+    var block = document.getElementById(_sfPickerTarget);
+    if (block) {
+      var valEl = block.querySelector('.sf-time-val');
+      if (valEl) valEl.textContent = _f2(h24) + ':' + _f2(_sfPickerM);
+    }
+    _markDirty();
   }
 
   function _transRow(field, on, label) {
@@ -707,7 +822,6 @@ window.ScreenFilter = (function () {
     }
     navigator.geolocation.getCurrentPosition(
       function (pos) {
-        // Got a position — clear any pending-retry flag.
         window._sfGeoPending = false;
         var times = _computeSunTimes(pos.coords.latitude, pos.coords.longitude);
         if (!times) {
@@ -715,13 +829,24 @@ window.ScreenFilter = (function () {
           if (onDenied) onDenied();
           return;
         }
-        if (onSuccess) onSuccess(times);
+        // Attempt reverse geocode for city name — silent fail is fine
+        var lat = pos.coords.latitude.toFixed(4);
+        var lon = pos.coords.longitude.toFixed(4);
+        try {
+          fetch('https://nominatim.openstreetmap.org/reverse?format=json&lat=' + lat + '&lon=' + lon + '&zoom=10', {
+            headers: { 'Accept-Language': 'en', 'User-Agent': 'Aurelo/1.0' }
+          }).then(function (r) { return r.json(); }).then(function (data) {
+            var addr = data && data.address;
+            var city = addr && (addr.city || addr.town || addr.village || addr.county || '');
+            if (city) times.city = city;
+            if (onSuccess) onSuccess(times);
+          }).catch(function () { if (onSuccess) onSuccess(times); });
+        } catch (_) {
+          if (onSuccess) onSuccess(times);
+        }
       },
       function (err) {
-        // err.code: 1=PERMISSION_DENIED, 2=POSITION_UNAVAILABLE, 3=TIMEOUT
         if (err.code === 1) {
-          // GEO-03: Set a flag so onAppResume can retry automatically after
-          // the user grants location permission in system Settings and returns.
           window._sfGeoPending = true;
           if (typeof toast === 'function')
             toast('Location permission denied — grant it in Settings › Apps › Aurelo › Permissions, then return here', 'warn', 5000);
@@ -745,29 +870,22 @@ window.ScreenFilter = (function () {
 
   function _sched(key) {
     if (key === 'sun') {
-      // BUG 2 FIX: use W3C navigator.geolocation — no N.requestLocationPermission()
-      // bridge call, no polling loop, no coarse/fine mismatch on Android 15.
-      // The WebView handles the system permission dialog natively.
       _requestSunLocation(
         function (times) {
-          // Got coordinates → computed sunrise/sunset → store in cfg and apply
           var cfg = getCfg();
           cfg.sunriseHour = times.sunriseHour;
           cfg.sunriseMin  = times.sunriseMin;
           cfg.sunsetHour  = times.sunsetHour;
           cfg.sunsetMin   = times.sunsetMin;
+          // Store city name for display if reverse geocode available
+          if (times.city) cfg.sunCity = times.city;
+          cfg.schedule = 'sun';
           _cfg = cfg;
           _cacheTs = Date.now();
-          // Show human-readable confirmation
-          var pad = function (n) { return n < 10 ? '0' + n : '' + n; };
-          if (typeof toast === 'function')
-            toast('Sun schedule set — filter active ' +
-              pad(times.sunsetHour) + ':' + pad(times.sunsetMin) + ' → ' +
-              pad(times.sunriseHour) + ':' + pad(times.sunriseMin), 'success', 3500);
+          // No toast here — shown only after Save so user can review first
           _schedApply('sun');
         },
         function () {
-          // Denied or error — stay on current schedule (don't switch to 'sun')
           render();
         }
       );
@@ -785,57 +903,159 @@ window.ScreenFilter = (function () {
     _markDirty();
   }
 
-  /* ── Excluded apps handlers — FIX 2: use getCachedApps() ─── */
-  function _addExcluded() {
+  /* ── Excluded apps handlers ──────────────────────────────────── */
+
+  /* Multi-select app picker panel — similar to bedtime blocked-apps picker */
+  /* initialFilter: pass true/'selected' to open with Selected tab active (used by overflow chip) */
+  function _addExcluded(initialFilter) {
     var installedRaw = [];
     try {
-      // FIX 2: correct bridge method is getCachedApps(), not getInstalledApps()
       if (IS_NATIVE && typeof N.getCachedApps === 'function')
         installedRaw = JSON.parse(N.getCachedApps() || '[]');
     } catch (_) {}
 
-    var cfg     = getCfg();
-    var already = cfg.excludedApps.concat(CAMERA_PKGS); // exclude camera from picker too
+    var cfg = getCfg();
+    // Start with a copy of current excluded set (without camera)
+    var pending = new Set(cfg.excludedApps.filter(function (p) {
+      return CAMERA_PKGS.indexOf(p) === -1;
+    }));
 
-    if (!installedRaw.length) {
-      // Fallback: manual package entry (unlikely path — getCachedApps always has data)
+    // Filter out camera from the list
+    var allApps = installedRaw.filter(function (a) {
+      return CAMERA_PKGS.indexOf(a.packageName) === -1;
+    }).sort(function (a, b) {
+      return (a.name || a.packageName).localeCompare(b.name || b.packageName);
+    });
+
+    if (!allApps.length) {
       var pkg = window.prompt('Enter package name (e.g. com.instagram.android):');
-      if (pkg && pkg.trim()) _addExcludedPkg(pkg.trim());
+      if (pkg && pkg.trim()) _applyExcludedSet(new Set(cfg.excludedApps.concat([pkg.trim()])));
       return;
     }
 
     var backdrop = document.createElement('div');
     backdrop.className = 'sf-backdrop';
-    var sheet = document.createElement('div');
-    sheet.className = 'sf-perm-sheet';
-    sheet.style.maxHeight = '70vh';
-    sheet.style.overflowY = 'auto';
+    var panel = document.createElement('div');
+    panel.className = 'sf-excl-panel';
 
-    // FIX 2: field is 'name', not 'label'
-    var listHtml = installedRaw
-      .filter(function (a) { return already.indexOf(a.packageName) === -1; })
-      .map(function (a) {
-        return '<div class="sf-app-row" onclick="ScreenFilter._pickExcluded(\'' + a.packageName + '\')" ' +
-          'data-pkg="' + a.packageName + '">' +
-          '<span class="sf-app-row-lbl">' + (a.name || a.packageName) + '</span>' +
-          '<span class="sf-app-row-pkg">' + a.packageName + '</span>' +
+    function _buildRows(filter, query) {
+      var q = (query || '').toLowerCase().trim();
+      return allApps
+        .filter(function (a) {
+          var nameMatch = !q || (a.name || a.packageName).toLowerCase().includes(q);
+          var selMatch  = filter !== 'selected' || pending.has(a.packageName);
+          return nameMatch && selMatch;
+        })
+        .map(function (a) {
+          var on  = pending.has(a.packageName);
+          var lbl = a.name || a.packageName;
+          return '<div class="sf-ep-row" data-pkg="' + a.packageName + '" ' +
+            'onclick="ScreenFilter._togglePendingExclude(\'' + a.packageName + '\')">' +
+            '<div class="sf-ep-ico">' +
+              (IS_NATIVE && typeof appIco === 'function' ? appIco(a.packageName, 36, 9) : '📱') +
+            '</div>' +
+            '<div class="sf-ep-name">' + lbl + '</div>' +
+            '<div class="sf-ep-check' + (on ? ' sf-ep-check--on' : '') + '" ' +
+              'id="sf-epchk-' + a.packageName.replace(/\./g, '_') + '"></div>' +
           '</div>';
-      }).join('');
+        }).join('') || '<div class="sf-ep-empty">No apps found</div>';
+    }
 
-    sheet.innerHTML =
+    var selCount = pending.size;
+    panel.innerHTML =
       '<div class="sf-drag"></div>' +
-      '<div class="sf-perm-title" style="margin-bottom:12px">Choose app to pause filter for</div>' +
-      '<div id="sf-app-list">' +
-        (listHtml || '<div style="text-align:center;color:var(--t3);padding:20px">No apps to add</div>') +
+      '<div class="sf-ep-hdr">' +
+        '<div class="sf-ep-title">Pause filter for apps</div>' +
+        '<div class="sf-ep-pills">' +
+          '<div class="sf-ep-pill sf-ep-pill--on" id="sf-ep-all"  onclick="ScreenFilter._setExclFilter(\'all\')">All</div>' +
+          '<div class="sf-ep-pill"              id="sf-ep-sel"  onclick="ScreenFilter._setExclFilter(\'selected\')">' +
+            'Selected' + (selCount ? ' (' + selCount + ')' : '') + '</div>' +
+        '</div>' +
       '</div>' +
-      '<button class="sf-btn-ghost" id="sf-pick-cancel" style="margin-top:12px">Cancel</button>';
+      '<div class="sf-ep-search-wrap">' +
+        '<input class="sf-ep-search" id="sf-ep-q" placeholder="Search apps…" ' +
+          'oninput="ScreenFilter._filterExclPanel(this.value)" autocomplete="off">' +
+      '</div>' +
+      '<div class="sf-ep-list" id="sf-ep-list">' + _buildRows('all', '') + '</div>' +
+      '<div class="sf-ep-foot">' +
+        '<button class="sf-discard" onclick="ScreenFilter._dismissExclPanel()">Cancel</button>' +
+        '<button class="sf-save" id="sf-ep-save" onclick="ScreenFilter._saveExclPanel()">' +
+          'Save' + (selCount ? ' (' + selCount + ')' : '') + '</button>' +
+      '</div>';
 
     document.body.appendChild(backdrop);
-    document.body.appendChild(sheet);
+    document.body.appendChild(panel);
+    backdrop.onclick = function () { _dismissExclPanel(); };
 
-    window._sfPickerDismiss = function () { sheet.remove(); backdrop.remove(); delete window._sfPickerDismiss; };
-    document.getElementById('sf-pick-cancel').onclick = window._sfPickerDismiss;
-    backdrop.onclick = window._sfPickerDismiss;
+    // Store state on panel for access from event handlers
+    window._sfExclPanel = { panel: panel, backdrop: backdrop, pending: pending, allApps: allApps, filter: 'all' };
+
+    // Expose helpers called from inline onclick
+    window._sfBuildExclRows = _buildRows;
+
+    // FIX 3: open with Selected filter pre-active when launched from overflow chip
+    if (initialFilter === true || initialFilter === 'selected') {
+      _setExclFilter('selected');
+    }
+  }
+
+  function _togglePendingExclude(pkg) {
+    if (!window._sfExclPanel) return;
+    var state = window._sfExclPanel;
+    if (state.pending.has(pkg)) { state.pending.delete(pkg); }
+    else                        { state.pending.add(pkg); }
+    var chk = document.getElementById('sf-epchk-' + pkg.replace(/\./g, '_'));
+    if (chk) chk.classList.toggle('sf-ep-check--on', state.pending.has(pkg));
+    // Update Selected pill count + save button
+    var selCount = state.pending.size;
+    var selPill = document.getElementById('sf-ep-sel');
+    if (selPill) selPill.textContent = 'Selected' + (selCount ? ' (' + selCount + ')' : '');
+    var saveBtn = document.getElementById('sf-ep-save');
+    if (saveBtn) saveBtn.textContent = 'Save' + (selCount ? ' (' + selCount + ')' : '');
+  }
+
+  function _setExclFilter(filter) {
+    if (!window._sfExclPanel) return;
+    window._sfExclPanel.filter = filter;
+    var pillAll = document.getElementById('sf-ep-all');
+    var pillSel = document.getElementById('sf-ep-sel');
+    if (pillAll) { pillAll.classList.toggle('sf-ep-pill--on', filter === 'all'); }
+    if (pillSel) { pillSel.classList.toggle('sf-ep-pill--on', filter === 'selected'); }
+    var q = (document.getElementById('sf-ep-q') || {}).value || '';
+    var listEl = document.getElementById('sf-ep-list');
+    if (listEl) listEl.innerHTML = window._sfBuildExclRows(filter, q);
+  }
+
+  function _filterExclPanel(query) {
+    if (!window._sfExclPanel) return;
+    var listEl = document.getElementById('sf-ep-list');
+    if (listEl) listEl.innerHTML = window._sfBuildExclRows(window._sfExclPanel.filter, query);
+  }
+
+  function _dismissExclPanel() {
+    if (!window._sfExclPanel) return;
+    window._sfExclPanel.panel.remove();
+    window._sfExclPanel.backdrop.remove();
+    window._sfExclPanel = null;
+    delete window._sfBuildExclRows;
+  }
+
+  function _saveExclPanel() {
+    if (!window._sfExclPanel) return;
+    var newSet = window._sfExclPanel.pending;
+    _dismissExclPanel();
+    _applyExcludedSet(newSet);
+  }
+
+  function _applyExcludedSet(newSet) {
+    var cfg = getCfg();
+    cfg.excludedApps = Array.from(newSet).filter(function (p) {
+      return CAMERA_PKGS.indexOf(p) === -1;
+    });
+    _cfg = cfg;
+    _cacheTs = Date.now();
+    _markDirty();
+    _refreshExclWrap(cfg.excludedApps);
   }
 
   function _pickExcluded(pkg) {
@@ -845,43 +1065,34 @@ window.ScreenFilter = (function () {
 
   function _addExcludedPkg(pkg) {
     var cfg = getCfg();
-    // Guard: don't add camera packages manually — they are always auto-excluded
     if (CAMERA_PKGS.indexOf(pkg) !== -1) return;
     if (cfg.excludedApps.indexOf(pkg) === -1) {
       cfg.excludedApps.push(pkg);
       _cfg = cfg;
-      _cacheTs = Date.now(); // FIX 5
+      _cacheTs = Date.now();
       _markDirty();
-      // Partial re-render of excluded section
-      var wrap = document.getElementById('sf-excl-wrap');
-      if (wrap) {
-        // Replace wrap + the note sibling
-        var note = wrap.nextElementSibling;
-        var newHtml = _buildExcludedAppsHtml(cfg.excludedApps);
-        var tmp = document.createElement('div');
-        tmp.innerHTML = newHtml;
-        wrap.parentNode.replaceChild(tmp.firstChild, wrap);
-        if (note && note.classList && note.classList.contains('sf-excl-note')) {
-          note.remove(); // already included in newHtml
-        }
-      }
-      _bindExcludedApps();
+      _refreshExclWrap(cfg.excludedApps);
     }
+  }
+
+  function _refreshExclWrap(apps) {
+    var wrap = document.getElementById('sf-excl-wrap');
+    if (!wrap) return;
+    var note = wrap.nextElementSibling;
+    var tmp  = document.createElement('div');
+    tmp.innerHTML = _buildExcludedAppsHtml(apps);
+    wrap.parentNode.replaceChild(tmp.firstChild, wrap);
+    if (note && note.classList && note.classList.contains('sf-excl-note')) note.remove();
+    _bindExcludedApps();
   }
 
   function _removeExcluded(pkg) {
     var cfg = getCfg();
     cfg.excludedApps = cfg.excludedApps.filter(function (p) { return p !== pkg; });
     _cfg = cfg;
-    _cacheTs = Date.now(); // FIX 5
+    _cacheTs = Date.now();
     _markDirty();
-    var wrap = document.getElementById('sf-excl-wrap');
-    if (wrap) {
-      var tmp = document.createElement('div');
-      tmp.innerHTML = _buildExcludedAppsHtml(cfg.excludedApps);
-      wrap.parentNode.replaceChild(tmp.firstChild, wrap);
-    }
-    _bindExcludedApps();
+    _refreshExclWrap(cfg.excludedApps);
   }
 
   function _save() {
@@ -890,7 +1101,17 @@ window.ScreenFilter = (function () {
     _dirty = false;
     var a = document.getElementById('sf-actions');
     if (a) a.style.display = 'none';
-    if (typeof toast === 'function') toast('Screen filter saved', 'success');
+    // Show schedule-specific confirmation on save (not on schedule selection)
+    if (cfg.schedule === 'sun' && cfg.sunsetHour != null) {
+      var pad = function (n) { return n < 10 ? '0' + n : '' + n; };
+      var msg = 'Filter saved \u00b7 active ' +
+        pad(cfg.sunsetHour) + ':' + pad(cfg.sunsetMin || 0) + ' \u2192 ' +
+        pad(cfg.sunriseHour) + ':' + pad(cfg.sunriseMin || 0);
+      if (cfg.sunCity) msg = cfg.sunCity + ' \u00b7 ' + msg.replace('Filter saved · ', '');
+      if (typeof toast === 'function') toast(msg, 'success', 4000);
+    } else {
+      if (typeof toast === 'function') toast('Screen filter saved', 'success');
+    }
     if (cfg.enabled && !cfg.paused && cfg.schedule !== 'none') _startSchedule(cfg);
   }
 
@@ -951,8 +1172,15 @@ window.ScreenFilter = (function () {
     _sched: _sched, _schedApply: _schedApply, _trans: _trans,
     _toggleDay: _toggleDay,
     _openTimePicker: _openTimePicker,
+    _sfPickerSetH: _sfPickerSetH, _sfPickerSetM: _sfPickerSetM,
+    _sfPickerSetP: _sfPickerSetP, _sfPickerDone: _sfPickerDone,
     _addExcluded: _addExcluded, _pickExcluded: _pickExcluded,
     _removeExcluded: _removeExcluded,
+    _togglePendingExclude: _togglePendingExclude,
+    _setExclFilter: _setExclFilter,
+    _filterExclPanel: _filterExclPanel,
+    _dismissExclPanel: _dismissExclPanel,
+    _saveExclPanel: _saveExclPanel,
     _save: _save, _discard: _discard
   };
 }());

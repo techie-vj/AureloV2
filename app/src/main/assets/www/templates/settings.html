@@ -28,21 +28,6 @@
     <!-- top spacing -->
     <div style="height:16px"></div>
 
-    <!-- Integrations — Health Connect (Pro) -->
-    <div id="hc-settings-card" class="sg" style="margin-bottom:24px">
-        <div class="sg-lbl">Integrations</div>
-        <!-- Health Connect collapsible row -->
-        <div class="sr" onclick="toggleHCSettingsSection()" id="hc-settings-toggle-row" style="user-select:none">
-            <div class="sr-ico" style="background:rgba(18,212,138,.12)">❤️</div>
-            <div style="flex:1">
-                <div class="sr-lbl">Health Connect</div>
-                <div class="sr-sub" id="hc-settings-sub">Steps, sleep &amp; heart rate</div>
-            </div>
-            <span id="hc-settings-chev" style="font-size:16px;color:var(--t3);transition:transform .25s;transform:rotate(0deg)">›</span>
-        </div>
-        <div id="hc-settings-inner" style="display:none;overflow:hidden;transition:opacity .2s"><!-- rendered by HealthConnect.renderSettingsCard() --></div>
-    </div>
-
     <!-- Refer a Friend — above Daily Goal, right after integrations -->
     <div class="sg" style="margin-bottom:24px" id="settings-referral-card">
         <div class="sg-lbl">Referral</div>
@@ -70,6 +55,21 @@
                 <div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3)">Days earned</div>
             </div>
         </div>
+    </div>
+
+    <!-- Integrations — Health Connect (Pro) -->
+    <div id="hc-settings-card" class="sg" style="margin-bottom:24px">
+        <div class="sg-lbl">Integrations</div>
+        <!-- Health Connect collapsible row -->
+        <div class="sr" onclick="toggleHCSettingsSection()" id="hc-settings-toggle-row" style="user-select:none">
+            <div class="sr-ico" style="background:rgba(18,212,138,.12)">❤️</div>
+            <div style="flex:1">
+                <div class="sr-lbl">Health Connect</div>
+                <div class="sr-sub" id="hc-settings-sub">Steps, sleep &amp; heart rate</div>
+            </div>
+            <span id="hc-settings-chev" style="font-size:16px;color:var(--t3);transition:transform .25s;transform:rotate(0deg)">›</span>
+        </div>
+        <div id="hc-settings-inner" style="display:none;overflow:hidden;transition:opacity .2s"><!-- rendered by HealthConnect.renderSettingsCard() --></div>
     </div>
 
     <!-- Usage Controls -->
