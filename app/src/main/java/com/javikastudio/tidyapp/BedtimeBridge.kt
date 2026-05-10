@@ -87,10 +87,7 @@ class BedtimeBridge(
     @JavascriptInterface fun scheduleBedtimeAlarms(bedHour: Int, bedMinute: Int, wakeHour: Int, wakeMinute: Int, windDown: Boolean) {
         if (bedHour !in 0..23 || wakeHour !in 0..23 || bedMinute !in 0..59 || wakeMinute !in 0..59) return
         val am = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
-        if (!BedtimePrefs.canScheduleExact(am)) {
-            notifyExactAlarmMissing()
-            return
-        }
+        if (!BedtimePrefs.canScheduleExact(am)) { notifyExactAlarmMissing(); return }
         fun nextTriggerMs(hour: Int, minute: Int): Long {
             val cal = Calendar.getInstance().apply { set(Calendar.HOUR_OF_DAY,hour); set(Calendar.MINUTE,minute); set(Calendar.SECOND,0); set(Calendar.MILLISECOND,0) }
             if (cal.timeInMillis <= System.currentTimeMillis()) cal.add(Calendar.DAY_OF_YEAR,1)
@@ -163,21 +160,11 @@ class BedtimeBridge(
         (context.getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager).isNotificationPolicyAccessGranted
 
     /**
-     * SF-09: Deprecated — system grayscale is no longer supported.
-     *
-     * The previous implementation used ColorDisplayManager.setSaturationLevel() on
-     * API 34+ and the accessibility_display_daltonizer secure setting on older APIs.
-     * Both paths conflicted with the Screen Filter overlay when both were active
-     * simultaneously, producing double-tinted or washed-out rendering.
-     *
-     * This method is intentionally a no-op. The @JavascriptInterface annotation is
-     * kept so that any old JS call paths (e.g. legacy saved config with grayscale:true)
-     * silently succeed rather than throwing "method not found". Use the Screen Filter
-     * feature (applyScreenFilter / removeScreenFilter) instead.
+     * SF-09: Deprecated — system grayscale is no longer supported (conflicts with Screen Filter).
+     * Kept as a no-op so legacy JS call paths silently succeed.
      */
     @JavascriptInterface fun setBedtimeGrayscale(@Suppress("UNUSED_PARAMETER") enable: Boolean) {
         // No-op: system grayscale removed — conflicts with Screen Filter overlay.
-        // Old call sites from JS are safely swallowed here without crashing.
     }
 
     @JavascriptInterface fun hasSecureSettingsPermission(): Boolean =
@@ -196,22 +183,17 @@ class BedtimeBridge(
     private fun startService(action: String, extraKey: String, extraVal: Int) {
         runCatching {
             val intent = Intent(context, AppMonitorService::class.java).apply {
-                this.action = action
-                putExtra(extraKey, extraVal)
+                this.action = action; putExtra(extraKey, extraVal)
             }
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
-                context.startForegroundService(intent)
-            else
-                context.startService(intent)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) context.startForegroundService(intent)
+            else context.startService(intent)
         }
     }
 
     private fun notifyExactAlarmMissing() {
         webView.post {
             webView.evaluateJavascript(
-                "if(typeof window.onExactAlarmPermissionMissing==='function') window.onExactAlarmPermissionMissing()",
-                null
-            )
+                "if(typeof window.onExactAlarmPermissionMissing==='function') window.onExactAlarmPermissionMissing()", null)
         }
     }
 
@@ -227,21 +209,6 @@ class BedtimeBridge(
         prefs.edit().putString(SCREEN_FILTER_SETTINGS_V1, json).apply()
     }
 
-    /**
-     * SF-BUG2 FIX: always route through AppMonitorService so there is only ever
-     * ONE ScreenFilterEngine instance in WindowManager.
-     *
-     * The previous implementation called _getOrCreateFilterEngine() which allocated
-     * engine A directly.  When AppMonitorService later started (e.g. for a Focus
-     * session) it created engine B in onCreate() and assigned filterEngineInstance=B,
-     * orphaning engine A's WindowManager view permanently — no subsequent call to
-     * removeScreenFilter() or coordinator.show().suspend() could reach it.
-     *
-     * By routing all start/stop through service intents, the service is the sole
-     * owner of the engine.  coordinator.show() and the poll loop both operate on
-     * the same instance via filterEngineInstance, so suspend/resume and stop all
-     * work correctly regardless of what other engines are running.
-     */
     @JavascriptInterface fun applyScreenFilter(warmAlpha: Int, dimAlpha: Int, gradual: Boolean = false) {
         runCatching {
             val intent = android.content.Intent(context, AppMonitorService::class.java).apply {
@@ -257,9 +224,70 @@ class BedtimeBridge(
         }
     }
 
+    /**
+     * ISSUE-4 FIX: Returns true when bedtime mode is currently active AND the screen
+     * filter is managed by bedtime (bedtimeAutoApply=true in screen filter settings).
+     *
+     * JS should call this before showing the screen filter edit UI or before calling
+     * removeScreenFilter()/applyScreenFilter() during bedtime. When true, JS can show
+     * a confirmation dialog warning the user that their changes will affect the active
+     * bedtime filter overlay — letting them cancel or proceed knowingly.
+     *
+     * Also used internally by removeScreenFilter() as a guard to prevent killing the
+     * bedtime filter when the user edits settings during an active bedtime session.
+     */
+    @JavascriptInterface fun isBedtimeFilterManaged(): Boolean {
+        val bedtimeActive = prefs.getBoolean(BEDTIME_BLOCK_ACTIVE, false) ||
+                            prefs.getBoolean(BEDTIME_ACTIVE, false)
+        if (!bedtimeActive) return false
+        val sfRaw = prefs.getString(SCREEN_FILTER_SETTINGS_V1, null) ?: return false
+        // bedtimeAutoApply defaults to true — if the key is absent, bedtime manages the filter
+        return runCatching { org.json.JSONObject(sfRaw) }
+            .getOrNull()?.optBoolean("bedtimeAutoApply", true) ?: true
+    }
+
+    /**
+     * Stops the screen filter overlay.
+     *
+     * ISSUE-4 FIX: When bedtime mode is active and manages the filter
+     * (bedtimeAutoApply=true), this method is a no-op. Stopping the filter during
+     * an active bedtime session via the settings UI would silently kill the bedtime
+     * filter — the user would see no visual change in the filter settings, but the
+     * warm/dim overlay over their screen would disappear. This guard prevents that.
+     *
+     * The correct flow for editing the bedtime filter mid-session is:
+     *   1. JS calls isBedtimeFilterManaged() → true
+     *   2. JS shows a dialog: "This will affect your active bedtime filter. Continue?"
+     *   3. If confirmed, JS calls stopBedtimeBlock() to end bedtime first, THEN removes filter.
+     *   4. If cancelled, no change.
+     *
+     * For non-bedtime filter contexts (scheduled filter, manual filter), this works as before.
+     */
     @JavascriptInterface fun removeScreenFilter() {
-        // Clear the active pref immediately so restoreFromPrefs() on sticky restart
-        // does not re-show the filter while the service is winding down.
+        // ISSUE-4 FIX: block stop if bedtime is managing the filter
+        if (isBedtimeFilterManaged()) {
+            android.util.Log.d("BedtimeBridge",
+                "removeScreenFilter: skipped — bedtime is managing the filter. " +
+                "JS should call isBedtimeFilterManaged() and show a warning before proceeding.")
+            return
+        }
+        prefs.edit().putBoolean(SCREEN_FILTER_ACTIVE, false).apply()
+        runCatching {
+            val intent = android.content.Intent(context, AppMonitorService::class.java).apply {
+                action = AppMonitorService.ACTION_FILTER_STOP
+            }
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O)
+                context.startForegroundService(intent)
+            else
+                context.startService(intent)
+        }
+    }
+
+    /**
+     * Force-removes the screen filter even if bedtime is managing it.
+     * Called by JS after the user explicitly confirms they want to override the bedtime filter.
+     */
+    @JavascriptInterface fun removeScreenFilterForced() {
         prefs.edit().putBoolean(SCREEN_FILTER_ACTIVE, false).apply()
         runCatching {
             val intent = android.content.Intent(context, AppMonitorService::class.java).apply {
@@ -277,8 +305,6 @@ class BedtimeBridge(
 
     /**
      * Called by the JS schedule engine (sun-based / custom-time Pro modes).
-     * Persists the schedule config AND schedules AlarmManager alarms so the filter
-     * starts/stops at the configured times even when the app is not in the foreground.
      */
     @JavascriptInterface fun startScreenFilterSchedule(json: String) {
         val cfg = runCatching { org.json.JSONObject(json) }.getOrElse { return }
@@ -286,7 +312,6 @@ class BedtimeBridge(
         scheduleFilterAlarms(cfg)
     }
 
-    /** Stops any active filter immediately, cancels schedule alarms, and clears the schedule flag. */
     @JavascriptInterface fun stopScreenFilterSchedule() {
         cancelFilterAlarms()
         prefs.edit().putBoolean(SCREEN_FILTER_ACTIVE, false).apply()
@@ -301,21 +326,13 @@ class BedtimeBridge(
         }
     }
 
-    /**
-     * Reverse-geocodes a lat/lon to a city name using the on-device Android Geocoder.
-     * Called from JS as the primary source for the sun-schedule city label (faster and
-     * more reliable than the Nominatim network call from inside the WebView).
-     * Returns the city string or "" on failure.
-     */
     @JavascriptInterface fun reverseGeocodeCity(lat: Double, lon: Double): String {
         return runCatching {
             if (!Geocoder.isPresent()) return ""
             val geocoder = Geocoder(context, Locale.getDefault())
             val addresses = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                // Non-blocking API on API 33+
                 var result: android.location.Address? = null
                 geocoder.getFromLocation(lat, lon, 1) { list -> result = list.firstOrNull() }
-                // Give the async callback a moment before falling back to empty
                 Thread.sleep(1500)
                 result?.let { listOf(it) } ?: emptyList()
             } else {
@@ -329,11 +346,6 @@ class BedtimeBridge(
 
     // ── Filter alarm helpers ──────────────────────────────────────────────────
 
-    /**
-     * Schedules exact AlarmManager alarms for the filter's start/stop times.
-     * Fires BedtimeReceiver with FILTER_SCHEDULE_ON / FILTER_SCHEDULE_OFF actions.
-     * Called whenever the user saves a scheduled filter config.
-     */
     private fun scheduleFilterAlarms(cfg: org.json.JSONObject) {
         val schedule = cfg.optString("schedule", "none")
         if (schedule == "none" || schedule.isBlank()) { cancelFilterAlarms(); return }
@@ -355,25 +367,23 @@ class BedtimeBridge(
         setFilterAlarm(am, "${context.packageName}.FILTER_SCHEDULE_OFF", 7016, endH,   endM)
     }
 
-    /** Cancels pending filter schedule alarms. */
     private fun cancelFilterAlarms() {
         val am    = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
         val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M)
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_NO_CREATE
         else PendingIntent.FLAG_NO_CREATE
         listOf("${context.packageName}.FILTER_SCHEDULE_ON"  to 7015,
-            "${context.packageName}.FILTER_SCHEDULE_OFF" to 7016).forEach { (action, code) ->
+               "${context.packageName}.FILTER_SCHEDULE_OFF" to 7016).forEach { (action, code) ->
             val pi = PendingIntent.getBroadcast(context, code,
                 android.content.Intent(action).apply { setPackage(context.packageName) }, flags)
             pi?.let { am.cancel(it) }
         }
     }
 
-    /** Schedules a single one-shot exact alarm for today (or tomorrow if the time has passed). */
     private fun setFilterAlarm(am: AlarmManager, action: String, requestCode: Int, hour: Int, minute: Int) {
         val cal = Calendar.getInstance().apply {
             set(Calendar.HOUR_OF_DAY, hour); set(Calendar.MINUTE, minute)
-            set(Calendar.SECOND, 0);          set(Calendar.MILLISECOND, 0)
+            set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
         }
         if (cal.timeInMillis <= System.currentTimeMillis()) cal.add(Calendar.DAY_OF_YEAR, 1)
         val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M)
@@ -383,5 +393,4 @@ class BedtimeBridge(
             android.content.Intent(action).apply { setPackage(context.packageName) }, flags)
         BedtimePrefs.setExactSafely(context, am, AlarmManager.RTC_WAKEUP, cal.timeInMillis, pi)
     }
-
 }

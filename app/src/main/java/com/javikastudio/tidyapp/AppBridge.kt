@@ -48,8 +48,54 @@ class AppBridge(private val context: Context, private val webView: WebView) {
     private val entitlementRepo = EntitlementRepository(context)
     private val billingManager = BillingManager(context, object : BillingManager.BillingListener {
         override fun onProStatusChanged(isPro: Boolean) {
+            // Capture previous state BEFORE updating so we can detect the Pro→Free transition.
+            val wasPro = entitlementRepo.isPro
             entitlementRepo.setProStatus(isPro)
             webView.post { webView.evaluateJavascript("window.__pendingProStatus=$isPro;if(typeof window.onProStatusChanged==='function') window.onProStatusChanged($isPro)",null) }
+
+            // ── Downgrade handling (billing-detection path) ───────────────────────
+            // Fires when Play billing confirms the subscription has lapsed: plan expired,
+            // revoked via Play Console, refunded, or any other cancellation mechanism.
+            //
+            // Two jobs:
+            //   1. Activate any banked referral extension days (keeps user Pro temporarily).
+            //   2. If no extension, run the full native downgrade cleanup so features like
+            //      bedtime alarms, focus routines, Health Connect, and app-list ceilings
+            //      are always reset — even if the WebView isn't ready or JS fails to call
+            //      window.AppBridge.handleProDowngrade() (e.g. cold-start billing race or
+            //      JS wasPro already false from a prior session).
+            //
+            // This complements pro-gate.js _handleProDowngrade() — both paths are safe
+            // to run because handleProDowngrade() is fully idempotent.
+            if (wasPro && !isPro) {
+                // activateExtensionOnLapse() is idempotent: clears pending days and writes
+                // the expiry timestamp. Returns 0 if no days were banked.
+                val extensionDays = ReferralManager.activateExtensionOnLapse(prefs)
+                if (extensionDays > 0) {
+                    // Referral extension activated — keep user Pro for the extension period.
+                    prefs.edit().putBoolean(IS_PRO_USER, true).apply()
+                    android.util.Log.d("AureloBilling",
+                        "Billing lapse — referral extension activated: $extensionDays days")
+                    // BUG-06 FIX: schedule the expiry worker so Pro is revoked automatically
+                    // when the extension window closes, even if the user never reopens the app.
+                    ReferralExtensionWorker.scheduleExpiry(context)
+                    // Tell JS to show the extension banner
+                    val jsExt = "if(typeof window.onReferralExtensionActivated==='function')" +
+                            "window.onReferralExtensionActivated($extensionDays);"
+                    webView.post { webView.evaluateJavascript(jsExt, null) }
+                } else {
+                    // No extension days banked — perform full native downgrade cleanup.
+                    // Runs on main thread; AlarmManager and some bridge methods require it.
+                    android.os.Handler(android.os.Looper.getMainLooper()).post {
+                        try {
+                            this@AppBridge.handleProDowngrade()
+                        } catch (e: Exception) {
+                            android.util.Log.w("AureloBilling",
+                                "Native downgrade cleanup failed: ${e.message}")
+                        }
+                    }
+                }
+            }
         }
         override fun onBillingError(code: Int, message: String) {
             webView.post { webView.evaluateJavascript("if(typeof window.onBillingError==='function') window.onBillingError($code,${org.json.JSONObject.quote(message)})",null) }
@@ -390,6 +436,11 @@ class AppBridge(private val context: Context, private val webView: WebView) {
      * handleProDowngrade — called by pro-gate.js (JS side) when the Pro
      * subscription has expired or been revoked.
      *
+     * Also called natively from AppBridge's billing listener when the billing
+     * detection path (onProStatusChanged false) fires and no referral extension
+     * is active — this ensures cleanup runs even if the WebView is not ready or
+     * JS wasPro is already false (cold-start race after offline expiry).
+     *
      * Resets native-side Pro features to free-tier defaults:
      *   • Widget theme → DEFAULT (free)
      *   • Bedtime alarms cancelled, active block stopped, DND cleared
@@ -399,9 +450,11 @@ class AppBridge(private val context: Context, private val webView: WebView) {
      *   • Hidden apps trimmed to FREE_LIMIT (3)
      *   • Mindful-pause (intention) apps trimmed to FREE_LIMIT (3)
      *   • App timers trimmed to FREE_LIMIT (3)
+     *   • Focus blocked apps trimmed to FREE_LIMIT (3)
+     *   • Screen filter schedule reset to 'none', excluded apps trimmed to FREE_LIMIT (3)
      *
-     * Every step is individually try-caught so a failure in one area does not
-     * prevent the rest from running.
+     * This method is idempotent — safe to call multiple times. Every step is
+     * individually try-caught so a failure in one area does not prevent the rest.
      */
     @JavascriptInterface
     fun handleProDowngrade() {
