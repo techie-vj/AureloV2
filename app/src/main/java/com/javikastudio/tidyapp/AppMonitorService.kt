@@ -68,9 +68,11 @@ class AppMonitorService : Service() {
         const val ACTION_BEDTIME_STOP_SOFT = "STOP_BEDTIME_SOFT"
 
         // Screen Filter actions
-        const val ACTION_FILTER_START  = "FILTER_START"
-        const val ACTION_FILTER_STOP   = "FILTER_STOP"
-        const val ACTION_FILTER_UPDATE = "FILTER_UPDATE"
+        const val ACTION_FILTER_START   = "FILTER_START"
+        const val ACTION_FILTER_STOP    = "FILTER_STOP"
+        const val ACTION_FILTER_UPDATE  = "FILTER_UPDATE"
+        /** Stops the filter AND sets enabled=false in prefs so the schedule won't restart it. */
+        const val ACTION_FILTER_DISABLE = "FILTER_DISABLE"
 
         // Direct engine reference — set once in onCreate, cleared in onDestroy.
         // Allows BedtimeBridge to call the engine without a service-intent round-trip.
@@ -164,21 +166,36 @@ class AppMonitorService : Service() {
             // ── Screen Filter tick ────────────────────────────────────────────────────
             // Runs AFTER engines so coordinator.activeView reflects the current tick.
             //
-            // Suppress (detach from WM) when ANY of the following is true:
-            //   1. A blocking overlay is visible — BUG 3 FIX: detaching the view
-            //      rather than setting alpha=0 guarantees no touch-routing
-            //      interference between the filter and the interactive overlay.
-            //      FLAG_NOT_TOUCHABLE alone is not reliable on all Android versions.
-            //   2. Camera app is foreground (always excluded).
-            //   3. App is in user's exclusion list.
-            //      BUG FIX: evaluated even when currentFgPkg=="" (home screen)
-            //      so filter restores after user exits an excluded app.
+            // Read filter config once — shared by schedule eval + suspend/resume logic.
+            val sfRaw = prefs.getString(SCREEN_FILTER_SETTINGS_V1, null)
+            val sfCfg = if (!sfRaw.isNullOrBlank())
+                runCatching { org.json.JSONObject(sfRaw) }.getOrNull() else null
+
+            // SCHED-FIX: Evaluate schedule window on every tick so the filter auto-starts
+            // when the window opens and auto-stops when it closes — even when the service
+            // is already running for another engine (focus/bedtime/timer).
+            // The alarm-based approach (BedtimeBridge/BedtimeReceiver) handles cold-start;
+            // this block is a belt-and-suspenders fallback for an already-running service.
+            if (sfCfg != null && sfCfg.optBoolean("enabled", false)) {
+                val sfSchedule = sfCfg.optString("schedule", "none")
+                if (sfSchedule != "none") {
+                    val inWindow = isInsideFilterScheduleWindow(sfCfg)
+                    if (inWindow && !filterEngine.isActive()) {
+                        // Schedule window just opened — auto-start the filter.
+                        val w = sfCfg.optInt("warmAlpha", 80)
+                        val d = sfCfg.optInt("dimAlpha", 45)
+                        filterEngine.start(w, d, sfCfg.optBoolean("fadeIn", true))
+                        prefs.edit().putBoolean(SCREEN_FILTER_ACTIVE, true).apply()
+                    } else if (!inWindow && filterEngine.isActive()) {
+                        // Schedule window closed — auto-stop the filter.
+                        filterEngine.stop(sfCfg.optBoolean("fadeOut", true))
+                        prefs.edit().putBoolean(SCREEN_FILTER_ACTIVE, false).apply()
+                    }
+                }
+            }
+
             if (filterEngine.isActive()) {
                 val anyOverlay = coordinator.activeView != null  // type-safe Boolean
-
-                val sfRaw = prefs.getString(SCREEN_FILTER_SETTINGS_V1, null)
-                val sfCfg = if (!sfRaw.isNullOrBlank())
-                    runCatching { org.json.JSONObject(sfRaw) }.getOrNull() else null
 
                 val isCam = currentFgPkg.isNotEmpty() && (
                         currentFgPkg.contains("camera", ignoreCase = true) ||
@@ -292,6 +309,17 @@ class AppMonitorService : Service() {
                 filterEngine.update(w, d)
             }
             ACTION_FILTER_STOP   -> filterEngine.stop()
+            ACTION_FILTER_DISABLE -> {
+                // Stop filter and persist enabled=false so scheduled restarts are suppressed.
+                filterEngine.stop(fadeOut = false)
+                prefs.edit().putBoolean(SCREEN_FILTER_ACTIVE, false).apply()
+                val sfRaw = prefs.getString(SCREEN_FILTER_SETTINGS_V1, null)
+                if (!sfRaw.isNullOrBlank()) runCatching {
+                    val obj = org.json.JSONObject(sfRaw)
+                    obj.put("enabled", false)
+                    prefs.edit().putString(SCREEN_FILTER_SETTINGS_V1, obj.toString()).apply()
+                }
+            }
             ACTION_STOP_ALL -> {
                 bedtimeEngine.stop()
                 focusEngine.stop()
@@ -414,6 +442,43 @@ class AppMonitorService : Service() {
     }
 
     // ─────────────────────────────────────────────────────────────────────────
+    // Screen Filter schedule helpers
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /**
+     * Returns true if the current time falls inside the screen filter's schedule window.
+     * Mirrors the JS _isInScheduleWindow() so Kotlin can auto-start/stop the filter
+     * from onTick() when the service is already running for another engine.
+     * Handles "sun" (sunset→sunrise) and "custom" (schedStart→schedEnd) modes,
+     * including day-of-week filtering (schedDays, Sun-first: index 0=Sun…6=Sat).
+     */
+    private fun isInsideFilterScheduleWindow(sfCfg: org.json.JSONObject): Boolean {
+        val schedule = sfCfg.optString("schedule", "none")
+        if (schedule == "none" || schedule.isBlank()) return true
+
+        val cal = java.util.Calendar.getInstance()
+        // Day-of-week check: Calendar.DAY_OF_WEEK is 1=Sun…7=Sat → 0-based index 0=Sun…6=Sat
+        val dayIdx = cal.get(java.util.Calendar.DAY_OF_WEEK) - 1
+        val schedDays = sfCfg.optJSONArray("schedDays")
+        if (schedDays != null && schedDays.length() == 7 && schedDays.optInt(dayIdx, 1) == 0) return false
+
+        val nowMin = cal.get(java.util.Calendar.HOUR_OF_DAY) * 60 + cal.get(java.util.Calendar.MINUTE)
+        val startH: Int; val startM: Int; val endH: Int; val endM: Int
+        if (schedule == "sun") {
+            if (!sfCfg.has("sunsetHour") || !sfCfg.has("sunriseHour")) return false
+            startH = sfCfg.optInt("sunsetHour",  21); startM = sfCfg.optInt("sunsetMin",  0)
+            endH   = sfCfg.optInt("sunriseHour",  7); endM   = sfCfg.optInt("sunriseMin", 0)
+        } else {
+            startH = sfCfg.optInt("schedStartHour", 21); startM = sfCfg.optInt("schedStartMin", 0)
+            endH   = sfCfg.optInt("schedEndHour",    7); endM   = sfCfg.optInt("schedEndMin",   0)
+        }
+        val startMin = startH * 60 + startM
+        val endMin   = endH   * 60 + endM
+        return if (startMin > endMin) nowMin >= startMin || nowMin < endMin
+        else nowMin >= startMin && nowMin < endMin
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
     // Notification
     // ─────────────────────────────────────────────────────────────────────────
 
@@ -425,13 +490,24 @@ class AppMonitorService : Service() {
         }
 
         if (bedtimeEngine.isActive) {
+            val stopPi = PendingIntent.getService(this, 11,
+                Intent(this, AppMonitorService::class.java).apply { action = ACTION_BEDTIME_STOP },
+                pendingFlags())
+            val snoozePi = PendingIntent.getService(this, 12,
+                Intent(this, AppMonitorService::class.java).apply {
+                    action = ACTION_BEDTIME_SNOOZE
+                    putExtra("snooze_mins", 15)
+                }, pendingFlags())
             return NotificationCompat.Builder(this, CHANNEL_ID)
                 .setSmallIcon(android.R.drawable.ic_dialog_info).setColor(0xFF6C63FF.toInt())
                 .setContentTitle("🌙 Bedtime Mode active")
                 .setContentText("Blocking distracting apps until morning")
                 .setOngoing(true).setOnlyAlertOnce(true)
                 .setPriority(NotificationCompat.PRIORITY_LOW)
-                .apply { openPi?.let { setContentIntent(it) } }.build()
+                .apply { openPi?.let { setContentIntent(it) } }
+                .addAction(android.R.drawable.ic_media_pause, "Snooze 15 min", snoozePi)
+                .addAction(android.R.drawable.ic_menu_close_clear_cancel, "Turn Off", stopPi)
+                .build()
         }
 
         if (focusEngine.isActive) {
@@ -467,6 +543,9 @@ class AppMonitorService : Service() {
         // SF-NOTIF: filter-only mode — show a minimal indicator so the
         // user knows the overlay is active and can tap through to disable it.
         if (filterEngine.isActive()) {
+            val disablePi = PendingIntent.getService(this, 10,
+                Intent(this, AppMonitorService::class.java).apply { action = ACTION_FILTER_DISABLE },
+                pendingFlags())
             return NotificationCompat.Builder(this, CHANNEL_ID)
                 .setSmallIcon(android.R.drawable.ic_dialog_info).setColor(0xFF05C8E8.toInt())
                 .setContentTitle("🌊 Screen Filter active")
@@ -474,7 +553,9 @@ class AppMonitorService : Service() {
                 .setOngoing(true).setOnlyAlertOnce(true)
                 .setPriority(NotificationCompat.PRIORITY_MIN)
                 .setVisibility(NotificationCompat.VISIBILITY_SECRET)
-                .apply { openPi?.let { setContentIntent(it) } }.build()
+                .apply { openPi?.let { setContentIntent(it) } }
+                .addAction(android.R.drawable.ic_menu_close_clear_cancel, "Turn Off", disablePi)
+                .build()
         }
 
         val count = runCatching {

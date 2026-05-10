@@ -304,6 +304,8 @@ class AppBridge(private val context: Context, private val webView: WebView) {
     // the JS bridge calls safe without throwing. Implement scheduling logic here in v2.
     @JavascriptInterface fun startScreenFilterSchedule(json: String) = bedtime.startScreenFilterSchedule(json)
     @JavascriptInterface fun stopScreenFilterSchedule()              = bedtime.stopScreenFilterSchedule()
+    /** Reverse-geocodes lat/lon to a city name via Android Geocoder for the sun-schedule label. */
+    @JavascriptInterface fun reverseGeocodeCity(lat: Double, lon: Double): String = bedtime.reverseGeocodeCity(lat, lon)
 
     // ── Notifications ──────────────────────────────────────────────────────
     @JavascriptInterface fun getNotifications()                = notification.getNotifications()

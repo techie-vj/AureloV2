@@ -212,6 +212,9 @@
                 <action android:name="${applicationId}.BEDTIME_OFF" />
                 <action android:name="${applicationId}.BEDTIME_WINDOWN" />
                 <action android:name="${applicationId}.BEDTIME_WAKEUP_FADE" />
+                <action android:name="${applicationId}.BEDTIME_SNOOZE_EXPIRE" />
+                <action android:name="${applicationId}.FILTER_SCHEDULE_ON" />
+                <action android:name="${applicationId}.FILTER_SCHEDULE_OFF" />
             </intent-filter>
         </receiver>
 

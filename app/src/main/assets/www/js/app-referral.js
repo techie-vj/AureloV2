@@ -48,11 +48,11 @@ const Referral = (() => {
         <div style="font-size:44px;margin-bottom:10px;
                     filter:drop-shadow(0 0 18px rgba(18,212,138,.4))">🎁</div>
         <div style="font-family:var(--ff-d);font-size:22px;font-weight:700;
-                    color:var(--t1);margin-bottom:6px">Give 21 days, earn Pro</div>
+                    color:var(--t1);margin-bottom:6px">Gift 21 Days — Earn Unlimited Pro</div>
         <div style="font-family:var(--ff-m);font-size:13px;color:var(--t2);
                     line-height:1.65;max-width:310px;margin:0 auto">
-          Share your link — your friend gets 21 days of Pro free.
-          You earn when they stick around.
+          Share your link — your friend gets 21 Days. Earn up to 3 Months of Pro.
+          You could earn years of Pro for free!.
         </div>
       </div>
 

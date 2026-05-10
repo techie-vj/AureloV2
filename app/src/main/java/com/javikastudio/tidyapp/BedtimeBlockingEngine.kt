@@ -140,6 +140,7 @@ class BedtimeBlockingEngine(
     fun stopSoft() {
         isActive = false; blockedPkgs = emptySet(); blockedAppNames = emptyMap()
         allowedPkg = ""; allowedUntilTs = 0L; snoozedUntilTs = 0L; allowedAppIsInFg = false
+        prefs.edit().putBoolean("bedtime_filter_snoozed", false).apply()
 
         val snoozeCount   = prefs.getInt("bedtime_snooze_count", 0)
         val attemptsTotal = sumAttempts()
@@ -165,6 +166,7 @@ class BedtimeBlockingEngine(
         prefs.edit().apply {
             putBoolean("bedtime_block_active", false)
             putLong   ("bedtime_snooze_until_ts", 0L)
+            putBoolean("bedtime_filter_snoozed", false)
             if (!alreadySnapshotted) {
                 putInt    ("bedtime_last_night_snooze_count",   snoozeCount)
                 putInt    ("bedtime_last_night_attempts_total", attemptsTotal)
@@ -192,6 +194,18 @@ class BedtimeBlockingEngine(
             nm.setInterruptionFilter(NotificationManager.INTERRUPTION_FILTER_ALL)
         }
 
+        // SNOOZE-FILTER FIX: pause the screen filter during the snooze window so the
+        // user's screen isn't tinted while they're allowed to use their phone.
+        // Flag persisted to prefs so the alarm-based path (clearSnooze) can restart it.
+        runCatching {
+            val sfRaw = prefs.getString(SCREEN_FILTER_SETTINGS_V1, null)
+            val sfCfg = if (!sfRaw.isNullOrBlank()) org.json.JSONObject(sfRaw) else org.json.JSONObject()
+            if (sfCfg.optBoolean("bedtimeAutoApply", true)) {
+                AppMonitorService.filterEngineInstance?.stop(fadeOut = false)
+                prefs.edit().putBoolean("bedtime_filter_snoozed", true).apply()
+            }
+        }
+
         // SNOOZE FIX 1: schedule a guaranteed alarm so DND re-enables and overlay
         // blocking resumes when the snooze expires — even if AppMonitorService is
         // killed in the meantime.  onTick() handles the happy-path when the service
@@ -209,6 +223,8 @@ class BedtimeBlockingEngine(
     fun clearSnooze() {
         snoozedUntilTs = 0L
         prefs.edit().putLong("bedtime_snooze_until_ts", 0L).apply()
+        // SNOOZE-FILTER FIX: restart the filter now that the alarm has confirmed snooze ended.
+        restoreBedtimeFilter()
         android.util.Log.d("BedtimeEngine", "clearSnooze: snooze state cleared by receiver alarm")
     }
 
@@ -339,6 +355,8 @@ class BedtimeBlockingEngine(
                     if (nm.isNotificationPolicyAccessGranted)
                         nm.setInterruptionFilter(NotificationManager.INTERRUPTION_FILTER_ALARMS)
                 }
+                // SNOOZE-FILTER FIX: restart the filter now that the snooze window has closed.
+                restoreBedtimeFilter()
                 h.notifyJs("if(typeof window.onBedtimeSnoozeEnded==='function') window.onBedtimeSnoozeEnded()")
             }
         }
@@ -517,6 +535,31 @@ class BedtimeBlockingEngine(
             pkgs += pkg; names[pkg] = obj.optString("name", pkg.split(".").last())
         }
         blockedPkgs = pkgs; blockedAppNames = names
+    }
+
+    /**
+     * Restarts the screen filter with the bedtime preset after a snooze window ends.
+     * Clears the bedtime_filter_snoozed flag, re-starts the engine, and updates the
+     * SCREEN_FILTER_ACTIVE pref so the service and BootReceiver stay in sync.
+     * No-op if bedtimeAutoApply is disabled or the flag is not set.
+     */
+    private fun restoreBedtimeFilter() {
+        if (!prefs.getBoolean("bedtime_filter_snoozed", false)) return
+        prefs.edit().putBoolean("bedtime_filter_snoozed", false).apply()
+        runCatching {
+            val sfRaw = prefs.getString(SCREEN_FILTER_SETTINGS_V1, null)
+            val sfCfg = if (!sfRaw.isNullOrBlank()) org.json.JSONObject(sfRaw) else org.json.JSONObject()
+            if (!sfCfg.optBoolean("bedtimeAutoApply", true)) return@runCatching
+            val presetKey = sfCfg.optString("bedtimePreset", "bedtime")
+            val (warm, dim) = when (presetKey) {
+                "soft"   -> Pair(40, 15)
+                "medium" -> Pair(65, 30)
+                else     -> Pair(80, 45)   // "bedtime" default
+            }
+            AppMonitorService.filterEngineInstance?.start(warm, dim, gradual = false)
+            prefs.edit().putBoolean(SCREEN_FILTER_ACTIVE, true).apply()
+            android.util.Log.d("BedtimeEngine", "restoreBedtimeFilter: restarted warm=$warm dim=$dim")
+        }
     }
 
     private fun sumAttempts(): Int = runCatching {

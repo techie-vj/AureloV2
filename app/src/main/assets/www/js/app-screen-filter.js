@@ -175,6 +175,12 @@ window.ScreenFilter = (function () {
   function _applyNative(cfg) {
     if (!IS_NATIVE) return;
     try {
+      // BEDTIME-FILTER FIX: if bedtime is currently controlling the filter, never
+      // remove it here — _applyNative is triggered by saving user settings which
+      // should not override the active bedtime session.
+      var btActive = typeof N.isInBedtimeWindow === 'function' && N.isInBedtimeWindow();
+      if (btActive && cfg.bedtimeAutoApply) return;
+
       if (cfg.enabled && !cfg.paused) {
         if (!_isInScheduleWindow(cfg)) {
           if (typeof N.removeScreenFilter === 'function') N.removeScreenFilter();
@@ -773,6 +779,14 @@ window.ScreenFilter = (function () {
   /* ── Event handlers ───────────────────────────────────────── */
   function _togMaster() {
     var cfg = getCfg();
+    // BEDTIME-FILTER FIX: when bedtime is controlling the filter the toggle is visually
+    // disabled, but the HTML `disabled` attribute can be bypassed by touch events on some
+    // Android WebViews. Intercept here and show an explanatory message instead.
+    var btNow = IS_NATIVE && typeof N.isInBedtimeWindow === 'function' && N.isInBedtimeWindow();
+    if (btNow && cfg.bedtimeAutoApply) {
+      if (typeof toast === 'function') toast('Screen filter is managed by Bedtime Mode', 'info', 2500);
+      return;
+    }
     if (!cfg.enabled) {
       if (!_hasPerm()) { _requestPerm(_togMaster); return; }
       cfg.enabled = true; cfg.paused = false;
@@ -839,11 +853,27 @@ window.ScreenFilter = (function () {
           if (onDenied) onDenied();
           return;
         }
-        // Attempt reverse geocode for city name — silent fail is fine
-        var lat = pos.coords.latitude.toFixed(4);
-        var lon = pos.coords.longitude.toFixed(4);
+        var lat = pos.coords.latitude;
+        var lon = pos.coords.longitude;
+
+        // CITY-FIX: Try the native Android Geocoder first (fast, on-device, no network).
+        // Fall back to Nominatim if the bridge is unavailable (browser / old devices).
+        var nativeCity = '';
         try {
-          fetch('https://nominatim.openstreetmap.org/reverse?format=json&lat=' + lat + '&lon=' + lon + '&zoom=10', {
+          if (IS_NATIVE && typeof N.reverseGeocodeCity === 'function') {
+            nativeCity = N.reverseGeocodeCity(lat, lon) || '';
+          }
+        } catch (_) {}
+
+        if (nativeCity) {
+          times.city = nativeCity;
+          if (onSuccess) onSuccess(times);
+          return;
+        }
+
+        // Fallback: Nominatim reverse geocode (requires network)
+        try {
+          fetch('https://nominatim.openstreetmap.org/reverse?format=json&lat=' + lat.toFixed(4) + '&lon=' + lon.toFixed(4) + '&zoom=10', {
             headers: { 'Accept-Language': 'en', 'User-Agent': 'Aurelo/1.0' }
           }).then(function (r) { return r.json(); }).then(function (data) {
             var addr = data && data.address;

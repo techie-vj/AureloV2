@@ -266,8 +266,31 @@ class BedtimeReceiver : BroadcastReceiver() {
                         // ✅ Also restore grayscale if configured
                         val grayscale2 = cfg2.optBoolean("grayscale", true)
                         if (grayscale2) setGrayscale(ctx, true)
-                        // ✅ Re-dim brightness
-                        // brightness no longer used — screen filter handles dimming
+
+                        // SNOOZE-FILTER FIX: restart bedtime screen filter if it was
+                        // paused for the snooze. clearSnooze() on the service also does
+                        // this, but BedtimeBlockingEngine.restoreBedtimeFilter() only runs
+                        // when the service is alive. This receiver path covers the case where
+                        // AppMonitorService was killed during the snooze.
+                        runCatching {
+                            val sfRaw2 = prefs.getString(SCREEN_FILTER_SETTINGS_V1, null)
+                            val sfCfg2b = if (!sfRaw2.isNullOrBlank())
+                                runCatching { org.json.JSONObject(sfRaw2) }.getOrNull() else null
+                            if (prefs.getBoolean("bedtime_filter_snoozed", false) &&
+                                sfCfg2b?.optBoolean("bedtimeAutoApply", true) == true) {
+                                prefs.edit().putBoolean("bedtime_filter_snoozed", false).apply()
+                                val presetKey2 = sfCfg2b.optString("bedtimePreset", "bedtime")
+                                val (warm2, dim2) = when (presetKey2) {
+                                    "soft"   -> Pair(40, 15)
+                                    "medium" -> Pair(65, 30)
+                                    else     -> Pair(80, 45)
+                                }
+                                startScreenFilter(ctx, warm2, dim2, gradual = false)
+                                prefs.edit().putBoolean(SCREEN_FILTER_ACTIVE, true).apply()
+                                android.util.Log.d("BedtimeReceiver", "SNOOZE_EXPIRE: screen filter restarted")
+                            }
+                        }
+
                         // Tell AppMonitorService to clear in-memory snooze and resume blocking.
                         // Uses a new action; AppMonitorService must handle ACTION_BEDTIME_SNOOZE
                         // by calling bedtimeEngine.clearSnooze().
@@ -285,6 +308,38 @@ class BedtimeReceiver : BroadcastReceiver() {
                         android.util.Log.d("BedtimeReceiver", "SNOOZE_EXPIRE: outside window, DND left off")
                     }
                 }
+            }
+
+            // ── Screen Filter schedule alarms ─────────────────────────────────────────
+            // Fired by AlarmManager when BedtimeBridge.scheduleFilterAlarms() sets
+            // FILTER_SCHEDULE_ON / FILTER_SCHEDULE_OFF exact alarms.
+
+            "${ctx.packageName}.FILTER_SCHEDULE_ON" -> {
+                val sfRaw = prefs.getString(SCREEN_FILTER_SETTINGS_V1, null) ?: return
+                val sfCfg = runCatching { org.json.JSONObject(sfRaw) }.getOrElse { return }
+                // Only activate if filter is still enabled (user may have disabled it)
+                if (!sfCfg.optBoolean("enabled", false)) return
+                val warm    = sfCfg.optInt("warmAlpha", 80)
+                val dim     = sfCfg.optInt("dimAlpha",  45)
+                val gradual = sfCfg.optBoolean("fadeIn", true)
+                prefs.edit().putBoolean(SCREEN_FILTER_ACTIVE, true).apply()
+                startScreenFilter(ctx, warm, dim, gradual)
+                rescheduleFilterAlarmForTomorrow(ctx, prefs, sfCfg,
+                    "${ctx.packageName}.FILTER_SCHEDULE_ON", 7015, isStart = true)
+                android.util.Log.d("BedtimeReceiver", "FILTER_SCHEDULE_ON: started filter warm=$warm dim=$dim")
+            }
+
+            "${ctx.packageName}.FILTER_SCHEDULE_OFF" -> {
+                prefs.edit().putBoolean(SCREEN_FILTER_ACTIVE, false).apply()
+                stopScreenFilter(ctx)
+                val sfRaw2 = prefs.getString(SCREEN_FILTER_SETTINGS_V1, null)
+                val sfCfg2 = if (!sfRaw2.isNullOrBlank())
+                    runCatching { org.json.JSONObject(sfRaw2) }.getOrNull() else null
+                if (sfCfg2 != null) {
+                    rescheduleFilterAlarmForTomorrow(ctx, prefs, sfCfg2,
+                        "${ctx.packageName}.FILTER_SCHEDULE_OFF", 7016, isStart = false)
+                }
+                android.util.Log.d("BedtimeReceiver", "FILTER_SCHEDULE_OFF: stopped filter")
             }
         }
     }
@@ -307,6 +362,78 @@ class BedtimeReceiver : BroadcastReceiver() {
     }
 
     // ── Reschedule (exact alarm for tomorrow) ────────────────────────────────────
+
+    /**
+     * Reschedules a FILTER_SCHEDULE_ON or FILTER_SCHEDULE_OFF alarm for tomorrow
+     * (or the next active day if day-of-week filtering is configured).
+     * [isStart] = true → uses sunsetHour/schedStartHour; false → sunriseHour/schedEndHour.
+     */
+    private fun rescheduleFilterAlarmForTomorrow(
+        ctx: Context,
+        prefs: android.content.SharedPreferences,
+        sfCfg: org.json.JSONObject,
+        action: String,
+        requestCode: Int,
+        isStart: Boolean
+    ) {
+        if (!sfCfg.optBoolean("enabled", false)) return
+        val schedule = sfCfg.optString("schedule", "none")
+        if (schedule == "none" || schedule.isBlank()) return
+
+        val hour: Int; val minute: Int
+        if (schedule == "sun") {
+            if (!sfCfg.has("sunsetHour") || !sfCfg.has("sunriseHour")) return
+            if (isStart) {
+                hour   = sfCfg.optInt("sunsetHour",  21)
+                minute = sfCfg.optInt("sunsetMin",    0)
+            } else {
+                hour   = sfCfg.optInt("sunriseHour",  7)
+                minute = sfCfg.optInt("sunriseMin",   0)
+            }
+        } else {
+            if (isStart) {
+                hour   = sfCfg.optInt("schedStartHour", 21)
+                minute = sfCfg.optInt("schedStartMin",   0)
+            } else {
+                hour   = sfCfg.optInt("schedEndHour",    7)
+                minute = sfCfg.optInt("schedEndMin",     0)
+            }
+        }
+
+        // Day-of-week — schedDays is Sun-first [0..6]; Calendar.DAY_OF_WEEK 1=Sun..7=Sat
+        val schedDaysArr = sfCfg.optJSONArray("schedDays")
+        val activeDayIndices: List<Int> = if (schedDaysArr != null && schedDaysArr.length() == 7)
+            (0 until 7).filter { schedDaysArr.optInt(it, 1) != 0 }
+        else (0..6).toList() // all days active by default
+
+        val cal = java.util.Calendar.getInstance().apply {
+            set(java.util.Calendar.HOUR_OF_DAY, hour)
+            set(java.util.Calendar.MINUTE,      minute)
+            set(java.util.Calendar.SECOND,      0)
+            set(java.util.Calendar.MILLISECOND, 0)
+            add(java.util.Calendar.DAY_OF_YEAR, 1) // start from tomorrow
+            // Advance to the next active day (max 7 steps to avoid infinite loop)
+            var steps = 0
+            while (steps < 7) {
+                val calDayIdx = get(java.util.Calendar.DAY_OF_WEEK) - 1 // 0=Sun..6=Sat
+                if (activeDayIndices.contains(calDayIdx)) break
+                add(java.util.Calendar.DAY_OF_YEAR, 1)
+                steps++
+            }
+        }
+
+        val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M)
+            android.app.PendingIntent.FLAG_IMMUTABLE or android.app.PendingIntent.FLAG_UPDATE_CURRENT
+        else android.app.PendingIntent.FLAG_UPDATE_CURRENT
+
+        val pi = android.app.PendingIntent.getBroadcast(
+            ctx, requestCode,
+            Intent(action).apply { setPackage(ctx.packageName) }, flags)
+
+        val am = ctx.getSystemService(Context.ALARM_SERVICE) as android.app.AlarmManager
+        BedtimePrefs.setExactSafely(ctx, am, android.app.AlarmManager.RTC_WAKEUP, cal.timeInMillis, pi)
+        android.util.Log.d("BedtimeReceiver", "rescheduleFilterAlarm: $action at ${cal.time}")
+    }
 
     private fun rescheduleForTomorrow(
         ctx: Context,
@@ -592,7 +719,7 @@ class BedtimeReceiver : BroadcastReceiver() {
             val sfCfg = if (!sfRaw.isNullOrBlank())
                 runCatching { org.json.JSONObject(sfRaw) }.getOrNull() else null
             val filterOn = sfCfg?.optBoolean("bedtimeAutoApply", true) == true &&
-                           sfCfg?.optBoolean("fadeIn", true) == true
+                    sfCfg?.optBoolean("fadeIn", true) == true
 
             val nm = ctx.getSystemService(Context.NOTIFICATION_SERVICE)
                     as android.app.NotificationManager
@@ -614,8 +741,8 @@ class BedtimeReceiver : BroadcastReceiver() {
                         androidx.core.app.NotificationCompat.BigTextStyle()
                             .bigText(
                                 "Screen filter is fading in now 🌅\n" +
-                                "Blue light + dim will reach $presetLabel intensity at bedtime.\n" +
-                                "Tap to adjust."
+                                        "Blue light + dim will reach $presetLabel intensity at bedtime.\n" +
+                                        "Tap to adjust."
                             )
                     )
             } else {

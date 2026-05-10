@@ -4,12 +4,14 @@ import android.app.AlarmManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.location.Geocoder
 import android.os.Build
 import android.webkit.JavascriptInterface
 import android.webkit.WebView
 import kotlinx.coroutines.CoroutineScope
 import org.json.JSONObject
 import java.util.Calendar
+import java.util.Locale
 
 /**
  * BedtimeBridge — owns bedtime configuration, alarm scheduling, DND control,
@@ -275,16 +277,18 @@ class BedtimeBridge(
 
     /**
      * Called by the JS schedule engine (sun-based / custom-time Pro modes).
-     * Persists the schedule config; the filter start/stop is driven by _applyNative()
-     * in JS which calls applyScreenFilter / removeScreenFilter above.
+     * Persists the schedule config AND schedules AlarmManager alarms so the filter
+     * starts/stops at the configured times even when the app is not in the foreground.
      */
     @JavascriptInterface fun startScreenFilterSchedule(json: String) {
-        runCatching { org.json.JSONObject(json) }.onFailure { return }
+        val cfg = runCatching { org.json.JSONObject(json) }.getOrElse { return }
         prefs.edit().putString(SCREEN_FILTER_SETTINGS_V1, json).apply()
+        scheduleFilterAlarms(cfg)
     }
 
-    /** Stops any active filter immediately and clears the schedule flag. */
+    /** Stops any active filter immediately, cancels schedule alarms, and clears the schedule flag. */
     @JavascriptInterface fun stopScreenFilterSchedule() {
+        cancelFilterAlarms()
         prefs.edit().putBoolean(SCREEN_FILTER_ACTIVE, false).apply()
         runCatching {
             val intent = android.content.Intent(context, AppMonitorService::class.java).apply {
@@ -295,6 +299,89 @@ class BedtimeBridge(
             else
                 context.startService(intent)
         }
+    }
+
+    /**
+     * Reverse-geocodes a lat/lon to a city name using the on-device Android Geocoder.
+     * Called from JS as the primary source for the sun-schedule city label (faster and
+     * more reliable than the Nominatim network call from inside the WebView).
+     * Returns the city string or "" on failure.
+     */
+    @JavascriptInterface fun reverseGeocodeCity(lat: Double, lon: Double): String {
+        return runCatching {
+            if (!Geocoder.isPresent()) return ""
+            val geocoder = Geocoder(context, Locale.getDefault())
+            val addresses = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                // Non-blocking API on API 33+
+                var result: android.location.Address? = null
+                geocoder.getFromLocation(lat, lon, 1) { list -> result = list.firstOrNull() }
+                // Give the async callback a moment before falling back to empty
+                Thread.sleep(1500)
+                result?.let { listOf(it) } ?: emptyList()
+            } else {
+                @Suppress("DEPRECATION")
+                geocoder.getFromLocation(lat, lon, 1) ?: emptyList()
+            }
+            val addr = addresses.firstOrNull() ?: return ""
+            addr.locality ?: addr.subAdminArea ?: addr.adminArea ?: ""
+        }.getOrDefault("")
+    }
+
+    // ── Filter alarm helpers ──────────────────────────────────────────────────
+
+    /**
+     * Schedules exact AlarmManager alarms for the filter's start/stop times.
+     * Fires BedtimeReceiver with FILTER_SCHEDULE_ON / FILTER_SCHEDULE_OFF actions.
+     * Called whenever the user saves a scheduled filter config.
+     */
+    private fun scheduleFilterAlarms(cfg: org.json.JSONObject) {
+        val schedule = cfg.optString("schedule", "none")
+        if (schedule == "none" || schedule.isBlank()) { cancelFilterAlarms(); return }
+
+        val am = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+        if (!BedtimePrefs.canScheduleExact(am)) return
+
+        val startH: Int; val startM: Int; val endH: Int; val endM: Int
+        if (schedule == "sun") {
+            if (!cfg.has("sunsetHour") || !cfg.has("sunriseHour")) return
+            startH = cfg.optInt("sunsetHour",  21); startM = cfg.optInt("sunsetMin",  0)
+            endH   = cfg.optInt("sunriseHour",  7); endM   = cfg.optInt("sunriseMin", 0)
+        } else {
+            startH = cfg.optInt("schedStartHour", 21); startM = cfg.optInt("schedStartMin", 0)
+            endH   = cfg.optInt("schedEndHour",    7); endM   = cfg.optInt("schedEndMin",   0)
+        }
+
+        setFilterAlarm(am, "${context.packageName}.FILTER_SCHEDULE_ON",  7015, startH, startM)
+        setFilterAlarm(am, "${context.packageName}.FILTER_SCHEDULE_OFF", 7016, endH,   endM)
+    }
+
+    /** Cancels pending filter schedule alarms. */
+    private fun cancelFilterAlarms() {
+        val am    = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+        val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M)
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_NO_CREATE
+        else PendingIntent.FLAG_NO_CREATE
+        listOf("${context.packageName}.FILTER_SCHEDULE_ON"  to 7015,
+            "${context.packageName}.FILTER_SCHEDULE_OFF" to 7016).forEach { (action, code) ->
+            val pi = PendingIntent.getBroadcast(context, code,
+                android.content.Intent(action).apply { setPackage(context.packageName) }, flags)
+            pi?.let { am.cancel(it) }
+        }
+    }
+
+    /** Schedules a single one-shot exact alarm for today (or tomorrow if the time has passed). */
+    private fun setFilterAlarm(am: AlarmManager, action: String, requestCode: Int, hour: Int, minute: Int) {
+        val cal = Calendar.getInstance().apply {
+            set(Calendar.HOUR_OF_DAY, hour); set(Calendar.MINUTE, minute)
+            set(Calendar.SECOND, 0);          set(Calendar.MILLISECOND, 0)
+        }
+        if (cal.timeInMillis <= System.currentTimeMillis()) cal.add(Calendar.DAY_OF_YEAR, 1)
+        val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M)
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        else PendingIntent.FLAG_UPDATE_CURRENT
+        val pi = PendingIntent.getBroadcast(context, requestCode,
+            android.content.Intent(action).apply { setPackage(context.packageName) }, flags)
+        BedtimePrefs.setExactSafely(context, am, AlarmManager.RTC_WAKEUP, cal.timeInMillis, pi)
     }
 
 }
