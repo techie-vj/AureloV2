@@ -47,12 +47,25 @@ const Referral = (() => {
       <div style="text-align:center;padding:24px 20px 16px">
         <div style="font-size:44px;margin-bottom:10px;
                     filter:drop-shadow(0 0 18px rgba(18,212,138,.4))">🎁</div>
+
         <div style="font-family:var(--ff-d);font-size:22px;font-weight:700;
-                    color:var(--t1);margin-bottom:6px">Gift 21 Days — Earn Unlimited Pro</div>
-        <div style="font-family:var(--ff-m);font-size:13px;color:var(--t2);
-                    line-height:1.65;max-width:310px;margin:0 auto">
-          Share your link — your friend gets 21 Days. Earn up to 3 Months of Pro.
-          You could earn years of Pro for free!.
+                    color:var(--t1);margin-bottom:6px">
+          Unlock Pro for Life —<br>Friend by Friend.
+        </div>
+
+        <div style="font-family:var(--ff-m);font-size:13px;color:var(--t2);line-height:1.65;margin:0 0 14px">
+          Gift a friend <strong style="color:var(--t1)">21 days of Pro</strong> to help them
+          build better habits. For every friend who upgrades, you earn up to
+          <strong style="color:var(--t1)">3 months of Pro</strong> for yourself.
+          With <strong style="color:var(--t1)">no limit on rewards</strong>,
+          your Pro access can stay active forever.
+        </div>
+
+        <div style="display:inline-block;font-family:var(--ff-m);font-size:11px;
+                    color:var(--accent);background:rgba(18,212,138,.1);
+                    border:1px solid rgba(18,212,138,.25);border-radius:20px;
+                    padding:5px 14px;letter-spacing:.04em">
+          ✦ UNLIMITED REWARDS WHEN FRIENDS GO PRO
         </div>
       </div>
 
@@ -62,10 +75,10 @@ const Referral = (() => {
         <div style="font-family:var(--ff-m);font-size:var(--text-2xs);
                     letter-spacing:1.5px;text-transform:uppercase;color:var(--t3);
                     margin-bottom:8px">Your referral link</div>
-        <div style="display:flex;gap:8px;align-items:center">
+        <div style="display:flex;gap:8px;align-items:flex-start;">
           <div id="ref-link-text" style="flex:1;font-family:var(--ff-m);
-               font-size:11px;color:var(--t2);overflow:hidden;text-overflow:ellipsis;
-               white-space:nowrap;background:var(--s2);border:1px solid var(--border);
+               font-size:11px;color:var(--t2);
+               white-space:normal;word-break:break-all;background:var(--s2);border:1px solid var(--border);
                border-radius:8px;padding:8px 10px">${_escLink(_link)}</div>
           <button onclick="Referral.copyLink()"
             style="flex-shrink:0;padding:8px 14px;border-radius:10px;border:none;
@@ -87,7 +100,7 @@ const Referral = (() => {
       <div style="display:flex;gap:8px;margin:0 16px 20px">
         ${_statPill('shares',     '📢', _stats.shareCount || 0, 'Shared')}
         ${_statPill('installed',  '👥', installed,              'Installed')}
-        ${_statPill('converted',  '⚡', converted,              'Converted')}
+        ${_statPill('converted',  '⚡', converted,              'Joined Pro')}
         ${_statPill('daysEarned', '✦', totalDays + ' days',    'Pro earned')}
       </div>
 
@@ -150,10 +163,10 @@ const Referral = (() => {
         <div style="font-family:var(--ff-m);font-size:var(--text-2xs);
                     letter-spacing:1.5px;text-transform:uppercase;color:var(--t3);
                     margin-bottom:10px">What you earn</div>
-        ${_tierRow('📲', 'Friend installs', '+3 days Pro', 'Up to 3 installs per month')}
-        ${_tierRow('📅', 'Friend goes monthly', '+1 month Pro', 'On their first payment')}
-        ${_tierRow('📆', 'Friend goes annual', '+2 months Pro', 'On their first payment')}
-        ${_tierRow('♾️', 'Friend goes lifetime', '+3 months Pro', 'On their first payment')}
+        ${_tierRow('📲', 'New Member Bonus',      '+3 days Pro',   'Up to 3 per month')}
+        ${_tierRow('📅', 'Monthly Habit Reward',   '+1 month Pro',  'On their first payment')}
+        ${_tierRow('📆', 'Annual Growth Bonus',    '+2 months Pro', 'On their first payment')}
+        ${_tierRow('♾️', 'Lifetime Legacy Reward', '+3 months Pro', 'On their first payment')}
       </div>
 
       <!-- What your friend gets -->
@@ -165,10 +178,13 @@ const Referral = (() => {
           <div style="font-family:var(--ff-d);font-size:14px;font-weight:700;
                       color:var(--g)">Your friend gets 21 days free</div>
         </div>
-        <div style="font-family:var(--ff-m);font-size:12px;color:var(--t2);line-height:1.65">
-          They get 7 days standard trial + 14 bonus days — no credit card needed.
-          That's 3 weeks to build better habits with Aurelo Pro.
-        </div>
+          <div style="font-family:var(--ff-m);font-size:12px;color:var(--t2);line-height:1.65">
+            They'll receive a 7-day trial + 14 bonus days —
+            <strong style="color:var(--t1)">a full 3 weeks of Pro.</strong>
+              It’s a powerful headstart on better habits, gifted by you.
+              <br><br>
+              <em>Standard Google Play trial terms apply.</em>
+          </div>
       </div>
 
       <!-- Bottom spacer -->
@@ -237,7 +253,7 @@ const Referral = (() => {
 
   function shareLink() {
     if (!_link) return;
-    const shareText = `I've been using Aurelo to build better screen time habits. Try it free for 21 days with my link:\n${_link}`;
+    const shareText = `I gifted you 21 days of Aurelo Pro! 🎁.\nIt’s the perfect headstart to build better screen time habits and actually stick to them.\n👉 ${_link}`;
 
     // BUG-09 FIX: previously called N.shareText() — plain text only, no branded card.
     // Feature Reference §12.10 and §13.1 specify a "visually designed share card".

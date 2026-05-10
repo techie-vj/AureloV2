@@ -276,14 +276,16 @@
     upgrade_pro: {
       tag: 'Aurelo Pro',
       headline: 'Master your time, without limits.',
-      body: 'Break the scroll with unlimited focus tools and deep habit analytics. No accounts, no tracking—just a cleaner, more intentional phone experience.',
+      body: 'Your personal AI wellness coach, body health signals, and deep habit analytics — all on-device, no accounts, no tracking.',
       bullets: [
-          'Unlimited Focus Tools — No limits on Focus Mode, Mindful Pause, timers, app locks, and hidden apps.',
-          'Deep Habit Analytics — Unlock your Monthly App DNA, 30-day trends, and streak calendars.',
-          'Advanced Pro Widgets — Full themes, Rotating Insight bars, and all 6 Smart Routine slots with frequency rings.',
-          'Healthy Boundaries — Automate your day with Unlimited Scheduled Focus, Bedtime Mode, and Weekly Challenges.',
-          'Pro Personalization — Exclusive themes, Custom categories and Play Store sync.'
-        ],
+        'Aurelo Coach — AI-powered insights that analyse your screen time, focus, sleep, and health data to explain your patterns and answer your questions, entirely on-device.',
+        'Score History — Track all your score pillars over 30 or 90 days, tap any point for a full breakdown, and share your progress.',
+        'Health Connect & Body Score — Connect your steps, HRV, and resting heart rate to unlock a Body Score and enrich every pillar with physical health context.',
+        'Unlimited Focus Tools — No caps on Focus Mode, Mindful Pause, App Timers, App Lock, Hidden Apps, and Scheduled Routines.',
+        'Bedtime Mode & Sleep Score — Automate your wind-down with app blocking, blue-light Screen Filter, and a nightly Sleep Score.',
+        'Deep Habit Analytics — Monthly App DNA, calendar heatmaps, streak grids, and Weekly Challenges personalised to your usage.',
+        'Pro Personalisation — Exclusive themes, unlimited custom categories with Play Store sync, and full widget themes with Insight bar.',
+      ],
       cta: 'Unlock Pro',
       dismiss: 'Maybe later',
     },
