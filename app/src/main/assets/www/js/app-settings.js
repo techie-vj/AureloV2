@@ -37,6 +37,22 @@ function setAppTheme(key){
   applyTheme(key); renderAppThemeList();
   if(th) toast(th.label+' theme applied','success');
 }
+
+/**
+ * Called by pro-gate.js when Pro subscription expires.
+ * If the currently active theme is Pro-only, reverts to 'dark' (free default)
+ * and persists the change. No-op when the user is on a free theme already.
+ */
+function downgradeThemeIfNeeded(){
+  var current=S.theme||'dark';
+  var th=APP_THEMES.find(function(x){return x.key===current;});
+  if(!th||!th.isPro) return; // already on a free theme — nothing to do
+  S.theme='dark'; saveS();
+  if(IS_NATIVE) nCall('setStringPref','app_theme','dark');
+  applyTheme('dark');
+  renderAppThemeList();
+  toast('Theme reset to Dark (Pro subscription ended)','info');
+}
 function toggleAppThemes(){
   var list=document.getElementById('appThemeList');
   var chev=document.getElementById('appThemeChevron');

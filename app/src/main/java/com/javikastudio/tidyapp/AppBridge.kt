@@ -385,4 +385,153 @@ class AppBridge(private val context: Context, private val webView: WebView) {
     @JavascriptInterface fun isExtensionActive()                               = referral.isExtensionActive()
     @JavascriptInterface fun getExtensionDaysRemaining()                       = referral.getExtensionDaysRemaining()
     @JavascriptInterface fun getPendingExtensionDays()                         = referral.getPendingExtensionDays()
+
+    /**
+     * handleProDowngrade — called by pro-gate.js (JS side) when the Pro
+     * subscription has expired or been revoked.
+     *
+     * Resets native-side Pro features to free-tier defaults:
+     *   • Widget theme → DEFAULT (free)
+     *   • Bedtime alarms cancelled, active block stopped, DND cleared
+     *   • Health Connect disconnected (permissions revoked, cache cleared)
+     *   • All Focus Routine alarms cancelled
+     *   • Locked apps trimmed to FREE_LIMIT (3)
+     *   • Hidden apps trimmed to FREE_LIMIT (3)
+     *   • Mindful-pause (intention) apps trimmed to FREE_LIMIT (3)
+     *   • App timers trimmed to FREE_LIMIT (3)
+     *
+     * Every step is individually try-caught so a failure in one area does not
+     * prevent the rest from running.
+     */
+    @JavascriptInterface
+    fun handleProDowngrade() {
+        val FREE_LIMIT = 3
+
+        // 1. Widget theme → DEFAULT
+        try {
+            WidgetThemeManager.setTheme(context, WidgetTheme.DEFAULT)
+        } catch (e: Exception) {
+            android.util.Log.w("AureloDowngrade", "Widget theme reset failed: ${e.message}")
+        }
+
+        // 2. Bedtime — cancel alarms, stop block, clear DND
+        try { bedtime.cancelBedtimeAlarms() }  catch (e: Exception) { android.util.Log.w("AureloDowngrade", "cancelBedtimeAlarms: ${e.message}") }
+        try { bedtime.stopBedtimeBlock() }      catch (e: Exception) { android.util.Log.w("AureloDowngrade", "stopBedtimeBlock: ${e.message}") }
+        try { bedtime.setBedtimeDnd(false) }    catch (e: Exception) { android.util.Log.w("AureloDowngrade", "setBedtimeDnd: ${e.message}") }
+        // Persist disabled state into bedtime settings
+        try {
+            val json = bedtime.getBedtimeSettings()
+            val obj  = org.json.JSONObject(if (json.isNullOrBlank()) "{}" else json)
+            obj.put("enabled", false)
+            bedtime.saveBedtimeSettings(obj.toString())
+        } catch (e: Exception) { android.util.Log.w("AureloDowngrade", "saveBedtimeSettings: ${e.message}") }
+
+        // 3. Health Connect — revoke permissions and clear cached data
+        try { healthConnect.disconnectHC() } catch (e: Exception) { android.util.Log.w("AureloDowngrade", "disconnectHC: ${e.message}") }
+
+        // 4. Focus Routines — cancel all alarms and disable every routine
+        try {
+            val routinesJson = focusRoutine.getFocusRoutines()
+            val arr = org.json.JSONArray(if (routinesJson.isNullOrBlank()) "[]" else routinesJson)
+            for (i in 0 until arr.length()) {
+                val r = arr.getJSONObject(i)
+                val id = r.optString("id", "")
+                if (id.isNotBlank()) {
+                    try { focusRoutine.cancelRoutineAlarm(id) } catch (_: Exception) {}
+                }
+                r.put("enabled", false)
+            }
+            focusRoutine.saveFocusRoutines(arr.toString())
+        } catch (e: Exception) { android.util.Log.w("AureloDowngrade", "cancelRoutines: ${e.message}") }
+
+        // 5. Locked apps — trim to FREE_LIMIT
+        try {
+            val lockedJson = appManagement.getLockedApps()
+            val arr = org.json.JSONArray(if (lockedJson.isNullOrBlank()) "[]" else lockedJson)
+            if (arr.length() > FREE_LIMIT) {
+                val trimmed = org.json.JSONArray()
+                for (i in 0 until FREE_LIMIT) trimmed.put(arr.get(i))
+                appManagement.setLockedApps(trimmed.toString())
+            }
+        } catch (e: Exception) { android.util.Log.w("AureloDowngrade", "trimLockedApps: ${e.message}") }
+
+        // 6. Hidden apps — trim to FREE_LIMIT
+        try {
+            val hiddenJson = appManagement.getHiddenApps()
+            val arr = org.json.JSONArray(if (hiddenJson.isNullOrBlank()) "[]" else hiddenJson)
+            if (arr.length() > FREE_LIMIT) {
+                val trimmed = org.json.JSONArray()
+                for (i in 0 until FREE_LIMIT) trimmed.put(arr.get(i))
+                appManagement.setHiddenApps(trimmed.toString())
+            }
+        } catch (e: Exception) { android.util.Log.w("AureloDowngrade", "trimHiddenApps: ${e.message}") }
+
+        // 7. Mindful-pause (intention) apps — trim to FREE_LIMIT
+        try {
+            val intentionJson = prefs.getString(KEY_INTENTION_APPS, "[]") ?: "[]"
+            val arr = org.json.JSONArray(if (intentionJson.isBlank()) "[]" else intentionJson)
+            if (arr.length() > FREE_LIMIT) {
+                val trimmed = org.json.JSONArray()
+                for (i in 0 until FREE_LIMIT) trimmed.put(arr.get(i))
+                prefs.edit().putString(KEY_INTENTION_APPS, trimmed.toString()).apply()
+                // Notify AppMonitorService that intention app list changed
+                try {
+                    context.sendBroadcast(
+                        android.content.Intent("${context.packageName}.INTENTION_APPS_CHANGED")
+                    )
+                } catch (_: Exception) {}
+            }
+        } catch (e: Exception) { android.util.Log.w("AureloDowngrade", "trimIntentionApps: ${e.message}") }
+
+        // 8. App timers — trim to FREE_LIMIT (stored as JSONObject pkg→mins in securePrefs)
+        try {
+            val timersJson = securePrefs.getString(APP_LIMITS_V5, "{}") ?: "{}"
+            val obj = org.json.JSONObject(if (timersJson.isBlank()) "{}" else timersJson)
+            if (obj.length() > FREE_LIMIT) {
+                val trimmed = org.json.JSONObject()
+                var count = 0
+                val keys = obj.keys()
+                while (keys.hasNext() && count < FREE_LIMIT) {
+                    val key = keys.next()
+                    trimmed.put(key, obj.getInt(key))
+                    count++
+                }
+                securePrefs.edit().putString(APP_LIMITS_V5, trimmed.toString()).apply()
+            }
+        } catch (e: Exception) { android.util.Log.w("AureloDowngrade", "trimTimerApps: ${e.message}") }
+
+        // 9. Focus blocked apps — trim to FREE_LIMIT (stored as JSONArray in prefs)
+        try {
+            val blockedJson = prefs.getString(KEY_FOCUS_BLOCKED_APPS, "[]") ?: "[]"
+            val arr = org.json.JSONArray(if (blockedJson.isBlank()) "[]" else blockedJson)
+            if (arr.length() > FREE_LIMIT) {
+                val trimmed = org.json.JSONArray()
+                for (i in 0 until FREE_LIMIT) trimmed.put(arr.get(i))
+                prefs.edit().putString(KEY_FOCUS_BLOCKED_APPS, trimmed.toString()).apply()
+            }
+        } catch (e: Exception) { android.util.Log.w("AureloDowngrade", "trimFocusBlockedApps: ${e.message}") }
+
+        // 10. Screen Filter — reset schedule to 'none' and trim excludedApps to FREE_LIMIT.
+        //     Bug 1 fix: 'sun' / 'custom' schedule modes are Pro-only; a downgraded user
+        //     must fall back to 'none' (Manual / Always On) so the radio button does not
+        //     remain stuck on a Pro selection in the UI.
+        //     Bug 2 fix: excludedApps must be capped at FREE_LIMIT to match every other
+        //     app-list feature that enforces the 3-item ceiling on the free tier.
+        try {
+            val sfJson = bedtime.getScreenFilterSettings()
+            val sfObj  = org.json.JSONObject(if (sfJson.isNullOrBlank()) "{}" else sfJson)
+            // Reset schedule
+            sfObj.put("schedule", "none")
+            // Trim excluded apps (non-camera only; camera is always auto-excluded)
+            val excludedArr = sfObj.optJSONArray("excludedApps")
+            if (excludedArr != null && excludedArr.length() > FREE_LIMIT) {
+                val trimmed = org.json.JSONArray()
+                for (i in 0 until FREE_LIMIT) trimmed.put(excludedArr.get(i))
+                sfObj.put("excludedApps", trimmed)
+            }
+            bedtime.saveScreenFilterSettings(sfObj.toString())
+        } catch (e: Exception) { android.util.Log.w("AureloDowngrade", "resetScreenFilterOnDowngrade: ${e.message}") }
+
+        android.util.Log.i("AureloDowngrade", "Pro downgrade cleanup complete")
+    }
 }

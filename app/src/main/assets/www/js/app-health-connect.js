@@ -604,5 +604,14 @@ const HealthConnect = (function () {
     openHCSettings: function () {
       try { window.AppBridge.openHCSettings(); } catch (_) {}
     },
+    /**
+     * Called by pro-gate.js when Pro subscription expires.
+     * Silently disconnects Health Connect if currently connected.
+     * Safe to call when HC is not connected.
+     */
+    disconnectOnDowngrade: function () {
+      if (!isConnected()) return; // nothing to do
+      disconnect();
+    },
   };
 })();

@@ -91,6 +91,7 @@
 
     // Pro status callback from BillingManager (fires async after Play connects)
     window.onProStatusChanged = function(isPro) {
+      var wasPro = _isPro;
       _setIsPro(!!isPro, 'billing-callback');
       _applyProClass();
 
@@ -101,6 +102,11 @@
         _updateSettingsRows(true);
       } else {
         _updateSettingsRows(false);
+        // Only run the downgrade reset path when Pro was previously active.
+        // This prevents spurious resets on cold-start before billing has confirmed.
+        if (wasPro) {
+          _handleProDowngrade();
+        }
       }
 
       // Re-run all existing gate checks in the current view
@@ -323,6 +329,82 @@
   }
 
   /**
+   * _handleProDowngrade — called once when Pro transitions from true → false.
+   *
+   * Resets every Pro-only feature that can remain "stuck on" after expiry:
+   *   1. Theme     — reverts to 'dark' if a Pro theme is active
+   *   2. Bedtime   — disables mode, cancels alarms, stops active block
+   *   3. HC        — disconnects Health Connect if connected
+   *   4. Screen    — disables Screen Filter if active
+   *   5. Routines  — cancels/disables all Focus Schedules
+   *   6. Widget    — resets widget theme to DEFAULT (native call)
+   *   7. App lists — trims locked/hidden/mindful/timer apps to 3 (native call)
+   *
+   * Every call is guarded so a missing module never throws and aborts the rest.
+   */
+  function _handleProDowngrade() {
+    // 1. App theme
+    if (typeof downgradeThemeIfNeeded === 'function') {
+      try { downgradeThemeIfNeeded(); } catch (_) {}
+    }
+
+    // 2. Bedtime Mode
+    if (typeof FocusBedtime !== 'undefined' && typeof FocusBedtime.disableOnDowngrade === 'function') {
+      try { FocusBedtime.disableOnDowngrade(); } catch (_) {}
+    }
+
+    // 3. Health Connect
+    if (typeof HealthConnect !== 'undefined' && typeof HealthConnect.disconnectOnDowngrade === 'function') {
+      try { HealthConnect.disconnectOnDowngrade(); } catch (_) {}
+    }
+
+    // 4. Screen Filter
+    if (typeof ScreenFilter !== 'undefined' && typeof ScreenFilter.disableOnDowngrade === 'function') {
+      try { ScreenFilter.disableOnDowngrade(); } catch (_) {}
+    }
+
+    // 5. Focus Schedules / Routines
+    if (typeof FocusRoutine !== 'undefined' && typeof FocusRoutine.cancelAllOnDowngrade === 'function') {
+      try { FocusRoutine.cancelAllOnDowngrade(); } catch (_) {}
+    }
+
+    // 6 & 7. Native: widget theme reset + app-list trimming (locked/hidden/mindful/timer → 3)
+    if (typeof window.AppBridge !== 'undefined' && typeof window.AppBridge.handleProDowngrade === 'function') {
+      try { window.AppBridge.handleProDowngrade(); } catch (_) {}
+    }
+
+    // 8. Resync in-memory JS caches from native storage now that it has been trimmed.
+    //    S.limits / S.lockedPkgs / S.hiddenPkgs are loaded once at boot and never
+    //    automatically refreshed — without this step the panels and timer strip would
+    //    still show the full Pro list until the app is restarted.
+    var _N = (typeof IS_NATIVE !== 'undefined' && IS_NATIVE && typeof N !== 'undefined') ? N : null;
+    if (_N && typeof S !== 'undefined') {
+      try { S.limits     = JSON.parse(_N.getLimits()     || '{}'); } catch (_) {}
+      try { S.lockedPkgs = JSON.parse(_N.getLockedApps() || '[]'); } catch (_) {}
+      try { S.hiddenPkgs = JSON.parse(_N.getHiddenApps() || '[]'); } catch (_) {}
+      // Reload focus blocked apps into the FocusTab IIFE's private _focusBlockedApps state
+      if (typeof FocusTab !== 'undefined' && typeof FocusTab.reloadBlockedAppsOnDowngrade === 'function') {
+        try { FocusTab.reloadBlockedAppsOnDowngrade(); } catch (_) {}
+      }
+    }
+
+    // 9. Update panel sub-labels so they immediately reflect the trimmed counts
+    //    without requiring a panel open/close cycle.
+    if (typeof updateLockedSub === 'function') {
+      try { updateLockedSub(); } catch (_) {}
+    }
+    if (typeof updateHiddenSub === 'function') {
+      try { updateHiddenSub(); } catch (_) {}
+    }
+
+    // 10. Trigger a timer-strip re-render so the focus tab shows only the 3 remaining
+    //     timer apps immediately. FocusTimers.render() reads S.limits (now refreshed).
+    if (typeof FocusTab !== 'undefined' && typeof FocusTab._refreshFocusData === 'function') {
+      try { FocusTab._refreshFocusData(); } catch (_) {}
+    }
+  }
+
+  /**
    * After a tier change (upgrade/downgrade), refresh all gated elements
    * that are currently in the DOM so they re-evaluate their state.
    */
@@ -445,8 +527,14 @@
         // Re-read from native cache (fast, synchronous). BillingManager will also
         // fire onProStatusChanged async once Play billing reconnects.
         const nativeStatus = !!AppBridge.getProStatus();
+        const wasProBeforeReverify = _isPro;
         _setIsPro(nativeStatus, 'foreground-reverify');
         _applyProClass();
+        // If Pro was revoked while the app was backgrounded, run the downgrade
+        // reset path immediately so features don't remain active on return.
+        if (wasProBeforeReverify && !nativeStatus) {
+          _handleProDowngrade();
+        }
         _refreshAllGates();
       } catch(e) { /* AppBridge not available in web preview */ }
     }

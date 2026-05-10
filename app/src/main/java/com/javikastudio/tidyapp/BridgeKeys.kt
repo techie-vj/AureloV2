@@ -114,10 +114,16 @@ const val BEDTIME_SNOOZE_COUNT        = "bedtime_snooze_count"
 const val BEDTIME_SNOOZE_UNTIL_TS     = "bedtime_snooze_until_ts"
 const val BEDTIME_SAVED_BRIGHTNESS    = "bedtime_saved_brightness"
 const val BEDTIME_APP_ATTEMPTS        = "bedtime_app_attempts"
-const val BEDTIME_LAST_NIGHT_KEPT     = "bedtime_last_night_kept"
-const val BEDTIME_LAST_NIGHT_SNOOZES  = "bedtime_last_night_snooze_count"
-const val BEDTIME_LAST_NIGHT_ATTEMPTS = "bedtime_last_night_attempts_total"
-const val BEDTIME_LAST_NIGHT_HAS_DATA = "bedtime_last_night_has_data"
+const val BEDTIME_LAST_NIGHT_KEPT          = "bedtime_last_night_kept"
+const val BEDTIME_LAST_NIGHT_SNOOZES       = "bedtime_last_night_snooze_count"
+const val BEDTIME_LAST_NIGHT_ATTEMPTS      = "bedtime_last_night_attempts_total"
+const val BEDTIME_LAST_NIGHT_HAS_DATA      = "bedtime_last_night_has_data"
+// Full per-app attempts JSON snapshot saved before clearAttempts() wipes it.
+// Lets postMorningSummary() show per-app names even when the engine ran stop() first.
+const val BEDTIME_LAST_NIGHT_ATTEMPTS_JSON = "bedtime_last_night_attempts_json"
+// Timestamp written when BEDTIME_WINDOWN fires; cleared on BEDTIME_ON.
+// Lets buildNotification() detect the wind-down phase and show a live filter progress bar.
+const val BEDTIME_WINDOWN_START_TS         = "bedtime_windown_start_ts"
 
 // ── Notifications ─────────────────────────────────────────────────────────
 const val NOTIF_CHANNEL_ID    = "tidy_alerts"

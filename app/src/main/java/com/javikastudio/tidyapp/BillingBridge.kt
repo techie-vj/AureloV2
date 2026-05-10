@@ -70,6 +70,18 @@ class BillingBridge(
                     webView.evaluateJavascript(js, null)
                 }
             }
+            // Trigger native-side Pro downgrade cleanup (widget theme, bedtime, HC,
+            // routines, app list trimming). This mirrors the JS _handleProDowngrade()
+            // path but runs synchronously from the native billing thread so cleanup
+            // happens even if the WebView hasn't fully initialised yet.
+            // The corresponding JS path (pro-gate.js _handleProDowngrade) also runs
+            // when onProStatusChanged fires — these two paths complement each other.
+            try {
+                // Reset widget theme to DEFAULT immediately
+                WidgetThemeManager.setTheme(context, WidgetTheme.DEFAULT)
+            } catch (e: Exception) {
+                android.util.Log.w("AureloBilling", "Widget theme reset failed: ${e.message}")
+            }
         }
     }
 

@@ -29,6 +29,12 @@ import android.widget.FrameLayout
  * priority queue — it is always a background layer.
  *
  * Thread-safety: all public methods must be called from the main thread.
+ *
+ * Gradual fade modes:
+ *   • gradual=true with default stepMs (~80 ms/step) → ~20 s fast fade (manual enable)
+ *   • gradual=true with a long stepMs (e.g. 18 s/step) → 30 min slow fade (bedtime wind-down)
+ * The [filterProgress] property (0.0–1.0) is exposed so callers like
+ * buildNotification() can render a live progress bar without coupling to internals.
  */
 class ScreenFilterEngine(
     private val context: Context,
@@ -41,10 +47,10 @@ class ScreenFilterEngine(
         const val FILTER_SETTINGS_KEY = "screen_filter_settings_v1"
         const val FILTER_ACTIVE_KEY   = "screen_filter_active"
 
-        // Fade-in/out step cadence (ms)
-        private const val FADE_STEP_MS = 80L
-        // Total gradual fade duration = FADE_STEPS * FADE_STEP_MS = ~20 s (250 steps)
-        private const val FADE_STEPS   = 250
+        // Default fast fade cadence (ms per alpha step) — ~20 s total for warm=80
+        private const val FADE_STEP_MS_DEFAULT = 80L
+        // Fade-out uses the same default fast cadence regardless of fade-in speed
+        private const val FADE_OUT_STEP_MS = 80L
     }
 
     private var filterView: FrameLayout? = null
@@ -58,23 +64,50 @@ class ScreenFilterEngine(
     private var targetWarm   = 0
     private var targetDim    = 0
     private var isShown      = false
-    private var isSuspended  = false  // true while view is detached for overlay coexistence
+    private var isSuspended  = false
     // isStopping: set true the instant stop() is called, cleared only in removeView().
-    // Makes isActive() return false immediately so the poll loop stops managing the filter
-    // and neither resumeFilter() nor update() can reattach/repaint the view during the
-    // fade-out window (which keeps isShown=true for up to 20 s).
     private var isStopping   = false
+
+    // Per-start fade cadence — set by start() to support both fast and slow fades.
+    // The fast default (80 ms) gives ~20 s for warm=80; the bedtime wind-down passes
+    // stepMs = 30*60*1000 / maxOf(warm, dim) so the full fade fills exactly 30 minutes.
+    private var fadeStepMs: Long = FADE_STEP_MS_DEFAULT
+
+    // ── Public read-only state ────────────────────────────────────────────────
+
+    /**
+     * Fraction of the target alpha that has been applied so far (0.0 – 1.0).
+     * During a gradual fade-in this increases from 0 to 1; during normal operation
+     * it is 1.0.  Returns 0.0 when the filter is inactive.
+     * Used by AppMonitorService.buildNotification() to draw a live progress bar
+     * during the bedtime wind-down phase without coupling to engine internals.
+     */
+    val filterProgress: Float
+        get() {
+            if (!isShown || isStopping) return 0f
+            val maxTarget = maxOf(targetWarm, targetDim)
+            if (maxTarget == 0) return 1f
+            val maxCurrent = maxOf(currentWarm, currentDim)
+            return (maxCurrent.toFloat() / maxTarget).coerceIn(0f, 1f)
+        }
 
     // ── Public API ────────────────────────────────────────────────────────────
 
     /**
-     * Show the filter overlay. If [gradual] is true, the warm and dim layers
-     * fade from 0 to their target values over ~20 seconds (mimicking f.lux).
+     * Show the filter overlay.
+     *
+     * @param warmAlpha  0–100 warm (orange) intensity
+     * @param dimAlpha   0–100 dim (black) intensity
+     * @param gradual    if true, alpha fades from 0 to target gradually
+     * @param stepMs     ms per alpha-unit increment during gradual fade.
+     *                   Default (~80 ms) → fast ~20 s fade (user-triggered).
+     *                   Pass [30*60*1000 / maxOf(warm,dim)] for a 30-min bedtime fade.
      */
-    fun start(warmAlpha: Int, dimAlpha: Int, gradual: Boolean = false) {
+    fun start(warmAlpha: Int, dimAlpha: Int, gradual: Boolean = false, stepMs: Long = FADE_STEP_MS_DEFAULT) {
         // Clear any in-progress fade-out so re-enabling during the fade works correctly.
         handler.removeCallbacksAndMessages(null)
         isStopping = false
+        fadeStepMs = stepMs.coerceAtLeast(1L)
 
         targetWarm = warmAlpha.coerceIn(0, 100)
         targetDim  = dimAlpha.coerceIn(0, 100)
@@ -103,9 +136,6 @@ class ScreenFilterEngine(
      * Update alpha values on a running filter. No fade — applies immediately.
      */
     fun update(warmAlpha: Int, dimAlpha: Int) {
-        // No-op when suspended (view detached) or stopping (fade in progress).
-        // Without the isStopping guard, the 500 ms poll loop would call update()
-        // with the saved alpha values and cancel the fade-out immediately.
         if (!isShown || isSuspended || isStopping) return
         handler.removeCallbacksAndMessages(null)
         targetWarm  = warmAlpha.coerceIn(0, 100)
@@ -116,14 +146,7 @@ class ScreenFilterEngine(
     }
 
     /**
-     * BUG 3 FIX: Detach the filter view from WindowManager while a blocking
-     * overlay (Focus / Bedtime / Timer / MindfulPause) is on screen.
-     *
-     * Setting alpha=0 and relying on FLAG_NOT_TOUCHABLE is insufficient on
-     * some Android versions: even a fully transparent TYPE_APPLICATION_OVERLAY
-     * window can disrupt touch routing to the interactive overlay above it,
-     * making buttons on the focus/bedtime card unresponsive. Detaching the view
-     * entirely guarantees zero interference.
+     * Detach the filter view from WindowManager while a blocking overlay is on screen.
      */
     fun suspend() {
         if (!isShown || isSuspended) return
@@ -134,12 +157,8 @@ class ScreenFilterEngine(
 
     /**
      * Re-attach the filter view after [suspend] and restore the last applied alpha.
-     * The caller should immediately follow with [update] to set the correct values.
      */
     fun resumeFilter() {
-        // isStopping guard: if stop() was called while the filter was suspended
-        // (e.g. during a focus session), we must NOT reattach the view when the
-        // focus overlay is dismissed — that would make a "disabled" filter reappear.
         if (!isShown || !isSuspended || isStopping) return
         isSuspended = false
         filterView?.let {
@@ -149,7 +168,7 @@ class ScreenFilterEngine(
     }
 
     /**
-     * Remove the filter overlay with optional fade-out over 5 seconds.
+     * Remove the filter overlay with optional fade-out over ~5 seconds (fast cadence).
      */
     fun stop(fadeOut: Boolean = true) {
         handler.removeCallbacksAndMessages(null)
@@ -157,16 +176,8 @@ class ScreenFilterEngine(
 
         if (!isShown) return
 
-        // Mark logically inactive NOW — before the fade — so isActive() returns false
-        // immediately and the poll loop stops calling update()/resumeFilter() on this
-        // engine. Without this, the poll loop would call update() with the saved alpha
-        // values on the very next 500 ms tick, resetting the alpha to full and cancelling
-        // the fade. Also prevents resumeFilter() from reattaching the view after a focus
-        // session ends while the filter is in the middle of fading out.
         isStopping = true
 
-        // Only run a visible fade when the view is actually attached to WM.
-        // If suspended (already detached by a blocking overlay), go straight to removeView().
         if (fadeOut && !isSuspended && (currentWarm > 0 || currentDim > 0)) {
             targetWarm = 0
             targetDim  = 0
@@ -195,12 +206,8 @@ class ScreenFilterEngine(
     // ── Private helpers ───────────────────────────────────────────────────────
 
     private fun buildView() {
-        if (filterView != null) return     // already attached
+        if (filterView != null) return
 
-        // Guard: TYPE_APPLICATION_OVERLAY requires SYSTEM_ALERT_WINDOW permission.
-        // Without it wm.addView() throws SecurityException, silently swallowed by
-        // callers but leaving isShown=true with no actual view — causing the
-        // "filter enabled but nothing visible" bug (Issue 6).
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M &&
             !android.provider.Settings.canDrawOverlays(context)) {
             android.util.Log.w("ScreenFilterEngine", "canDrawOverlays=false — filter skipped")
@@ -236,45 +243,36 @@ class ScreenFilterEngine(
         dimLayer?.setBackgroundColor(Color.argb(alphaFor(dim,  0.75f),   0,   0, 0))
     }
 
-    /** Convert 0–100 slider value to an 8-bit alpha (0–255). [maxFraction] caps the top. */
     private fun alphaFor(value: Int, maxFraction: Float): Int =
         (value / 100f * maxFraction * 255).toInt().coerceIn(0, 255)
 
-    // Gradual fade-in: increments by 1 each step
+    // Gradual fade-in: uses fadeStepMs so the same logic handles both fast (80ms)
+    // and slow (bedtime wind-down, e.g. ~18,000 ms/step) fades.
     private fun scheduleFadeStep() {
         handler.postDelayed({
             if (!isShown) return@postDelayed
-            val warmStep = (targetWarm - currentWarm).coerceAtLeast(0)
-            val dimStep  = (targetDim  - currentDim ).coerceAtLeast(0)
-            if (warmStep == 0 && dimStep == 0) return@postDelayed   // reached target
+            if (currentWarm >= targetWarm && currentDim >= targetDim) return@postDelayed
 
             currentWarm = (currentWarm + 1).coerceAtMost(targetWarm)
             currentDim  = (currentDim  + 1).coerceAtMost(targetDim)
             applyLayers(currentWarm, currentDim)
             scheduleFadeStep()
-        }, FADE_STEP_MS)
+        }, fadeStepMs)
     }
 
-    // Gradual fade-out: decrements by 1 each step then removes view
+    // Fast fade-out always uses FADE_OUT_STEP_MS — independent of the fade-in speed.
     private fun scheduleFadeOutStep() {
         handler.postDelayed({
-            // isStopping is the correct cancellation guard here — isShown stays true
-            // until removeView() is called at the very end of the fade, so it cannot
-            // serve as a cancellation signal (e.g. if start() is called mid-fade).
             if (!isStopping) return@postDelayed
             if (currentWarm <= 0 && currentDim <= 0) { removeView(); return@postDelayed }
             currentWarm = (currentWarm - 1).coerceAtLeast(0)
             currentDim  = (currentDim  - 1).coerceAtLeast(0)
             applyLayers(currentWarm, currentDim)
             scheduleFadeOutStep()
-        }, FADE_STEP_MS)
+        }, FADE_OUT_STEP_MS)
     }
 
     private fun removeView() {
-        // Always attempt wm.removeView() — don't skip when isSuspended.
-        // runCatching absorbs the harmless "not attached" exception when the view
-        // was already removed by suspend(). Clears isStopping so the engine can
-        // be restarted cleanly.
         filterView?.let { runCatching { wm.removeView(it) } }
         filterView  = null
         warmLayer   = null
@@ -294,7 +292,6 @@ class ScreenFilterEngine(
             WindowManager.LayoutParams.MATCH_PARENT,
             WindowManager.LayoutParams.MATCH_PARENT,
             type,
-            // Non-blocking: passes all touches through, never steals focus
             WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
                     WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
                     WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or

@@ -1179,5 +1179,24 @@ window.FocusRoutine = (function () {
     },
     fmt12h: _fmt12h,
     fmt12:  _fmt12,
+    /**
+     * Called by pro-gate.js when Pro subscription expires.
+     * Disables every routine (cancels native alarms) and persists the state.
+     * Routines are kept in storage so they can be re-enabled if Pro is restored.
+     */
+    cancelAllOnDowngrade: function () {
+      var anyActive = _routines.some(function (r) { return r.enabled; });
+      if (!anyActive) return;
+      _routines.forEach(function (r) {
+        if (!r.enabled) return;
+        r.enabled = false;
+        if (IS_NATIVE && typeof N.cancelRoutineAlarm === 'function') {
+          try { N.cancelRoutineAlarm(r.id); } catch (_) {}
+        }
+      });
+      _saveRoutines();
+      render();
+      if (typeof toast === 'function') toast('Focus schedules paused — upgrade to re-enable', 'info');
+    },
   };
 })();

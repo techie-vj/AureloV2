@@ -1285,5 +1285,15 @@ window.FocusBedtime = (function () {
       var body = document.getElementById('bt-card-body');
       if (body) body.style.display = 'block';
     },
+    /**
+     * Called by pro-gate.js when Pro subscription expires.
+     * Force-disables bedtime mode without the window-check nudge, cancels all
+     * native alarms, stops any active block, and persists the disabled state.
+     * Safe to call even when bedtime was already off.
+     */
+    disableOnDowngrade: function () {
+      if (!S.settings.bedtime) return; // already off — nothing to do
+      _doDisableBedtime();
+    },
   };
 })();

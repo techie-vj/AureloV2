@@ -1075,6 +1075,29 @@ window.FocusTab = (function () {
     /* Misc */
     shareCard: typeof shareCard !== 'undefined' ? shareCard : function () {},
     updateFocusSubheader: _updateFocusSubheader,
+
+    /**
+     * Called by pro-gate.js after Pro subscription expires.
+     * Re-reads the (already native-trimmed) focus blocked apps list, enforces
+     * the free-tier 3-app ceiling in both native storage and the JS-side
+     * in-memory array, then refreshes the session UI chips so the user sees
+     * only the permitted apps without having to switch tabs.
+     */
+    reloadBlockedAppsOnDowngrade: function () {
+      if (_focusSessionActive) return; // never mutate a live session
+      _loadFocusBlockedApps(); // re-reads from native (already trimmed to 3 by AppBridge.handleProDowngrade)
+      // Belt-and-suspenders: if more than 3 somehow slipped through, trim JS copy too
+      var FREE_LIMIT = typeof ProTier !== 'undefined' ? ProTier.getLimit('FOCUS_APPS_UNLIMITED') : 3;
+      if (_focusBlockedApps.length > FREE_LIMIT) {
+        _focusBlockedApps = _focusBlockedApps.slice(0, FREE_LIMIT);
+        _saveFocusBlockedApps();
+      }
+      // Refresh session picker chips so the trimmed list is shown immediately
+      if (typeof _refreshFocusChips === 'function') _refreshFocusChips();
+      else if (typeof _renderSessionIdle === 'function') _renderSessionIdle();
+    },
+
+    _refreshFocusData,
   };
   // aurelo-pro-changed is dispatched by app-core.js's onProStatusChanged handler
   // immediately after renderAll(). This covers the case where the focus tab is active

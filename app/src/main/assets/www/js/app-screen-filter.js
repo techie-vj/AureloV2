@@ -102,6 +102,20 @@ window.ScreenFilter = (function () {
 
   var _cfg = null, _cacheTs = 0, _TTL = 2000, _dirty = false;
 
+  // Bug 3 fix: cache packageName → appName so _pkgLabel() returns real app names
+  var _appNameCache = {};
+  function _ensureAppNameCache() {
+    if (Object.keys(_appNameCache).length > 0) return;
+    try {
+      if (IS_NATIVE && typeof N.getCachedApps === 'function') {
+        var _apps = JSON.parse(N.getCachedApps() || '[]');
+        _apps.forEach(function (a) {
+          if (a.packageName && a.name) _appNameCache[a.packageName] = a.name;
+        });
+      }
+    } catch (_) {}
+  }
+
   /* ── Config ──────────────────────────────────────────────── */
   function _defaults() {
     return {
@@ -457,8 +471,13 @@ window.ScreenFilter = (function () {
     if (wasDirty) _markDirty();
   }
 
-  /* ── Excluded apps HTML — bedtime-style: 5 chips + overflow ── */
+  /* ── Excluded apps HTML — bedtime-style: 5 chips (Pro) / 3 chips (free) + overflow ── */
   function _buildExcludedAppsHtml(apps) {
+    var isPro   = typeof ProTier !== 'undefined' && ProTier.isPro;
+    // Bug 2 fix: free users are limited to 3 excluded apps (same ceiling as other
+    // app-list features).  Pro users keep the previous limit of 5 visible chips.
+    var maxChips = isPro ? 5 : 3;
+
     var nonCam = apps.filter(function (p) { return CAMERA_PKGS.indexOf(p) === -1; });
     var chips  = '';
 
@@ -469,8 +488,8 @@ window.ScreenFilter = (function () {
         '<span class="sf-excl-auto">auto</span>' +
       '</div>';
 
-    // Show first 5 user-added apps
-    nonCam.slice(0, 5).forEach(function (pkg) {
+    // Show first maxChips user-added apps
+    nonCam.slice(0, maxChips).forEach(function (pkg) {
       chips +=
         '<div class="sf-excl-chip">' +
           '<span class="sf-excl-lbl">' + _pkgLabel(pkg) + '</span>' +
@@ -479,12 +498,12 @@ window.ScreenFilter = (function () {
     });
 
     // Overflow chip — tapping opens panel with "Selected" filter pre-active
-    if (nonCam.length > 5) {
+    if (nonCam.length > maxChips) {
       chips +=
         '<div class="sf-excl-chip sf-excl-overflow" onclick="ScreenFilter._addExcluded(true)" ' +
           'style="background:var(--s2,rgba(255,255,255,.04));border-color:var(--border2);' +
           'color:var(--t3);font-family:var(--ff-m);font-size:var(--text-2xs);' +
-          'font-weight:700;cursor:pointer">+' + (nonCam.length - 5) + ' more</div>';
+          'font-weight:700;cursor:pointer">+' + (nonCam.length - maxChips) + ' more</div>';
     }
 
     return (
@@ -497,6 +516,12 @@ window.ScreenFilter = (function () {
   }
 
   function _pkgLabel(pkg) {
+    // Bug 3 fix: use real app name from the cached app list instead of
+    // deriving a label from the last segment of the package name (which
+    // produced labels like "Android" for com.instagram.android, etc.).
+    _ensureAppNameCache();
+    if (_appNameCache[pkg]) return _appNameCache[pkg];
+    // Fallback: capitalise last package segment (browser preview / cache miss)
     var parts = pkg.split('.');
     var last   = parts[parts.length - 1];
     return last.charAt(0).toUpperCase() + last.slice(1);
@@ -1230,7 +1255,48 @@ window.ScreenFilter = (function () {
     _filterExclPanel: _filterExclPanel,
     _dismissExclPanel: _dismissExclPanel,
     _saveExclPanel: _saveExclPanel,
-    _save: _save, _discard: _discard
+    _save: _save, _discard: _discard,
+    /**
+     * Called by pro-gate.js when Pro subscription expires.
+     * Turns off the screen filter (including active schedule) and persists the
+     * disabled state. Safe to call when the filter is already off.
+     *
+     * Bug 1 fix: also resets cfg.schedule to 'none' so the "Automatic (Sun-based)"
+     * and "Scheduled (Custom times)" Pro-only radio buttons no longer appear
+     * selected after downgrade — they fall back to "Manual (Always On)".
+     *
+     * Bug 2 fix: trims cfg.excludedApps to the free-tier ceiling of 3 apps so the
+     * excluded-apps chip row never shows more than 3 entries for free users.
+     */
+    disableOnDowngrade: function () {
+      var cfg = getCfg();
+      // Determine whether anything actually needs resetting before early-return.
+      var needsScheduleReset  = cfg.schedule !== 'none';
+      var needsAppsTrip       = (cfg.excludedApps || []).filter(function (p) {
+        return CAMERA_PKGS.indexOf(p) === -1;
+      }).length > 3;
+
+      if (!cfg.enabled && !needsScheduleReset && !needsAppsTrip) return; // already fully reset
+
+      cfg.enabled  = false;
+      cfg.paused   = false;
+
+      // Bug 1 fix: revert Pro-only schedule modes → 'none' (Manual / Always On)
+      cfg.schedule = 'none';
+
+      // Bug 2 fix: trim non-camera excluded apps to the free-tier limit of 3
+      var nonCam = (cfg.excludedApps || []).filter(function (p) {
+        return CAMERA_PKGS.indexOf(p) === -1;
+      });
+      cfg.excludedApps = nonCam.slice(0, 3);
+
+      _stopSchedule();
+      if (IS_NATIVE) {
+        try { if (typeof N.removeScreenFilter === 'function') N.removeScreenFilter(); } catch (_) {}
+      }
+      saveCfg(cfg);
+      render();
+    },
   };
 }());
 
