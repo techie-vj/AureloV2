@@ -48,6 +48,27 @@ class AppBridge(private val context: Context, private val webView: WebView) {
     private val entitlementRepo = EntitlementRepository(context)
     private val billingManager = BillingManager(context, object : BillingManager.BillingListener {
         override fun onProStatusChanged(isPro: Boolean) {
+            // ── Grace-period guard (DOWNGRADE-FIX) ───────────────────────────────
+            // queryExistingPurchases() fires on every cold start and on every
+            // onAppForegrounded() call. Google Play can return an empty purchase list
+            // transiently during Play service warm-up, after a reboot, or when offline.
+            // Without a guard this emits onProStatusChanged(false) while wasPro=true,
+            // immediately triggering handleProDowngrade() and nuking bedtime alarms,
+            // Health Connect, routines, and app-list ceilings for a confirmed Pro user.
+            //
+            // If billing says "not Pro" but we positively confirmed Pro within the last
+            // 72 h (REVOCATION_GRACE_MS), treat this as a transient Play miss: skip the
+            // cache write, skip the JS notification, and skip all downgrade cleanup.
+            // Billing will call us again on the next foreground event; if the subscription
+            // is genuinely lapsed it will confirm false again once the grace window expires.
+            if (!isPro && entitlementRepo.isPro && entitlementRepo.isWithinRevocationGrace()) {
+                android.util.Log.d("AureloBilling",
+                    "onProStatusChanged(false) suppressed — within 72 h revocation grace window. " +
+                    "lastProConfirmed=${entitlementRepo.lastProConfirmedMs}")
+                return
+            }
+            // ── End grace-period guard ────────────────────────────────────────────
+
             // Capture previous state BEFORE updating so we can detect the Pro→Free transition.
             val wasPro = entitlementRepo.isPro
             entitlementRepo.setProStatus(isPro)

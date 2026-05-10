@@ -1130,7 +1130,7 @@ window.FocusBedtime = (function () {
                 var sfAutoApply = (typeof ScreenFilter !== 'undefined' && ScreenFilter.getCfg().bedtimeAutoApply);
                 var sfCfg = (typeof ScreenFilter !== 'undefined') ? ScreenFilter.getCfg() : {};
                 return (
-                  '<div class="sf-bt-row" style="padding:11px 14px;border-top:1px solid var(--border)" onclick="event.stopPropagation()">' +
+                  '<div class="sf-bt-row" style="display:flex;align-items:center;gap:12px;padding:11px 14px;border-top:1px solid var(--border)" onclick="event.stopPropagation()">' +
                     '<div style="font-size:16px">🌊</div>' +
                     '<div style="flex:1;margin-left:12px">' +
                       '<div style="font-size:12px;font-weight:600;color:var(--t1)">Screen Filter</div>' +

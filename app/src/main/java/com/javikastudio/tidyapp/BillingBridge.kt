@@ -28,7 +28,7 @@ class BillingBridge(
     // can forward the real plan to the referral system instead of a hardcoded "monthly".
     @Volatile private var _activatedPlan: String = "monthly"
 
-    /** Called by AppBridge’s BillingListener.onPlanActivated — keeps _activatedPlan in sync. */
+    /** Called by AppBridge's BillingListener.onPlanActivated — keeps _activatedPlan in sync. */
     fun recordActivatedPlan(plan: String) {
         _activatedPlan = plan
         // Persist so the value survives process death between billing confirmation and
@@ -38,6 +38,19 @@ class BillingBridge(
 
     @JavascriptInterface fun isProUser(): Boolean = entitlementRepo.isPro
 
+    /**
+     * Called from AppBridge when JS invokes Android.setProUser(isPro).
+     *
+     * isPro = true  → grant Pro: update widget, cancel extension expiry, notify referral.
+     * isPro = false → subscription lapsed via JS-initiated path:
+     *   1. Check if banked referral extension days exist — if so, activate them and keep
+     *      the user Pro for the extension period. Do NOT reset theme or run cleanup.
+     *   2. If no extension, reset widget theme to the free default. Full feature cleanup
+     *      (bedtime, routines, HC, app-list trimming, screen filter) is handled by JS
+     *      pro-gate.js _handleProDowngrade() → window.AppBridge.handleProDowngrade().
+     *      The billing-detection path (AppBridge.billingManager.onProStatusChanged false)
+     *      handles the same cleanup natively for cases where JS cannot call it.
+     */
     fun setProUser(isPro: Boolean) {
         entitlementRepo.setProStatus(isPro)
 
@@ -50,37 +63,42 @@ class BillingBridge(
             val plan = prefs.getString(BILLING_ACTIVE_PLAN, null) ?: _activatedPlan
             referralBridge?.onThisUserConvertedToPro(plan)
         } else {
-            // Subscription has lapsed — check if referral extension days have been banked.
+            // Subscription has lapsed (JS-initiated path) — check for banked referral
+            // extension days. activateExtensionOnLapse() is idempotent: safe to call even
+            // if the billing-detection path in AppBridge already activated the extension.
             val extensionDays = ReferralManager.activateExtensionOnLapse(prefs)
             if (extensionDays > 0) {
                 // Extension activated — keep IS_PRO_USER = true for the extension period.
+                // User retains Pro status (and Pro theme) while the extension is active.
                 prefs.edit().putBoolean(IS_PRO_USER, true).apply()
                 android.util.Log.d("AureloReferral",
-                    "Subscription lapsed — referral extension activated: $extensionDays days")
+                    "Subscription lapsed (JS path) — referral extension activated: $extensionDays days")
 
-                // BUG-06 FIX: schedule a one-time worker that fires when the extension
-                // expires and revokes Pro access. Without this, the extension runs
-                // indefinitely until the user opens the app and billing re-queries.
+                // BUG-06 FIX: schedule the one-time expiry worker so Pro is revoked
+                // automatically when the extension window closes.
                 ReferralExtensionWorker.scheduleExpiry(context)
 
-                // Notify JS so it can refresh Pro UI with extension banner
+                // Notify JS so it can show the extension banner
                 val js = "if(typeof window.onReferralExtensionActivated==='function')" +
                         "window.onReferralExtensionActivated($extensionDays);"
                 android.os.Handler(android.os.Looper.getMainLooper()).post {
                     webView.evaluateJavascript(js, null)
                 }
-            }
-            // Trigger native-side Pro downgrade cleanup (widget theme, bedtime, HC,
-            // routines, app list trimming). This mirrors the JS _handleProDowngrade()
-            // path but runs synchronously from the native billing thread so cleanup
-            // happens even if the WebView hasn't fully initialised yet.
-            // The corresponding JS path (pro-gate.js _handleProDowngrade) also runs
-            // when onProStatusChanged fires — these two paths complement each other.
-            try {
-                // Reset widget theme to DEFAULT immediately
-                WidgetThemeManager.setTheme(context, WidgetTheme.DEFAULT)
-            } catch (e: Exception) {
-                android.util.Log.w("AureloBilling", "Widget theme reset failed: ${e.message}")
+
+                // EXTENSION ACTIVE — do NOT reset widget theme or run downgrade cleanup.
+                // The user is still effectively Pro during the extension period.
+
+            } else {
+                // No extension days banked — user is fully downgraded to free tier.
+                // Reset widget theme to the free default immediately.
+                // Full feature cleanup (bedtime, routines, HC, app lists, screen filter)
+                // is triggered by JS: pro-gate.js _handleProDowngrade() calls
+                // window.AppBridge.handleProDowngrade() on the JS-initiated path.
+                try {
+                    WidgetThemeManager.setTheme(context, WidgetTheme.DEFAULT)
+                } catch (e: Exception) {
+                    android.util.Log.w("AureloBilling", "Widget theme reset failed: ${e.message}")
+                }
             }
         }
     }
