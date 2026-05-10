@@ -251,7 +251,7 @@ const Referral = (() => {
     if (typeof toast === 'function') toast('Link copied to clipboard', 'success');
   }
 
-  function shareLink() {
+  async function shareLink() {
     if (!_link) return;
     const shareText = `I gifted you 21 days of Aurelo Pro! 🎁.\nIt’s the perfect headstart to build better screen time habits and actually stick to them.\n👉 ${_link}`;
 
@@ -259,7 +259,7 @@ const Referral = (() => {
     // Feature Reference §12.10 and §13.1 specify a "visually designed share card".
     // Now we render a canvas card and share it as an image + text via N.shareImageWithText().
     if (IS_NATIVE && typeof N.shareImageWithText === 'function') {
-      _renderShareCard(shareText);
+      await _renderShareCard(shareText);
     } else if (IS_NATIVE && typeof N.shareText === 'function') {
       N.shareText(shareText);
       _afterShare();
@@ -275,9 +275,11 @@ const Referral = (() => {
    * BUG-09 FIX: Render the referral share card on a canvas element and share
    * as a 1080×1080 image + caption, matching the style of other Aurelo score cards
    * described in Feature Reference §13.1.
+   * Uses _shareDrawHeader / _shareDrawFooter from app-share-utils.js for consistency.
    */
-  function _renderShareCard(shareText) {
+  async function _renderShareCard(shareText) {
     const SIZE = 1080;
+    const FONT_M = "'Bodoni Moda', Georgia, serif";
     const canvas = document.createElement('canvas');
     canvas.width  = SIZE;
     canvas.height = SIZE;
@@ -291,41 +293,86 @@ const Referral = (() => {
     ctx.fillStyle = bg;
     ctx.fillRect(0, 0, SIZE, SIZE);
 
-    // Aurelo arch wordmark header
-    ctx.font        = 'bold 48px serif';
-    ctx.fillStyle   = '#FFFFFF';
-    ctx.textAlign   = 'center';
-    ctx.fillText('AURELO', SIZE / 2, 90);
+    // ── Header: resolve icon + use shared wordmark utility ──────────────────
+    const icon = (typeof _shareResolveIcon === 'function') ? await _shareResolveIcon() : null;
+    if (typeof _shareDrawHeader === 'function') {
+      _shareDrawHeader(ctx, icon, 'Refer a Friend');
+    } else {
+      // Fallback if utils not loaded yet
+      ctx.font        = `bold 48px ${FONT_M}`;
+      ctx.fillStyle   = '#FFFFFF';
+      ctx.textAlign   = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('AURELO', SIZE / 2, 90);
+    }
 
-    // Referral gift icon
-    ctx.font      = '160px serif';
-    ctx.fillText('🎁', SIZE / 2, 350);
+    // ── Referral gift icon ───────────────────────────────────────────────────
+    ctx.font         = '150px serif';
+    ctx.textAlign    = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('🎁', SIZE / 2, 330);
 
-    // Headline
-    ctx.font      = 'bold 72px sans-serif';
+    // ── Headline ─────────────────────────────────────────────────────────────
+    ctx.font      = `bold 68px ${FONT_M}`;
     ctx.fillStyle = '#12D48A';
-    ctx.fillText('Try 21 days free', SIZE / 2, 490);
+    ctx.fillText('Try 21 days free', SIZE / 2, 470);
 
-    // Sub-headline
-    ctx.font      = '42px sans-serif';
-    ctx.fillStyle = 'rgba(255,255,255,0.75)';
-    ctx.fillText('Build better digital habits with Aurelo Pro', SIZE / 2, 570);
+    // ── Sub-headline ─────────────────────────────────────────────────────────
+    ctx.font      = `400 36px ${FONT_M}`;
+    ctx.fillStyle = 'rgba(255,255,255,0.70)';
+    ctx.fillText('Build better digital habits', SIZE / 2, 540);
+    ctx.fillText('with Aurelo Pro', SIZE / 2, 586);
 
-    // Link box
-    const boxY = 640, boxH = 90, boxPad = 60;
-    ctx.fillStyle   = 'rgba(255,255,255,0.08)';
-    _roundRect(ctx, boxPad, boxY, SIZE - boxPad * 2, boxH, 20);
-    ctx.fill();
-    ctx.font        = '34px monospace';
-    ctx.fillStyle   = 'rgba(255,255,255,0.6)';
-    const maxLinkLen = 52;
-    const displayLink = _link.length > maxLinkLen ? _link.slice(0, maxLinkLen) + '…' : _link;
-    ctx.fillText(displayLink, SIZE / 2, boxY + 57);
+    // ── Referral code block (extracted from link) ────────────────────────────
+    const codeMatch = _link
+      ? (_link.match(/[?&]referral[_=]([^&]+)/) || _link.match(/[?&]ref=([^&]+)/))
+      : null;
+    const refCode = codeMatch ? decodeURIComponent(codeMatch[1]) : null;
 
-    // Footer
-    ctx.font      = '32px sans-serif';
-    ctx.fillStyle = 'rgba(255,255,255,0.4)';
-    ctx.fillText('javikastudio.com/aurelo', SIZE / 2, 990);
+    if (refCode) {
+      const codeBoxW = 500, codeBoxH = 80, codeBoxX = (SIZE - codeBoxW) / 2, codeBoxY = 636;
+      _roundRect(ctx, codeBoxX, codeBoxY, codeBoxW, codeBoxH, 18);
+      ctx.fillStyle = 'rgba(18,212,138,0.12)'; ctx.fill();
+      ctx.strokeStyle = 'rgba(18,212,138,0.40)'; ctx.lineWidth = 1.5; ctx.stroke();
+      ctx.fillStyle   = 'rgba(160,220,200,0.65)';
+      ctx.font        = `400 22px ${FONT_M}`;
+      ctx.textAlign   = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText('Use my referral code', SIZE / 2, codeBoxY + 26);
+      ctx.fillStyle = '#12D48A';
+      ctx.font      = `bold 30px ${FONT_M}`;
+      ctx.fillText(refCode, SIZE / 2, codeBoxY + 60);
+    }
+
+    // ── Link box — full URL, wrapped across two lines if needed ──────────────
+    const linkBoxPad = 60, linkBoxY = refCode ? 748 : 660, linkBoxH = 80;
+    const linkBoxW   = SIZE - linkBoxPad * 2;
+    _roundRect(ctx, linkBoxPad, linkBoxY, linkBoxW, linkBoxH, 20);
+    ctx.fillStyle = 'rgba(255,255,255,0.07)'; ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.10)'; ctx.lineWidth = 1; ctx.stroke();
+
+    // Split link into two lines at the '?' boundary so params wrap cleanly
+    ctx.font      = `400 26px ${FONT_M}`;
+    ctx.fillStyle = 'rgba(255,255,255,0.55)';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    const qIdx = _link ? _link.indexOf('?') : -1;
+    if (qIdx > -1 && _link.length > 50) {
+      const part1 = _link.slice(0, qIdx);
+      const part2 = _link.slice(qIdx);
+      ctx.fillText(part1, SIZE / 2, linkBoxY + 28);
+      ctx.fillText(part2, SIZE / 2, linkBoxY + 58);
+    } else {
+      ctx.fillText(_link || '', SIZE / 2, linkBoxY + linkBoxH / 2);
+    }
+
+    // ── Footer: use shared utility for consistency ───────────────────────────
+    if (typeof _shareDrawFooter === 'function') {
+      _shareDrawFooter(ctx, SIZE);
+    } else {
+      ctx.font      = `400 28px ${FONT_M}`;
+      ctx.fillStyle = 'rgba(255,255,255,0.35)';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText('Available on Google Play', SIZE / 2, SIZE - 48);
+    }
 
     const base64 = canvas.toDataURL('image/png').split(',')[1];
     if (base64) {

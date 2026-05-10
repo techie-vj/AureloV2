@@ -745,19 +745,18 @@ function _updateSettingsIdentityCard(isPro) {
     proSlot.innerHTML = '';
   } else {
     proSlot.innerHTML = `
-      <div onclick="event.stopPropagation();ProUpsell.show('upgrade_pro')"
-        style="display:flex;align-items:center;gap:8px;
-        margin-top:10px;padding:10px 14px;border-radius:12px;
-        background:linear-gradient(135deg,rgba(124,111,247,.15),rgba(155,111,255,.08));
-        border:1px solid rgba(124,111,247,.3);cursor:pointer;
-        transition:opacity .2s" onmousedown="this.style.opacity='.8'" onmouseup="this.style.opacity='1'">
-        <span style="font-size:14px">✦</span>
+      <div class="sr sr-pro" onclick="event.stopPropagation();ProUpsell.show('upgrade_pro')"
+        onmousedown="this.style.opacity='.8'" onmouseup="this.style.opacity='1'">
+        <div class="sr-ico">✦</div>
         <div style="flex:1">
-          <div style="font-size:12px;font-weight:700;color:#c4c0ff;line-height:1.2">Upgrade to Pro</div>
-          <div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:#7c6ff7;margin-top:1px">Unlock all features · tap to see plans</div>
+          <div class="sr-pro-title">Coach, History & Bedtime — Go Pro</div>
+          <div class="sr-pro-pills">
+            <span class="sr-pro-pill green">AI Coach</span>
+            <span class="sr-pro-pill purple">Score History</span>
+            <span class="sr-pro-pill purple">Health Connect</span>
+            <span class="sr-pro-pill green">& more →</span>
+          </div>
         </div>
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#7c6ff7" stroke-width="2.5"
-          stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
       </div>`;
   }
 }
