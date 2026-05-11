@@ -493,15 +493,19 @@ class AppMonitorService : Service() {
     private fun startWindDownFilter() {
         val sfRaw = prefs.getString(SCREEN_FILTER_SETTINGS_V1, null)
         val sfCfg = if (!sfRaw.isNullOrBlank()) runCatching { org.json.JSONObject(sfRaw) }.getOrNull() else null
-        // FIX-1: Gate 1 — bedtimeAutoApply must be true (user opted in to filter-with-bedtime).
+        // CB-014 FIX: bedtime auto-filter is PRO-only.
+        if (!prefs.getBoolean(IS_PRO_USER, false)) return
         if (sfCfg?.optBoolean("bedtimeAutoApply", true) == false) return
-        // FIX-1: Gate 2 — fadeIn must be true. If the user turned off the
-        // "Fade in 30 min before bedtime" toggle, don't show anything during
-        // wind-down; the filter will start at full intensity at BEDTIME_ON instead.
         if (sfCfg?.optBoolean("fadeIn", true) == false) return
         val (w, d)  = windDownPresetAlpha(sfCfg)
         val stepMs  = (WINDOWN_DURATION_MS / maxOf(w, d, 1).toLong()).coerceAtLeast(1L)
-        filterEngine.start(w, d, gradual = true, stepMs = stepMs)
+        // SF-012 / SF-013: resolve preset colour for the wind-down filter.
+        val wdPreset = sfCfg?.optString("bedtimePreset", ScreenFilterEngine.PRESET_WARM) ?: ScreenFilterEngine.PRESET_WARM
+        val wdCustR  = sfCfg?.optInt("bedtimeCustomR", 255) ?: 255
+        val wdCustG  = sfCfg?.optInt("bedtimeCustomG", 100) ?: 100
+        val wdCustB  = sfCfg?.optInt("bedtimeCustomB", 0)   ?: 0
+        filterEngine.start(w, d, gradual = true, stepMs = stepMs,
+            preset = wdPreset, customR = wdCustR, customG = wdCustG, customB = wdCustB)
         prefs.edit().putBoolean(SCREEN_FILTER_ACTIVE, true).apply()
     }
 
@@ -512,8 +516,9 @@ class AppMonitorService : Service() {
     private fun restartWindDownFilter(now: Long, windDownStartTs: Long) {
         val sfRaw = prefs.getString(SCREEN_FILTER_SETTINGS_V1, null)
         val sfCfg = if (!sfRaw.isNullOrBlank()) runCatching { org.json.JSONObject(sfRaw) }.getOrNull() else null
+        // CB-014 FIX: PRO gate mirrors startWindDownFilter.
+        if (!prefs.getBoolean(IS_PRO_USER, false)) return
         if (sfCfg?.optBoolean("bedtimeAutoApply", true) == false) return
-        // FIX-1: mirror startWindDownFilter — no filter restart after snooze when fadeIn=false.
         if (sfCfg?.optBoolean("fadeIn", true) == false) return
         val (w, d)      = windDownPresetAlpha(sfCfg)
         val elapsedMs   = (now - windDownStartTs).coerceIn(0L, WINDOWN_DURATION_MS)
@@ -525,7 +530,13 @@ class AppMonitorService : Service() {
             (d * (1f - startAlphaFraction)).toInt(),
             1
         ).toLong()).coerceAtLeast(1L)
-        filterEngine.start(w, d, gradual = true, stepMs = stepMs)
+        // SF-012 / SF-013: resolve preset colour for the resumed wind-down filter.
+        val rwdPreset = sfCfg?.optString("bedtimePreset", ScreenFilterEngine.PRESET_WARM) ?: ScreenFilterEngine.PRESET_WARM
+        val rwdCustR  = sfCfg?.optInt("bedtimeCustomR", 255) ?: 255
+        val rwdCustG  = sfCfg?.optInt("bedtimeCustomG", 100) ?: 100
+        val rwdCustB  = sfCfg?.optInt("bedtimeCustomB", 0)   ?: 0
+        filterEngine.start(w, d, gradual = true, stepMs = stepMs,
+            preset = rwdPreset, customR = rwdCustR, customG = rwdCustG, customB = rwdCustB)
         prefs.edit().putBoolean(SCREEN_FILTER_ACTIVE, true).apply()
     }
 
@@ -533,6 +544,8 @@ class AppMonitorService : Service() {
         when (sfCfg?.optString("bedtimePreset", "bedtime") ?: "bedtime") {
             "soft"   -> Pair(40, 15)
             "medium" -> Pair(65, 30)
+            // SF-012: "night" preset — deep-red colour resolved in ScreenFilterEngine.
+            "night"  -> Pair(80, 45)
             else     -> Pair(80, 45)   // "bedtime" / default
         }
 

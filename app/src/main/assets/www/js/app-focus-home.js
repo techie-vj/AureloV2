@@ -750,6 +750,40 @@ window.FocusHome = (function () {
       return;
     }
 
+    // Tier 1b: screen filter active — priority immediately after bedtime.
+    // Shown only when bedtime is not active to avoid visual duplication.
+    if (!inWindow) {
+      var _sfShown = false;
+      if (typeof ScreenFilter !== 'undefined') {
+        try {
+          var sfCfg    = ScreenFilter.getCfg();
+          var sfActive = IS_NATIVE && typeof N.isScreenFilterActive === 'function'
+            ? !!N.isScreenFilterActive()
+            : (sfCfg.enabled && !sfCfg.paused);
+          if (sfActive) {
+            var presetLbl = { soft: 'Soft', medium: 'Medium', bedtime: 'Bedtime', custom: 'Custom' }[sfCfg.preset] || 'On';
+            var endLbl    = typeof ScreenFilter.getEndStr === 'function'
+              ? ScreenFilter.getEndStr(sfCfg) : 'Active';
+            var sfNav     = "FocusTab._switchFocusSubTab('habits');activateTab('focus')";
+            var pCyan     = { bg: 'rgba(5,200,232,.09)', icon: 'rgba(5,200,232,.18)', border: 'rgba(5,200,232,.26)', text: '#05C8E8', dot: 'rgba(5,200,232,.7)' };
+            var presetBadge = '<span style="font-family:var(--ff-m);font-size:9px;font-weight:700;' +
+              'padding:1px 6px;border-radius:4px;background:rgba(5,200,232,.15);color:#05C8E8;margin-left:5px">' +
+              presetLbl + '</span>';
+            var offBtn = '<div onclick="event.stopPropagation();if(typeof ScreenFilter!==undefined)ScreenFilter._togMaster()" ' +
+              'style="font-family:var(--ff-m);font-size:var(--text-2xs);font-weight:700;' +
+              'color:rgba(5,200,232,.9);border:1px solid rgba(5,200,232,.3);border-radius:8px;' +
+              'padding:5px 10px;cursor:pointer;white-space:nowrap;background:rgba(5,200,232,.08);flex-shrink:0">Off</div>';
+            el.innerHTML = _card(pCyan, sfNav,
+              _icon('\uD83C\uDF0A', pCyan) +
+              _content('Screen Filter Active' + presetBadge, endLbl) +
+              offBtn);
+            _sfShown = true;
+          }
+        } catch (_) {}
+      }
+      if (_sfShown) return;
+    }
+
     // Tier 2a: wind-down — 60 min before bedtime
     if (cfg.enabled) {
       var minsUntil = (bedH - nowH) * 60; if (minsUntil < 0) minsUntil += 1440;
