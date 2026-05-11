@@ -160,6 +160,10 @@ class BedtimeBlockingEngine(
         isActive = false; blockedPkgs = emptySet(); blockedAppNames = emptyMap()
         allowedPkg = ""; allowedUntilTs = 0L; snoozedUntilTs = 0L; allowedAppIsInFg = false
 
+        // BUG-3 FIX: cancel any pending BEDTIME_SNOOZE_EXPIRE alarm so it cannot
+        // fire and re-enable DND after the user presses "Turn Off" from the notification.
+        cancelSnoozeExpireAlarm()
+
         val snoozeCount       = prefs.getInt("bedtime_snooze_count", 0)
         val attemptsTotal     = sumAttempts()
         // ISSUE-5 FIX: capture JSON BEFORE clearAttempts() wipes it
@@ -236,6 +240,26 @@ class BedtimeBlockingEngine(
                 am.setExactAndAllowWhileIdle(android.app.AlarmManager.RTC_WAKEUP, triggerAtMs, pi)
             else
                 am.setExact(android.app.AlarmManager.RTC_WAKEUP, triggerAtMs, pi)
+        }
+    }
+
+    /** BUG-3 FIX: cancel a previously scheduled BEDTIME_SNOOZE_EXPIRE alarm.
+     *  Called from [stop] so pressing "Turn Off" from the notification prevents
+     *  the snooze timer from re-enabling DND 15 minutes later. */
+    private fun cancelSnoozeExpireAlarm() {
+        runCatching {
+            val am = h.context.getSystemService(Context.ALARM_SERVICE) as android.app.AlarmManager
+            val flags = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M)
+                android.app.PendingIntent.FLAG_IMMUTABLE or android.app.PendingIntent.FLAG_NO_CREATE
+            else
+                android.app.PendingIntent.FLAG_NO_CREATE
+            val pi = android.app.PendingIntent.getBroadcast(
+                h.context, 7005,
+                android.content.Intent("${h.packageName}.BEDTIME_SNOOZE_EXPIRE")
+                    .apply { setPackage(h.packageName) },
+                flags
+            )
+            pi?.let { am.cancel(it) }
         }
     }
 

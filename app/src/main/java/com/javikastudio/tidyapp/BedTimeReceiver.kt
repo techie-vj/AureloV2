@@ -33,6 +33,9 @@ class BedtimeReceiver : BroadcastReceiver() {
                 prefs.edit()
                     .putLong(BEDTIME_WINDOWN_START_TS, 0L)
                     .putLong(BEDTIME_WINDOWN_SNOOZE_UNTIL_TS, 0L)
+                    // BUG-2 FIX: clear the exact bedtime epoch; it is no longer needed
+                    // now that bedtime has started (the wind-down countdown is gone).
+                    .putLong(BEDTIME_STARTS_AT_MS, 0L)
                     .apply()
 
                 // Dismiss the old static wind-down notification (ID 7003) if it somehow persists
@@ -266,6 +269,14 @@ class BedtimeReceiver : BroadcastReceiver() {
             // ── BEDTIME_SNOOZE_EXPIRE ─────────────────────────────────────────
             "${ctx.packageName}.BEDTIME_SNOOZE_EXPIRE" -> {
                 prefs.edit().putLong(BEDTIME_SNOOZE_UNTIL_TS, 0L).apply()
+
+                // BUG-3 FIX: If the user pressed "Turn Off" from the bedtime notification
+                // while a snooze was still pending, BEDTIME_BLOCK_ACTIVE is now false and
+                // BEDTIME_SKIPPED_TONIGHT is true. The snooze-expire alarm still fires
+                // 15 min later — do NOT re-enable DND or restart blocking in that case.
+                val blockActive = prefs.getBoolean(BEDTIME_BLOCK_ACTIVE, false)
+                val skipped     = prefs.getBoolean(BEDTIME_SKIPPED_TONIGHT, false)
+                if (!blockActive || skipped) return
 
                 val raw2 = BedtimePrefs.getSettings(ctx, prefs, securePrefs)
                 val cfg2 = try { org.json.JSONObject(raw2 ?: "{}") } catch (_: Exception) { org.json.JSONObject() }

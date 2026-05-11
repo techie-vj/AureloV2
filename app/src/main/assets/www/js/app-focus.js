@@ -911,7 +911,15 @@ window.FocusTab = (function () {
     var parts = [], limitCount = Object.keys(S.limits || {}).length;
     if (limitCount) parts.push(limitCount + ' timer' + (limitCount !== 1 ? 's' : ''));
     if (S.settings.intentionPrompt !== false && typeof FocusMindful !== 'undefined' && FocusMindful.getApps().length) parts.push('pause prompt on');
-    if (S.settings.bedtime) parts.push('bedtime on');
+    // BUG-3 FIX: don't say "bedtime on" when the user pressed "Turn Off" from the
+    // notification for tonight. S.settings.bedtime stays true (the feature is still
+    // enabled for future nights) but isBedtimeSkippedTonight() or
+    // isBedtimeBlockActive() tell us the real tonight-state.
+    var _btSkipped = IS_NATIVE &&
+      ((typeof N.isBedtimeSkippedTonight === 'function' && N.isBedtimeSkippedTonight()) ||
+       (typeof N.isBedtimeBlockActive    === 'function' && !N.isBedtimeBlockActive() &&
+        typeof N.isInBedtimeWindow       === 'function' &&  N.isInBedtimeWindow()));
+    if (S.settings.bedtime && !_btSkipped) parts.push('bedtime on');
     el.textContent = parts.length ? parts.join(' \u00b7 ') : 'Build healthier habits';
   }
 

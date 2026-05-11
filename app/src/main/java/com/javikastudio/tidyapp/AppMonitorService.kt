@@ -291,6 +291,10 @@ class AppMonitorService : Service() {
                 }
                 prefs.edit().putLong(BEDTIME_WINDOWN_START_TS, 0L)
                     .putLong(BEDTIME_WINDOWN_SNOOZE_UNTIL_TS, 0L)
+                    // BUG-2 FIX: clear the exact bedtime epoch so it doesn't linger
+                    // into the next wind-down window.
+                    .putLong(BEDTIME_STARTS_AT_MS, 0L)
+                    .putBoolean(BEDTIME_ACTIVE, false)
                     // FIX: clear BEDTIME_ACTIVE so isBedtimeFilterManaged() returns false
                     // immediately after the notification Turn Off button is pressed.
                     .putBoolean(BEDTIME_ACTIVE, false)
@@ -344,6 +348,7 @@ class AppMonitorService : Service() {
                     .putBoolean(SCREEN_FILTER_ACTIVE, false)
                     .putLong(BEDTIME_WINDOWN_START_TS, 0L)
                     .putLong(BEDTIME_WINDOWN_SNOOZE_UNTIL_TS, 0L)
+                    .putLong(BEDTIME_STARTS_AT_MS, 0L)
                     .apply()
                 cancelTonightBedtimeAlarm()
             }
@@ -354,7 +359,14 @@ class AppMonitorService : Service() {
                 val d    = intent.getIntExtra("filter_dim",  30)
                 val g    = intent.getBooleanExtra("filter_gradual", false)
                 val step = intent.getLongExtra("filter_step_ms", 0L)
-                if (step > 0L) filterEngine.start(w, d, g, step) else filterEngine.start(w, d, g)
+                // SF-012 / SF-013: forward preset and custom RGB so ScreenFilterEngine
+                // renders the correct tint colour (warm=orange, night=deep-red, custom=RGB).
+                val preset  = intent.getStringExtra("filter_preset") ?: ScreenFilterEngine.PRESET_WARM
+                val customR = intent.getIntExtra("filter_custom_r", 255)
+                val customG = intent.getIntExtra("filter_custom_g", 100)
+                val customB = intent.getIntExtra("filter_custom_b", 0)
+                if (step > 0L) filterEngine.start(w, d, g, step, preset, customR, customG, customB)
+                else           filterEngine.start(w, d, g, preset = preset, customR = customR, customG = customG, customB = customB)
             }
             ACTION_FILTER_UPDATE -> filterEngine.update(
                 intent.getIntExtra("filter_warm", 60), intent.getIntExtra("filter_dim", 30))
@@ -555,9 +567,24 @@ class AppMonitorService : Service() {
             val windDownSnoozeUntil = prefs.getLong(BEDTIME_WINDOWN_SNOOZE_UNTIL_TS, 0L)
             val isWindDownSnoozed   = windDownSnoozeUntil > now
 
-            // "X min to bedtime" — windDownStartTs is pushed forward on snooze so this stays correct
-            val remainingToStart = ((windDownStartTs + WINDOWN_DURATION_MS) - now) / 60_000L
+            // "X min to bedtime" — BUG-2 FIX: use the exact bedtime epoch stored
+            // by BedtimeReceiver.BEDTIME_WINDOWN (from the configured hour:minute) so
+            // the countdown matches the JS status bar exactly regardless of how late
+            // doze-mode delivered the wind-down alarm.
+            val bedtimeStartAt   = prefs.getLong(BEDTIME_STARTS_AT_MS, windDownStartTs + WINDOWN_DURATION_MS)
+            val remainingToStart = (bedtimeStartAt - now) / 60_000L
             val minsLabel        = remainingToStart.coerceAtLeast(1L)
+
+            // BUG-1 FIX: only show filter progress when "Fade in 30 min before" is on.
+            // Read the fade-in flag from screen-filter settings — same source as
+            // startWindDownFilter() uses. If fadeIn=false the filter never started,
+            // so showing "Filter X%" and a progress bar would be misleading.
+            val sfRawNotif = prefs.getString(SCREEN_FILTER_SETTINGS_V1, null)
+            val sfCfgNotif = if (!sfRawNotif.isNullOrBlank())
+                runCatching { org.json.JSONObject(sfRawNotif) }.getOrNull() else null
+            val fadeInEnabled     = sfCfgNotif?.optBoolean("fadeIn", true) != false
+            val bedtimeAutoApply  = sfCfgNotif?.optBoolean("bedtimeAutoApply", true) != false
+            val showFilterProgress = fadeInEnabled && bedtimeAutoApply
 
             // FIX-2: Wind-down notification is informational only — no Snooze or Turn Off
             // action buttons. Snooze & Turn Off are only shown when bedtime mode is active
@@ -576,17 +603,32 @@ class AppMonitorService : Service() {
                     .apply { openPi?.let { setContentIntent(it) } }
                     .build()
             } else {
-                val progress = (filterEngine.filterProgress * 100).toInt().coerceIn(0, 100)
-                NotificationCompat.Builder(this, CHANNEL_ID)
-                    .setSmallIcon(android.R.drawable.ic_dialog_info).setColor(0xFFFFAA44.toInt())
-                    .setContentTitle("🌅 Bedtime in ${minsLabel}m · Filter ${progress}%")
-                    .setContentText("Screen filter fading in gradually · Tap to open Aurelo")
-                    // Live determinate progress bar: 0 → 100 over the 30-min window
-                    .setProgress(100, progress, false)
-                    .setOngoing(true).setOnlyAlertOnce(true)
-                    .setPriority(NotificationCompat.PRIORITY_LOW)
-                    .apply { openPi?.let { setContentIntent(it) } }
-                    .build()
+                // BUG-1 FIX: branch on whether "Fade in 30 min before" is enabled.
+                // When fadeIn=false the filter never starts during wind-down, so the
+                // notification must NOT show filter progress or the progress bar.
+                if (showFilterProgress) {
+                    val progress = (filterEngine.filterProgress * 100).toInt().coerceIn(0, 100)
+                    NotificationCompat.Builder(this, CHANNEL_ID)
+                        .setSmallIcon(android.R.drawable.ic_dialog_info).setColor(0xFFFFAA44.toInt())
+                        .setContentTitle("🌅 Bedtime in ${minsLabel}m · Filter ${progress}%")
+                        .setContentText("Screen filter fading in gradually · Tap to open Aurelo")
+                        // Live determinate progress bar: 0 → 100 over the 30-min window
+                        .setProgress(100, progress, false)
+                        .setOngoing(true).setOnlyAlertOnce(true)
+                        .setPriority(NotificationCompat.PRIORITY_LOW)
+                        .apply { openPi?.let { setContentIntent(it) } }
+                        .build()
+                } else {
+                    // Plain reminder: bedtime in Xm, no filter info at all.
+                    NotificationCompat.Builder(this, CHANNEL_ID)
+                        .setSmallIcon(android.R.drawable.ic_dialog_info).setColor(0xFFFFAA44.toInt())
+                        .setContentTitle("🌅 Bedtime in ${minsLabel}m")
+                        .setContentText("Wind-down reminder · Tap to open Aurelo")
+                        .setOngoing(true).setOnlyAlertOnce(true)
+                        .setPriority(NotificationCompat.PRIORITY_LOW)
+                        .apply { openPi?.let { setContentIntent(it) } }
+                        .build()
+                }
             }
         }
 
