@@ -956,10 +956,24 @@ window.FocusBedtime = (function () {
       var h12 = hh % 12 === 0 ? 12 : hh % 12;
       return h12 + ':' + String(mm).padStart(2, '0') + ' ' + (hh < 12 ? 'AM' : 'PM');
     }
+    // Read snooze and skip-tonight state so status reflects what the notification
+    // buttons actually did, even after the app was closed and re-opened.
+    var snoozeEndsAt   = 0;
+    var skippedTonight = false;
+    if (IS_NATIVE) {
+      try { if (typeof N.getBedtimeSnoozeEndsAt   === 'function') snoozeEndsAt   = +(N.getBedtimeSnoozeEndsAt())   || 0; } catch (_) {}
+      try { if (typeof N.isBedtimeSkippedTonight  === 'function') skippedTonight = !!N.isBedtimeSkippedTonight();        } catch (_) {}
+    }
+
     var statusTxt;
     if (!cfg.enabled) {
       statusTxt = 'Tap to set your sleep routine.';
-    } else if (inWindow) {
+    } else if (inWindow && !skippedTonight && snoozeEndsAt > Date.now()) {
+      // Snoozed: engine is paused. Show countdown to when blocking resumes.
+      var minsLeft = Math.max(1, Math.ceil((snoozeEndsAt - Date.now()) / 60000));
+      statusTxt = '\uD83D\uDE34 Snoozed \u00b7 resumes in ' + minsLeft + 'm';
+    } else if (inWindow && !skippedTonight) {
+      // Bedtime is fully active
       statusTxt = 'Bedtime Active \u00b7 Ends at ' + decToStr(wakeDecDisp);
     } else {
       var nowMins  = nowH * 60;
@@ -1097,7 +1111,7 @@ window.FocusBedtime = (function () {
           ' onclick="_toggleBedtimeSettings()">' +
             '<div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t2);font-weight:600">Sleep settings</div>' +
             '<div style="display:flex;align-items:center;gap:8px">' +
-              '<span style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3)">DND \u00b7 wind-down \u00b7 morning</span>' +
+              '<span style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3)">DND \u00b7 wind-down \u00b7 screen filter \u00b7 summary</span>' +
               '<span id="bt-settings-chev" style="font-size:var(--text-2xs);color:var(--t3);transition:transform .2s;' +
               'transform:' + (settingsOpen ? 'rotate(180deg)' : 'rotate(0deg)') + '">\u25be</span>' +
             '</div>' +

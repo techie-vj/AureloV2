@@ -16,8 +16,9 @@ import android.widget.FrameLayout
  * ScreenFilterEngine
  *
  * Renders a non-blocking full-screen overlay with two composited layers:
- *   • Warm layer  — translucent orange tint  (reduces blue light)
- *   • Dim  layer  — translucent black        (reduces overall brightness)
+ *   • Warm layer  — translucent tint whose colour is preset-dependent
+ *                   (warm=orange, night=deep-red, custom=user RGB)
+ *   • Dim  layer  — translucent black (reduces overall brightness)
  *
  * Unlike the blocking overlays owned by OverlayCoordinator, this view
  * passes all touch/focus events through via FLAG_NOT_TOUCHABLE so it
@@ -51,6 +52,11 @@ class ScreenFilterEngine(
         private const val FADE_STEP_MS_DEFAULT = 80L
         // Fade-out uses the same default fast cadence regardless of fade-in speed
         private const val FADE_OUT_STEP_MS = 80L
+
+        // SF-012 / SF-013: colour preset names
+        const val PRESET_WARM   = "warm"    // amber / orange (default)
+        const val PRESET_NIGHT  = "night"   // deep red — easier on the eyes at night
+        const val PRESET_CUSTOM = "custom"  // user-defined RGB
     }
 
     private var filterView: FrameLayout? = null
@@ -67,6 +73,11 @@ class ScreenFilterEngine(
     private var isSuspended  = false
     // isStopping: set true the instant stop() is called, cleared only in removeView().
     private var isStopping   = false
+
+    // SF-012 / SF-013: colour of the warm layer, updated by start().
+    private var warmColorR = 255
+    private var warmColorG = 100
+    private var warmColorB = 0
 
     // Per-start fade cadence — set by start() to support both fast and slow fades.
     // The fast default (80 ms) gives ~20 s for warm=80; the bedtime wind-down passes
@@ -96,18 +107,39 @@ class ScreenFilterEngine(
     /**
      * Show the filter overlay.
      *
-     * @param warmAlpha  0–100 warm (orange) intensity
+     * @param warmAlpha  0–100 warm-layer intensity
      * @param dimAlpha   0–100 dim (black) intensity
      * @param gradual    if true, alpha fades from 0 to target gradually
      * @param stepMs     ms per alpha-unit increment during gradual fade.
      *                   Default (~80 ms) → fast ~20 s fade (user-triggered).
      *                   Pass [30*60*1000 / maxOf(warm,dim)] for a 30-min bedtime fade.
+     * @param preset     SF-012/SF-013: PRESET_WARM (orange), PRESET_NIGHT (deep red),
+     *                   or PRESET_CUSTOM (use customR/G/B).
+     * @param customR/G/B  RGB components used when preset == PRESET_CUSTOM.
      */
-    fun start(warmAlpha: Int, dimAlpha: Int, gradual: Boolean = false, stepMs: Long = FADE_STEP_MS_DEFAULT) {
+    fun start(
+        warmAlpha: Int,
+        dimAlpha: Int,
+        gradual: Boolean = false,
+        stepMs: Long = FADE_STEP_MS_DEFAULT,
+        preset: String = PRESET_WARM,
+        customR: Int = 255,
+        customG: Int = 100,
+        customB: Int = 0
+    ) {
         // Clear any in-progress fade-out so re-enabling during the fade works correctly.
         handler.removeCallbacksAndMessages(null)
         isStopping = false
         fadeStepMs = stepMs.coerceAtLeast(1L)
+
+        // SF-012 / SF-013: resolve the warm-layer colour from preset.
+        when (preset) {
+            PRESET_NIGHT  -> { warmColorR = 180; warmColorG = 0;   warmColorB = 0   }
+            PRESET_CUSTOM -> { warmColorR = customR.coerceIn(0, 255)
+                               warmColorG = customG.coerceIn(0, 255)
+                               warmColorB = customB.coerceIn(0, 255) }
+            else          -> { warmColorR = 255;  warmColorG = 100; warmColorB = 0   } // warm/default
+        }
 
         targetWarm = warmAlpha.coerceIn(0, 100)
         targetDim  = dimAlpha.coerceIn(0, 100)
@@ -116,6 +148,12 @@ class ScreenFilterEngine(
             buildView()
             if (filterView == null) return   // permission missing — buildView() bailed
             isShown = true
+        }
+
+        // If we are resuming after a suspend, make the view visible again.
+        if (isSuspended) {
+            isSuspended = false
+            filterView?.visibility = View.VISIBLE
         }
 
         if (gradual) {
@@ -146,25 +184,32 @@ class ScreenFilterEngine(
     }
 
     /**
-     * Detach the filter view from WindowManager while a blocking overlay is on screen.
+     * Hide the filter while a blocking overlay is on screen.
+     *
+     * CB-022 FIX: previously called wm.removeView() which made the filter disappear
+     * completely and caused a visible gap when the blocking overlay was dismissed.
+     * Now sets INVISIBLE so the layer stays attached to WindowManager at its z-order
+     * position; the blocking overlay (added later) sits on top by z-order naturally.
      */
     fun suspend() {
         if (!isShown || isSuspended) return
         isSuspended = true
         handler.removeCallbacksAndMessages(null)
-        filterView?.let { runCatching { wm.removeView(it) } }
+        // CB-022: hide rather than detach — the blocking overlay covers it by z-order.
+        filterView?.visibility = View.INVISIBLE
     }
 
     /**
-     * Re-attach the filter view after [suspend] and restore the last applied alpha.
+     * Make the filter visible again after [suspend].
+     *
+     * CB-022 FIX: previously called wm.addView() which could throw if the view was
+     * already attached and caused a fresh-add flicker. Now just sets VISIBLE.
      */
     fun resumeFilter() {
         if (!isShown || !isSuspended || isStopping) return
         isSuspended = false
-        filterView?.let {
-            runCatching { wm.addView(it, overlayParams()) }
-            applyLayers(currentWarm, currentDim)
-        }
+        filterView?.visibility = View.VISIBLE
+        applyLayers(currentWarm, currentDim)
     }
 
     /**
@@ -179,6 +224,8 @@ class ScreenFilterEngine(
         isStopping = true
 
         if (fadeOut && !isSuspended && (currentWarm > 0 || currentDim > 0)) {
+            // Ensure view is visible for the fade-out animation.
+            filterView?.visibility = View.VISIBLE
             targetWarm = 0
             targetDim  = 0
             scheduleFadeOutStep()
@@ -194,7 +241,12 @@ class ScreenFilterEngine(
         if (!wasActive) return
         val cfg = readSettings()
         if (cfg.optBoolean("enabled", false)) {
-            start(cfg.optInt("warmAlpha", 60), cfg.optInt("dimAlpha", 30), gradual = false)
+            val preset  = cfg.optString("preset", PRESET_WARM)
+            val customR = cfg.optInt("customR", 255)
+            val customG = cfg.optInt("customG", 100)
+            val customB = cfg.optInt("customB", 0)
+            start(cfg.optInt("warmAlpha", 60), cfg.optInt("dimAlpha", 30),
+                  gradual = false, preset = preset, customR = customR, customG = customG, customB = customB)
         }
     }
 
@@ -238,8 +290,13 @@ class ScreenFilterEngine(
         wm.addView(frame, overlayParams())
     }
 
+    /**
+     * SF-012 / SF-013: uses [warmColorR/G/B] set in [start] so the tint colour
+     * matches the chosen preset (warm=orange, night=deep-red, custom=user RGB)
+     * rather than being hard-coded orange.
+     */
     private fun applyLayers(warm: Int, dim: Int) {
-        warmLayer?.setBackgroundColor(Color.argb(alphaFor(warm, 0.55f), 255, 100, 0))
+        warmLayer?.setBackgroundColor(Color.argb(alphaFor(warm, 0.55f), warmColorR, warmColorG, warmColorB))
         dimLayer?.setBackgroundColor(Color.argb(alphaFor(dim,  0.75f),   0,   0, 0))
     }
 
@@ -295,7 +352,9 @@ class ScreenFilterEngine(
             WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
                     WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
                     WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
-                    WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+                    WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
+                    // SF-018: exclude the filter overlay from screenshot and screen-record capture.
+                    WindowManager.LayoutParams.FLAG_SECURE,
             PixelFormat.TRANSLUCENT
         ).apply { gravity = Gravity.TOP or Gravity.START }
     }

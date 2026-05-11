@@ -2,8 +2,6 @@ package com.javikastudio.tidyapp
 
 // ═══════════════════════════════════════════════════════════════════════════
 // BridgeKeys — single source of truth for ALL SharedPreferences key strings.
-// Phase 3: each domain controller imports only the constants it owns.
-// Never use raw string literals for prefs keys elsewhere in the project.
 // ═══════════════════════════════════════════════════════════════════════════
 
 // ── Prefs files ───────────────────────────────────────────────────────────
@@ -57,78 +55,80 @@ const val KEY_FOCUS_BLOCKED_APPS   = "focus_blocked_apps"
 const val KEY_FOCUS_ROUTINES       = "focus_routines"
 const val KEY_FOCUS_ACTIVE_ROUTINE = "focus_active_routine_id"
 
-// ── Focus weekly stats ────────────────────────────────────────────────────
-const val KEY_FOCUS_WEEK_ID          = "focus_week_id"
-const val KEY_FOCUS_WEEK_DAYS        = "focus_week_days"
-const val KEY_FOCUS_COMPLETED_WEEK   = "focus_completed_week"
-const val KEY_FOCUS_INTERRUPTED_WEEK = "focus_interrupted_week"
-const val KEY_FOCUS_TIME_WEEK_MINS   = "focus_time_week_mins"
-const val KEY_FOCUS_LAST_OUTCOME     = "focus_last_outcome"
-const val KEY_FOCUS_LAST_ELAPSED     = "focus_last_elapsed"
-const val KEY_FOCUS_LAST_TOTAL       = "focus_last_total_mins"
-// Timestamp of the most recent completed focus session — used by the Coach
-// pipeline to compute exact "days since last focus" rather than an approximation
-// based on weekly counters. Written by FocusSessionBridge.recordFocusComplete().
-const val KEY_FOCUS_LAST_COMPLETE_TS = "focus_last_complete_ts"
-// F-06: daily session counters (reset at midnight) for use in Focus Score daily Aurelo composite
-const val KEY_FOCUS_DATE              = "focus_date_v1"
-const val KEY_FOCUS_COMPLETED_TODAY   = "focus_completed_today"
-const val KEY_FOCUS_INTERRUPTED_TODAY = "focus_interrupted_today"
+const val KEY_FOCUS_WEEK_ID           = "focus_week_id"
+const val KEY_FOCUS_WEEK_DAYS         = "focus_week_days"
+const val KEY_FOCUS_COMPLETED_WEEK    = "focus_completed_week"
+const val KEY_FOCUS_INTERRUPTED_WEEK  = "focus_interrupted_week"
+const val KEY_FOCUS_TIME_WEEK_MINS    = "focus_time_week_mins"
+const val KEY_FOCUS_LAST_OUTCOME      = "focus_last_outcome"
+const val KEY_FOCUS_LAST_ELAPSED      = "focus_last_elapsed"
+const val KEY_FOCUS_LAST_TOTAL        = "focus_last_total_mins"
+const val KEY_FOCUS_LAST_COMPLETE_TS  = "focus_last_complete_ts"
+const val KEY_FOCUS_DATE               = "focus_date_v1"
+const val KEY_FOCUS_COMPLETED_TODAY    = "focus_completed_today"
+const val KEY_FOCUS_INTERRUPTED_TODAY  = "focus_interrupted_today"
 const val KEY_FOCUS_PLANNED_MINS_TODAY = "focus_planned_mins_today"
 const val KEY_FOCUS_ELAPSED_MINS_TODAY = "focus_elapsed_mins_today"
 
-// ── Intention prompt ──────────────────────────────────────────────────────
-// IMPORTANT: ALL key values here must match the literal strings used in
-// IntentionEngine.kt exactly.  A mismatch means the bridge reads from a
-// different prefs entry than the engine writes → counts always read as 0.
-//
-// BUG FIX: pause/resist date+count keys were missing the "focus_" prefix,
-// so IntentionPromptBridge.getIntentionPauseCount() / getIntentionResistCount()
-// always returned 0 even after real pauses were recorded.
 const val KEY_INTENTION_APPS         = "focus_intention_apps"
 const val KEY_INTENTION_ENABLED      = "focus_intention_enabled"
-const val KEY_INTENTION_PAUSE_DATE   = "focus_intention_pause_date"   // was "intention_pause_date"
-const val KEY_INTENTION_PAUSE_COUNT  = "focus_intention_pause_count"  // was "intention_pause_count"
-const val KEY_INTENTION_RESIST_DATE  = "focus_intention_resist_date"  // was "intention_resist_date"
-const val KEY_INTENTION_RESIST_COUNT = "focus_intention_resist_count" // was "intention_resist_count"
+const val KEY_INTENTION_PAUSE_DATE   = "focus_intention_pause_date"
+const val KEY_INTENTION_PAUSE_COUNT  = "focus_intention_pause_count"
+const val KEY_INTENTION_RESIST_DATE  = "focus_intention_resist_date"
+const val KEY_INTENTION_RESIST_COUNT = "focus_intention_resist_count"
 
-// Per-app pause/resist counts — stored by IntentionEngine alongside the aggregates.
-// Pattern: "focus_intention_pause_count_{packageName}" / "focus_intention_resist_count_{packageName}"
-// Date guards follow the same pattern: "focus_intention_pause_date_{packageName}"
 const val KEY_INTENTION_APP_PAUSE_COUNT_PREFIX  = "focus_intention_pause_count_"
 const val KEY_INTENTION_APP_RESIST_COUNT_PREFIX = "focus_intention_resist_count_"
 const val KEY_INTENTION_APP_PAUSE_DATE_PREFIX   = "focus_intention_pause_date_"
 const val KEY_INTENTION_APP_RESIST_DATE_PREFIX  = "focus_intention_resist_date_"
 
-// ── Bedtime ───────────────────────────────────────────────────────────────
-const val BEDTIME_SETTINGS_V1         = "bedtime_settings_v1"
-const val BEDTIME_ACTIVE              = "bedtime_active"
-const val BEDTIME_BLOCK_ACTIVE        = "bedtime_block_active"
-const val BEDTIME_STREAK              = "bedtime_streak"
-const val BEDTIME_STREAK_LAST_DATE    = "bedtime_streak_last_date"
-const val BEDTIME_WEEK_DAYS           = "bedtime_week_days"
-const val BEDTIME_WEEK_ID             = "bedtime_week_id"
-const val BEDTIME_ON_TS               = "bedtime_on_ts"
-const val BEDTIME_OFF_TS              = "bedtime_off_ts"
-const val BEDTIME_SNOOZE_COUNT        = "bedtime_snooze_count"
-const val BEDTIME_SNOOZE_UNTIL_TS     = "bedtime_snooze_until_ts"
-const val BEDTIME_SAVED_BRIGHTNESS    = "bedtime_saved_brightness"
-const val BEDTIME_APP_ATTEMPTS        = "bedtime_app_attempts"
+// ── Bedtime ───────────────────────────────────────────────────────────────────
+const val BEDTIME_SETTINGS_V1      = "bedtime_settings_v1"
+const val BEDTIME_ACTIVE           = "bedtime_active"
+const val BEDTIME_BLOCK_ACTIVE     = "bedtime_block_active"
+const val BEDTIME_STREAK           = "bedtime_streak"
+const val BEDTIME_STREAK_LAST_DATE = "bedtime_streak_last_date"
+const val BEDTIME_WEEK_DAYS        = "bedtime_week_days"
+const val BEDTIME_WEEK_ID          = "bedtime_week_id"
+const val BEDTIME_ON_TS            = "bedtime_on_ts"
+const val BEDTIME_OFF_TS           = "bedtime_off_ts"
+const val BEDTIME_SNOOZE_COUNT     = "bedtime_snooze_count"
+const val BEDTIME_SNOOZE_UNTIL_TS  = "bedtime_snooze_until_ts"
+const val BEDTIME_SAVED_BRIGHTNESS = "bedtime_saved_brightness"
+const val BEDTIME_APP_ATTEMPTS     = "bedtime_app_attempts"
+
 const val BEDTIME_LAST_NIGHT_KEPT          = "bedtime_last_night_kept"
 const val BEDTIME_LAST_NIGHT_SNOOZES       = "bedtime_last_night_snooze_count"
 const val BEDTIME_LAST_NIGHT_ATTEMPTS      = "bedtime_last_night_attempts_total"
 const val BEDTIME_LAST_NIGHT_HAS_DATA      = "bedtime_last_night_has_data"
-// Full per-app attempts JSON snapshot saved before clearAttempts() wipes it.
-// Lets postMorningSummary() show per-app names even when the engine ran stop() first.
+// Full per-app attempts JSON saved before clearAttempts() wipes it (Issue-5 fix)
 const val BEDTIME_LAST_NIGHT_ATTEMPTS_JSON = "bedtime_last_night_attempts_json"
-// Timestamp written when BEDTIME_WINDOWN fires; cleared on BEDTIME_ON.
-// Lets buildNotification() detect the wind-down phase and show a live filter progress bar.
-const val BEDTIME_WINDOWN_START_TS         = "bedtime_windown_start_ts"
 
-// ── Notifications ─────────────────────────────────────────────────────────
-const val NOTIF_CHANNEL_ID    = "tidy_alerts"
+// Wind-down timestamps — written by ACTION_BEDTIME_WINDOWN, cleared on BEDTIME_ON / WINDOWN_STOP
+// BEDTIME_WINDOWN_START_TS is updated (pushed forward) when a wind-down snooze is taken,
+// so "time to bedtime" calculations based on (startTs + 30min - now) stay accurate.
+const val BEDTIME_WINDOWN_START_TS         = "bedtime_windown_start_ts"
+// Non-zero while the user has snoozed the wind-down (paused the filter fade).
+// The service poll loop restarts the filter fade when now >= this value.
+const val BEDTIME_WINDOWN_SNOOZE_UNTIL_TS  = "bedtime_windown_snooze_until_ts"
+
+// Set to true by ACTION_BEDTIME_STOP (notification "Turn Off" button) so the JS
+// render() correctly shows "Starts tomorrow" instead of "Bedtime Active" when the
+// user dismissed bedtime for the rest of the night but still wants it on future nights.
+// Cleared on BEDTIME_ON (next night's alarm) and BEDTIME_OFF (morning wake alarm).
+const val BEDTIME_SKIPPED_TONIGHT = "bedtime_skipped_tonight"
+
+// Exact epoch (ms) when tonight's BEDTIME_ON alarm will fire.
+// Written in BedtimeReceiver.BEDTIME_WINDOWN from the actual bedtime hour/minute
+// stored in settings so the countdown matches the JS bar exactly regardless of
+// how late doze-mode delivers the wind-down alarm.
+// Cleared on BEDTIME_ON (bedtime started) and WINDOWN_STOP (user turned off wind-down).
+const val BEDTIME_STARTS_AT_MS = "bedtime_starts_at_ms"
+
+// ── Notifications ─────────────────────────────────────────────────────────────
+const val NOTIF_CHANNEL_ID     = "tidy_alerts"
 const val SMART_ALERTS_ENABLED = "smart_alerts_enabled"
-const val NOTIF_CLEARED_TS    = "notif_cleared_ts"
+const val NOTIF_CLEARED_TS     = "notif_cleared_ts"
 
 // ── Widget ────────────────────────────────────────────────────────────────
 const val WIDGET_THEME           = "widget_theme"
@@ -140,12 +140,13 @@ const val STREAK_GOAL_MINS = "streak_goal_mins"
 const val ONBOARDING_DONE  = "onboarding_done"
 const val IS_PRO_USER      = "is_pro_user"
 
-// ── Health Connect ────────────────────────────────────────────────────────
-const val HC_CONNECTED = "hc_connected"   // "1" = connected, "0" / absent = disconnected
+const val HC_CONNECTED = "hc_connected"
 
-// ── Screen Filter ────────────────────────────────────────────────────────
-const val SCREEN_FILTER_SETTINGS_V1 = "screen_filter_settings_v1"
-const val SCREEN_FILTER_ACTIVE      = "screen_filter_active"
+const val SCREEN_FILTER_SETTINGS_V1       = "screen_filter_settings_v1"
+const val SCREEN_FILTER_ACTIVE            = "screen_filter_active"
+// CB-017: snapshot of the user's manual filter state saved at wind-down/bedtime start;
+// restored when BEDTIME_OFF fires so the manual filter is exactly as the user left it.
+const val SCREEN_FILTER_PRE_BEDTIME_STATE = "screen_filter_pre_bedtime_state"
 
 // ── Rate-app prompt ───────────────────────────────────────────────────────
 const val KEY_RATE_INSTALL_MS    = "rate_install_ms"
@@ -172,23 +173,11 @@ const val REFERRAL_INSTALL_TS           = "referral_install_ts"
 const val REFERRAL_THIS_USER_CONVERTED  = "referral_this_user_converted"
 const val REFERRAL_THIS_USER_PLAN       = "referral_this_user_plan"
 const val REFERRAL_THIS_USER_CONVERSION_TS = "referral_this_user_conversion_ts"
-
-// ── Home banner dismiss key — ALSO in SecurityValidators.PREF_ALLOWLIST (BUG-04 FIX)
-const val REFERRAL_BANNER_LAST_SHOWN_DATE = "referral_banner_last_shown_date"
-
+const val REFERRAL_BANNER_LAST_SHOWN_DATE  = "referral_banner_last_shown_date"
 const val REFERRAL_CREDITED_FRIEND_CODES      = "referral_credited_friend_codes"
-// BUG-02 FIX: conversion dedup — mirrors install dedup to prevent repeat conversion rewards
 const val REFERRAL_CREDITED_CONVERSION_CODES  = "referral_credited_conv_codes"
-// BUG-08 FIX: was a raw string literal inside ReferralManager — now the canonical constant
 const val REFERRAL_PENDING_NOTIF_SENT         = "referral_pending_notif_sent"
-// ── Referral Pro Extension ───────────────────────────────────────────────────
-// Days banked by monthly/annual referrers — applied when their subscription lapses.
 const val REFERRAL_PENDING_EXTENSION_DAYS  = "referral_pending_ext_days"
-// Unix ms timestamp: extension is active while this > System.currentTimeMillis()
 const val REFERRAL_EXTENSION_EXPIRY_MS     = "referral_extension_expiry_ms"
-// Plan that was active when extension was activated ("monthly" | "annual")
 const val REFERRAL_EXTENSION_SOURCE_PLAN   = "referral_extension_source_plan"
-
-// ── Billing active plan ───────────────────────────────────────────────────────
-// BUG-03 FIX: stores the last confirmed plan so referral rewards use the correct day count.
 const val BILLING_ACTIVE_PLAN = "billing_active_plan"

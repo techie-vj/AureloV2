@@ -31,9 +31,30 @@ class BedtimeBridge(
     }
 
     @JavascriptInterface fun getBedtimeSettings(): String = BedtimePrefs.getSettings(prefs, securePrefs)
+
+    /**
+     * BM-003 FIX: when the user toggles Bedtime Mode off from the settings UI the
+     * streak must be reset to 0.  Previously only the alarm path ever wrote the
+     * streak, so toggling off left a stale positive value that persisted forever.
+     */
     @JavascriptInterface fun saveBedtimeSettings(json: String) {
-        runCatching { JSONObject(json) }.onFailure { return }
+        val parsed = runCatching { JSONObject(json) }.getOrElse { return }
+
+        // Detect enabled → disabled transition BEFORE saving the new value.
+        val wasEnabled = try {
+            JSONObject(BedtimePrefs.getSettings(prefs, securePrefs)).optBoolean("enabled", false)
+        } catch (_: Exception) { false }
+        val nowEnabled = parsed.optBoolean("enabled", false)
+
         BedtimePrefs.saveSettings(prefs, securePrefs, json)
+
+        // BM-003: reset streak when Bedtime Mode is turned off from settings.
+        if (wasEnabled && !nowEnabled) {
+            prefs.edit()
+                .putInt(BEDTIME_STREAK, 0)
+                .remove(BEDTIME_STREAK_LAST_DATE)
+                .apply()
+        }
     }
 
     @JavascriptInterface fun saveBedtimeBlockedApps(appsJson: String) {
@@ -123,6 +144,15 @@ class BedtimeBridge(
     @JavascriptInterface fun stopBedtimeBlock() = startService(AppMonitorService.ACTION_BEDTIME_STOP_SOFT,null,null)
     @JavascriptInterface fun isBedtimeBlockActive(): Boolean = prefs.getBoolean(BEDTIME_BLOCK_ACTIVE, false)
 
+    /**
+     * Returns true when the user tapped "Turn Off" from the bedtime active notification
+     * during the current bedtime window. The flag is set by ACTION_BEDTIME_STOP and
+     * cleared when BEDTIME_ON fires at the start of the next night (or BEDTIME_OFF at
+     * morning wake). JS uses this to show "Starts tomorrow" instead of "Bedtime Active".
+     */
+    @JavascriptInterface fun isBedtimeSkippedTonight(): Boolean =
+        prefs.getBoolean(BEDTIME_SKIPPED_TONIGHT, false)
+
     @JavascriptInterface fun isInBedtimeWindow(): Boolean {
         return try {
             val cfg = JSONObject(BedtimePrefs.getSettings(prefs, securePrefs))
@@ -211,11 +241,21 @@ class BedtimeBridge(
 
     @JavascriptInterface fun applyScreenFilter(warmAlpha: Int, dimAlpha: Int, gradual: Boolean = false) {
         runCatching {
+            val sfRaw = prefs.getString(SCREEN_FILTER_SETTINGS_V1, null)
+            val sfCfg = if (!sfRaw.isNullOrBlank()) runCatching { org.json.JSONObject(sfRaw) }.getOrNull() else null
+            val preset  = sfCfg?.optString("preset", ScreenFilterEngine.PRESET_WARM) ?: ScreenFilterEngine.PRESET_WARM
+            val customR = sfCfg?.optInt("customR", 255) ?: 255
+            val customG = sfCfg?.optInt("customG", 100) ?: 100
+            val customB = sfCfg?.optInt("customB", 0)   ?: 0
             val intent = android.content.Intent(context, AppMonitorService::class.java).apply {
                 action = AppMonitorService.ACTION_FILTER_START
                 putExtra("filter_warm",    warmAlpha)
                 putExtra("filter_dim",     dimAlpha)
                 putExtra("filter_gradual", gradual)
+                putExtra("filter_preset",  preset)
+                putExtra("filter_custom_r", customR)
+                putExtra("filter_custom_g", customG)
+                putExtra("filter_custom_b", customB)
             }
             if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O)
                 context.startForegroundService(intent)
@@ -227,48 +267,24 @@ class BedtimeBridge(
     /**
      * ISSUE-4 FIX: Returns true when bedtime mode is currently active AND the screen
      * filter is managed by bedtime (bedtimeAutoApply=true in screen filter settings).
-     *
-     * JS should call this before showing the screen filter edit UI or before calling
-     * removeScreenFilter()/applyScreenFilter() during bedtime. When true, JS can show
-     * a confirmation dialog warning the user that their changes will affect the active
-     * bedtime filter overlay — letting them cancel or proceed knowingly.
-     *
-     * Also used internally by removeScreenFilter() as a guard to prevent killing the
-     * bedtime filter when the user edits settings during an active bedtime session.
      */
     @JavascriptInterface fun isBedtimeFilterManaged(): Boolean {
         val bedtimeActive = prefs.getBoolean(BEDTIME_BLOCK_ACTIVE, false) ||
                             prefs.getBoolean(BEDTIME_ACTIVE, false)
         if (!bedtimeActive) return false
         val sfRaw = prefs.getString(SCREEN_FILTER_SETTINGS_V1, null) ?: return false
-        // bedtimeAutoApply defaults to true — if the key is absent, bedtime manages the filter
         return runCatching { org.json.JSONObject(sfRaw) }
             .getOrNull()?.optBoolean("bedtimeAutoApply", true) ?: true
     }
 
     /**
      * Stops the screen filter overlay.
-     *
-     * ISSUE-4 FIX: When bedtime mode is active and manages the filter
-     * (bedtimeAutoApply=true), this method is a no-op. Stopping the filter during
-     * an active bedtime session via the settings UI would silently kill the bedtime
-     * filter — the user would see no visual change in the filter settings, but the
-     * warm/dim overlay over their screen would disappear. This guard prevents that.
-     *
-     * The correct flow for editing the bedtime filter mid-session is:
-     *   1. JS calls isBedtimeFilterManaged() → true
-     *   2. JS shows a dialog: "This will affect your active bedtime filter. Continue?"
-     *   3. If confirmed, JS calls stopBedtimeBlock() to end bedtime first, THEN removes filter.
-     *   4. If cancelled, no change.
-     *
-     * For non-bedtime filter contexts (scheduled filter, manual filter), this works as before.
+     * ISSUE-4 FIX: no-op when bedtime is managing the filter.
      */
     @JavascriptInterface fun removeScreenFilter() {
-        // ISSUE-4 FIX: block stop if bedtime is managing the filter
         if (isBedtimeFilterManaged()) {
             android.util.Log.d("BedtimeBridge",
-                "removeScreenFilter: skipped — bedtime is managing the filter. " +
-                "JS should call isBedtimeFilterManaged() and show a warning before proceeding.")
+                "removeScreenFilter: skipped — bedtime is managing the filter.")
             return
         }
         prefs.edit().putBoolean(SCREEN_FILTER_ACTIVE, false).apply()
@@ -285,7 +301,6 @@ class BedtimeBridge(
 
     /**
      * Force-removes the screen filter even if bedtime is managing it.
-     * Called by JS after the user explicitly confirms they want to override the bedtime filter.
      */
     @JavascriptInterface fun removeScreenFilterForced() {
         prefs.edit().putBoolean(SCREEN_FILTER_ACTIVE, false).apply()
@@ -303,9 +318,6 @@ class BedtimeBridge(
     @JavascriptInterface fun isScreenFilterActive(): Boolean =
         prefs.getBoolean(SCREEN_FILTER_ACTIVE, false)
 
-    /**
-     * Called by the JS schedule engine (sun-based / custom-time Pro modes).
-     */
     @JavascriptInterface fun startScreenFilterSchedule(json: String) {
         val cfg = runCatching { org.json.JSONObject(json) }.getOrElse { return }
         prefs.edit().putString(SCREEN_FILTER_SETTINGS_V1, json).apply()
