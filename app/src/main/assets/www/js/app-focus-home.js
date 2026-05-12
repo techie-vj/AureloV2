@@ -566,7 +566,21 @@ window.FocusHome = (function () {
     var cfg    = typeof FocusBedtime !== 'undefined' ? FocusBedtime.getCfg() : {};
     var bedStr = cfg.bedHour !== undefined ? _fmt12(Math.floor(cfg.bedHour) + (cfg.bedMinute || 0) / 60) + ' \u2192 ' + _fmt12(Math.floor(cfg.wakeHour) + (cfg.wakeMinute || 0) / 60) : '';
     var bedRow  = d.bedtimeEnabled ? buildStripRow('🌙', d.bedtimeStreak + '-night streak', bedStr, buildDayDots(d.bedtimeDays)) : buildStripRowMuted('🌙', 'Bedtime', 'Disabled');
-    return '<div style="background:var(--s2);border:1px solid var(--border2);border-radius:14px;overflow:hidden">' + timerRow + '<div style="height:1px;background:var(--border)"></div>' + mindfulRow + '<div style="height:1px;background:var(--border)"></div>' + bedRow + '</div>';
+    var sfRow = '';
+    try {
+      if (typeof ScreenFilter !== 'undefined') {
+        var sfCfg2   = ScreenFilter.getCfg();
+        var sfActive2 = IS_NATIVE && typeof N.isScreenFilterActive === 'function'
+          ? !!N.isScreenFilterActive() : (sfCfg2.enabled && !sfCfg2.paused);
+        var sfSub2    = { none: 'Manual', sun: 'Sun-based', custom: 'Scheduled' }[sfCfg2.schedule] || 'Manual';
+        var sfRight2  = sfActive2
+          ? '<span style="font-family:var(--ff-m);font-size:var(--text-2xs);font-weight:700;color:rgba(5,200,232,.9);background:rgba(5,200,232,.12);border-radius:6px;padding:2px 8px">Active</span>'
+          : '<span style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3)">Off</span>';
+        sfRow = '<div style="height:1px;background:var(--border)"></div>' +
+          buildStripRow('\uD83C\uDF0A', 'Screen Filter', sfSub2, sfRight2);
+      }
+    } catch (_) {}
+    return '<div style="background:var(--s2);border:1px solid var(--border2);border-radius:14px;overflow:hidden">' + timerRow + '<div style="height:1px;background:var(--border)"></div>' + mindfulRow + '<div style="height:1px;background:var(--border)"></div>' + bedRow + sfRow + '</div>';
   }
 
   /* ═══════════════════════════════════════════════════════════════
@@ -750,8 +764,25 @@ window.FocusHome = (function () {
       return;
     }
 
-    // Tier 1b: screen filter active — priority immediately after bedtime.
-    // Shown only when bedtime is not active to avoid visual duplication.
+    // Tier 1b: wind-down — 60 min before bedtime (higher priority than screen filter status).
+    if (cfg.enabled) {
+      var minsUntil = (bedH - nowH) * 60; if (minsUntil < 0) minsUntil += 1440;
+      if (minsUntil <= 60 && minsUntil > 0) {
+        var bedStr2   = _fmt12((cfg.bedHour || 22) + (cfg.bedMinute || 0) / 60);
+        var btStreak2 = 0;
+        try { if (IS_NATIVE && typeof N.getBedtimeStreak === 'function') btStreak2 = (JSON.parse(N.getBedtimeStreak() || '{}') || {}).streak || 0; } catch (_) {}
+        var urgency   = minsUntil <= 30 ? 'Wind down now' : 'Wind down soon';
+        var streakNote = btStreak2 > 0 ? ' · 🔥 ' + btStreak2 + '-night streak' : '';
+        var p = _PALETTE.indigo;
+        el.innerHTML = _inlineCard(p, nav,
+          _dot(p),
+          '<span style="font-weight:600">' + urgency + '</span> · Bedtime at ' + bedStr2 + ' in ' + Math.round(minsUntil) + ' min' + streakNote,
+          _chev(p));
+        return;
+      }
+    }
+
+    // Tier 1c: screen filter active — shown when neither bedtime window nor wind-down applies.
     if (!inWindow) {
       var _sfShown = false;
       if (typeof ScreenFilter !== 'undefined') {
@@ -784,25 +815,7 @@ window.FocusHome = (function () {
       if (_sfShown) return;
     }
 
-    // Tier 2a: wind-down — 60 min before bedtime
-    if (cfg.enabled) {
-      var minsUntil = (bedH - nowH) * 60; if (minsUntil < 0) minsUntil += 1440;
-      if (minsUntil <= 60 && minsUntil > 0) {
-        var bedStr2   = _fmt12((cfg.bedHour || 22) + (cfg.bedMinute || 0) / 60);
-        var btStreak2 = 0;
-        try { if (IS_NATIVE && typeof N.getBedtimeStreak === 'function') btStreak2 = (JSON.parse(N.getBedtimeStreak() || '{}') || {}).streak || 0; } catch (_) {}
-        var urgency   = minsUntil <= 30 ? 'Wind down now' : 'Wind down soon';
-        var streakNote = btStreak2 > 0 ? ' · 🔥 ' + btStreak2 + '-night streak' : '';
-        var p = _PALETTE.indigo;
-        el.innerHTML = _inlineCard(p, nav,
-          _dot(p),
-          '<span style="font-weight:600">' + urgency + '</span> · Bedtime at ' + bedStr2 + ' in ' + Math.round(minsUntil) + ' min' + streakNote,
-          _chev(p));
-        return;
-      }
-    }
-
-    // Tier 2b: challenge at risk — Pro only
+    // Tier 2a: challenge at risk — Pro only
     // BUG-4 FIX: Challenge is a Pro feature; must not show for free users on Home.
     var d = loadStripData();
     if (ProTier.isPro && d.challengeLabel && d.challengeDone !== undefined) {

@@ -685,22 +685,22 @@ window.ScreenFilter = (function () {
     _sfPickerSh.innerHTML =
       '<div class="sf-drag"></div>' +
       '<div style="display:flex;align-items:center;justify-content:space-between;padding:0 2px 10px">' +
-        '<div style="font-family:var(--ff-d);font-size:15px;font-weight:700;color:var(--t1)">' +
+        '<div style="font-family:var(--ff-d);font-size:var(--text-sm);font-weight:700;color:var(--t1)">' +
           (isStart ? 'Start Time' : 'End Time') +
         '</div>' +
         '<div style="display:flex;align-items:center;gap:10px">' +
           '<div style="display:flex;background:var(--s2,rgba(255,255,255,.06));border-radius:10px;' +
                'border:1px solid var(--border2,rgba(255,255,255,.1));overflow:hidden">' +
             '<div id="sf-tp-am" onclick="ScreenFilter._sfPickerSetP(\'AM\')" ' +
-              'style="padding:6px 14px;font-family:var(--ff-m);font-size:12px;font-weight:700;cursor:pointer;transition:all .12s">AM</div>' +
+              'style="padding:6px 14px;font-family:var(--ff-m);font-size:var(--text-2xs);font-weight:700;cursor:pointer;transition:all .12s">AM</div>' +
             '<div id="sf-tp-pm" onclick="ScreenFilter._sfPickerSetP(\'PM\')" ' +
-              'style="padding:6px 14px;font-family:var(--ff-m);font-size:12px;font-weight:700;cursor:pointer;transition:all .12s">PM</div>' +
+              'style="padding:6px 14px;font-family:var(--ff-m);font-size:var(--text-2xs);font-weight:700;cursor:pointer;transition:all .12s">PM</div>' +
           '</div>' +
           '<div onclick="ScreenFilter._sfPickerDone()" ' +
-            'style="font-family:var(--ff-m);font-size:13px;font-weight:700;color:var(--p);cursor:pointer;padding:4px 0 4px 4px">Done</div>' +
+            'style="font-family:var(--ff-m);font-size:var(--text-xs);font-weight:700;color:var(--p);cursor:pointer;padding:4px 0 4px 4px">Done</div>' +
         '</div>' +
       '</div>' +
-      '<div id="sf-tp-display" style="text-align:center;font-family:var(--ff-d);font-size:36px;' +
+      '<div id="sf-tp-display" style="text-align:center;font-family:var(--ff-d);font-size:var(--text-3xl);' +
         'font-weight:700;color:var(--t1);letter-spacing:-1.5px;padding:2px 16px 12px;line-height:1.1"></div>' +
       '<div style="padding:0 0 8px">' +
         '<div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);' +

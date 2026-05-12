@@ -1124,6 +1124,26 @@ window.onHCDataRefreshed = function () {
   try { renderAureloScore(); } catch (_) {}
 };
 
+// Re-render score when Pro billing confirms status after cold start.
+// Without this, body pillar shows the lock icon until next manual refresh.
+// Listen on both events: aurelo-pro-changed (billing async callback) and
+// aurelo-gates-refreshed (fired after _refreshAllGates on any tier change).
+window.addEventListener('aurelo-pro-changed', function () {
+  try { renderAureloScore(); } catch (_) {}
+});
+window.addEventListener('aurelo-gates-refreshed', function () {
+  try { renderAureloScore(); } catch (_) {}
+});
+// Fallback: if billing hasn't confirmed yet by the time the score first renders,
+// retry after 2 s — covers the case where ProTier.init() reads a stale cache.
+(function () {
+  var _retried = false;
+  window.addEventListener('aurelo-pro-changed', function () { _retried = true; });
+  setTimeout(function () {
+    if (!_retried) { try { renderAureloScore(); } catch (_) {} }
+  }, 2000);
+}());
+
 // Wrap onHCSyncComplete so a forced sync (Settings → Re-sync) also triggers a
 // re-render + history save, regardless of what other JS listens on that hook.
 (function () {

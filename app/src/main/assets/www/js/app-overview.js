@@ -153,12 +153,11 @@ window.AppOverview = (function () {
         ? N.getScreenFilterSettings()
         : (typeof ScreenFilter !== 'undefined' ? JSON.stringify(ScreenFilter.getSettings()) : '{}');
       var sfCfg = JSON.parse(sfRaw || '{}');
-      var sfEnabled = sfCfg.enabled === true;
       var sfExcluded = Array.isArray(sfCfg.excludedApps) ? sfCfg.excludedApps : [];
-      if (sfEnabled && sfExcluded.length) {
+      if (sfExcluded.length) {
         var allAppsFlat8 = Object.values(CATS_MAP).flat();
         features.push({
-          id: 'screen-filter', icon: '🔆', label: 'Screen Filter — Excluded',
+          id: 'screen-filter', icon: '🌊', label: 'Screen Filter — Excluded',
           color: 'rgba(249,115,22,.08)', borderColor: 'rgba(249,115,22,.2)',
           textColor: '#f97316',
           apps: sfExcluded.map(function (pkg) {
@@ -166,7 +165,7 @@ window.AppOverview = (function () {
             return { packageName: pkg, name: found ? found.name : pkg.split('.').pop(),
                      sub: 'filter paused in this app' };
           }),
-          action: "typeof ScreenFilter !== 'undefined' && typeof ScreenFilter.openSettings === 'function' ? ScreenFilter.openSettings() : openPanel('screen-filter-panel')",
+          action: "activateTab('focus');if(typeof FocusTab!=='undefined'&&typeof FocusTab._switchFocusSubTab==='function')FocusTab._switchFocusSubTab('habits')",
         });
       }
     } catch (_) {}

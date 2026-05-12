@@ -167,9 +167,15 @@ class AppMonitorService : Service() {
             }
 
             // ── Screen Filter schedule tick ───────────────────────────────────
+            // Guard: skip the schedule activation/stop logic while bedtime or wind-down
+            // is managing the filter. Without this, the tick stops the 30-min wind-down
+            // fade every 500 ms when the standalone schedule window doesn't include the
+            // current time — leaving filterProgress stuck at 0 and the filter never visible.
             val sfRaw = prefs.getString(SCREEN_FILTER_SETTINGS_V1, null)
             val sfCfg = if (!sfRaw.isNullOrBlank()) runCatching { org.json.JSONObject(sfRaw) }.getOrNull() else null
-            if (sfCfg != null && sfCfg.optBoolean("enabled", false)) {
+            val bedtimeManagedInTick = (inWindDown || bedtimeEngine.isActive) &&
+                (sfCfg?.optBoolean("bedtimeAutoApply", true) != false)
+            if (!bedtimeManagedInTick && sfCfg != null && sfCfg.optBoolean("enabled", false)) {
                 val sfSchedule = sfCfg.optString("schedule", "none")
                 if (sfSchedule != "none") {
                     val inWindow = isInsideFilterScheduleWindow(sfCfg)
