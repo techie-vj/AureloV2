@@ -71,25 +71,31 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 14px;
+  margin-bottom: 16px;
 }
 .sf-hdr-left {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   flex: 1;
   min-width: 0;
 }
 .sf-icon {
-  font-size: 18px;
+  font-size: 20px;
   flex-shrink: 0;
 }
 .sf-title {
   font-family: var(--ff-d);
-  font-size: 16px;
-  font-weight: 300;
+  font-size: 15px;
+  font-weight: 700;
   color: var(--t1);
   letter-spacing: -.2px;
+}
+.sf-hdr-sub {
+  font-family: var(--ff-m);
+  font-size: var(--text-2xs);
+  color: var(--t3);
+  margin-top: 2px;
 }
 .sf-active-badge {
   font-family: var(--ff-m);
@@ -133,32 +139,41 @@
   line-height: 1.5;
 }
 
+/* ══ SECTION BLOCKS (card-wrapped sub-sections) ═════════════ */
+.sf-sec-block {
+  background: var(--s2, rgba(255,255,255,.04));
+  border: 1px solid var(--border2, rgba(255,255,255,.08));
+  border-radius: 12px;
+  padding: 12px 14px;
+  margin-bottom: 10px;
+}
+.sf-sec-block--last { margin-bottom: 4px; }
+
 /* ══ SECTION LABEL ═══════════════════════════════════════════ */
 .sf-sec-lbl {
   font-family: var(--ff-m);
   font-size: var(--text-2xs);
   color: var(--t3);
-  letter-spacing: 1.4px;
+  letter-spacing: 1.2px;
   text-transform: uppercase;
-  margin: 14px 0 8px;
+  margin-bottom: 10px;
 }
-.sf-sec-lbl:first-of-type { margin-top: 0; }
 
 /* ══ PRESET BUTTONS ══════════════════════════════════════════ */
 .sf-presets-row {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 7px;
-  margin-bottom: 4px;
+  gap: 8px;
+  margin-bottom: 0;
 }
 .sf-pset {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 3px;
-  padding: 9px 4px;
-  border-radius: var(--rad-sm, 12px);
-  background: var(--s2);
+  padding: 10px 6px;
+  border-radius: 10px;
+  background: var(--bg, #0d0d1a);
   border: 1px solid var(--border2);
   cursor: pointer;
   transition: all .15s;
@@ -166,8 +181,12 @@
   min-height: var(--touch-min, 44px);
 }
 .sf-pset--on {
-  background: rgba(108, 99, 255, .14);
-  border-color: rgba(108, 99, 255, .40);
+  background: var(--teal-bg, rgba(18,212,138,.08));
+  border-color: var(--g, #12D48A);
+}
+.sf-pset-ico {
+  font-size: 18px;
+  margin-bottom: 2px;
 }
 .sf-pset-lbl {
   font-family: var(--ff-m);
@@ -176,14 +195,14 @@
   color: var(--t2);
   white-space: nowrap;
 }
-.sf-pset--on .sf-pset-lbl { color: var(--p2, #a79fff); }
+.sf-pset--on .sf-pset-lbl { color: var(--g, #12D48A); }
 .sf-pset-sub {
   font-family: var(--ff-m);
   font-size: 9px;
   color: var(--t3);
   letter-spacing: .3px;
 }
-.sf-pset--on .sf-pset-sub { color: rgba(167, 159, 255, .7); }
+.sf-pset--on .sf-pset-sub { color: rgba(18, 212, 138, .65); }
 .sf-pset:active { transform: scale(.93); }
 
 /* ══ CUSTOM SLIDERS ══════════════════════════════════════════ */
@@ -244,6 +263,13 @@
 }
 
 /* ══ SCHEDULE LIST ═══════════════════════════════════════════ */
+.sf-sched-card {
+  display: flex;
+  flex-direction: column;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid var(--border2, rgba(255,255,255,.08));
+}
 .sf-sched-list {
   display: flex;
   flex-direction: column;
@@ -253,29 +279,30 @@
 .sf-sched-row {
   display: flex;
   align-items: flex-start;
-  gap: 11px;
-  padding: 10px 11px;
-  border-radius: var(--rad-sm, 12px);
+  gap: 12px;
+  padding: 11px 14px;
   cursor: pointer;
   transition: background .12s;
   -webkit-tap-highlight-color: transparent;
   min-height: var(--touch-min, 44px);
-  background: transparent;
+  background: var(--s1, rgba(255,255,255,.03));
+  border-top: 1px solid var(--border2, rgba(255,255,255,.08));
 }
+.sf-sched-row:first-child { border-top: none; }
 .sf-sched-row:active { background: var(--s2); }
 .sf-sched--pro { opacity: .65; }
 .sf-radio {
-  width: 18px; height: 18px;
+  width: 16px; height: 16px;
   border-radius: 50%;
   border: 2px solid var(--border2);
   flex-shrink: 0;
-  margin-top: 1px;
+  margin-top: 2px;
   transition: all .15s;
 }
 .sf-radio--on {
-  border-color: var(--p);
-  background: var(--p);
-  box-shadow: 0 0 0 3px rgba(108, 99, 255, .18);
+  border-color: var(--g, #12D48A);
+  background: var(--g, #12D48A);
+  box-shadow: 0 0 0 3px rgba(18, 212, 138, .15);
 }
 .sf-sched-lbl-wrap { flex: 1; min-width: 0; }
 .sf-sched-lbl {
@@ -288,6 +315,10 @@
   align-items: center;
   gap: 6px;
   flex-wrap: wrap;
+}
+.sf-sched-row.sf-radio--on .sf-sched-lbl,
+.sf-sched-row:has(.sf-radio--on) .sf-sched-lbl {
+  color: var(--g, #12D48A);
 }
 .sf-sched-sub {
   font-family: var(--ff-m);

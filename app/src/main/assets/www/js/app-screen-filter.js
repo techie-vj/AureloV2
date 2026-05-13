@@ -360,19 +360,13 @@ window.ScreenFilter = (function () {
     var badge = bedtimeControlling
       ? '<span class="sf-active-badge">Active via Bedtime</span>' : '';
 
-    // FIX 1: pass cfg.excludedApps WITHOUT camera pkgs — camera is shown separately
-    var excludedHtml = _buildExcludedAppsHtml(cfg.excludedApps);
-
     var cardClass = bedtimeControlling ? 'sf-card sf-card--bedtime-controlled' : 'sf-card';
+
     var disabledHint = bedtimeControlling
       ? '<div class="sf-bedtime-hint">🌙 Bedtime Mode is controlling the filter. Adjust settings below.</div>'
       : '';
 
-    // FIX 4: separate day picker HTML for each mode so IDs never collide.
-    // custom schedule → 'sf-day-*' IDs (inside #sf-times, always visible when custom active)
-    // sun schedule    → 'sf-sday-*' IDs (outside #sf-times, no overlap)
-    var customDayPickerHtml = (isPro && cfg.schedule === 'custom') ? _buildDayPicker(cfg.schedDays, 'sf-day-')  : '';
-    var sunDayPickerHtml    = (isPro && cfg.schedule === 'sun')    ? _buildDayPicker(cfg.schedDays, 'sf-sday-') : '';
+    // Always-visible day picker (shown regardless of schedule mode) — built inline by _buildDayPickerRow()
 
     wrap.innerHTML =
       '<div class="' + cardClass + '">' +
@@ -380,7 +374,17 @@ window.ScreenFilter = (function () {
         // Header
         '<div class="sf-hdr">' +
           '<div class="sf-hdr-left"><span class="sf-icon">🌊</span>' +
-            '<span class="sf-title">Screen Filter</span>' + badge +
+            '<div>' +
+              '<span class="sf-title">Screen Filter</span>' + badge +
+              '<div class="sf-hdr-sub">' +
+                (bedtimeControlling
+                  ? 'Active via Bedtime Mode'
+                  : cfg.enabled
+                    ? ({ soft:'Soft', medium:'Medium', bedtime:'Night', custom:'Custom' }[cfg.preset] || 'Soft') +
+                      ' · ' + ({ none:'Always on', sun:'Sun-based', custom:'Scheduled' }[cfg.schedule] || 'Always on')
+                    : 'Disabled') +
+              '</div>' +
+            '</div>' +
           '</div>' +
           '<button class="sf-tog sf-tog--' + togState + '"' +
             (bedtimeControlling ? ' disabled style="opacity:.5;cursor:default"' : ' onclick="ScreenFilter._togMaster()"') +
@@ -389,50 +393,59 @@ window.ScreenFilter = (function () {
 
         disabledHint +
 
-        // Presets
-        '<div class="sf-sec-lbl">PRESET</div>' +
-        '<div class="sf-presets-row">' +
-          _pBtn('soft',    '🟡 Soft',    cfg.preset) +
-          _pBtn('medium',  '🟠 Medium',  cfg.preset) +
-          _pBtn('bedtime', '🔴 Bedtime', cfg.preset) +
-          _pBtn('custom',  '✏️ Custom',  cfg.preset) +
+        // ── PRESET section ─────────────────────────────────────────
+        '<div class="sf-sec-block">' +
+          '<div class="sf-sec-lbl">PRESET</div>' +
+          '<div class="sf-presets-row">' +
+            _pBtn('soft',    '🌤', 'Soft',   cfg.preset) +
+            _pBtn('medium',  '🟠', 'Medium', cfg.preset) +
+            _pBtn('bedtime', '🔴', 'Night',  cfg.preset) +
+            _pBtn('custom',  '✏️', 'Custom', cfg.preset) +
+          '</div>' +
         '</div>' +
 
         // Sliders (custom preset only)
-        '<div id="sf-sliders" style="' + (cfg.preset === 'custom' ? '' : 'display:none') + '">' +
+        '<div id="sf-sliders" style="' + (cfg.preset === 'custom' ? '' : 'display:none') + ';margin-bottom:4px">' +
           _slider('Blue Light Filter', 'warm', cfg.warmAlpha, '#f97316') +
           _slider('Extra Dim',         'dim',  cfg.dimAlpha,  '#7c3aed') +
         '</div>' +
 
-        // When to run — renamed options for clarity
-        '<div class="sf-sec-lbl">WHEN TO RUN</div>' +
-        '<div class="sf-sched-list">' +
-          _schedRow('none',   'Manual (Always On)',       null,         cfg.schedule, false) +
-          _schedRow('sun',    'Automatic (Sun-based)',    _sunSubLabel(cfg), cfg.schedule, !isPro) +
-          _schedRow('custom', 'Scheduled (Custom times)', null,         cfg.schedule, !isPro) +
-        '</div>' +
-
-        // FIX 3: custom time pickers — now have onclick via _timePicker()
-        '<div id="sf-times" style="' + (cfg.schedule === 'custom' && isPro ? '' : 'display:none') + '">' +
-          '<div class="sf-time-row">' +
-            _timePicker('Start', cfg.schedStartHour, cfg.schedStartMin, 'sf-t-start') +
-            _timePicker('End',   cfg.schedEndHour,   cfg.schedEndMin,   'sf-t-end') +
+        // ── WHEN TO RUN section ────────────────────────────────────
+        '<div class="sf-sec-block">' +
+          '<div class="sf-sec-lbl">WHEN TO RUN</div>' +
+          '<div class="sf-sched-card">' +
+            _schedRow('none',   'Manual',    'Always on when enabled',    cfg.schedule, false) +
+            _schedRow('sun',    'Automatic', _sunSubLabel(cfg) || 'Sun-based · location needed', cfg.schedule, !isPro) +
+            _schedRow('custom', 'Scheduled', 'Custom times',              cfg.schedule, !isPro) +
           '</div>' +
-          // Day picker inside #sf-times uses 'sf-day-*' IDs (only rendered when custom is selected)
-          customDayPickerHtml +
+          // Custom time pickers
+          '<div id="sf-times" style="' + (cfg.schedule === 'custom' && isPro ? '' : 'display:none') + ';margin-top:10px">' +
+            '<div class="sf-time-row">' +
+              _timePicker('Start', cfg.schedStartHour, cfg.schedStartMin, 'sf-t-start') +
+              _timePicker('End',   cfg.schedEndHour,   cfg.schedEndMin,   'sf-t-end') +
+            '</div>' +
+          '</div>' +
         '</div>' +
 
-        // FIX 4: sun-based schedule day picker outside #sf-times — uses 'sf-sday-*' IDs (no collision)
-        sunDayPickerHtml +
+        // ── ACTIVE DAYS section — always visible ───────────────────
+        '<div class="sf-sec-block">' +
+          '<div class="sf-sec-lbl">ACTIVE DAYS</div>' +
+          _buildDayPickerRow(cfg.schedDays, 'sf-aday-') +
+        '</div>' +
 
+        // ── PAUSED FOR APPS section ────────────────────────────────
+        '<div class="sf-sec-block sf-sec-block--last">' +
+          '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">' +
+            '<div>' +
+              '<div style="font-family:var(--ff-m);font-size:var(--text-xs,12px);font-weight:600;color:var(--t1)">Pause filter when using</div>' +
+              '<div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);margin-top:2px">Filter lifts automatically while these apps are open</div>' +
+            '</div>' +
+            '<button class="sf-excl-add" onclick="ScreenFilter._addExcluded()">+ Add</button>' +
+          '</div>' +
+          '<div class="sf-excl-wrap" id="sf-excl-wrap">' + _buildExcludedChipsOnly(cfg.excludedApps) + '</div>' +
+        '</div>' +
 
- // FIX 1 + 2: excluded apps — camera shown as single chip
-        '<div class="sf-sec-lbl">PAUSED FOR APPS</div>' +
-        excludedHtml +
-
-        // SF-26: Transparency / documentation row
-        // Users always know what the filter does and can dismiss it without
-        // hunting through settings — matches Aurelo Coach transparency philosophy.
+        // Info row
         '<div class="sf-info-row sf-info--collapsed" id="sf-info-row"' +
           ' onclick="(function(r){r.classList.toggle(\'sf-info--collapsed\')})(this)">' +
           '<span class="sf-info-icon" style="margin-top:1px">&#9432;</span>' +
@@ -457,10 +470,6 @@ window.ScreenFilter = (function () {
           '<button class="sf-save"    onclick="ScreenFilter._save()">Save</button>' +
         '</div>' +
 
-      // Bug-3 FIX: closing </div> for the outer card div was missing, causing the
-      // '+' operator to concatenate _bindSliders() return value (undefined) into
-      // the innerHTML string, which rendered the literal text "undefined" below
-      // the Save/Discard buttons.
       '</div>';
 
     _bindSliders();
@@ -516,6 +525,37 @@ window.ScreenFilter = (function () {
     );
   }
 
+  /**
+   * Returns only the chip HTML (no add button — button is now in the section header).
+   * Used by the new card-wrapped PAUSED FOR APPS section.
+   */
+  function _buildExcludedChipsOnly(apps) {
+    var isPro   = typeof ProTier !== 'undefined' && ProTier.isPro;
+    var maxChips = isPro ? 5 : 3;
+    var nonCam = apps.filter(function (p) { return CAMERA_PKGS.indexOf(p) === -1; });
+    var chips  = '';
+    chips +=
+      '<div class="sf-excl-chip">' +
+        '<span class="sf-excl-lbl">📷 Camera</span>' +
+        '<span class="sf-excl-auto">auto</span>' +
+      '</div>';
+    nonCam.slice(0, maxChips).forEach(function (pkg) {
+      chips +=
+        '<div class="sf-excl-chip">' +
+          '<span class="sf-excl-lbl">' + _pkgLabel(pkg) + '</span>' +
+          '<button class="sf-excl-rm" onclick="ScreenFilter._removeExcluded(\'' + pkg + '\')" aria-label="Remove">\u00d7</button>' +
+        '</div>';
+    });
+    if (nonCam.length > maxChips) {
+      chips +=
+        '<div class="sf-excl-chip sf-excl-overflow" onclick="ScreenFilter._addExcluded(true)" ' +
+          'style="background:var(--s2,rgba(255,255,255,.04));border-color:var(--border2);' +
+          'color:var(--t3);font-family:var(--ff-m);font-size:var(--text-2xs);' +
+          'font-weight:700;cursor:pointer">+' + (nonCam.length - maxChips) + ' more</div>';
+    }
+    return chips;
+  }
+
   function _pkgLabel(pkg) {
     // Bug 3 fix: use real app name from the cached app list instead of
     // deriving a label from the last segment of the package name (which
@@ -557,6 +597,32 @@ window.ScreenFilter = (function () {
     );
   }
 
+  /**
+   * Returns just the <div class="sf-day-row"> of day buttons (no "Active days" header label).
+   * Used by the new card-section layout where the section label is rendered separately.
+   */
+  function _buildDayPickerRow(days, idPrefix) {
+    idPrefix = idPrefix || 'sf-aday-';
+    var btns = '';
+    DAY_LABELS.forEach(function (lbl, i) {
+      var on = days[i] !== 0;
+      var borderColor = on ? 'var(--p)' : 'var(--border2,rgba(255,255,255,.12))';
+      var bg          = on ? 'var(--p)' : 'var(--bg,#0d0d1a)';
+      var color       = on ? '#fff'     : 'var(--t3,rgba(255,255,255,.35))';
+      btns +=
+        '<div id="' + idPrefix + i + '" data-active="' + (on ? '1' : '0') + '"' +
+          ' onclick="ScreenFilter._toggleDay(' + i + ')"' +
+          ' aria-label="' + DAY_LABELS_FULL[i] + '" aria-pressed="' + on + '"' +
+          ' style="flex:1;text-align:center;padding:7px 0 5px;border-radius:8px;cursor:pointer;' +
+          'font-family:var(--ff-m);font-size:var(--text-2xs);font-weight:700;' +
+          'border:1px solid ' + borderColor + ';' +
+          'background:' + bg + ';' +
+          'color:' + color + ';' +
+          '-webkit-tap-highlight-color:transparent">' + lbl + '</div>';
+    });
+    return '<div class="sf-day-row">' + btns + '</div>';
+  }
+
   function _toggleDay(idx) {
     var cfg = getCfg();
     if (!Array.isArray(cfg.schedDays) || cfg.schedDays.length !== 7)
@@ -564,10 +630,8 @@ window.ScreenFilter = (function () {
     cfg.schedDays[idx] = cfg.schedDays[idx] ? 0 : 1;
     _cfg = cfg;
     _cacheTs = Date.now();
-    // FIX: sun schedule uses 'sf-sday-' prefix; custom uses 'sf-day-'
-    // This prevents getElementById from accidentally finding the hidden copy
-    // inside #sf-times when sun is selected (duplicate-ID bug).
-    var prefix = cfg.schedule === 'sun' ? 'sf-sday-' : 'sf-day-';
+    // Unified prefix for always-visible day picker
+    var prefix = 'sf-aday-';
     var pill = document.getElementById(prefix + idx);
     if (pill) {
       var on = !!cfg.schedDays[idx];
@@ -591,16 +655,17 @@ window.ScreenFilter = (function () {
   }
 
   var PRESET_SUBS = {
-    soft:    'Reduces eye strain',
-    medium:  'Blocks blue light',
-    bedtime: 'Melatonin protection',
-    custom:  'Advanced manual control'
+    soft:    'Eye strain',
+    medium:  'Blue light',
+    bedtime: 'Melatonin',
+    custom:  'Manual'
   };
 
-  function _pBtn(key, label, cur) {
+  function _pBtn(key, emoji, label, cur) {
     var sub = PRESET_SUBS[key] || '';
     return '<button class="sf-pset' + (cur === key ? ' sf-pset--on' : '') +
       '" onclick="ScreenFilter._preset(\'' + key + '\')">' +
+        '<span class="sf-pset-ico">' + emoji + '</span>' +
         '<span class="sf-pset-lbl">' + label + '</span>' +
         '<span class="sf-pset-sub">' + sub + '</span>' +
       '</button>';
@@ -622,15 +687,17 @@ window.ScreenFilter = (function () {
   function _schedRow(key, label, sublabel, cur, pro) {
     var proTag = pro ? ' <span class="sf-pro-tag">PRO</span>' : '';
     var click  = pro
-      ? 'typeof ProTier!==\'undefined\'&&ProTier.triggerUpsell(\'SCREEN_FILTER\')' // FIX2: uppercase key matches all other upsell calls
+      ? 'typeof ProTier!==\'undefined\'&&ProTier.triggerUpsell(\'SCREEN_FILTER\')'
       : 'ScreenFilter._sched(\'' + key + '\')';
+    var isActive = cur === key;
     var subHtml = sublabel
       ? '<div class="sf-sched-sub">' + sublabel + '</div>'
       : '';
+    var lblColor = isActive && !pro ? 'color:var(--g,#12D48A);' : '';
     return '<div class="sf-sched-row' + (pro ? ' sf-sched--pro' : '') + '" onclick="' + click + '">' +
-      '<div class="sf-radio' + (cur === key ? ' sf-radio--on' : '') + '"></div>' +
+      '<div class="sf-radio' + (isActive ? ' sf-radio--on' : '') + '"></div>' +
       '<div class="sf-sched-lbl-wrap">' +
-        '<span class="sf-sched-lbl">' + label + proTag + '</span>' +
+        '<span class="sf-sched-lbl" style="' + lblColor + '">' + label + proTag + '</span>' +
         subHtml +
       '</div>' +
     '</div>';
@@ -1153,11 +1220,11 @@ window.ScreenFilter = (function () {
   function _refreshExclWrap(apps) {
     var wrap = document.getElementById('sf-excl-wrap');
     if (!wrap) return;
+    // Remove the old .sf-excl-note sibling if it exists (legacy layout)
     var note = wrap.nextElementSibling;
-    var tmp  = document.createElement('div');
-    tmp.innerHTML = _buildExcludedAppsHtml(apps);
-    wrap.parentNode.replaceChild(tmp.firstChild, wrap);
     if (note && note.classList && note.classList.contains('sf-excl-note')) note.remove();
+    // Rebuild chips only — add button is now in the section header
+    wrap.innerHTML = _buildExcludedChipsOnly(apps);
     _bindExcludedApps();
   }
 

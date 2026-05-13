@@ -264,6 +264,12 @@ window.FocusTab = (function () {
 
   /* ─── Sub-tab switch ─────────────────────────────────────────── */
   function _switchFocusSubTab(tab) {
+    // Collapse sleep settings when leaving the habits tab
+    if (_focusActiveSubTab === 'habits' && tab !== 'habits') {
+      if (typeof FocusBedtime !== 'undefined' && typeof FocusBedtime.collapseSettings === 'function') {
+        FocusBedtime.collapseSettings();
+      }
+    }
     _focusActiveSubTab = tab;
     var focusEl  = document.getElementById('focus-subtab-focus');
     var habitsEl = document.getElementById('focus-subtab-habits');

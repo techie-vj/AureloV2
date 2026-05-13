@@ -1024,7 +1024,7 @@ window.FocusBedtime = (function () {
         '+' + (blockedApps.length - 5) + ' more</div>'
       : '';
 
-    var settingsOpen = !!S.settings.bedtimeSettingsExpanded;
+    var settingsOpen = S.settings.bedtimeSettingsExpanded === true;
 
     el.style.cssText = 'background:var(--s2);border:1px solid var(--border2);border-radius:14px;overflow:hidden;';
     el.innerHTML =
@@ -1286,6 +1286,18 @@ window.FocusBedtime = (function () {
     btToggleDay:     _btToggleDay,
     refreshChips:    _btRefreshInlineChips,
     snooze:          snoozeBedtimePrompt,
+    /**
+     * Collapses the Sleep Settings accordion and persists the collapsed state.
+     * Called by FocusTab._switchFocusSubTab when the user navigates away from the
+     * Habits sub-tab, so the section is always closed on re-entry.
+     */
+    collapseSettings: function () {
+      S.settings.bedtimeSettingsExpanded = false;
+      var body = document.getElementById('bt-settings-body');
+      var chev = document.getElementById('bt-settings-chev');
+      if (body) body.style.display = 'none';
+      if (chev) chev.style.transform = 'rotate(0deg)';
+    },
     /**
      * Called by saveFocusPick() and the window._btOnBlockPickerSave shim in
      * app-settings.js after the user confirms their bedtime blocked-app selection.
