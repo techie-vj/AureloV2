@@ -806,7 +806,32 @@ window.FocusScore = (function () {
       }
     }
 
-    // Tier 2b: challenge at risk
+    // Tier 2b: screen filter active — same priority as home habits strip
+    if (!events.length) {
+      try {
+        if (typeof ScreenFilter !== 'undefined') {
+          var sfCfg3 = ScreenFilter.getCfg();
+          var sfActive3 = IS_NATIVE && typeof N.isScreenFilterActive === 'function'
+            ? !!N.isScreenFilterActive() : (sfCfg3.enabled && !sfCfg3.paused);
+          if (sfActive3) {
+            var sfPreset3 = { soft: 'Soft', medium: 'Medium', bedtime: 'Bedtime', custom: 'Custom' }[sfCfg3.preset] || 'On';
+            var sfEndStr3 = typeof ScreenFilter.getEndStr === 'function' ? ScreenFilter.getEndStr(sfCfg3) : 'Active';
+            events.push({ tier: 2, id: 'screen_filter_active', html:
+              '<div onclick="FocusTab._switchFocusSubTab(\'habits\');activateTab(\'focus\')" style="background:rgba(5,200,232,.09);border:1px solid rgba(5,200,232,.26);border-radius:16px;padding:12px 14px;display:flex;align-items:center;gap:12px;cursor:pointer;transition:opacity .15s" ontouchstart="this.style.opacity=\'.75\'" ontouchend="this.style.opacity=\'1\'">'
+              + '<div style="width:36px;height:36px;border-radius:10px;background:rgba(5,200,232,.18);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">🌊</div>'
+              + '<div style="flex:1;min-width:0">'
+              + '<div style="font-size:var(--text-sm);font-weight:600;color:var(--t1);margin-bottom:2px">Screen Filter Active <span style="font-family:var(--ff-m);font-size:9px;font-weight:700;padding:1px 6px;border-radius:4px;background:rgba(5,200,232,.15);color:#05C8E8;margin-left:5px">' + sfPreset3 + '</span></div>'
+              + '<div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3)">' + sfEndStr3 + '</div>'
+              + '</div>'
+              + '<div onclick="event.stopPropagation();if(typeof ScreenFilter!==undefined)ScreenFilter._togMaster()" style="font-family:var(--ff-m);font-size:var(--text-2xs);font-weight:700;color:rgba(5,200,232,.9);border:1px solid rgba(5,200,232,.3);border-radius:8px;padding:5px 10px;cursor:pointer;white-space:nowrap;background:rgba(5,200,232,.08);flex-shrink:0">Off</div>'
+              + '</div>'
+            });
+          }
+        }
+      } catch (_) {}
+    }
+
+    // Tier 2c: challenge at risk
     var d = typeof FocusTab !== 'undefined' ? FocusTab.loadStripData() : {};
     if (!events.length && d.challengeLabel && d.challengeDone !== undefined) {
       var daysLeft = 7 - new Date().getDay(), needed = d.challengeTarget - d.challengeDone;

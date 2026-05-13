@@ -470,7 +470,6 @@ window.ScreenFilter = (function () {
     // top. Restoring via _markDirty() makes the save/discard bar reappear correctly.
     if (wasDirty) _markDirty();
     // Refresh the compact active strip on the Habits tab every time the card redraws.
-    renderActiveStrip('sf-active-strip');
   }
 
   /* ── Excluded apps HTML — bedtime-style: 5 chips (Pro) / 3 chips (free) + overflow ── */
@@ -1230,70 +1229,6 @@ window.ScreenFilter = (function () {
     return 'Until ' + h12 + ':' + pad(em) + (eh >= 12 ? ' PM' : ' AM');
   }
 
-  /**
-   * Render a compact active-filter strip into any element by ID.
-   * Called from render() for #sf-active-strip on the Habits tab.
-   * Also exported so FocusHome can call it for the home-tab strip.
-   *
-   * Hidden when:
-   *   \u2022 filter is not active
-   *   \u2022 Bedtime Mode is controlling the filter (bedtime strip covers it)
-   */
-  function renderActiveStrip(elId) {
-    var el = document.getElementById(elId || 'sf-active-strip');
-    if (!el) return;
-
-    var cfg = getCfg();
-    var isActive = false;
-    try {
-      isActive = IS_NATIVE && typeof N.isScreenFilterActive === 'function'
-        ? !!N.isScreenFilterActive()
-        : (cfg.enabled && !cfg.paused);
-    } catch (_) {
-      isActive = cfg.enabled && !cfg.paused;
-    }
-
-    // Suppress when Bedtime controls the filter \u2014 bedtime strip already covers status.
-    var btControlling = IS_NATIVE
-      && typeof N.isInBedtimeWindow === 'function'
-      && N.isInBedtimeWindow()
-      && cfg.bedtimeAutoApply;
-
-    if (!isActive || btControlling) {
-      el.innerHTML = '';
-      el.style.display = 'none';
-      return;
-    }
-
-    el.style.display = '';
-    var presetLabel = { soft: 'Soft', medium: 'Medium', bedtime: 'Bedtime', custom: 'Custom' }[cfg.preset] || 'On';
-    var endStr = _getFilterEndStr(cfg);
-
-    el.innerHTML =
-      '<div style="display:flex;align-items:center;gap:11px;' +
-      'background:rgba(5,200,232,.08);border:1px solid rgba(5,200,232,.22);' +
-      'border-radius:14px;padding:11px 14px;">' +
-        '<div style="font-size:20px;flex-shrink:0">\uD83C\uDF0A</div>' +
-        '<div style="flex:1;min-width:0">' +
-          '<div style="font-size:13px;font-weight:700;color:var(--t1)">' +
-            'Screen Filter Active' +
-            ' <span style="font-family:var(--ff-m);font-size:10px;font-weight:700;' +
-            'padding:1px 6px;border-radius:4px;background:rgba(5,200,232,.15);' +
-            'color:#05C8E8;vertical-align:middle">' + presetLabel + '</span>' +
-          '</div>' +
-          '<div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);margin-top:2px">' +
-            endStr +
-          '</div>' +
-        '</div>' +
-        '<div onclick="event.stopPropagation();if(typeof ScreenFilter!==\'undefined\')ScreenFilter._togMaster()"' +
-        ' style="font-family:var(--ff-m);font-size:var(--text-2xs);font-weight:700;' +
-        'color:rgba(5,200,232,.9);border:1px solid rgba(5,200,232,.3);border-radius:8px;' +
-        'padding:5px 10px;cursor:pointer;white-space:nowrap;background:rgba(5,200,232,.08)">' +
-          'Turn Off' +
-        '</div>' +
-      '</div>';
-  }
-
   /* ── Settings section renderer (for Settings tab) ────────────── */
   function renderSettingsSection() {
     var el = document.getElementById('sf-settings-section');
@@ -1330,7 +1265,6 @@ window.ScreenFilter = (function () {
     applyBedtimeFilter: applyBedtimeFilter,
     stopBedtimeFilter: stopBedtimeFilter,
     renderSettingsSection: renderSettingsSection,
-    renderActiveStrip: renderActiveStrip,
     getEndStr: _getFilterEndStr,
     _togMaster: _togMaster, _preset: _preset,
     _sched: _sched, _schedApply: _schedApply, _trans: _trans,

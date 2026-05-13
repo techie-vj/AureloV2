@@ -560,7 +560,14 @@ function renderAureloScore() {
   const hcConnected = (typeof HealthConnect !== 'undefined' &&
                        typeof HealthConnect.isConnected === 'function' &&
                        HealthConnect.isConnected());
-  const isPro = typeof ProTier !== 'undefined' && ProTier.isPro;
+  // COLD-START FIX: ProTier.isPro may be false before ProTier.init() reads the
+  // native billing cache. Fall back to AppBridge.getProStatus() so the body
+  // pillar renders correctly on the very first render without a re-render cycle.
+  let isPro = typeof ProTier !== 'undefined' && ProTier.isPro;
+  if (!isPro && typeof IS_NATIVE !== 'undefined' && IS_NATIVE &&
+      typeof AppBridge !== 'undefined' && typeof AppBridge.getProStatus === 'function') {
+    try { isPro = !!AppBridge.getProStatus(); } catch (_) {}
+  }
 
   // F-09: Trend delta — now reads from persisted Aurelo Score history (accurate).
   // Was: relied on S.yesterdayScore which is a runtime prop never reliably populated.

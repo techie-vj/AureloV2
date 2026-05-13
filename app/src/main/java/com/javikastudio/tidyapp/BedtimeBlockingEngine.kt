@@ -131,7 +131,18 @@ class BedtimeBlockingEngine(
     fun stopSoft() {
         isActive = false; blockedPkgs = emptySet(); blockedAppNames = emptyMap()
         allowedPkg = ""; allowedUntilTs = 0L; snoozedUntilTs = 0L; allowedAppIsInFg = false
-        prefs.edit().putBoolean("bedtime_filter_snoozed", false).apply()
+        // BUG-DND FIX: clear bedtime_block_active and snooze timestamp so restoreFromPrefs()
+        // on the next app restart does not find a stale active flag + expired snooze and
+        // re-enable DND. Previously stopSoft() only wiped in-memory state, leaving prefs
+        // intact and causing DND to be turned ON every time the app was reopened after
+        // the user pressed Turn Off or Snooze from the in-app bedtime UI.
+        // Also cancel the snooze-expire alarm so it cannot fire after disable.
+        cancelSnoozeExpireAlarm()
+        prefs.edit()
+            .putBoolean("bedtime_block_active", false)
+            .putLong("bedtime_snooze_until_ts", 0L)
+            .putBoolean("bedtime_filter_snoozed", false)
+            .apply()
 
         val snoozeCount   = prefs.getInt("bedtime_snooze_count", 0)
         val attemptsTotal = sumAttempts()
