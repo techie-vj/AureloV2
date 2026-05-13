@@ -373,6 +373,10 @@ class AppMonitorService : Service() {
                 val customB = intent.getIntExtra("filter_custom_b", 0)
                 if (step > 0L) filterEngine.start(w, d, g, step, preset, customR, customG, customB)
                 else           filterEngine.start(w, d, g, preset = preset, customR = customR, customG = customG, customB = customB)
+                // SF-STRIP-FIX: mark filter as active in prefs so JS renderActiveStrip()
+                // (called from N.isScreenFilterActive()) shows the habits-tab compact strip.
+                // Previously only the bedtime wind-down / schedule paths set this flag.
+                prefs.edit().putBoolean(SCREEN_FILTER_ACTIVE, true).apply()
             }
             ACTION_FILTER_UPDATE -> filterEngine.update(
                 intent.getIntExtra("filter_warm", 60), intent.getIntExtra("filter_dim", 30))
@@ -397,6 +401,18 @@ class AppMonitorService : Service() {
                 focusEngine.restoreFromPrefs(); timerEngine.restoreFromPrefs()
                 intentionEngine.restoreFromPrefs(); bedtimeEngine.restoreFromPrefs()
                 filterEngine.restoreFromPrefs()
+                // WIND-DOWN-FIX: if the service was killed mid wind-down, restoreFromPrefs()
+                // reads manual filter settings (enabled=false for most users) and skips
+                // restarting the overlay — so progress stays 0% until the snooze-expiry
+                // branch fires, which never happens because there's no snooze active.
+                // Detect this and restart the gradual fade for whatever time remains.
+                val _nowRestore  = System.currentTimeMillis()
+                val _wdStart     = prefs.getLong(BEDTIME_WINDOWN_START_TS, 0L)
+                val _inWD        = _wdStart > 0L && (_nowRestore - _wdStart) < WINDOWN_DURATION_MS
+                val _wdSnoozeUntil = prefs.getLong(BEDTIME_WINDOWN_SNOOZE_UNTIL_TS, 0L)
+                if (_inWD && _wdSnoozeUntil <= _nowRestore && !filterEngine.isActive()) {
+                    restartWindDownFilter(_nowRestore, _wdStart)
+                }
                 if (!pollScheduled) { pollScheduled = true; handler.post(pollRunnable) }
             }
         }
