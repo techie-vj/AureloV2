@@ -1107,17 +1107,27 @@ window.FocusBedtime = (function () {
 
         /* 4. Sleep settings (collapsible) */
         '<div style="border-top:1px solid var(--border);margin:0 -16px;padding:0 16px">' +
-          '<div style="display:flex;align-items:center;justify-content:space-between;padding:11px 0;cursor:pointer"' +
+          '<div style="display:flex;align-items:center;justify-content:space-between;padding:12px 0;cursor:pointer"' +
           ' onclick="_toggleBedtimeSettings()">' +
-            '<div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t2);font-weight:600">Sleep settings</div>' +
+            /* Left: gear emoji + label */
             '<div style="display:flex;align-items:center;gap:8px">' +
-              '<span style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3)">DND \u00b7 wind-down \u00b7 screen filter \u00b7 summary</span>' +
-              '<span id="bt-settings-chev" style="font-size:var(--text-2xs);color:var(--t3);transition:transform .2s;' +
+              '<span style="font-size:14px">⚙️</span>' +
+              '<span style="font-family:var(--ff-m);font-size:var(--text-xs,12px);font-weight:600;color:var(--t2)">Sleep Settings</span>' +
+            '</div>' +
+            /* Right: mini pill tags when collapsed, just chevron when expanded */
+            '<div style="display:flex;align-items:center;gap:6px">' +
+              (!settingsOpen
+                ? ['DND','Wind-down','Filter','Summary'].map(function (t) {
+                    return '<span style="font-family:var(--ff-m);font-size:9px;padding:2px 6px;border-radius:4px;' +
+                      'background:var(--bg);border:1px solid var(--border2);color:var(--t3)">' + t + '</span>';
+                  }).join('')
+                : '') +
+              '<span id="bt-settings-chev" style="font-size:12px;color:var(--t3);transition:transform .2s;margin-left:2px;' +
               'transform:' + (settingsOpen ? 'rotate(180deg)' : 'rotate(0deg)') + '">\u25be</span>' +
             '</div>' +
           '</div>' +
-          '<div id="bt-settings-body" style="display:' + (settingsOpen ? 'block' : 'none') + ';padding-bottom:4px">' +
-            '<div style="background:var(--bg);border:1px solid var(--border2);border-radius:12px;overflow:hidden;margin-bottom:12px">' +
+          '<div id="bt-settings-body" style="display:' + (settingsOpen ? 'block' : 'none') + ';padding-bottom:12px">' +
+            '<div style="background:var(--bg);border:1px solid var(--border2);border-radius:12px;overflow:hidden">' +
               /* DND row — always on, non-interactive */
               '<div style="display:flex;align-items:center;gap:12px;padding:11px 14px;border-bottom:1px solid var(--border)">' +
                 '<div style="font-size:16px">\uD83D\uDD15</div>' +
@@ -1144,11 +1154,11 @@ window.FocusBedtime = (function () {
                 var sfAutoApply = (typeof ScreenFilter !== 'undefined' && ScreenFilter.getCfg().bedtimeAutoApply);
                 var sfCfg = (typeof ScreenFilter !== 'undefined') ? ScreenFilter.getCfg() : {};
                 return (
-                  '<div class="sf-bt-row" style="display:flex;align-items:center;gap:12px;padding:11px 14px;border-top:1px solid var(--border)" onclick="event.stopPropagation()">' +
+                  '<div class="sf-bt-row" style="display:flex;align-items:center;gap:12px;padding:11px 14px;border-bottom:1px solid var(--border)" onclick="event.stopPropagation()">' +
                     '<div style="font-size:16px">🌊</div>' +
-                    '<div style="flex:1;margin-left:12px">' +
+                    '<div style="flex:1">' +
                       '<div style="font-size:12px;font-weight:600;color:var(--t1)">Screen Filter</div>' +
-                      '<div style="font-family:var(--ff-m);font-size:10px;color:var(--t3)">Auto-apply on bedtime</div>' +
+                      '<div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3)">Auto-apply on bedtime start</div>' +
                       (typeof ScreenFilter !== 'undefined' ? '<div class="sf-bt-preset-sel" onclick="event.stopPropagation();_sfCycleBtPreset()">' + _getSfBedtimeLabel() + ' ▾</div>' : '') +
                     '</div>' +
                     '<div class="tog ' + (sfAutoApply ? 'on' : 'off') + '" id="bt-sf-tog"' +
@@ -1156,16 +1166,15 @@ window.FocusBedtime = (function () {
                       '<div class="tog-knob"></div>' +
                     '</div>' +
                   '</div>' +
-                  // Transition sub-rows — only shown when Screen Filter auto-apply is ON
+                  /* Transition sub-rows — only shown when Screen Filter auto-apply is ON */
                   (sfAutoApply
-                    ? '<div id="bt-sf-transitions" style="padding:2px 14px 10px 42px;border-top:1px solid rgba(255,255,255,.04)">' +
+                    ? '<div id="bt-sf-transitions" style="padding:4px 14px 10px 42px;border-bottom:1px solid rgba(255,255,255,.04)">' +
                         _sfBtTransRow('fadeIn',  'bt-sf-fade-in-tog',  !!sfCfg.fadeIn,  '🌅 Fade in 30 min before bedtime') +
                         _sfBtTransRow('fadeOut', 'bt-sf-fade-out-tog', !!sfCfg.fadeOut, '🌄 Fade out 10 min after wake time') +
                       '</div>'
-                    : '<div id="bt-sf-transitions" style="padding:2px 14px 10px 42px;border-top:1px solid rgba(255,255,255,.04);display:none"></div>')
+                    : '<div id="bt-sf-transitions" style="padding:4px 14px 10px 42px;border-bottom:1px solid rgba(255,255,255,.04);display:none"></div>')
                 );
               }()) +
-
               /* Morning summary */
               '<div style="display:flex;align-items:center;gap:12px;padding:11px 14px">' +
                 '<div style="font-size:16px">\u2600\uFE0F</div>' +
@@ -1287,9 +1296,9 @@ window.FocusBedtime = (function () {
     refreshChips:    _btRefreshInlineChips,
     snooze:          snoozeBedtimePrompt,
     /**
-     * Collapses the Sleep Settings accordion and persists the collapsed state.
-     * Called by FocusTab._switchFocusSubTab when the user navigates away from the
-     * Habits sub-tab, so the section is always closed on re-entry.
+     * Collapses the Sleep Settings accordion and clears the expanded flag.
+     * Called by FocusTab._switchFocusSubTab when navigating away from Habits,
+     * so the section is always closed on re-entry.
      */
     collapseSettings: function () {
       S.settings.bedtimeSettingsExpanded = false;
@@ -1297,6 +1306,9 @@ window.FocusBedtime = (function () {
       var chev = document.getElementById('bt-settings-chev');
       if (body) body.style.display = 'none';
       if (chev) chev.style.transform = 'rotate(0deg)';
+      /* Restore the collapsed pill tags in the header */
+      var pillRow = document.getElementById('bt-settings-pill-row');
+      if (pillRow) pillRow.style.display = 'flex';
     },
     /**
      * Called by saveFocusPick() and the window._btOnBlockPickerSave shim in
