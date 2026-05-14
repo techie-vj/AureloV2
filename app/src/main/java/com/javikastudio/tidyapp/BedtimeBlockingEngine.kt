@@ -140,6 +140,7 @@ class BedtimeBlockingEngine(
         cancelSnoozeExpireAlarm()
         prefs.edit()
             .putBoolean("bedtime_block_active", false)
+            .putBoolean(BEDTIME_ACTIVE, false)  // FIX-BUG1: clear so DND not re-enabled on restart
             .putLong("bedtime_snooze_until_ts", 0L)
             .putBoolean("bedtime_filter_snoozed", false)
             .apply()
@@ -183,8 +184,12 @@ class BedtimeBlockingEngine(
 
         prefs.edit().apply {
             putBoolean("bedtime_block_active", false)
+            putBoolean(BEDTIME_ACTIVE, false)  // FIX-BUG1: clear so DND not re-enabled on restart
             putLong   ("bedtime_snooze_until_ts", 0L)
             putBoolean("bedtime_filter_snoozed", false)
+            // FIX-BUG2: mark skipped tonight on non-natural stops (notification Turn Off)
+            // so JS strips show "next bedtime" countdown instead of "Bedtime Active"
+            if (!wasNatural) putBoolean(BEDTIME_SKIPPED_TONIGHT, true)
             // Always update the JSON snapshot so the receiver always has fresh data
             putString (BEDTIME_LAST_NIGHT_ATTEMPTS_JSON, attemptsJson)
             if (!alreadySnapshotted) {
@@ -276,6 +281,12 @@ class BedtimeBlockingEngine(
 
     fun restoreFromPrefs() {
         if (!prefs.getBoolean("bedtime_block_active", false)) return
+        // FIX-BUG1: user pressed Turn Off from notification — do not re-enable DND/blocking
+        if (prefs.getBoolean(BEDTIME_SKIPPED_TONIGHT, false)) {
+            android.util.Log.d("BedtimeEngine", "restoreFromPrefs: skipped tonight — not restoring")
+            prefs.edit().putBoolean("bedtime_block_active", false).apply()
+            return
+        }
         if (!isInBedtimeWindow()) {
             android.util.Log.d("BedtimeEngine", "restoreFromPrefs: outside window, clearing stale active flag")
             prefs.edit().putBoolean("bedtime_block_active", false).apply()
@@ -305,12 +316,17 @@ class BedtimeBlockingEngine(
             }
             savedSnoozeUntil > 0L -> {
                 prefs.edit().putLong("bedtime_snooze_until_ts", 0L).apply()
-                runCatching {
-                    val nm = h.context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-                    if (nm.isNotificationPolicyAccessGranted)
-                        nm.setInterruptionFilter(NotificationManager.INTERRUPTION_FILTER_ALARMS)
+                // FIX-BUG1: do not re-enable DND if user pressed Turn Off tonight
+                if (!prefs.getBoolean(BEDTIME_SKIPPED_TONIGHT, false)) {
+                    runCatching {
+                        val nm = h.context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+                        if (nm.isNotificationPolicyAccessGranted)
+                            nm.setInterruptionFilter(NotificationManager.INTERRUPTION_FILTER_ALARMS)
+                    }
+                    android.util.Log.d("BedtimeEngine", "restoreFromPrefs: snooze was expired, DND re-enabled")
+                } else {
+                    android.util.Log.d("BedtimeEngine", "restoreFromPrefs: snooze expired but skipped tonight — DND left off")
                 }
-                android.util.Log.d("BedtimeEngine", "restoreFromPrefs: snooze was expired, DND re-enabled")
             }
         }
 

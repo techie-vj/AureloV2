@@ -527,8 +527,19 @@ class AppMonitorService : Service() {
         if (!entitlementRepo.isPro) return
         if (sfCfg?.optBoolean("bedtimeAutoApply", true) == false) return
         if (sfCfg?.optBoolean("fadeIn", true) == false) return
-        val (w, d)  = windDownPresetAlpha(sfCfg)
-        val stepMs  = (WINDOWN_DURATION_MS / maxOf(w, d, 1).toLong()).coerceAtLeast(1L)
+        val (w, d) = windDownPresetAlpha(sfCfg)
+        // FIX: use the actual time until bedtime as the fade window instead of always
+        // assuming 30 min. BEDTIME_STARTS_AT_MS is written by BedtimeReceiver.BEDTIME_WINDOWN
+        // before this intent is sent, so it reflects the true scheduled bedtime epoch.
+        // When bedtime is only 5-10 min away the filter now ramps to 100% in that time,
+        // not in 30 min (which would leave it at ~16% when bedtime fires).
+        val now            = System.currentTimeMillis()
+        val bedtimeStartAt = prefs.getLong(BEDTIME_STARTS_AT_MS, 0L)
+        val actualFadeMs   = if (bedtimeStartAt > now)
+            (bedtimeStartAt - now).coerceIn(60_000L, WINDOWN_DURATION_MS)
+        else
+            WINDOWN_DURATION_MS
+        val stepMs = (actualFadeMs / maxOf(w, d, 1).toLong()).coerceAtLeast(1L)
         // SF-012 / SF-013: resolve preset colour for the wind-down filter.
         val wdPreset = sfCfg?.optString("bedtimePreset", ScreenFilterEngine.PRESET_WARM) ?: ScreenFilterEngine.PRESET_WARM
         val wdCustR  = sfCfg?.optInt("bedtimeCustomR", 255) ?: 255
@@ -651,7 +662,14 @@ class AppMonitorService : Service() {
                 // When fadeIn=false the filter never starts during wind-down, so the
                 // notification must NOT show filter progress or the progress bar.
                 if (showFilterProgress) {
-                    val progress = (filterEngine.filterProgress * 100).toInt().coerceIn(0, 100)
+                    // FIX: derive progress from wall-clock time so it correctly
+                    // reaches 100% exactly at bedtime regardless of whether wind-down
+                    // started at the full 30 min or just 5-10 min before bedtime.
+                    // filterEngine.filterProgress is opacity-step-based and diverges
+                    // when actualFadeMs < WINDOWN_DURATION_MS.
+                    val actualFadeMs = (bedtimeStartAt - windDownStartTs).coerceIn(60_000L, WINDOWN_DURATION_MS)
+                    val elapsed      = (now - windDownStartTs).coerceAtLeast(0L)
+                    val progress     = ((elapsed.toFloat() / actualFadeMs) * 100).toInt().coerceIn(0, 100)
                     NotificationCompat.Builder(this, CHANNEL_ID)
                         .setSmallIcon(android.R.drawable.ic_dialog_info).setColor(0xFFFFAA44.toInt())
                         .setContentTitle("🌅 Bedtime in ${minsLabel}m · Filter ${progress}%")

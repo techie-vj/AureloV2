@@ -79,11 +79,13 @@ class BedtimeBridge(
     @JavascriptInterface fun getBedtimeStreak(): String = JSONObject().apply {
         val streak = prefs.getInt(BEDTIME_STREAK, 0); val lastDate = prefs.getString(BEDTIME_STREAK_LAST_DATE,"") ?: ""
         val bedOnTs = prefs.getLong(BEDTIME_ON_TS, 0L); val bedOffTs = prefs.getLong(BEDTIME_OFF_TS, 0L)
-        val isActive = prefs.getBoolean(BEDTIME_BLOCK_ACTIVE,false) || prefs.getBoolean(BEDTIME_ACTIVE,false)
+        val isActive = prefs.getBoolean(BEDTIME_ACTIVE, false)  // FIX-BUG2: use only BLOCK_ACTIVE; BEDTIME_ACTIVE stays true until morning alarm
         val liveSnoozeCount = prefs.getInt(BEDTIME_SNOOZE_COUNT, 0)
         val lastNightSnoozeCount = prefs.getInt(BEDTIME_LAST_NIGHT_SNOOZES, 0)
         val snoozeCount = if (isActive) liveSnoozeCount else lastNightSnoozeCount
         put("streak",streak); put("lastDate",lastDate); put("bedOnTs",bedOnTs); put("bedOffTs",bedOffTs)
+        // FIX-BUG2: expose skippedTonight so JS strip renders "Starts tonight" not "Active"
+        put("skippedTonight", prefs.getBoolean(BEDTIME_SKIPPED_TONIGHT, false))
         val hasLastNight = prefs.contains(BEDTIME_LAST_NIGHT_SNOOZES)
         if (hasLastNight) put("lastNight", JSONObject().apply {
             put("hasData",true); put("bedtimeKept",prefs.getBoolean(BEDTIME_LAST_NIGHT_KEPT,true))
