@@ -765,7 +765,17 @@ window.FocusScore = (function () {
     }
 
     // Tier 1: bedtime window active
+    // BUG-3 FIX: also check isBedtimeSkippedTonight() so that pressing "Turn Off"
+    // from the bedtime notification immediately hides this strip even while the
+    // configured bedtime window is still active (e.g. user turns off at 11 pm
+    // but window runs until 7 am). Without this check the strip showed "Bedtime
+    // mode on" for the rest of the night after the user explicitly dismissed it.
     if (cfg.enabled && inWindow) {
+      var _skippedTonight = false;
+      try { if (IS_NATIVE && typeof N.isBedtimeSkippedTonight === 'function') _skippedTonight = !!N.isBedtimeSkippedTonight(); } catch(_) {}
+      if (_skippedTonight) {
+        // Bedtime was turned off for tonight — fall through to wind-down / next-bedtime tiers.
+      } else {
       var blockedCount = Array.isArray(cfg.blockedApps) ? cfg.blockedApps.length : 0;
       var snoozeEndsAt = 0;
       try { if (IS_NATIVE && typeof N.getBedtimeSnoozeEndsAt === 'function') snoozeEndsAt = N.getBedtimeSnoozeEndsAt() || 0; } catch(_) {}
@@ -786,6 +796,7 @@ window.FocusScore = (function () {
         +'</div>'+streakPill+snoozeBtn+'</div>'
       });
       return events;
+      } // end: !_skippedTonight — fall through to show next-bedtime tiers
     }
 
     // Tier 2a: wind-down

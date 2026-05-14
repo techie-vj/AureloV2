@@ -64,7 +64,7 @@ class AppBridge(private val context: Context, private val webView: WebView) {
             if (!isPro && entitlementRepo.isPro && entitlementRepo.isWithinRevocationGrace()) {
                 android.util.Log.d("AureloBilling",
                     "onProStatusChanged(false) suppressed — within 72 h revocation grace window. " +
-                    "lastProConfirmed=${entitlementRepo.lastProConfirmedMs}")
+                            "lastProConfirmed=${entitlementRepo.lastProConfirmedMs}")
                 return
             }
             // ── End grace-period guard ────────────────────────────────────────────
@@ -72,6 +72,14 @@ class AppBridge(private val context: Context, private val webView: WebView) {
             // Capture previous state BEFORE updating so we can detect the Pro→Free transition.
             val wasPro = entitlementRepo.isPro
             entitlementRepo.setProStatus(isPro)
+
+            // BUG FIX (Screen Filter / Bedtime gate): BedtimeReceiver.BEDTIME_ON and
+            // startWindDownFilter() gate on IS_PRO_USER in tidyapp_v6, not on
+            // entitlementRepo (tidyapp_entitlement_v1). This key was never written when
+            // Pro was granted, so the filter check always saw false and blocked activation.
+            // Write the grant here; the revocation paths below handle the false write.
+            if (isPro) prefs.edit().putBoolean(IS_PRO_USER, true).apply()
+
             webView.post { webView.evaluateJavascript("window.__pendingProStatus=$isPro;if(typeof window.onProStatusChanged==='function') window.onProStatusChanged($isPro)",null) }
 
             // ── Downgrade handling (billing-detection path) ───────────────────────
@@ -107,6 +115,9 @@ class AppBridge(private val context: Context, private val webView: WebView) {
                 } else {
                     // No extension days banked — perform full native downgrade cleanup.
                     // Runs on main thread; AlarmManager and some bridge methods require it.
+                    // Clear IS_PRO_USER in tidyapp_v6 so BedtimeReceiver / startWindDownFilter()
+                    // immediately see the revoked state (complements the entitlementRepo write above).
+                    prefs.edit().putBoolean(IS_PRO_USER, false).apply()
                     android.os.Handler(android.os.Looper.getMainLooper()).post {
                         try {
                             this@AppBridge.handleProDowngrade()

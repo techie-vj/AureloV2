@@ -171,10 +171,20 @@ class AppMonitorService : Service() {
             // is managing the filter. Without this, the tick stops the 30-min wind-down
             // fade every 500 ms when the standalone schedule window doesn't include the
             // current time — leaving filterProgress stuck at 0 and the filter never visible.
+            //
+            // BUG FIX: bedtimeEngine.isActive is an in-memory flag that is only true when
+            // ACTION_BEDTIME_START was sent — which only happens when blocked apps are
+            // configured. Users with NO blocked apps never trigger ACTION_BEDTIME_START, so
+            // bedtimeEngine.isActive stays false permanently. After BEDTIME_ON clears the
+            // wind-down timestamp (inWindDown → false), both guards collapse and the poll
+            // tick's schedule logic calls filterEngine.stop() every 500 ms, killing the
+            // bedtime filter immediately. Fix: also read BEDTIME_ACTIVE from prefs, which
+            // is always written by BEDTIME_ON regardless of whether blocked apps are set.
             val sfRaw = prefs.getString(SCREEN_FILTER_SETTINGS_V1, null)
             val sfCfg = if (!sfRaw.isNullOrBlank()) runCatching { org.json.JSONObject(sfRaw) }.getOrNull() else null
-            val bedtimeManagedInTick = (inWindDown || bedtimeEngine.isActive) &&
-                (sfCfg?.optBoolean("bedtimeAutoApply", true) != false)
+            val isBedtimeWindowActive = bedtimeEngine.isActive || prefs.getBoolean(BEDTIME_ACTIVE, false)
+            val bedtimeManagedInTick = (inWindDown || isBedtimeWindowActive) &&
+                    (sfCfg?.optBoolean("bedtimeAutoApply", true) != false)
             if (!bedtimeManagedInTick && sfCfg != null && sfCfg.optBoolean("enabled", false)) {
                 val sfSchedule = sfCfg.optString("schedule", "none")
                 if (sfSchedule != "none") {
@@ -194,15 +204,15 @@ class AppMonitorService : Service() {
             if (filterEngine.isActive()) {
                 val anyOverlay = coordinator.activeView != null
                 val isCam = currentFgPkg.isNotEmpty() && (
-                    currentFgPkg.contains("camera", ignoreCase = true) ||
-                    currentFgPkg.contains("cam.", ignoreCase = true) ||
-                    currentFgPkg == "com.google.android.GoogleCamera" ||
-                    try { packageManager.queryIntentActivities(Intent("android.media.action.IMAGE_CAPTURE"), 0)
-                        .any { it.activityInfo.packageName == currentFgPkg } } catch (_: Exception) { false }
-                )
+                        currentFgPkg.contains("camera", ignoreCase = true) ||
+                                currentFgPkg.contains("cam.", ignoreCase = true) ||
+                                currentFgPkg == "com.google.android.GoogleCamera" ||
+                                try { packageManager.queryIntentActivities(Intent("android.media.action.IMAGE_CAPTURE"), 0)
+                                    .any { it.activityInfo.packageName == currentFgPkg } } catch (_: Exception) { false }
+                        )
                 val isExcluded = currentFgPkg.isNotEmpty() &&
-                    (sfCfg?.optJSONArray("excludedApps")?.let { arr ->
-                        (0 until arr.length()).any { arr.optString(it) == currentFgPkg } } ?: false)
+                        (sfCfg?.optJSONArray("excludedApps")?.let { arr ->
+                            (0 until arr.length()).any { arr.optString(it) == currentFgPkg } } ?: false)
                 if (anyOverlay || isCam || isExcluded) filterEngine.suspend()
                 else {
                     filterEngine.resumeFilter()
@@ -211,8 +221,8 @@ class AppMonitorService : Service() {
                     // cancels the 30-min gradual fade and snaps intensity to 100% immediately.
                     // During standalone scheduled-filter use, update() is still needed to
                     // sync warmAlpha/dimAlpha if the user changed settings mid-session.
-                    val bedtimeManaged = (inWindDown || bedtimeEngine.isActive) &&
-                        (sfCfg?.optBoolean("bedtimeAutoApply", true) != false)
+                    val bedtimeManaged = (inWindDown || bedtimeEngine.isActive || prefs.getBoolean(BEDTIME_ACTIVE, false)) &&
+                            (sfCfg?.optBoolean("bedtimeAutoApply", true) != false)
                     if (!bedtimeManaged) {
                         filterEngine.update(
                             sfCfg?.optInt("warmAlpha", 80) ?: 80,
@@ -515,8 +525,6 @@ class AppMonitorService : Service() {
     private fun startWindDownFilter() {
         val sfRaw = prefs.getString(SCREEN_FILTER_SETTINGS_V1, null)
         val sfCfg = if (!sfRaw.isNullOrBlank()) runCatching { org.json.JSONObject(sfRaw) }.getOrNull() else null
-        // CB-014 FIX: bedtime auto-filter is PRO-only.
-        if (!prefs.getBoolean(IS_PRO_USER, false)) return
         if (sfCfg?.optBoolean("bedtimeAutoApply", true) == false) return
         if (sfCfg?.optBoolean("fadeIn", true) == false) return
         val (w, d)  = windDownPresetAlpha(sfCfg)
@@ -532,26 +540,32 @@ class AppMonitorService : Service() {
     }
 
     /**
-     * Restarts the filter fade after a wind-down snooze expires, covering only
-     * the remaining time (total window - elapsed since original start).
+     * Restarts the filter fade after a wind-down snooze expires OR after the service
+     * was killed and restarted mid-wind-down, covering only the remaining time
+     * (total window − elapsed since original start).
+     *
+     * BUG-1 FIX: the previous stepMs formula used w*(1-fraction) as the denominator,
+     * which is "steps remaining at the expected progress fraction". But
+     * filterEngine.start(gradual=true) always resets currentWarm/currentDim to 0,
+     * meaning we always need the full w (or d) steps to reach the target.
+     * The correct formula is: stepMs = remainingMs / maxOf(w, d, 1) so that the
+     * fade completes in exactly the remaining window regardless of how late it restarts.
+     * Example: restart at the 15-min mark → remainingMs=900s, stepMs=900s/80=11.25s/step
+     * → 80 steps × 11.25s = 15 min to reach full intensity. ✓
      */
     private fun restartWindDownFilter(now: Long, windDownStartTs: Long) {
         val sfRaw = prefs.getString(SCREEN_FILTER_SETTINGS_V1, null)
         val sfCfg = if (!sfRaw.isNullOrBlank()) runCatching { org.json.JSONObject(sfRaw) }.getOrNull() else null
-        // CB-014 FIX: PRO gate mirrors startWindDownFilter.
-        if (!prefs.getBoolean(IS_PRO_USER, false)) return
         if (sfCfg?.optBoolean("bedtimeAutoApply", true) == false) return
         if (sfCfg?.optBoolean("fadeIn", true) == false) return
         val (w, d)      = windDownPresetAlpha(sfCfg)
         val elapsedMs   = (now - windDownStartTs).coerceIn(0L, WINDOWN_DURATION_MS)
         val remainingMs = (WINDOWN_DURATION_MS - elapsedMs).coerceAtLeast(60_000L)
-        // Progress up to where we were when snooze was pressed
-        val startAlphaFraction = (elapsedMs.toFloat() / WINDOWN_DURATION_MS).coerceIn(0f, 1f)
-        val stepMs = (remainingMs / maxOf(
-            (w * (1f - startAlphaFraction)).toInt(),
-            (d * (1f - startAlphaFraction)).toInt(),
-            1
-        ).toLong()).coerceAtLeast(1L)
+        // BUG-1 FIX: start() always resets currentWarm to 0 regardless of how much
+        // of the window has elapsed, so the denominator must be the full target (w or d),
+        // not the "remaining fraction" of it. This ensures the fade fills exactly
+        // remainingMs instead of running at the original 30-min speed (too slow).
+        val stepMs = (remainingMs / maxOf(w, d, 1).toLong()).coerceAtLeast(1L)
         // SF-012 / SF-013: resolve preset colour for the resumed wind-down filter.
         val rwdPreset = sfCfg?.optString("bedtimePreset", ScreenFilterEngine.PRESET_WARM) ?: ScreenFilterEngine.PRESET_WARM
         val rwdCustR  = sfCfg?.optInt("bedtimeCustomR", 255) ?: 255
@@ -776,7 +790,7 @@ class AppMonitorService : Service() {
         val mode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q)
             ops.unsafeCheckOpNoThrow(android.app.AppOpsManager.OPSTR_GET_USAGE_STATS, android.os.Process.myUid(), packageName)
         else @Suppress("DEPRECATION")
-            ops.checkOpNoThrow(android.app.AppOpsManager.OPSTR_GET_USAGE_STATS, android.os.Process.myUid(), packageName)
+        ops.checkOpNoThrow(android.app.AppOpsManager.OPSTR_GET_USAGE_STATS, android.os.Process.myUid(), packageName)
         return mode == android.app.AppOpsManager.MODE_ALLOWED
     }
 
@@ -813,7 +827,7 @@ class AppMonitorService : Service() {
                 (getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager)
                     .defaultVibrator.vibrate(VibrationEffect.createWaveform(pattern, -1))
             else @Suppress("DEPRECATION")
-                (getSystemService(Context.VIBRATOR_SERVICE) as Vibrator).vibrate(pattern, -1)
+            (getSystemService(Context.VIBRATOR_SERVICE) as Vibrator).vibrate(pattern, -1)
         }
     }
 

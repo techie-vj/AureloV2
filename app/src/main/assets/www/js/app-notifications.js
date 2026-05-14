@@ -90,12 +90,26 @@ window.onAppResume = function(){
     _lastRefreshTs = 0; // bypass 5s debounce on resume
     _refreshTimer = setTimeout(refreshUsage, 150);
   }
-  // Re-apply bedtime DND if permission was just granted or window is active
+  // BUG-2 FIX: Do NOT re-apply DND based purely on the clock time.
+  // The previous code called N.setBedtimeDnd(h>=bh||h<5) on every resume,
+  // which re-enabled DND even after the user pressed "Snooze" or "Turn Off"
+  // from the bedtime notification.  DND state is now managed exclusively by
+  // the native side (BedtimeReceiver / BedtimeBlockingEngine).
+  // We only apply DND here for the narrow case where DND permission was just
+  // granted (user came back from DND settings) AND blocking is genuinely active
+  // (not snoozed, not skipped tonight).
   if(IS_NATIVE && S.settings.bedtime){
     const hasDnd = typeof N.hasDndPermission==='function' && N.hasDndPermission();
     if(hasDnd){
-      const h=new Date().getHours(), bh=S.settings.bedtimeHour||22;
-      try { N.setBedtimeDnd(h>=bh || h<5); } catch(e){}
+      // Guard: respect snooze and turn-off state before touching DND.
+      const isBlockActive  = typeof N.isBedtimeBlockActive === 'function' && !!N.isBedtimeBlockActive();
+      const isSkipped      = typeof N.isBedtimeSkippedTonight === 'function' && !!N.isBedtimeSkippedTonight();
+      const snoozeEndsAt   = typeof N.getBedtimeSnoozeEndsAt === 'function' ? (+(N.getBedtimeSnoozeEndsAt())||0) : 0;
+      const isSnoozed      = snoozeEndsAt > Date.now();
+      // Only enable DND if blocking is active AND not snoozed AND not turned-off-tonight.
+      if(isBlockActive && !isSnoozed && !isSkipped){
+        try { N.setBedtimeDnd(true); } catch(e){}
+      }
     }
   }
 };

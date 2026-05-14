@@ -54,18 +54,22 @@ class BedtimeReceiver : BroadcastReceiver() {
                 // CB-014 FIX: gate the bedtime auto-filter behind IS_PRO_USER so free users
                 // can never get the automatic bedtime screen filter.
                 runCatching {
+                    // BedTimeReceiver.kt — BEDTIME_ON
                     val sfRaw = prefs.getString(SCREEN_FILTER_SETTINGS_V1, null)
                     val sfCfg = if (!sfRaw.isNullOrBlank())
                         runCatching { org.json.JSONObject(sfRaw) }.getOrNull() else null
-                    val isProUser = prefs.getBoolean(IS_PRO_USER, false)
-                    if (isProUser && sfCfg?.optBoolean("bedtimeAutoApply", true) != false) {
+
+                    if (sfCfg?.optBoolean("bedtimeAutoApply", true) != false) {
                         val (warm, dim) = presetAlpha(sfCfg)
-                        val preset  = sfCfg?.optString("bedtimePreset", ScreenFilterEngine.PRESET_WARM) ?: ScreenFilterEngine.PRESET_WARM
+                        val preset = sfCfg?.optString("bedtimePreset", ScreenFilterEngine.PRESET_WARM)
+                            ?: ScreenFilterEngine.PRESET_WARM
                         val customR = sfCfg?.optInt("bedtimeCustomR", 255) ?: 255
                         val customG = sfCfg?.optInt("bedtimeCustomG", 100) ?: 100
-                        val customB = sfCfg?.optInt("bedtimeCustomB", 0)   ?: 0
-                        startScreenFilter(ctx, warm, dim, gradual = false,
-                            preset = preset, customR = customR, customG = customG, customB = customB)
+                        val customB = sfCfg?.optInt("bedtimeCustomB", 0) ?: 0
+                        startScreenFilter(
+                            ctx, warm, dim, gradual = false,
+                            preset = preset, customR = customR, customG = customG, customB = customB
+                        )
                     }
                 }
 
@@ -291,21 +295,25 @@ class BedtimeReceiver : BroadcastReceiver() {
                     if (inWindow2) {
                         if (cfg2.optBoolean("dndEnabled", true)) setDnd(ctx, true)
                         runCatching {
-                            val sfRaw2  = prefs.getString(SCREEN_FILTER_SETTINGS_V1, null)
+                            // BedTimeReceiver.kt — BEDTIME_SNOOZE_EXPIRE
+                            val sfRaw2 = prefs.getString(SCREEN_FILTER_SETTINGS_V1, null)
                             val sfCfg2b = if (!sfRaw2.isNullOrBlank())
                                 runCatching { org.json.JSONObject(sfRaw2) }.getOrNull() else null
-                            val isProUser = prefs.getBoolean(IS_PRO_USER, false)
-                            if (isProUser &&
+
+                            if (
                                 prefs.getBoolean("bedtime_filter_snoozed", false) &&
-                                sfCfg2b?.optBoolean("bedtimeAutoApply", true) == true) {
+                                sfCfg2b?.optBoolean("bedtimeAutoApply", true) == true
+                            ) {
                                 prefs.edit().putBoolean("bedtime_filter_snoozed", false).apply()
                                 val (warm2, dim2) = presetAlpha(sfCfg2b)
-                                val preset2  = sfCfg2b.optString("bedtimePreset", ScreenFilterEngine.PRESET_WARM)
+                                val preset2 = sfCfg2b.optString("bedtimePreset", ScreenFilterEngine.PRESET_WARM)
                                 val customR2 = sfCfg2b.optInt("bedtimeCustomR", 255)
                                 val customG2 = sfCfg2b.optInt("bedtimeCustomG", 100)
                                 val customB2 = sfCfg2b.optInt("bedtimeCustomB", 0)
-                                startScreenFilter(ctx, warm2, dim2, gradual = false,
-                                    preset = preset2, customR = customR2, customG = customG2, customB = customB2)
+                                startScreenFilter(
+                                    ctx, warm2, dim2, gradual = false,
+                                    preset = preset2, customR = customR2, customG = customG2, customB = customB2
+                                )
                                 prefs.edit().putBoolean(SCREEN_FILTER_ACTIVE, true).apply()
                             }
                         }

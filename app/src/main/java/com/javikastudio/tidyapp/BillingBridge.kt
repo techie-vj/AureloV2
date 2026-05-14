@@ -55,6 +55,11 @@ class BillingBridge(
         entitlementRepo.setProStatus(isPro)
 
         if (isPro) {
+            // BUG FIX (Screen Filter / Bedtime gate): mirror the grant into tidyapp_v6.
+            // BedtimeReceiver.BEDTIME_ON and startWindDownFilter() read IS_PRO_USER from
+            // the main prefs file, not from EntitlementRepository (tidyapp_entitlement_v1).
+            // Without this write the filter check always returned false and blocked activation.
+            prefs.edit().putBoolean(IS_PRO_USER, true).apply()
             WidgetUpdater.updateAll(context)
             // Cancel any pending extension-expiry task — user has re-subscribed (BUG-06).
             ReferralExtensionWorker.cancel(context)
@@ -90,6 +95,9 @@ class BillingBridge(
 
             } else {
                 // No extension days banked — user is fully downgraded to free tier.
+                // Clear IS_PRO_USER in tidyapp_v6 so BedtimeReceiver / startWindDownFilter()
+                // immediately see the revoked state.
+                prefs.edit().putBoolean(IS_PRO_USER, false).apply()
                 // Reset widget theme to the free default immediately.
                 // Full feature cleanup (bedtime, routines, HC, app lists, screen filter)
                 // is triggered by JS: pro-gate.js _handleProDowngrade() calls

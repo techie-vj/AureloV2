@@ -136,8 +136,8 @@ class ScreenFilterEngine(
         when (preset) {
             PRESET_NIGHT  -> { warmColorR = 180; warmColorG = 0;   warmColorB = 0   }
             PRESET_CUSTOM -> { warmColorR = customR.coerceIn(0, 255)
-                               warmColorG = customG.coerceIn(0, 255)
-                               warmColorB = customB.coerceIn(0, 255) }
+                warmColorG = customG.coerceIn(0, 255)
+                warmColorB = customB.coerceIn(0, 255) }
             else          -> { warmColorR = 255;  warmColorG = 100; warmColorB = 0   } // warm/default
         }
 
@@ -190,12 +190,23 @@ class ScreenFilterEngine(
      * completely and caused a visible gap when the blocking overlay was dismissed.
      * Now sets INVISIBLE so the layer stays attached to WindowManager at its z-order
      * position; the blocking overlay (added later) sits on top by z-order naturally.
+     *
+     * BUG-1 FIX: removed handler.removeCallbacksAndMessages(null).
+     * Previously, suspending during a 30-min wind-down gradual fade would permanently
+     * cancel the scheduled fade-step callbacks. After the overlay was dismissed,
+     * resumeFilter() restored visibility but the fade was gone — filter stayed at 0%
+     * opacity forever. By keeping the handler running, currentWarm/currentDim continue
+     * to increment in memory while the view is invisible. When resumed, the view
+     * becomes visible at the correct (elapsed) opacity and the fade continues naturally.
      */
     fun suspend() {
         if (!isShown || isSuspended) return
         isSuspended = true
-        handler.removeCallbacksAndMessages(null)
         // CB-022: hide rather than detach — the blocking overlay covers it by z-order.
+        // Note: do NOT call handler.removeCallbacksAndMessages() here — that would kill
+        // any in-progress gradual fade (e.g. the 30-min bedtime wind-down). The fade
+        // step callbacks safely update currentWarm/currentDim while the view is INVISIBLE;
+        // they become visible to the user again when resumeFilter() is called.
         filterView?.visibility = View.INVISIBLE
     }
 
@@ -246,7 +257,7 @@ class ScreenFilterEngine(
             val customG = cfg.optInt("customG", 100)
             val customB = cfg.optInt("customB", 0)
             start(cfg.optInt("warmAlpha", 60), cfg.optInt("dimAlpha", 30),
-                  gradual = false, preset = preset, customR = customR, customG = customG, customB = customB)
+                gradual = false, preset = preset, customR = customR, customG = customG, customB = customB)
         }
     }
 

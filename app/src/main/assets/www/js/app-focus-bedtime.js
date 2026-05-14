@@ -1335,3 +1335,24 @@ window.FocusBedtime = (function () {
     },
   };
 })();
+
+// BUG-3 FIX: re-render the bedtime strip and habits dynamic row on every app
+// resume so that notification actions (Snooze / Turn Off) are reflected in the
+// UI immediately when the user opens the app.
+// Without this, the bedtime strip kept showing "Bedtime Active" until the next
+// background scan re-triggered a render cycle — often many minutes later.
+// Chain-hooks the existing onAppResume so we don't replace other module hooks.
+(function () {
+  var _prevBt = window.onAppResume;
+  window.onAppResume = function () {
+    if (typeof _prevBt === 'function') _prevBt();
+    // Re-render bedtime Focus-tab strip (reads skippedTonight / snoozeEndsAt from native)
+    if (typeof FocusBedtime !== 'undefined' && typeof FocusBedtime.render === 'function') {
+      FocusBedtime.render();
+    }
+    // Re-render the home/habits dynamic row (Tier 1 now checks isBedtimeSkippedTonight)
+    if (typeof FocusScore !== 'undefined' && typeof FocusScore.renderHabitsDynamicRow === 'function') {
+      FocusScore.renderHabitsDynamicRow();
+    }
+  };
+})();
