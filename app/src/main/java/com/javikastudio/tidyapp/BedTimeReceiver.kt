@@ -4,6 +4,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.os.Build
+import com.javikastudio.tidyapp.billing.EntitlementRepository
 
 class BedtimeReceiver : BroadcastReceiver() {
 
@@ -54,22 +55,22 @@ class BedtimeReceiver : BroadcastReceiver() {
                 // CB-014 FIX: gate the bedtime auto-filter behind IS_PRO_USER so free users
                 // can never get the automatic bedtime screen filter.
                 runCatching {
-                    // BedTimeReceiver.kt — BEDTIME_ON
                     val sfRaw = prefs.getString(SCREEN_FILTER_SETTINGS_V1, null)
                     val sfCfg = if (!sfRaw.isNullOrBlank())
                         runCatching { org.json.JSONObject(sfRaw) }.getOrNull() else null
-
-                    if (sfCfg?.optBoolean("bedtimeAutoApply", true) != false) {
+                    // BUG FIX: prefs.getBoolean(IS_PRO_USER) reads from "tidyapp_v6" which is
+                    // only populated while the app is in the foreground. Alarm receivers run in
+                    // the background where that key may be absent. Use EntitlementRepository —
+                    // the authoritative encrypted store that persists across background/process death.
+                    val isProUser = EntitlementRepository(ctx).isPro
+                    if (isProUser && sfCfg?.optBoolean("bedtimeAutoApply", true) != false) {
                         val (warm, dim) = presetAlpha(sfCfg)
-                        val preset = sfCfg?.optString("bedtimePreset", ScreenFilterEngine.PRESET_WARM)
-                            ?: ScreenFilterEngine.PRESET_WARM
+                        val preset  = sfCfg?.optString("bedtimePreset", ScreenFilterEngine.PRESET_WARM) ?: ScreenFilterEngine.PRESET_WARM
                         val customR = sfCfg?.optInt("bedtimeCustomR", 255) ?: 255
                         val customG = sfCfg?.optInt("bedtimeCustomG", 100) ?: 100
-                        val customB = sfCfg?.optInt("bedtimeCustomB", 0) ?: 0
-                        startScreenFilter(
-                            ctx, warm, dim, gradual = false,
-                            preset = preset, customR = customR, customG = customG, customB = customB
-                        )
+                        val customB = sfCfg?.optInt("bedtimeCustomB", 0)   ?: 0
+                        startScreenFilter(ctx, warm, dim, gradual = false,
+                            preset = preset, customR = customR, customG = customG, customB = customB)
                     }
                 }
 
@@ -295,25 +296,22 @@ class BedtimeReceiver : BroadcastReceiver() {
                     if (inWindow2) {
                         if (cfg2.optBoolean("dndEnabled", true)) setDnd(ctx, true)
                         runCatching {
-                            // BedTimeReceiver.kt — BEDTIME_SNOOZE_EXPIRE
-                            val sfRaw2 = prefs.getString(SCREEN_FILTER_SETTINGS_V1, null)
+                            val sfRaw2  = prefs.getString(SCREEN_FILTER_SETTINGS_V1, null)
                             val sfCfg2b = if (!sfRaw2.isNullOrBlank())
                                 runCatching { org.json.JSONObject(sfRaw2) }.getOrNull() else null
-
-                            if (
+                            // BUG FIX: same stale-key issue — use EntitlementRepository.
+                            val isProUser = EntitlementRepository(ctx).isPro
+                            if (isProUser &&
                                 prefs.getBoolean("bedtime_filter_snoozed", false) &&
-                                sfCfg2b?.optBoolean("bedtimeAutoApply", true) == true
-                            ) {
+                                sfCfg2b?.optBoolean("bedtimeAutoApply", true) == true) {
                                 prefs.edit().putBoolean("bedtime_filter_snoozed", false).apply()
                                 val (warm2, dim2) = presetAlpha(sfCfg2b)
-                                val preset2 = sfCfg2b.optString("bedtimePreset", ScreenFilterEngine.PRESET_WARM)
+                                val preset2  = sfCfg2b.optString("bedtimePreset", ScreenFilterEngine.PRESET_WARM)
                                 val customR2 = sfCfg2b.optInt("bedtimeCustomR", 255)
                                 val customG2 = sfCfg2b.optInt("bedtimeCustomG", 100)
                                 val customB2 = sfCfg2b.optInt("bedtimeCustomB", 0)
-                                startScreenFilter(
-                                    ctx, warm2, dim2, gradual = false,
-                                    preset = preset2, customR = customR2, customG = customG2, customB = customB2
-                                )
+                                startScreenFilter(ctx, warm2, dim2, gradual = false,
+                                    preset = preset2, customR = customR2, customG = customG2, customB = customB2)
                                 prefs.edit().putBoolean(SCREEN_FILTER_ACTIVE, true).apply()
                             }
                         }
