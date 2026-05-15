@@ -796,7 +796,7 @@ window.FocusHome = (function () {
     }
 
     // Tier 1c: screen filter active — shown when neither bedtime window nor wind-down applies.
-    if (!inWindow) {
+    if (!inWindow && !_homeSkippedNow) {
       var _sfShown = false;
       if (typeof ScreenFilter !== 'undefined') {
         try {
