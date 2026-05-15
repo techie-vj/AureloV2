@@ -219,7 +219,19 @@ window.FocusBedtime = (function () {
     } else {
       // Disable — _doDisableBedtime handles strip refresh internally
       window._btDirty = false;
-      _disableBedtime();
+      // FIX (Issue 1 & 2): If bedtime is already stopped for tonight (via "Done for
+      // Tonight" from the in-app nudge OR the notification "Turn Off" button), the
+      // block is no longer running — clicking the toggle should fully disable bedtime
+      // without showing the nudge popup again. The notification Turn Off sets
+      // BEDTIME_SKIPPED_TONIGHT=true (same as skipBedtimeTonight), so checking that
+      // flag here makes both entry-points consistent.
+      var _alreadySkipped = _localSkippedTonight ||
+        (IS_NATIVE && typeof N.isBedtimeSkippedTonight === 'function' && !!N.isBedtimeSkippedTonight());
+      if (_alreadySkipped) {
+        _doDisableBedtime();
+      } else {
+        _disableBedtime();
+      }
     }
   }
 
@@ -1294,7 +1306,11 @@ window.FocusBedtime = (function () {
           'color:#fff;font-family:var(--ff-m);font-size:13px;font-weight:700;cursor:pointer;margin-bottom:8px">' +
             'Save Changes' +
           '</button>' +
-          (cfg.enabled
+          // FIX (Issue 2): hide "Turn Off" button when bedtime is already done-for-tonight.
+          // cfg.enabled is still true (alarms still set for tomorrow) so we need the explicit
+          // skippedTonight check; showing the button in this state is misleading and tapping
+          // it would re-trigger the nudge even though blocking already stopped.
+          (cfg.enabled && !skippedTonight
             ? '<button type="button" onclick="FocusBedtime.disable()"' +
               ' style="width:100%;padding:10px;border-radius:12px;border:1px solid var(--border2);' +
               'background:transparent;color:var(--t3);font-family:var(--ff-m);font-size:12px;cursor:pointer">' +

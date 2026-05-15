@@ -192,8 +192,13 @@ window.ScreenFilter = (function () {
       // BEDTIME-FILTER FIX: if bedtime is currently controlling the filter, never
       // remove it here — _applyNative is triggered by saving user settings which
       // should not override the active bedtime session.
+      // FIX (Issue 3): also check skipped-tonight so that saving SF settings while
+      // "Done for Tonight" is active does not leave the filter running.
       var btActive = typeof N.isInBedtimeWindow === 'function' && N.isInBedtimeWindow();
-      if (btActive && cfg.bedtimeAutoApply) return;
+      var btSkipped = typeof FocusBedtime !== 'undefined' &&
+        typeof FocusBedtime.isSkippedTonight === 'function' &&
+        FocusBedtime.isSkippedTonight();
+      if (btActive && !btSkipped && cfg.bedtimeAutoApply) return;
 
       if (cfg.enabled && !cfg.paused) {
         if (!_isInScheduleWindow(cfg)) {
@@ -346,7 +351,15 @@ window.ScreenFilter = (function () {
     var isPro  = typeof ProTier !== 'undefined' && ProTier.isPro;
 
     var btActive = IS_NATIVE && typeof N.isInBedtimeWindow === 'function' && N.isInBedtimeWindow();
-    var bedtimeControlling = btActive && cfg.bedtimeAutoApply;
+    // FIX (Issue 3): Don't show "Active via Bedtime" when the user has chosen
+    // "Done for Tonight". isInBedtimeWindow() returns true based on clock time
+    // alone and doesn't know that the session was skipped, so we must also check
+    // the skipped-tonight flag via FocusBedtime.isSkippedTonight() which ORs the
+    // local optimistic flag with the native BEDTIME_SKIPPED_TONIGHT pref.
+    var btSkipped = typeof FocusBedtime !== 'undefined' &&
+      typeof FocusBedtime.isSkippedTonight === 'function' &&
+      FocusBedtime.isSkippedTonight();
+    var bedtimeControlling = btActive && cfg.bedtimeAutoApply && !btSkipped;
 
     var togState, togLabel;
     if (bedtimeControlling) {
