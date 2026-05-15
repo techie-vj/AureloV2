@@ -168,6 +168,28 @@ class BedtimeBridge(
     }
 
     @JavascriptInterface fun snoozeBedtime(mins: Int) = startService(AppMonitorService.ACTION_BEDTIME_SNOOZE,"snooze_mins",mins)
+
+    /**
+     * Skips bedtime for tonight only — stops blocking and sets BEDTIME_SKIPPED_TONIGHT
+     * so the UI shows the next scheduled window, but leaves recurring alarms intact
+     * so bedtime resumes automatically tomorrow night.
+     * Unlike stopBedtimeBlock() (STOP_SOFT), this fires ACTION_BEDTIME_STOP which
+     * calls BedtimeBlockingEngine.stop(wasNatural=false), persisting the skipped flag.
+     */
+    @JavascriptInterface fun skipBedtimeTonight() {
+        startService(AppMonitorService.ACTION_BEDTIME_STOP, null, null)
+        runCatching { setBedtimeDnd(false) }
+        runCatching { recordBedtimeOff() }
+        // Screen filter: stop if bedtime was managing it
+        runCatching {
+            val intent = android.content.Intent(context, AppMonitorService::class.java).apply {
+                action = AppMonitorService.ACTION_FILTER_STOP
+            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) context.startForegroundService(intent)
+            else context.startService(intent)
+        }
+    }
+
     @JavascriptInterface fun recordBedtimeOff() { prefs.edit().putLong(BEDTIME_OFF_TS, System.currentTimeMillis()).apply() }
     @JavascriptInterface fun getBedtimeSnoozeEndsAt(): Long = prefs.getLong(BEDTIME_SNOOZE_UNTIL_TS, 0L)
 

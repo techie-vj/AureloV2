@@ -630,7 +630,18 @@ function scheduleBedtimeCheck() {
     const wasActive = window._bedtimeWindowActive;
     window._bedtimeWindowActive = inWindow;
 
-    try { N.setBedtimeDnd(inWindow); } catch (_) {}
+    const skipped = IS_NATIVE &&
+      typeof N.isBedtimeSkippedTonight === 'function' &&
+      N.isBedtimeSkippedTonight();
+
+    const snoozeEndsAt = IS_NATIVE &&
+      typeof N.getBedtimeSnoozeEndsAt === 'function'
+        ? (N.getBedtimeSnoozeEndsAt() || 0) : 0;
+    const isSnoozed = snoozeEndsAt > Date.now();
+
+    if (!skipped && !isSnoozed) {
+      try { N.setBedtimeDnd(inWindow); } catch (_) {}
+    }
 
     if (inWindow && wasActive === false) {
         try { N.setBedtimeDnd(true); } catch (_) {}
@@ -663,7 +674,18 @@ function scheduleBedtimeCheck() {
       const inWindow = bedDec > wakeDec
         ? nowDec >= bedDec || nowDec < wakeDec
         : nowDec >= bedDec && nowDec < wakeDec;
-      try { N.setBedtimeDnd(inWindow); } catch (_) {}
+      const skipped = IS_NATIVE &&
+        typeof N.isBedtimeSkippedTonight === 'function' &&
+        N.isBedtimeSkippedTonight();
+
+      const snoozeEndsAt = IS_NATIVE &&
+        typeof N.getBedtimeSnoozeEndsAt === 'function'
+          ? (N.getBedtimeSnoozeEndsAt() || 0) : 0;
+      const isSnoozed = snoozeEndsAt > Date.now();
+
+      if (!skipped && !isSnoozed) {
+        try { N.setBedtimeDnd(inWindow); } catch (_) {}
+      }
       if (!inWindow) {
         // grayscale removed — Google API no longer supports it
         try { N.recordBedtimeOff(); } catch (_) {}

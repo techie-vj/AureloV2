@@ -744,6 +744,18 @@ window.FocusHome = (function () {
 
     // Tier 1: bedtime active
     if (inWindow) {
+      // ISSUE-3 FIX: check isSkippedTonight so that "Done for tonight" / notification
+      // "Turn Off" immediately removes the bedtime active strip on the home tab,
+      // mirroring the behaviour already present in _collectHabitsEvents (habits tab).
+      var _homeSkippedNow = typeof FocusBedtime !== 'undefined' && typeof FocusBedtime.isSkippedTonight === 'function'
+        ? FocusBedtime.isSkippedTonight()
+        : (IS_NATIVE && typeof N.isBedtimeSkippedTonight === 'function' && !!N.isBedtimeSkippedTonight());
+      if (_homeSkippedNow) {
+        // Skipped tonight — fall through to wind-down / next-bedtime / morning tiers.
+        // The screen filter Tier 1c is guarded by !inWindow which is still false here,
+        // so the filter strip is also naturally suppressed (correct behaviour).
+        inWindow = false; // treat as outside window for all subsequent tier checks
+      } else {
       var blockedCount = Array.isArray(cfg.blockedApps) ? cfg.blockedApps.length : 0;
       var wakeStr      = _fmt12((cfg.wakeHour || 7) + (cfg.wakeMinute || 0) / 60);
       var bedStreakNow = 0;
@@ -762,6 +774,7 @@ window.FocusHome = (function () {
                  'Wake up at ' + wakeStr) +
         streakBadge + snoozeBtn);
       return;
+      } // end: !_homeSkippedNow
     }
 
     // Tier 1b: wind-down — 60 min before bedtime (higher priority than screen filter status).

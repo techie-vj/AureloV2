@@ -37,6 +37,7 @@ window.FocusBedtime = (function () {
   var _bedtimeCfgCache   = null;
   var _bedtimeCfgCacheTs = 0;
   var _btBlockedApps     = [];   // live-edited list while card is open
+  var _localSkippedTonight = false; // optimistic flag — set immediately on skip, avoids native async race
 
   /* ═══════════════════════════════════════════════════════════════
    * CONFIG PERSISTENCE
@@ -252,88 +253,177 @@ window.FocusBedtime = (function () {
   }
   window._disableBedtime = _disableBedtime;
 
-  /* ── Early-disable nudge — modal popup ─────────────────────────────────────── */
+  /* ── Early-disable nudge — modern bottom sheet ───────────────────────────── */
   function _showBedtimeDisableNudge(cfg) {
     const nowH = new Date().getHours();
     const nowM = new Date().getMinutes();
-    const pad  = n => String(n).padStart(2, '0');
-    const timeStr = `${pad(nowH % 12 === 0 ? 12 : nowH % 12)}:${pad(nowM)} ${nowH >= 12 ? 'PM' : 'AM'}`;
-
-    // BUG-1 FIX: compute and display bedtime start alongside wake time so the
-    // user can see the full scheduled window in the nudge (was showing wake only).
-    const bedH    = cfg.bedHour    != null ? cfg.bedHour    : 22;
-    const bedM    = cfg.bedMinute  != null ? cfg.bedMinute  : 0;
-    const bedStr  = `${bedH % 12 === 0 ? 12 : bedH % 12}:${pad(bedM)} ${bedH >= 12 ? 'PM' : 'AM'}`;
-
-    const wakeH   = cfg.wakeHour   != null ? cfg.wakeHour   : 7;
-    const wakeM   = cfg.wakeMinute != null ? cfg.wakeMinute : 0;
-    const wakeStr = `${wakeH % 12 === 0 ? 12 : wakeH % 12}:${pad(wakeM)} ${wakeH >= 12 ? 'PM' : 'AM'}`;
+    const pad  = function(n) { return String(n).padStart(2, '0'); };
+    const fmt12 = function(h, m) {
+      var h12 = h % 12 === 0 ? 12 : h % 12;
+      return h12 + ':' + pad(m) + ' ' + (h >= 12 ? 'PM' : 'AM');
+    };
+    const timeStr = fmt12(nowH, nowM);
+    const bedH   = cfg.bedHour   != null ? cfg.bedHour   : 22;
+    const bedM   = cfg.bedMinute != null ? cfg.bedMinute : 0;
+    const wakeH  = cfg.wakeHour  != null ? cfg.wakeHour  : 7;
+    const wakeM  = cfg.wakeMinute != null ? cfg.wakeMinute : 0;
+    const bedStr  = fmt12(bedH,  bedM);
+    const wakeStr = fmt12(wakeH, wakeM);
 
     document.getElementById('bt-nudge-popup')?.remove();
 
     const popup = document.createElement('div');
     popup.id = 'bt-nudge-popup';
-    popup.innerHTML = `
-      <div id="bt-nudge-overlay"
-           style="position:fixed;inset:0;z-index:99998;background:rgba(0,0,0,.65);
-                  display:flex;align-items:center;justify-content:center;padding:24px">
-        <div style="width:100%;max-width:320px;background:#0f0f1a;
-                    border:1px solid rgba(108,99,255,.25);border-radius:20px;
-                    padding:28px 22px 22px;text-align:center;
-                    box-shadow:0 24px 80px rgba(0,0,0,.8)">
+    popup.innerHTML =
+      '<div id="bt-nudge-overlay" style="position:fixed;inset:0;z-index:99998;' +
+          'background:rgba(0,0,0,.7);display:flex;align-items:flex-end;' +
+          'justify-content:center;backdrop-filter:blur(4px)">' +
 
-          <div style="font-size:40px;margin-bottom:12px">🌙</div>
+        '<div style="width:100%;max-width:480px;' +
+            'background:var(--s0);' +
+            'border:1px solid var(--border2);' +
+            'border-radius:24px 24px 0 0;padding:0 0 32px;' +
+            'box-shadow:0 -20px 60px rgba(0,0,0,.5);' +
+            'animation:bt-sheet-up .28s cubic-bezier(.22,1,.36,1) both">' +
 
-          <div style="font-size:16px;font-weight:700;color:#eeeeff;margin-bottom:6px">
-            It's ${timeStr} — you set a bedtime
-          </div>
-          <div style="font-size:12px;color:rgba(238,238,255,.5);line-height:1.6;
-                      margin-bottom:16px">
-            Bedtime mode is active
-            (<strong style="color:#a09bff">${bedStr}</strong>
-            &rarr;
-            <strong style="color:#a09bff">${wakeStr}</strong>).<br>
-            What would you like to do?
-          </div>
+          /* Drag handle */
+          '<div style="display:flex;justify-content:center;padding:14px 0 6px">' +
+            '<div style="width:40px;height:4px;border-radius:99px;' +
+                'background:var(--border2)"></div>' +
+          '</div>' +
 
-          <button type="button" onclick="snoozeBedtimePrompt();document.getElementById('bt-nudge-popup')?.remove()"
-            style="width:100%;padding:13px;border-radius:13px;
-                   border:1px solid rgba(108,99,255,.35);
-                   background:rgba(108,99,255,.12);color:#a09bff;
-                   font-size:13px;font-weight:700;cursor:pointer;
-                   margin-bottom:8px;margin-top:8px;display:block">
-            Just 15 more minutes
-          </button>
+          /* Header */
+          '<div style="padding:4px 24px 20px;border-bottom:1px solid var(--border)">' +
+            '<div style="display:flex;align-items:center;gap:12px;margin-bottom:6px">' +
+              '<div style="width:38px;height:38px;border-radius:12px;' +
+                  'background:rgba(108,99,255,.15);' +
+                  'border:1px solid rgba(108,99,255,.3);' +
+                  'display:flex;align-items:center;justify-content:center;' +
+                  'font-size:18px;flex-shrink:0">🌙</div>' +
+              '<div>' +
+                '<div style="font-size:15px;font-weight:700;color:var(--t1)">' +
+                    'Bedtime is active</div>' +
+                '<div style="font-size:12px;color:var(--t3);margin-top:1px">' +
+                    'It\'s ' + timeStr + ' &nbsp;·&nbsp; ' +
+                    '<span style="color:var(--p2)">' + bedStr + '</span>' +
+                    ' &rarr; ' +
+                    '<span style="color:var(--p2)">' + wakeStr + '</span>' +
+                '</div>' +
+              '</div>' +
+            '</div>' +
+          '</div>' +
 
-          <button type="button" onclick="_bedtimeSnooze(30);document.getElementById('bt-nudge-popup')?.remove()"
-            style="width:100%;padding:12px;border-radius:13px;
-                   border:1px solid rgba(255,255,255,.1);
-                   background:rgba(255,255,255,.05);color:rgba(238,238,255,.55);
-                   font-size:12px;cursor:pointer;margin-bottom:8px;display:block">
-            30 more minutes
-          </button>
+          /* Actions */
+          '<div style="padding:16px 20px 0">' +
 
-          <button type="button" onclick="_doDisableBedtime();document.getElementById('bt-nudge-popup')?.remove()"
-            style="width:100%;padding:12px;border-radius:13px;border:none;
-                   background:transparent;color:rgba(238,238,255,.3);
-                   font-size:12px;cursor:pointer;display:block;margin-bottom:4px">
-            I'm awake now — turn off bedtime
-          </button>
+            /* Option 1: Pause 15 min */
+            '<button type="button" id="bt-nudge-snooze"' +
+                ' onclick="snoozeBedtimePrompt();document.getElementById(\'bt-nudge-popup\')?.remove()"' +
+                ' style="width:100%;display:flex;align-items:center;gap:14px;' +
+                'padding:15px 16px;border-radius:16px;border:1px solid rgba(108,99,255,.35);' +
+                'background:rgba(108,99,255,.15);cursor:pointer;' +
+                'margin-bottom:10px;text-align:left;' +
+                'transition:background .15s">' +
+              '<div style="width:36px;height:36px;border-radius:10px;flex-shrink:0;' +
+                  'background:rgba(108,99,255,.25);' +
+                  'display:flex;align-items:center;justify-content:center;font-size:17px">⏸</div>' +
+              '<div>' +
+                '<div style="font-size:14px;font-weight:700;color:var(--p2)">Pause 15 min</div>' +
+                '<div style="font-size:11px;color:var(--t3);margin-top:2px">' +
+                    'Blocking resumes automatically</div>' +
+              '</div>' +
+            '</button>' +
 
-          <div onclick="document.getElementById('bt-nudge-popup')?.remove()"
-               style="font-size:var(--text-2xs);color:rgba(238,238,255,.25);margin-top:10px;cursor:pointer">
-            Keep bedtime on →
-          </div>
+            /* Option 2: Done for tonight */
+            '<button type="button" id="bt-nudge-skip"' +
+                ' onclick="_skipBedtimeTonight();document.getElementById(\'bt-nudge-popup\')?.remove()"' +
+                ' style="width:100%;display:flex;align-items:center;gap:14px;' +
+                'padding:15px 16px;border-radius:16px;border:1px solid var(--border2);' +
+                'background:var(--s2);cursor:pointer;' +
+                'margin-bottom:10px;text-align:left;' +
+                'transition:background .15s">' +
+              '<div style="width:36px;height:36px;border-radius:10px;flex-shrink:0;' +
+                  'background:var(--s3);' +
+                  'display:flex;align-items:center;justify-content:center;font-size:17px">✓</div>' +
+              '<div>' +
+                '<div style="font-size:14px;font-weight:700;color:var(--t1)">Done for tonight</div>' +
+                '<div style="font-size:11px;color:var(--t3);margin-top:2px">' +
+                    'Schedule resumes tomorrow at ' + bedStr + '</div>' +
+              '</div>' +
+            '</button>' +
 
-        </div>
-      </div>
-    `;
+            /* Option 3: Disable bedtime (destructive, subtle) */
+            '<button type="button" id="bt-nudge-disable"' +
+                ' onclick="_doDisableBedtime();document.getElementById(\'bt-nudge-popup\')?.remove()"' +
+                ' style="width:100%;display:flex;align-items:center;gap:14px;' +
+                'padding:12px 16px;border-radius:16px;border:1px solid rgba(255,80,80,.15);' +
+                'background:transparent;cursor:pointer;' +
+                'margin-bottom:4px;text-align:left;' +
+                'transition:background .15s">' +
+              '<div style="width:36px;height:36px;border-radius:10px;flex-shrink:0;' +
+                  'background:rgba(255,80,80,.08);' +
+                  'display:flex;align-items:center;justify-content:center;font-size:15px">🚫</div>' +
+              '<div>' +
+                '<div style="font-size:13px;font-weight:600;color:rgba(255,120,120,.85)">Disable bedtime mode</div>' +
+                '<div style="font-size:11px;color:var(--t3);margin-top:2px">' +
+                    'Cancels the recurring schedule</div>' +
+              '</div>' +
+            '</button>' +
+
+          '</div>' +
+
+          /* Dismiss */
+          '<div onclick="document.getElementById(\'bt-nudge-popup\')?.remove()"' +
+              ' style="text-align:center;padding-top:14px;' +
+              'font-size:12px;color:var(--t3);opacity:.5;cursor:pointer">Keep bedtime on &rarr;</div>' +
+
+        '</div>' +
+      '</div>';
+
+    /* Inject keyframe once */
+    if (!document.getElementById('bt-sheet-kf')) {
+      var kf = document.createElement('style');
+      kf.id = 'bt-sheet-kf';
+      kf.textContent = '@keyframes bt-sheet-up{from{transform:translateY(100%);opacity:0}to{transform:translateY(0);opacity:1}}';
+      document.head.appendChild(kf);
+    }
 
     popup.querySelector('#bt-nudge-overlay').addEventListener('click', function(e) {
       if (e.target === this) popup.remove();
     });
 
     document.body.appendChild(popup);
+  }
+
+  /**
+   * Skip bedtime for tonight only.
+   * Fires ACTION_BEDTIME_STOP (sets BEDTIME_SKIPPED_TONIGHT) via the new
+   * skipBedtimeTonight() bridge method, without cancelling tomorrow's alarms.
+   * Refreshes all UI surfaces so the status shows the next scheduled window.
+   */
+  function _skipBedtimeTonight() {
+    document.getElementById('bt-nudge-popup')?.remove();
+    // Set local flag immediately so all renderers reflect skipped state
+    // without waiting for the native service to write the pref (async race).
+    _localSkippedTonight = true;
+    if (IS_NATIVE) {
+      try {
+        if (typeof N.skipBedtimeTonight === 'function') {
+          N.skipBedtimeTonight();
+        } else {
+          // Fallback for older builds — soft-stop + manually clear DND
+          N.stopBedtimeBlock();
+          try { N.setBedtimeDnd(false); } catch (_) {}
+        }
+      } catch (_) {}
+    }
+    toast('See you tomorrow night \uD83C\uDF19', 'info', 2500);
+    // Bust cache so render() reads fresh cfg
+    _bedtimeCfgCacheTs = 0;
+    // Refresh all UI surfaces
+    render();
+    if (typeof FocusScore !== 'undefined') FocusScore.renderHabitsDynamicRow();
+    if (typeof FocusHome !== 'undefined') FocusHome._refreshStrips();
   }
 
   function _doDisableBedtime() {
@@ -964,6 +1054,11 @@ window.FocusBedtime = (function () {
       try { if (typeof N.getBedtimeSnoozeEndsAt   === 'function') snoozeEndsAt   = +(N.getBedtimeSnoozeEndsAt())   || 0; } catch (_) {}
       try { if (typeof N.isBedtimeSkippedTonight  === 'function') skippedTonight = !!N.isBedtimeSkippedTonight();        } catch (_) {}
     }
+    // OR in the local optimistic flag to avoid the async race between skipBedtimeTonight()
+    // and the native service writing BEDTIME_SKIPPED_TONIGHT to prefs.
+    skippedTonight = skippedTonight || _localSkippedTonight;
+    // Clear local flag once we're past the bedtime window (fresh start next cycle)
+    if (!inWindow && _localSkippedTonight) _localSkippedTonight = false;
 
     var statusTxt;
     if (!cfg.enabled) {
@@ -1278,10 +1373,11 @@ window.FocusBedtime = (function () {
   window._toggleBedtimeSettings  = function() { FocusBedtime.toggleSettings(); };
   window._saveBedtimeInline       = function() { FocusBedtime.save(); };
   window.snoozeBedtimePrompt      = snoozeBedtimePrompt;
-  // These two are called by inline onclick strings inside the nudge popup but
-  // were never exported — causing ReferenceError on both buttons.
+  // These are called by inline onclick strings inside the nudge popup but
+  // were never exported — causing ReferenceError on the buttons.
   window._doDisableBedtime        = _doDisableBedtime;
   window._bedtimeSnooze           = _bedtimeSnooze;
+  window._skipBedtimeTonight      = _skipBedtimeTonight;
 
   /* ── Public API ──────────────────────────────────────────────── */
   return {
@@ -1295,6 +1391,16 @@ window.FocusBedtime = (function () {
     btToggleDay:     _btToggleDay,
     refreshChips:    _btRefreshInlineChips,
     snooze:          snoozeBedtimePrompt,
+    /**
+     * Returns true if the user chose "Done for tonight" this session.
+     * ORs the local optimistic flag with the native pref so callers
+     * (home strip, habits strip) always get the correct value immediately
+     * after _skipBedtimeTonight(), before the native service writes its pref.
+     */
+    isSkippedTonight: function () {
+      if (_localSkippedTonight) return true;
+      try { return IS_NATIVE && typeof N.isBedtimeSkippedTonight === 'function' && !!N.isBedtimeSkippedTonight(); } catch (_) { return false; }
+    },
     /**
      * Collapses the Sleep Settings accordion and clears the expanded flag.
      * Called by FocusTab._switchFocusSubTab when navigating away from Habits,

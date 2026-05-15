@@ -752,6 +752,9 @@ window.FocusScore = (function () {
     var wakeH= (cfg.wakeHour != null ? cfg.wakeHour : 7)  + (cfg.wakeMinute||0)/60;
     var nav  = "FocusTab._switchFocusSubTab('habits');activateTab('focus')";
     var fmt12 = function(dec){var h24=Math.floor(dec%24),mm=Math.round((dec%1)*60),h12=h24%12||12;return h12+':'+(mm<10?'0':'')+mm+' '+(h24<12?'AM':'PM');};
+    // ISSUE-3 FIX: tracks whether we fell through from a skipped bedtime window.
+    // Used below to suppress the screen filter strip during an active-but-skipped window.
+    var _skippedInWindow = false;
 
     var inWindow = false;
     if (cfg.enabled) {
@@ -771,11 +774,17 @@ window.FocusScore = (function () {
     // but window runs until 7 am). Without this check the strip showed "Bedtime
     // mode on" for the rest of the night after the user explicitly dismissed it.
     if (cfg.enabled && inWindow) {
-      var _skippedTonight = false;
-      try { if (IS_NATIVE && typeof N.isBedtimeSkippedTonight === 'function') _skippedTonight = !!N.isBedtimeSkippedTonight(); } catch(_) {}
-      if (_skippedTonight) {
-        // Bedtime was turned off for tonight — fall through to wind-down / next-bedtime tiers.
-      } else {
+      // Check skip-tonight flag via FocusBedtime (uses local optimistic OR native pref)
+            // so pressing "Done for tonight" immediately removes the active card.
+            var _skippedNow = typeof FocusBedtime !== 'undefined' && typeof FocusBedtime.isSkippedTonight === 'function'
+              ? FocusBedtime.isSkippedTonight()
+              : (IS_NATIVE && typeof N.isBedtimeSkippedTonight === 'function' && !!N.isBedtimeSkippedTonight());
+            if (_skippedNow) {
+              // Skipped tonight — fall through to wind-down / screen-filter / next-bedtime tiers
+              // ISSUE-3 FIX: track that we fell through from a skipped bedtime window so we
+              // can suppress the screen filter strip (bedtime window is still technically active).
+              var _skippedInWindow = true;
+            } else {
       var blockedCount = Array.isArray(cfg.blockedApps) ? cfg.blockedApps.length : 0;
       var snoozeEndsAt = 0;
       try { if (IS_NATIVE && typeof N.getBedtimeSnoozeEndsAt === 'function') snoozeEndsAt = N.getBedtimeSnoozeEndsAt() || 0; } catch(_) {}
@@ -818,7 +827,10 @@ window.FocusScore = (function () {
     }
 
     // Tier 2b: screen filter active — same priority as home habits strip
-    if (!events.length) {
+    // ISSUE-3 FIX: suppress screen filter strip when bedtime is active but skipped
+    // tonight. The bedtime window is technically still open, so inWindow=true means
+    // Tier 2a (wind-down, !inWindow) never fires either — fall straight to Tier 3.
+    if (!events.length && !_skippedInWindow) {
       try {
         if (typeof ScreenFilter !== 'undefined') {
           var sfCfg3 = ScreenFilter.getCfg();

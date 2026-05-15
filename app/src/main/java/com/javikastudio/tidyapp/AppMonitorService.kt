@@ -303,7 +303,6 @@ class AppMonitorService : Service() {
                     // BUG-2 FIX: clear the exact bedtime epoch so it doesn't linger
                     // into the next wind-down window.
                     .putLong(BEDTIME_STARTS_AT_MS, 0L)
-                    .putBoolean(BEDTIME_ACTIVE, false)
                     // FIX: clear BEDTIME_ACTIVE so isBedtimeFilterManaged() returns false
                     // immediately after the notification Turn Off button is pressed.
                     .putBoolean(BEDTIME_ACTIVE, false)
@@ -317,6 +316,15 @@ class AppMonitorService : Service() {
                     if (notifMgr.isNotificationPolicyAccessGranted)
                         notifMgr.setInterruptionFilter(NotificationManager.INTERRUPTION_FILTER_ALL)
                 }
+                // ISSUE-2 FIX: notify JS so habits/home strips update immediately
+                // when the user taps "Turn Off" in the bedtime active notification.
+                // Without this JS only updates on next app resume, so strips would
+                // keep showing "Bedtime mode on" until the app is re-opened.
+                notifyJs("(function(){" +
+                    "if(typeof FocusBedtime!=='undefined')FocusBedtime.render();" +
+                    "if(typeof FocusScore!=='undefined')FocusScore.renderHabitsDynamicRow();" +
+                    "if(typeof FocusHome!=='undefined')FocusHome._refreshStrips();" +
+                    "})()")
             }
 
             ACTION_BEDTIME_STOP_SOFT    -> bedtimeEngine.stopSoft()
