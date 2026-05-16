@@ -231,7 +231,7 @@
 
 .sh-drag-hint {
   position: absolute;
-  bottom: 20px;
+  bottom: 40px;
   right: 14px;
   font-family: var(--ff-m);
   font-size: var(--text-2xs);

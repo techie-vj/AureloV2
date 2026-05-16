@@ -326,6 +326,8 @@ const Referral = (() => {
         input.value = '';
         // Refresh stats pills
         setTimeout(_load, 600);
+        // Sync the Settings referral card so it shows updated totals without a restart
+          if (typeof renderReferralSettingsStats === 'function') renderReferralSettingsStats();
       } else {
         msg.style.color = 'var(--t3)';
         msg.textContent = 'This code has already been redeemed or the monthly limit has been reached.';
@@ -573,6 +575,24 @@ window.onReferralExtensionActivated = function(days) {
   if (typeof toast === 'function') {
     toast('\uD83C\uDF89 Referral reward activated \u2014 ' + days + ' day' + (days !== 1 ? 's' : '') + ' of Pro!', 'success');
   }
+
+  // BUG-REF-4 FIX: restore Pro UI after the extension activates.
+  //
+  // When a subscription lapses, AppBridge fires onProStatusChanged(false) first,
+  // which causes the JS pro-gate to process the downgrade and hide all Pro features.
+  // AppBridge's native extension path already evaluates onProStatusChanged(true) from
+  // Kotlin (alongside this callback), but any other path that reaches
+  // onReferralExtensionActivated without that paired call (e.g. a future code path,
+  // a test harness, or a race where JS processes the false before the true) would
+  // leave the user staring at a free-tier UI despite their extension being live.
+  //
+  // Calling onProStatusChanged(true) here is the JS-side complement to the native
+  // entitlementRepo.setProStatus(true) written in AppBridge and ReferralExtensionWorker.
+  // It is safe to call redundantly — pro-gate.js treats repeated true calls as no-ops.
+  if (typeof window.onProStatusChanged === 'function') {
+    window.onProStatusChanged(true);
+  }
+
   // Refresh the referral panel if it happens to be open so the green
   // "extension active" card appears immediately without requiring a re-open.
   try {

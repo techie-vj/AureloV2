@@ -103,14 +103,25 @@ class AppBridge(private val context: Context, private val webView: WebView) {
                 if (extensionDays > 0) {
                     // Referral extension activated — keep user Pro for the extension period.
                     prefs.edit().putBoolean(IS_PRO_USER, true).apply()
+                    // BUG-REF-1 FIX: also update EntitlementRepository so isProUser() returns
+                    // true and isWithinRevocationGrace() stays current throughout the extension
+                    // window. Without this, the entitlement repo held isPro=false (set two lines
+                    // above via setProStatus(isPro=false)), causing BillingBridge.isProUser() and
+                    // the grace-period guard to operate on stale data for the extension's lifetime.
+                    entitlementRepo.setProStatus(true)
                     android.util.Log.d("AureloBilling",
                         "Billing lapse — referral extension activated: $extensionDays days")
                     // BUG-06 FIX: schedule the expiry worker so Pro is revoked automatically
                     // when the extension window closes, even if the user never reopens the app.
                     ReferralExtensionWorker.scheduleExpiry(context)
-                    // Tell JS to show the extension banner
+                    // BUG-REF-1 FIX: fire onProStatusChanged(true) AFTER the extension banner
+                    // so JS pro-gate restores Pro UI. Without this, the onProStatusChanged(false)
+                    // emitted above already collapsed Pro features before extension activated,
+                    // and onReferralExtensionActivated alone never triggered a UI revert.
                     val jsExt = "if(typeof window.onReferralExtensionActivated==='function')" +
-                            "window.onReferralExtensionActivated($extensionDays);"
+                            "window.onReferralExtensionActivated($extensionDays);" +
+                            "if(typeof window.onProStatusChanged==='function')" +
+                            "window.onProStatusChanged(true);"
                     webView.post { webView.evaluateJavascript(jsExt, null) }
                 } else {
                     // No extension days banked — perform full native downgrade cleanup.

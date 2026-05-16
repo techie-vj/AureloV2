@@ -57,9 +57,45 @@ class ReferralExtensionWorker(
     override fun doWork(): Result {
         val prefs = context.getSharedPreferences(PREFS_FILE, Context.MODE_PRIVATE)
 
-        // Belt-and-suspenders: if billing renewed before this worker fired, do nothing
+        // Belt-and-suspenders: if billing renewed before this worker fired, do nothing.
+        // isExtensionActive() reads the current REFERRAL_EXTENSION_EXPIRY_MS; a billing
+        // renewal would have updated that timestamp via the normal subscription path.
         if (ReferralManager.isExtensionActive(prefs)) {
             Log.d(TAG, "Extension still active — skipping revocation")
+            return Result.success()
+        }
+
+        // BUG-REF-3 FIX: before revoking Pro, check whether the user earned additional
+        // referral rewards WHILE the previous extension was running (e.g. another friend
+        // converted and bankExtensionDays() stored days in REFERRAL_PENDING_EXTENSION_DAYS).
+        // Those days would otherwise be silently abandoned when we revoke Pro below.
+        //
+        // activateExtensionOnLapse() is idempotent: it reads pending days, writes a new
+        // REFERRAL_EXTENSION_EXPIRY_MS from now + banked days, zeroes the pending counter,
+        // and returns the days activated (0 if nothing was banked).
+        val newDays = ReferralManager.activateExtensionOnLapse(prefs)
+        if (newDays > 0) {
+            Log.d(TAG, "BUG-REF-3 FIX: $newDays banked day(s) found — extending Pro, skipping revocation")
+
+            // Keep IS_PRO_USER true so native receivers (BedtimeReceiver, startWindDownFilter)
+            // continue to see Pro status without a gap.
+            prefs.edit().putBoolean(IS_PRO_USER, true).apply()
+
+            // BUG-REF-5 FIX: refresh EntitlementRepository so lastProConfirmedMs is
+            // anchored to now. Without this the 72-h grace window expires relative to
+            // when the PREVIOUS extension was activated, causing isWithinRevocationGrace()
+            // to return false mid-extension and triggering a spurious double-lapse on the
+            // next foreground billing query — wiping the freshly-activated extension.
+            try {
+                com.javikastudio.tidyapp.billing.EntitlementRepository(context).setProStatus(true)
+            } catch (_: Exception) {
+                Log.w(TAG, "BUG-REF-5: Could not update EntitlementRepository for extension renewal")
+            }
+
+            // Reschedule expiry worker for the new extension window. scheduleExpiry() reads
+            // the updated REFERRAL_EXTENSION_EXPIRY_MS that activateExtensionOnLapse() just
+            // wrote, so the delay is computed correctly.
+            scheduleExpiry(context)
             return Result.success()
         }
 

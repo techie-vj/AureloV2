@@ -90,7 +90,7 @@ object ReferralManager {
                     if (responseCode == com.android.installreferrer.api.InstallReferrerClient.InstallReferrerResponse.OK) {
                         val referrerUrl = client.installReferrer.installReferrer ?: ""
                         client.endConnection()
-                        processReferrerString(prefs, referrerUrl)
+                        processReferrerString(context, prefs, referrerUrl)
                     } else {
                         client.endConnection()
                     }
@@ -102,7 +102,7 @@ object ReferralManager {
         }
     }
 
-    private fun processReferrerString(prefs: SharedPreferences, referrerUrl: String) {
+    private fun processReferrerString(context: Context, prefs: SharedPreferences, referrerUrl: String) {
         // Extract aurelo_ref_XXXXXXXX from the referrer string
         val match = Regex("aurelo_ref_([A-Z0-9]{8})").find(referrerUrl) ?: return
         val incomingCode = match.groupValues[1]
@@ -115,13 +115,43 @@ object ReferralManager {
         val myCode = getMyReferralCode(prefs)
         if (incomingCode == myCode) return
 
-        // Store the incoming code and grant 14 bonus days
+        val now = System.currentTimeMillis()
+        // BUG-REF-2 FIX: compute the 14-day extension expiry immediately so
+        // isExtensionActive() returns true right away. Previously only the metadata
+        // flags (REFERRAL_BONUS_GRANTED, REFERRAL_BONUS_DAYS) were written but
+        // nothing ever read them to actually grant Pro access — the "21 days free"
+        // UI claim was entirely aspirational. Now we write REFERRAL_EXTENSION_EXPIRY_MS
+        // using the same mechanism as activateExtensionOnLapse() so the extension
+        // path is consistent regardless of how Pro was first activated.
+        val bonusDays = 14
+        val expiryMs = now + bonusDays.toLong() * 86_400_000L
+
+        // Store the incoming code, bonus metadata, and the live extension expiry
         prefs.edit()
             .putString(REFERRAL_INCOMING_CODE, incomingCode)
             .putBoolean(REFERRAL_BONUS_GRANTED, true)
-            .putInt(REFERRAL_BONUS_DAYS, 14) // 7 existing trial + 14 bonus = 21 days total
-            .putLong(REFERRAL_INSTALL_TS, System.currentTimeMillis())
+            .putInt(REFERRAL_BONUS_DAYS, bonusDays) // 7 existing trial + 14 bonus = 21 days total
+            .putLong(REFERRAL_INSTALL_TS, now)
+            // BUG-REF-2 FIX: write the extension expiry so isExtensionActive() can gate Pro.
+            .putLong(REFERRAL_EXTENSION_EXPIRY_MS, expiryMs)
+            // BUG-REF-2 FIX: write IS_PRO_USER so BedtimeReceiver / startWindDownFilter()
+            // (which read from tidyapp_v6, not EntitlementRepository) see Pro immediately.
+            .putBoolean(IS_PRO_USER, true)
             .apply()
+
+        // BUG-REF-2 FIX: grant Pro in EntitlementRepository so BillingBridge.isProUser()
+        // and the 72-h grace-period guard reflect the active extension state.
+        // This also stamps lastProConfirmedMs so the grace window stays current.
+        try {
+            com.javikastudio.tidyapp.billing.EntitlementRepository(context).setProStatus(true)
+        } catch (_: Exception) {
+            android.util.Log.w("AureloReferral",
+                "Could not update EntitlementRepository for referral bonus")
+        }
+
+        // BUG-REF-2 FIX: schedule the expiry worker so Pro is automatically revoked
+        // when the 14-day extension window closes, even if the user never reopens the app.
+        ReferralExtensionWorker.scheduleExpiry(context)
 
         // BUG-01 FIX: generate an install confirmation code that the referred user
         // can share with their referrer. The referrer enters it to trigger
@@ -156,6 +186,30 @@ object ReferralManager {
      */
     fun redeemReferralCode(prefs: SharedPreferences, code: String): JSONObject {
         val cleaned = code.trim().uppercase()
+
+        // BUG-REF-6 FIX: prevent self-redemption.
+        //
+        // A user who was referred stores both an install confirmation code
+        // (REFERRAL_CONFIRM_CODE) and, after subscribing, a conversion confirmation
+        // code (REFERRAL_CONV_CONFIRM_CODE) on their own device. These codes are
+        // meant to be shared with the REFERRER so the referrer can claim credit.
+        //
+        // Without this guard, the referred user could enter their own code into the
+        // "Got a code from a friend?" field on the same device, pass all downstream
+        // deduplication checks (REFERRAL_CREDITED_CONVERSION_CODES only prevents the
+        // same *external* code from being redeemed twice, not first-attempt self-use),
+        // and earn themselves referral-reward days they were not entitled to.
+        //
+        // Fix: compare the cleaned code against both locally-stored confirmation codes.
+        // If it matches either, reject immediately with invalid_code — no days are
+        // granted and no state is mutated.
+        val ownInstallCode = prefs.getString(REFERRAL_CONFIRM_CODE, null)?.trim()?.uppercase()
+        val ownConvCode    = prefs.getString(REFERRAL_CONV_CONFIRM_CODE, null)?.trim()?.uppercase()
+        if ((!ownInstallCode.isNullOrBlank() && cleaned == ownInstallCode) ||
+            (!ownConvCode.isNullOrBlank()    && cleaned == ownConvCode)) {
+            return JSONObject().apply { put("error", "invalid_code") }
+        }
+
         return when {
             cleaned.length == 8 && cleaned.all { it.isLetterOrDigit() } -> {
                 val days = recordFriendInstall(prefs, cleaned)
@@ -393,13 +447,13 @@ object ReferralManager {
 
     // ── Pro Extension (monthly/annual only) ───────────────────────────────────
     /**
-    * Called when referral days are earned AND the user is on monthly/annual Pro.
-    * Banks the days so they activate automatically when the subscription lapses.
-    * Lifetime users are excluded — their earned days are tracked but not banked here.
-    *
-    * @param plan  Current plan of the referrer: "monthly" | "annual" | "lifetime"
-    * @param days  Days just earned (will be added to any existing banked days)
-    */
+     * Called when referral days are earned AND the user is on monthly/annual Pro.
+     * Banks the days so they activate automatically when the subscription lapses.
+     * Lifetime users are excluded — their earned days are tracked but not banked here.
+     *
+     * @param plan  Current plan of the referrer: "monthly" | "annual" | "lifetime"
+     * @param days  Days just earned (will be added to any existing banked days)
+     */
     fun bankExtensionDays(prefs: SharedPreferences, plan: String, days: Int) {
         if (plan.lowercase() == "lifetime") return   // Lifetime handles rewards differently
         if (days <= 0) return

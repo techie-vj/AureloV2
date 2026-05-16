@@ -25,14 +25,14 @@ var ScoreHistory = (function () {
   var SVG_W = 375;
 
   // Horizontal range stays the same
-  var DX0 = 0, DX1 = 375;
+  var DX0 = 18, DX1 = 357; // 18px inset each side, matching the 18px panel padding
 
   // Give a bit more space above and below the plotted line
-  var DY0 = 4;     // was 6
+  var DY0 = 14;     // was 6
   var DY1 = 132;   // stays similar, adjust if needed
 
   // Overall SVG height and label baseline moved down
-  var SVG_H = 160; // was 148
+  var SVG_H = 170; // was 148
   var LABEL_Y = 150; // was ~142
 
   function toY(v) {

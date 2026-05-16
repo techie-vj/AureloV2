@@ -76,6 +76,14 @@ class BillingBridge(
                 // Extension activated — keep IS_PRO_USER = true for the extension period.
                 // User retains Pro status (and Pro theme) while the extension is active.
                 prefs.edit().putBoolean(IS_PRO_USER, true).apply()
+                // BUG-REF-1 FIX: sync EntitlementRepository so isProUser() returns true
+                // and the 72-h grace-period anchor is refreshed. Without this call the
+                // entitlement repo still holds isPro=false (written by setProStatus(false)
+                // at the top of this function), so BillingBridge.isProUser() returns false
+                // and the grace-period guard expires after 72 h — both causing the billing
+                // listener in AppBridge to treat subsequent foreground queries as a fresh
+                // lapse and run handleProDowngrade() while the extension is still active.
+                entitlementRepo.setProStatus(true)
                 android.util.Log.d("AureloReferral",
                     "Subscription lapsed (JS path) — referral extension activated: $extensionDays days")
 
@@ -83,9 +91,14 @@ class BillingBridge(
                 // automatically when the extension window closes.
                 ReferralExtensionWorker.scheduleExpiry(context)
 
-                // Notify JS so it can show the extension banner
+                // BUG-REF-1 FIX: restore Pro UI in JS. JS called setProUser(false) which
+                // already ran pro-gate downgrade logic before we got here. Fire
+                // onReferralExtensionActivated first (banner), then onProStatusChanged(true)
+                // to revert the UI to Pro state.
                 val js = "if(typeof window.onReferralExtensionActivated==='function')" +
-                        "window.onReferralExtensionActivated($extensionDays);"
+                        "window.onReferralExtensionActivated($extensionDays);" +
+                        "if(typeof window.onProStatusChanged==='function')" +
+                        "window.onProStatusChanged(true);"
                 android.os.Handler(android.os.Looper.getMainLooper()).post {
                     webView.evaluateJavascript(js, null)
                 }
