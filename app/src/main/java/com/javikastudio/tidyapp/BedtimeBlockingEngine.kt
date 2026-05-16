@@ -315,6 +315,10 @@ class BedtimeBlockingEngine(
                     "restoreFromPrefs: snooze active, ${(savedSnoozeUntil - nowMs) / 1000}s remaining")
             }
             savedSnoozeUntil > 0L -> {
+                android.util.Log.w("AureloBedtimeDND",
+                    "restoreFromPrefs: expired snooze DND re-enable | " +
+                            "SKIPPED_TONIGHT=${prefs.getBoolean(BEDTIME_SKIPPED_TONIGHT, false)} | " +
+                            "BLOCK_ACTIVE=${prefs.getBoolean(BEDTIME_BLOCK_ACTIVE, false)}")
                 prefs.edit().putLong("bedtime_snooze_until_ts", 0L).apply()
                 // FIX-BUG1: do not re-enable DND if user pressed Turn Off tonight
                 if (!prefs.getBoolean(BEDTIME_SKIPPED_TONIGHT, false)) {
@@ -366,6 +370,10 @@ class BedtimeBlockingEngine(
                 return false
             } else {
                 snoozedUntilTs = 0L
+                android.util.Log.w("AureloBedtimeDND",
+                    "onTick: snooze expired, DND re-enable | " +
+                            "SKIPPED_TONIGHT=${prefs.getBoolean(BEDTIME_SKIPPED_TONIGHT, false)}")
+
                 prefs.edit().putLong("bedtime_snooze_until_ts", 0L).apply()
                 runCatching {
                     val nm = h.context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager

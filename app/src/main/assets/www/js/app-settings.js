@@ -644,11 +644,16 @@ function scheduleBedtimeCheck() {
     }
 
     if (inWindow && wasActive === false) {
-        try { N.setBedtimeDnd(true); } catch (_) {}
-        try {
-            const cfg2 = _getBedtimeCfg();
-            N.startBedtimeBlock(JSON.stringify(cfg2.blockedApps || []));
-        } catch (_) {}
+        const skippedNow = IS_NATIVE &&
+                typeof N.isBedtimeSkippedTonight === 'function' &&
+                N.isBedtimeSkippedTonight();
+            if (!skippedNow) {   // ← add this guard
+                try { N.setBedtimeDnd(true); } catch (_) {}
+                try {
+                    const cfg2 = _getBedtimeCfg();
+                    N.startBedtimeBlock(JSON.stringify(cfg2.blockedApps || []));
+                } catch (_) {}
+            }
         if (typeof _renderBedtimeStrip === 'function') _renderBedtimeStrip();
     } else if (!inWindow && wasActive === true) {
         try { N.recordBedtimeOff(); } catch (_) {}

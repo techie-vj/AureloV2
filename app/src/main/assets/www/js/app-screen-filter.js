@@ -888,8 +888,12 @@ window.ScreenFilter = (function () {
     // BEDTIME-FILTER FIX: when bedtime is controlling the filter the toggle is visually
     // disabled, but the HTML `disabled` attribute can be bypassed by touch events on some
     // Android WebViews. Intercept here and show an explanatory message instead.
-    var btNow = IS_NATIVE && typeof N.isInBedtimeWindow === 'function' && N.isInBedtimeWindow();
-    if (btNow && cfg.bedtimeAutoApply) {
+
+    var btNow     = IS_NATIVE && typeof N.isInBedtimeWindow === 'function' && N.isInBedtimeWindow();
+    var btSkipped = typeof FocusBedtime !== 'undefined' &&
+                    typeof FocusBedtime.isSkippedTonight === 'function' &&
+                    FocusBedtime.isSkippedTonight();
+    if (btNow && !btSkipped && cfg.bedtimeAutoApply) {
       if (typeof toast === 'function') toast('Screen filter is managed by Bedtime Mode', 'info', 2500);
       return;
     }

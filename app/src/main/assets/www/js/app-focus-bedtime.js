@@ -439,19 +439,25 @@ window.FocusBedtime = (function () {
   }
 
   function _doDisableBedtime() {
-    S.settings.bedtime = false;
-    saveS();
-    if (IS_NATIVE) {
-      try { N.setBedtimeDnd(false); } catch (_) {}
-      try { N.stopBedtimeBlock(); } catch (_) {}
-      // grayscale removed — Google API no longer supports it
-
-      try { N.cancelBedtimeAlarms(); } catch (_) {}
-      try { N.recordBedtimeOff(); } catch (_) {}
-      const cfg = _getBedtimeCfg();
-      cfg.enabled = false;
-      try { N.saveBedtimeSettings(JSON.stringify(cfg)); } catch (_) {}
-    }
+     S.settings.bedtime = false;
+        saveS();
+        if (IS_NATIVE) {
+            try { N.setBedtimeDnd(false); } catch (_) {}
+            try { N.stopBedtimeBlock(); } catch (_) {}
+            try { N.cancelBedtimeAlarms(); } catch (_) {}
+            try { N.recordBedtimeOff(); } catch (_) {}
+            // FIX: also set SKIPPED_TONIGHT so any JS/Kotlin reader sees
+            // bedtime as inactive even if the settings write is delayed.
+            // This mirrors what skipBedtimeTonight() does at the prefs level.
+            try { if (typeof N.skipBedtimeTonight === 'function') {
+                // Call only the pref-write side — alarms are already cancelled above,
+                // so this just sets SKIPPED_TONIGHT=true and BEDTIME_ACTIVE=false durably.
+                N.skipBedtimeTonight();
+            }} catch (_) {}
+            const cfg = _getBedtimeCfg();
+            cfg.enabled = false;
+            try { N.saveBedtimeSettings(JSON.stringify(cfg)); } catch (_) {}
+        }
     Object.keys(_btPickerState).forEach(k => delete _btPickerState[k]);
     clearInterval(_bedtimePoller);
     updateBedtimeSub();

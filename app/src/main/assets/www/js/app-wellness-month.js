@@ -205,7 +205,7 @@ function _renderMonthPickupsCalendar(area) {
       // Use real per-day pickup count if available; fall back to estimate
       const dateKey = (now.getMonth()+1)+'/'+c.day;
       const realPu  = MONTHLY_PICKUPS[dateKey];
-      pu = (realPu !== undefined) ? realPu : Math.max(1, Math.round(c.mins * pickRate));
+      pu = (realPu !== undefined && realPu > 0) ? realPu : Math.max(1, Math.round(c.mins * pickRate));
       const isReal  = realPu !== undefined;
       const over=pu>GOAL_PU;
       bg=over?'rgba(230,50,80,0.28)':'rgba(0,200,100,0.28)';

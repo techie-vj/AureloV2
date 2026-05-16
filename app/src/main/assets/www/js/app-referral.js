@@ -324,10 +324,13 @@ const Referral = (() => {
     ctx.fillText('with Aurelo Pro', SIZE / 2, 586);
 
     // ── Referral code block (extracted from link) ────────────────────────────
-    const codeMatch = _link
-      ? (_link.match(/[?&]referral[_=]([^&]+)/) || _link.match(/[?&]ref=([^&]+)/))
-      : null;
-    const refCode = codeMatch ? decodeURIComponent(codeMatch[1]) : null;
+    // BUG-C2 FIX: the previous regexes (/[?&]referral[_=]/ and /[?&]ref=/)
+    // never matched the actual link format:
+    //   https://play.google.com/…?id=…&referrer=aurelo_ref_XXXXXXXX
+    // The code block was therefore always blank on the share card.
+    // Match directly on the aurelo_ref_ prefix which is unique and stable.
+    const codeMatch = _link ? _link.match(/aurelo_ref_([A-Z0-9]{8})/) : null;
+    const refCode = codeMatch ? codeMatch[1] : null;
 
     if (refCode) {
       const codeBoxW = 500, codeBoxH = 80, codeBoxX = (SIZE - codeBoxW) / 2, codeBoxY = 636;

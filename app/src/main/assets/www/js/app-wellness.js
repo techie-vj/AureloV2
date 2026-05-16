@@ -475,9 +475,10 @@ function renderStatsScreenScoreRow() {
   var hcMod = screenVm.hcMod;
   var hcConnected = screenVm.hcConnected;
   var displayScore = screenVm.effectiveScore;
-  // F-10: removed duplicate _saveScoreForToday call here.
-  // renderScreenScoreSheet() already saves on every full sheet open.
-  // Saving here too causes a race when both paths fire in the same session.
+  // Always persist today's score here so history is recorded even when
+    // the user never opens the full score sheet. _saveScoreForToday has an
+    // idempotency guard so calling it from both paths is safe.
+    _saveScoreForToday(_SCREEN_SCORE_KEY, displayScore);
 
   var grade = _screenScoreGrade(displayScore);
 

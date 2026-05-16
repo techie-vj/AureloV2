@@ -49,22 +49,55 @@ class ReferralBridge(
      * [friendCode] is the 8-char code extracted from the referral link — used to
      * deduplicate reinstalls so the same friend never earns the referrer a second credit.
      * Returns JSON: {daysEarned: N} — 0 if rate-limited or already credited.
+     *
+     * BUG-H2 FIX: after recording the install, automatically bank extension days
+     * if the referrer is on a monthly or annual plan. Previously bankExtensionIfSubscribed
+     * was an orphan method — it existed but was never called from the reward flow,
+     * so earned days were tracked but never actually banked for subscription extension.
      */
     @JavascriptInterface
     fun recordReferralInstall(friendCode: String = ""): String {
         val days = ReferralManager.recordFriendInstall(prefs, friendCode.takeIf { it.isNotBlank() })
+        if (days > 0) autoBankExtensionDays(days)
         return org.json.JSONObject().apply { put("daysEarned", days) }.toString()
     }
 
     /**
      * Records a friend conversion for a given plan.
      * plan: "monthly" | "annual" | "lifetime"
+     *
+     * BUG-C1 FIX: added [friendCode] parameter and passed it to ReferralManager.
+     * Previously this parameter was missing, making the BUG-02 deduplication fix in
+     * ReferralManager.recordFriendConversion() completely unreachable — friendCode was
+     * always null so the same friend could subscribe → cancel → re-subscribe and credit
+     * the referrer unlimited Pro days on each cycle.
+     *
+     * BUG-H2 FIX: auto-bank extension days after recording (see recordReferralInstall).
+     *
      * Returns JSON: {daysEarned: N}
      */
     @JavascriptInterface
-    fun recordReferralConversion(plan: String): String {
-        val days = ReferralManager.recordFriendConversion(prefs, plan)
+    fun recordReferralConversion(plan: String, friendCode: String = ""): String {
+        val days = ReferralManager.recordFriendConversion(
+            prefs, plan, friendCode.takeIf { it.isNotBlank() }
+        )
+        if (days > 0) autoBankExtensionDays(days)
         return org.json.JSONObject().apply { put("daysEarned", days) }.toString()
+    }
+
+    /**
+     * BUG-H2 FIX: reads the active billing plan from prefs and banks extension days
+     * if the user is on a monthly or annual subscription. Lifetime users skip banking
+     * (their earned days are tracked in totalDaysEarned only, per existing design).
+     *
+     * This replaces the old pattern where the caller (AppBridge) had to remember to
+     * call bankExtensionIfSubscribed() separately — a step that was never wired up.
+     */
+    private fun autoBankExtensionDays(daysEarned: Int) {
+        val activePlan = prefs.getString(BILLING_ACTIVE_PLAN, "") ?: ""
+        if (activePlan.isNotBlank() && activePlan.lowercase() != "lifetime") {
+            ReferralManager.bankExtensionDays(prefs, activePlan, daysEarned)
+        }
     }
 
     /**
@@ -100,6 +133,16 @@ class ReferralBridge(
      */
     fun onThisUserConvertedToPro(plan: String) {
         ReferralManager.onThisUserConverted(prefs, plan)
+    }
+
+    /**
+     * BUG-M1: marks a pending friend as lapsed (installed but not converted after
+     * 30+ days). Call this from SmartNotificationWorker after the nudge window
+     * has closed without a conversion, so getStats() pending count stays accurate.
+     */
+    @JavascriptInterface
+    fun recordFriendLapsed() {
+        ReferralManager.recordFriendLapsed(prefs)
     }
 
     /**

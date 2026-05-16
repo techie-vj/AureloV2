@@ -56,8 +56,13 @@ class BootReceiver : BroadcastReceiver() {
                     else                  -> "[]"
                 }
                 startService(ctx, Intent(ctx, AppMonitorService::class.java).apply {
-                    action = AppMonitorService.ACTION_BEDTIME_START
-                    putExtra("blocked_apps", blockedAppsJson)
+                    val isSkippedTonight = prefs.getBoolean(BEDTIME_SKIPPED_TONIGHT, false)
+                    if (inWindow && !isSkippedTonight) {
+                        startService(ctx, Intent(ctx, AppMonitorService::class.java).apply {
+                            action = AppMonitorService.ACTION_BEDTIME_START
+                            putExtra("blocked_apps", blockedAppsJson)
+                        })
+                    }
                 })
             }
         }

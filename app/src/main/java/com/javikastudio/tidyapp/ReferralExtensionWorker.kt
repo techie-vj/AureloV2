@@ -22,7 +22,11 @@ class ReferralExtensionWorker(
         private const val NOTIF_ID = 7823
 
         fun scheduleExpiry(context: Context) {
-            val prefs = context.getSharedPreferences("tidyapp_v6", Context.MODE_PRIVATE)
+            // BUG-L2 FIX: use the PREFS_FILE constant from BridgeKeys instead of a
+            // hardcoded string. Previously "tidyapp_v6" was duplicated here; if the
+            // prefs file were ever renamed, this worker would silently read from an
+            // empty store and never find REFERRAL_EXTENSION_EXPIRY_MS.
+            val prefs = context.getSharedPreferences(PREFS_FILE, Context.MODE_PRIVATE)
             val expiryMs = prefs.getLong(REFERRAL_EXTENSION_EXPIRY_MS, 0L)
 
             if (expiryMs <= 0L) {
@@ -51,7 +55,7 @@ class ReferralExtensionWorker(
     }
 
     override fun doWork(): Result {
-        val prefs = context.getSharedPreferences("tidyapp_v6", Context.MODE_PRIVATE)
+        val prefs = context.getSharedPreferences(PREFS_FILE, Context.MODE_PRIVATE)
 
         // Belt-and-suspenders: if billing renewed before this worker fired, do nothing
         if (ReferralManager.isExtensionActive(prefs)) {

@@ -107,8 +107,12 @@ object ReferralManager {
         val match = Regex("aurelo_ref_([A-Z0-9]{8})").find(referrerUrl) ?: return
         val incomingCode = match.groupValues[1]
 
-        // Don't credit your own referral link
-        val myCode = prefs.getString(REFERRAL_MY_CODE, null)
+        // BUG-L1 FIX: always call getMyReferralCode() so REFERRAL_MY_CODE is
+        // initialised before the comparison. Previously, if the referral panel had
+        // never been opened (REFERRAL_MY_CODE == null), myCode was null and the
+        // equality check always returned false, allowing a self-referral on
+        // reinstall before the code was first generated.
+        val myCode = getMyReferralCode(prefs)
         if (incomingCode == myCode) return
 
         // Store the incoming code and grant 14 bonus days
@@ -178,6 +182,11 @@ object ReferralManager {
             .putInt(REFERRAL_TOTAL_INSTALLS, totalInstalls)
             .putInt(REFERRAL_TOTAL_DAYS_EARNED, totalDays)
             .putLong(REFERRAL_LAST_INSTALL_TS, System.currentTimeMillis())
+            // BUG-H1 FIX: reset the nudge-sent flag so a new nudge window
+            // opens for each fresh friend install. Previously this was set once
+            // and never cleared, meaning only the very first unconverted friend
+            // ever triggered the "14-day" nudge notification.
+            .putBoolean(REFERRAL_PENDING_NOTIF_SENT, false)
 
         // Persist the credited friend code so reinstalls are ignored
         if (!friendCode.isNullOrBlank()) {
@@ -225,11 +234,17 @@ object ReferralManager {
         val pending = prefs.getInt(REFERRAL_PENDING_CONVERSIONS, 0)
         val totalConversions = prefs.getInt(REFERRAL_TOTAL_CONVERSIONS, 0) + 1
         val totalDays = prefs.getInt(REFERRAL_TOTAL_DAYS_EARNED, 0) + days
+        // BUG-M2 FIX: accumulate days across multiple pending conversions.
+        // Previously only REFERRAL_LAST_CONVERSION_PLAN was stored, so if two
+        // friends converted between notification polls, consumePendingConversionNotif()
+        // would return one plan's days regardless of how many had converted.
+        val pendingConvDays = prefs.getInt(REFERRAL_PENDING_CONVERSION_DAYS, 0) + days
 
         val editor = prefs.edit()
             .putInt(REFERRAL_TOTAL_CONVERSIONS, totalConversions)
             .putInt(REFERRAL_TOTAL_DAYS_EARNED, totalDays)
             .putInt(REFERRAL_PENDING_CONVERSIONS, pending + 1)
+            .putInt(REFERRAL_PENDING_CONVERSION_DAYS, pendingConvDays)
             .putString(REFERRAL_LAST_CONVERSION_PLAN, plan)
             .putLong(REFERRAL_LAST_CONVERSION_TS, System.currentTimeMillis())
 
@@ -267,11 +282,19 @@ object ReferralManager {
     fun getStats(prefs: SharedPreferences): JSONObject {
         val installTs = prefs.getLong(REFERRAL_INSTALL_TS, 0L)
         val now = System.currentTimeMillis()
-        val daysSinceInstall = if (installTs > 0) ((now - installTs) / 86_400_000L).toInt() else -1
+        // BUG-L3 FIX: renamed from "daysSinceInstall" — this value reflects when THIS
+        // device was referred (set by processReferrerString), not when the most recent
+        // friend installed. On a referrer's device the value is -1 (they were not referred).
+        val daysSinceWasReferred = if (installTs > 0) ((now - installTs) / 86_400_000L).toInt() else -1
 
         val totalInstalls    = prefs.getInt(REFERRAL_TOTAL_INSTALLS, 0)
         val totalConversions = prefs.getInt(REFERRAL_TOTAL_CONVERSIONS, 0)
-        val pending          = (totalInstalls - totalConversions).coerceAtLeast(0)
+        // BUG-M1 FIX: subtract lapsed friends from the pending count.
+        // Previously (totalInstalls - totalConversions) remained inflated forever
+        // for friends who installed but never converted, showing a misleading
+        // "⏳ N friends trying Pro" banner indefinitely.
+        val totalLapsed = prefs.getInt(REFERRAL_TOTAL_LAPSED, 0)
+        val pending     = (totalInstalls - totalConversions - totalLapsed).coerceAtLeast(0)
 
         return JSONObject().apply {
             put("shareCount",           prefs.getInt(REFERRAL_SHARE_COUNT, 0))
@@ -281,7 +304,7 @@ object ReferralManager {
             put("pending",              pending)
             put("bonusDays",            getReferralBonusDays(prefs))
             put("wasReferred",          wasReferred(prefs))
-            put("daysSinceInstall",     daysSinceInstall)
+            put("daysSinceWasReferred", daysSinceWasReferred)
             // Extension fields
             put("pendingExtDays",       getPendingExtensionDays(prefs))
             put("extensionDaysLeft",    getExtensionDaysRemaining(prefs))
@@ -293,13 +316,28 @@ object ReferralManager {
     // ── Pro Extension (monthly/annual only) ───────────────────────────────────
 
     /**
-     * Called when referral days are earned AND the user is on monthly/annual Pro.
-     * Banks the days so they activate automatically when the subscription lapses.
-     * Lifetime users are excluded — their earned days are tracked but not banked here.
+     * BUG-M1 FIX: marks a referred friend as lapsed (installed but did not convert
+     * within the expected window, typically 30 days). Increments REFERRAL_TOTAL_LAPSED
+     * so getStats() can subtract lapsed friends from the "pending" counter, preventing
+     * the "⏳ N friends trying Pro" banner from inflating indefinitely.
      *
-     * @param plan  Current plan of the referrer: "monthly" | "annual" | "lifetime"
-     * @param days  Days just earned (will be added to any existing banked days)
+     * Call this from the nudge notification worker (or a scheduled check) after
+     * REFERRAL_LAST_INSTALL_TS is 30+ days old and totalInstalls > totalConversions.
      */
+    fun recordFriendLapsed(prefs: SharedPreferences) {
+        val lapsed = prefs.getInt(REFERRAL_TOTAL_LAPSED, 0) + 1
+        prefs.edit().putInt(REFERRAL_TOTAL_LAPSED, lapsed).apply()
+    }
+
+    // ── Pro Extension (monthly/annual only) ───────────────────────────────────
+    /**
+    * Called when referral days are earned AND the user is on monthly/annual Pro.
+    * Banks the days so they activate automatically when the subscription lapses.
+    * Lifetime users are excluded — their earned days are tracked but not banked here.
+    *
+    * @param plan  Current plan of the referrer: "monthly" | "annual" | "lifetime"
+    * @param days  Days just earned (will be added to any existing banked days)
+    */
     fun bankExtensionDays(prefs: SharedPreferences, plan: String, days: Int) {
         if (plan.lowercase() == "lifetime") return   // Lifetime handles rewards differently
         if (days <= 0) return
@@ -363,17 +401,36 @@ object ReferralManager {
     fun consumePendingConversionNotif(prefs: SharedPreferences): JSONObject? {
         val pending = prefs.getInt(REFERRAL_PENDING_CONVERSIONS, 0)
         if (pending <= 0) return null
-        val plan = prefs.getString(REFERRAL_LAST_CONVERSION_PLAN, "monthly") ?: "monthly"
-        val days = when (plan.lowercase()) {
+
+        // BUG-M2 FIX: use the accumulated REFERRAL_PENDING_CONVERSION_DAYS value which
+        // sums days across all pending conversions since the last notification poll.
+        // Previously only REFERRAL_LAST_CONVERSION_PLAN was used, so if two friends
+        // converted between polls (e.g. one monthly, one annual), only one plan's
+        // worth of days was returned and the other was silently dropped.
+        val pendingDays = prefs.getInt(REFERRAL_PENDING_CONVERSION_DAYS, 0)
+        val plan = prefs.getString(REFERRAL_LAST_CONVERSION_PLAN, "") ?: ""
+
+        // Fallback for installs that pre-date REFERRAL_PENDING_CONVERSION_DAYS.
+        // BUG-M3 FIX: unknown/empty plan now returns 0 instead of silently
+        // granting DAYS_MONTHLY (31 days) for a corrupt or missing plan key.
+        val days = if (pendingDays > 0) pendingDays else when (plan.lowercase()) {
             "monthly"  -> DAYS_MONTHLY
             "annual"   -> DAYS_ANNUAL
             "lifetime" -> DAYS_LIFETIME
-            else       -> DAYS_MONTHLY
+            else       -> 0
         }
-        prefs.edit().putInt(REFERRAL_PENDING_CONVERSIONS, 0).apply()
+
+        if (days == 0) return null
+
+        prefs.edit()
+            .putInt(REFERRAL_PENDING_CONVERSIONS, 0)
+            .putInt(REFERRAL_PENDING_CONVERSION_DAYS, 0)
+            .apply()
+
         return JSONObject().apply {
-            put("plan", plan)
+            put("plan", plan.ifBlank { "unknown" })
             put("days", days)
+            put("count", pending)
         }
     }
 

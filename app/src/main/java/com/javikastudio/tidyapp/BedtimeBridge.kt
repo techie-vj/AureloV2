@@ -45,15 +45,15 @@ class BedtimeBridge(
             JSONObject(BedtimePrefs.getSettings(prefs, securePrefs)).optBoolean("enabled", false)
         } catch (_: Exception) { false }
         val nowEnabled = parsed.optBoolean("enabled", false)
-
         BedtimePrefs.saveSettings(prefs, securePrefs, json)
-
-        // BM-003: reset streak when Bedtime Mode is turned off from settings.
+// FIX: if disabling, force a synchronous commit so the value is readable immediately on restart
         if (wasEnabled && !nowEnabled) {
             prefs.edit()
                 .putInt(BEDTIME_STREAK, 0)
                 .remove(BEDTIME_STREAK_LAST_DATE)
-                .apply()
+                .putBoolean(BEDTIME_ACTIVE, false)         // belt-and-suspenders
+                .putBoolean(BEDTIME_BLOCK_ACTIVE, false)
+                .commit()  // synchronous
         }
     }
 
@@ -177,6 +177,21 @@ class BedtimeBridge(
      * calls BedtimeBlockingEngine.stop(wasNatural=false), persisting the skipped flag.
      */
     @JavascriptInterface fun skipBedtimeTonight() {
+        // FIX (restart bug): write all three flags atomically and synchronously with
+        // commit() BEFORE starting the service intent. This guarantees that even if
+        // the process is killed between here and onStartCommand(ACTION_BEDTIME_STOP),
+        // the prefs are already correct so:
+        //   • isInBedtimeWindow()      → false  (skipped guard added above)
+        //   • isBedtimeFilterM
+        //   anaged() → false  (BEDTIME_ACTIVE cleared here)
+        //   • restoreFromPrefs()       → exits early at bedtime_block_active=false
+        //   • DND is not re-enabled on service restart
+        prefs.edit()
+            .putBoolean(BEDTIME_SKIPPED_TONIGHT, true)
+            .putBoolean("bedtime_block_active", false)
+            .putBoolean(BEDTIME_ACTIVE, false)        // ← new: stops isBedtimeFilterManaged returning true
+            .putBoolean(BEDTIME_BLOCK_ACTIVE, false)  // ← new: belt-and-suspenders (same key, constant form)
+            .commit()
         startService(AppMonitorService.ACTION_BEDTIME_STOP, null, null)
         runCatching { setBedtimeDnd(false) }
         runCatching { recordBedtimeOff() }
@@ -203,6 +218,17 @@ class BedtimeBridge(
     }
 
     @JavascriptInterface fun setBedtimeDnd(enable: Boolean) {
+        // Safety guard: never re-enable DND from JS if the block is not active
+        // or the user has already skipped tonight. Prevents stale JS state or
+        // async pref-write race from re-activating DND after user turns off.
+        if (enable) {
+            if (!prefs.getBoolean(BEDTIME_BLOCK_ACTIVE, false) ||
+                prefs.getBoolean(BEDTIME_SKIPPED_TONIGHT, false)) {
+                android.util.Log.w("AureloBedtimeDND",
+                    "setBedtimeDnd(true) BLOCKED — BLOCK_ACTIVE=${prefs.getBoolean(BEDTIME_BLOCK_ACTIVE,false)}, SKIPPED=${prefs.getBoolean(BEDTIME_SKIPPED_TONIGHT,false)}")
+                return
+            }
+        }
         runCatching {
             val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
             if (!nm.isNotificationPolicyAccessGranted) { context.startActivity(Intent(android.provider.Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS).apply { flags=Intent.FLAG_ACTIVITY_NEW_TASK }); return }

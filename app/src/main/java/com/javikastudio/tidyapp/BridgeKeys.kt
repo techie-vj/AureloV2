@@ -29,6 +29,7 @@ const val CACHED_MONTHLY_PICKUPS   = "cached_monthly_pickups"
 const val CACHED_MONTHLY_HOURLY    = "cached_monthly_hourly"
 const val CACHED_MONTHLY_APP_USAGE = "cached_monthly_app_usage"
 const val CACHED_MONTHLY_TS        = "cached_monthly_ts"
+const val CACHED_MONTHLY_MONTH     = "cached_monthly_month"   // FIX: track which month the cache belongs to
 
 // ── Daily history ─────────────────────────────────────────────────────────
 const val DAILY_HIST_MAP      = "daily_hist_map"
@@ -180,4 +181,11 @@ const val REFERRAL_PENDING_NOTIF_SENT         = "referral_pending_notif_sent"
 const val REFERRAL_PENDING_EXTENSION_DAYS  = "referral_pending_ext_days"
 const val REFERRAL_EXTENSION_EXPIRY_MS     = "referral_extension_expiry_ms"
 const val REFERRAL_EXTENSION_SOURCE_PLAN   = "referral_extension_source_plan"
+// BUG-M1 FIX: tracks friends who installed but never converted after 30+ days,
+// so the "pending" counter in getStats() reflects genuine prospects only.
+const val REFERRAL_TOTAL_LAPSED            = "referral_total_lapsed"
+// BUG-M2 FIX: accumulates days across multiple pending conversions so
+// consumePendingConversionNotif() returns the correct cumulative total
+// instead of recalculating from the last recorded plan only.
+const val REFERRAL_PENDING_CONVERSION_DAYS = "referral_pending_conv_days"
 const val BILLING_ACTIVE_PLAN = "billing_active_plan"

@@ -114,30 +114,36 @@ class UsageStatsBridge(
     }
 
     // ── Monthly breakdowns ────────────────────────────────────────────────────
-    @JavascriptInterface fun getMonthlyBreakdown(): String {
+    // FIX: all four monthly getters now check that the cached data belongs to the
+    // current calendar month before serving it. Previously, April's cache would be
+    // returned for the entire month of May (until the background refresh ran).
+    private fun isMonthCacheValid(): Boolean {
         val cached = prefs.getString(CACHED_MONTHLY_BREAKDOWN, null)
-        if (!cached.isNullOrEmpty() && cached != "[]") return cached
+        if (cached.isNullOrEmpty() || cached == "[]") return false
+        val cachedMonth = prefs.getInt(CACHED_MONTHLY_MONTH, -1)
+        return cachedMonth == Calendar.getInstance().get(Calendar.MONTH)
+    }
+
+    @JavascriptInterface fun getMonthlyBreakdown(): String {
+        if (isMonthCacheValid()) return prefs.getString(CACHED_MONTHLY_BREAKDOWN, "[]") ?: "[]"
         if (!hasUsagePermission()) return "[]"
         return try { val s = buildMonthlySnapshot(); saveMonthlySnapshot(s); s[0] } catch (_: Exception) { "[]" }
     }
 
     @JavascriptInterface fun getMonthlyPickupBreakdown(): String {
-        val cached = prefs.getString(CACHED_MONTHLY_PICKUPS, null)
-        if (!cached.isNullOrEmpty() && cached != "[]") return cached
+        if (isMonthCacheValid()) return prefs.getString(CACHED_MONTHLY_PICKUPS, "[]") ?: "[]"
         if (!hasUsagePermission()) return "[]"
         return try { val s = buildMonthlySnapshot(); saveMonthlySnapshot(s); s[1] } catch (_: Exception) { "[]" }
     }
 
     @JavascriptInterface fun getMonthlyHourlyBreakdown(): String {
-        val cached = prefs.getString(CACHED_MONTHLY_HOURLY, null)
-        if (!cached.isNullOrEmpty() && cached != "[]") return cached
+        if (isMonthCacheValid()) return prefs.getString(CACHED_MONTHLY_HOURLY, "[]") ?: "[]"
         if (!hasUsagePermission()) return "[]"
         return try { val s = buildMonthlySnapshot(); saveMonthlySnapshot(s); s[2] } catch (_: Exception) { "[]" }
     }
 
     @JavascriptInterface fun getMonthlyAppUsage(): String {
-        val cached = prefs.getString(CACHED_MONTHLY_APP_USAGE, null)
-        if (!cached.isNullOrEmpty() && cached != "[]") return cached
+        if (isMonthCacheValid()) return prefs.getString(CACHED_MONTHLY_APP_USAGE, "[]") ?: "[]"
         if (!hasUsagePermission()) return "[]"
         return try { val s = buildMonthlySnapshot(); saveMonthlySnapshot(s); s[3] } catch (_: Exception) { "[]" }
     }
@@ -148,7 +154,8 @@ class UsageStatsBridge(
             .putString(CACHED_MONTHLY_PICKUPS,   s[1])
             .putString(CACHED_MONTHLY_HOURLY,    s[2])
             .putString(CACHED_MONTHLY_APP_USAGE, s[3])
-            .putLong  (CACHED_MONTHLY_TS, System.currentTimeMillis())
+            .putLong  (CACHED_MONTHLY_TS,    System.currentTimeMillis())
+            .putInt   (CACHED_MONTHLY_MONTH, Calendar.getInstance().get(Calendar.MONTH)) // FIX: stamp month for cache-validity check
             .apply()
     }
 
@@ -226,17 +233,48 @@ class UsageStatsBridge(
             .putInt   (CACHED_PICKUPS,        snapshot.optInt   ("pickups",    0))
             .putLong  (CACHED_FIRST_PICKUP_TS,snapshot.optLong  ("firstPickupTs", 0L))
 
-        // Accumulate daily history
+        // ── Daily history accumulation ─────────────────────────────────────────
+        // FIX: When the app hasn't been opened for N days, the previous code only
+        // saved lastSavedDay and silently dropped all days in between. Now we walk
+        // every missed day and re-query the OS event buffer for each one. Days
+        // beyond the buffer (~7–14 days) will return 0 — still better than a gap.
         val lastSavedDay = prefs.getString(DAILY_HIST_LAST_DAY, "") ?: ""
         if (lastSavedDay.isEmpty()) {
             ed.putString(DAILY_HIST_LAST_DAY, todayStr)
         } else if (lastSavedDay != todayStr) {
-            val yesterdayMins = prefs.getLong(CACHED_TOTAL_MINS, 0L)
+            val histFmt  = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US)
             val histJson = prefs.getString(DAILY_HIST_MAP, "{}") ?: "{}"
-            val histMap = try { JSONObject(histJson) } catch (_: Exception) { JSONObject() }
-            histMap.put(lastSavedDay, yesterdayMins)
-            val cutoff = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US)
-                .format(java.util.Date(now - 90L * 86_400_000L))
+            val histMap  = try { JSONObject(histJson) } catch (_: Exception) { JSONObject() }
+
+            // Capture the last cached total BEFORE the new snapshot is applied —
+            // this is the final reading for lastSavedDay.
+            val lastSavedMins = prefs.getLong(CACHED_TOTAL_MINS, 0L)
+
+            // Walk from lastSavedDay up to (but not including) today
+            val fillCal = Calendar.getInstance().apply {
+                try { time = histFmt.parse(lastSavedDay)!! } catch (_: Exception) { timeInMillis = now }
+            }
+            while (true) {
+                val dayStr = histFmt.format(fillCal.time)
+                if (dayStr >= todayStr) break          // today is still in progress — don't save yet
+                if (!histMap.has(dayStr)) {
+                    val mins = if (dayStr == lastSavedDay) {
+                        // Use the final cached reading rather than re-querying
+                        lastSavedMins
+                    } else {
+                        // Re-query the OS event buffer for this missed day
+                        val dayStart = (fillCal.clone() as Calendar).apply {
+                            set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0)
+                            set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
+                        }.timeInMillis
+                        screenTimeMinsForDay(dayStart, dayStart + 86_400_000L, isToday = false)
+                    }
+                    histMap.put(dayStr, mins)
+                }
+                fillCal.add(Calendar.DAY_OF_YEAR, 1)
+            }
+
+            val cutoff = histFmt.format(java.util.Date(now - 90L * 86_400_000L))
             histMap.keys().asSequence().toList().forEach { k -> if (k < cutoff) histMap.remove(k) }
             ed.putString(DAILY_HIST_MAP, histMap.toString()).putString(DAILY_HIST_LAST_DAY, todayStr)
         }
@@ -253,6 +291,7 @@ class UsageStatsBridge(
                 ed.putString(CACHED_MONTHLY_BREAKDOWN, snap[0]).putString(CACHED_MONTHLY_PICKUPS, snap[1])
                     .putString(CACHED_MONTHLY_HOURLY, snap[2]).putString(CACHED_MONTHLY_APP_USAGE, snap[3])
                     .putLong(CACHED_MONTHLY_TS, now)
+                    .putInt(CACHED_MONTHLY_MONTH, Calendar.getInstance().get(Calendar.MONTH)) // FIX: stamp month for cache-validity check
             }
         }
 
@@ -393,45 +432,149 @@ class UsageStatsBridge(
 
     @Suppress("DEPRECATION")
     internal fun buildMonthlySnapshot(): Array<String> {
-        val now = System.currentTimeMillis(); val cal = Calendar.getInstance()
-        val today = cal.get(Calendar.DAY_OF_MONTH); val month = cal.get(Calendar.MONTH); val year = cal.get(Calendar.YEAR)
-        val dayNames = listOf("Sun","Mon","Tue","Wed","Thu","Fri","Sat"); val MAX_MS = 4 * 60 * 60_000L
-        val monthStart = Calendar.getInstance().apply { set(Calendar.YEAR,year); set(Calendar.MONTH,month); set(Calendar.DAY_OF_MONTH,1); set(Calendar.HOUR_OF_DAY,0); set(Calendar.MINUTE,0); set(Calendar.SECOND,0); set(Calendar.MILLISECOND,0) }.timeInMillis
-        val dayTotalMs = mutableMapOf<Int,Long>(); val pkgTotalMs = mutableMapOf<String,Long>()
-        val dayPickups = mutableMapOf<Int,Int>(); val hourTotalMs = LongArray(24); val fgStart = mutableMapOf<String,Long>()
-        val events = usm().queryEvents(monthStart, now); val ev = UsageEvents.Event()
-        while (events.hasNextEvent()) {
-            events.getNextEvent(ev)
-            if (ev.packageName == context.packageName) continue
-            when (ev.eventType) {
-                UsageEvents.Event.KEYGUARD_HIDDEN -> { val d = Calendar.getInstance().apply { timeInMillis = ev.timeStamp }.get(Calendar.DAY_OF_MONTH); dayPickups[d] = (dayPickups[d] ?: 0) + 1 }
-                UsageEvents.Event.MOVE_TO_FOREGROUND -> { if (isKnownUserPackage(ev.packageName)) fgStart[ev.packageName] = ev.timeStamp }
-                UsageEvents.Event.MOVE_TO_BACKGROUND -> {
-                    val start = fgStart.remove(ev.packageName) ?: continue; val ms = (ev.timeStamp - start).coerceAtMost(MAX_MS)
-                    val d = Calendar.getInstance().apply { timeInMillis = start }.get(Calendar.DAY_OF_MONTH)
-                    val hour = Calendar.getInstance().apply { timeInMillis = start }.get(Calendar.HOUR_OF_DAY)
-                    dayTotalMs[d] = (dayTotalMs[d] ?: 0L) + ms; pkgTotalMs[ev.packageName] = (pkgTotalMs[ev.packageName] ?: 0L) + ms; hourTotalMs[hour] += ms
+        val now      = System.currentTimeMillis()
+        val cal      = Calendar.getInstance()
+        val today    = cal.get(Calendar.DAY_OF_MONTH)
+        val month    = cal.get(Calendar.MONTH)
+        val year     = cal.get(Calendar.YEAR)
+        val dayNames = listOf("Sun","Mon","Tue","Wed","Thu","Fri","Sat")
+        val MAX_MS   = 4 * 60 * 60_000L
+
+        val monthStart = Calendar.getInstance().apply {
+            set(Calendar.YEAR, year); set(Calendar.MONTH, month)
+            set(Calendar.DAY_OF_MONTH, 1); set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
+        }.timeInMillis
+
+        // ── Boundaries ────────────────────────────────────────────────────────
+        // queryEvents() reliably covers ~7 days on most devices; use 6 to stay
+        // safely inside the buffer on stricter OEMs.
+        val eventsCutoff = (now - 6L * 86_400_000L).coerceAtLeast(monthStart)
+
+        val dayTotalMs  = mutableMapOf<Int, Long>()
+        val pkgTotalMs  = mutableMapOf<String, Long>()
+        val dayPickups  = mutableMapOf<Int, Int>()
+        val hourTotalMs = LongArray(24)
+
+        // ── Phase 1: queryUsageStats(INTERVAL_DAILY) for the full month ───────
+        // This API is not subject to the ~7-day event-buffer limit, so it fills
+        // in screen-time totals for all days older than eventsCutoff.
+        // It does NOT give pickup counts or hourly detail — those come from Phase 2.
+        runCatching {
+            val dailyStats = usm().queryUsageStats(
+                UsageStatsManager.INTERVAL_DAILY, monthStart, eventsCutoff
+            )
+            for (stat in dailyStats) {
+                if (!isKnownUserPackage(stat.packageName)) continue
+                if (stat.totalTimeInForeground <= 0L) continue
+                val statCal = Calendar.getInstance().apply { timeInMillis = stat.firstTimeStamp }
+                // Guard: only accept stats that belong to the current month/year
+                if (statCal.get(Calendar.MONTH) != month || statCal.get(Calendar.YEAR) != year) continue
+                val d = statCal.get(Calendar.DAY_OF_MONTH)
+                // Only apply Phase 1 to days outside the precise events window
+                val dayStartTs = (statCal.clone() as Calendar).apply {
+                    set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0)
+                    set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
+                }.timeInMillis
+                if (dayStartTs >= eventsCutoff) continue   // Phase 2 will cover this day precisely
+                dayTotalMs[d]  = (dayTotalMs[d]  ?: 0L) + stat.totalTimeInForeground
+                pkgTotalMs[stat.packageName] =
+                    (pkgTotalMs[stat.packageName] ?: 0L) + stat.totalTimeInForeground
+            }
+        }
+
+        // ── Phase 2: queryEvents() for the last ~6 days ───────────────────────
+        // More precise session-boundary tracking; also captures pickups and
+        // per-hour detail. Overrides Phase 1 for any day it covers.
+        val fgStart = mutableMapOf<String, Long>()
+        runCatching {
+            val events = usm().queryEvents(eventsCutoff, now)
+            val ev     = UsageEvents.Event()
+            while (events.hasNextEvent()) {
+                events.getNextEvent(ev)
+                if (ev.packageName == context.packageName) continue
+                when (ev.eventType) {
+                    UsageEvents.Event.KEYGUARD_HIDDEN -> {
+                        val d = Calendar.getInstance().apply { timeInMillis = ev.timeStamp }
+                            .get(Calendar.DAY_OF_MONTH)
+                        dayPickups[d] = (dayPickups[d] ?: 0) + 1
+                    }
+                    UsageEvents.Event.MOVE_TO_FOREGROUND -> {
+                        if (isKnownUserPackage(ev.packageName)) fgStart[ev.packageName] = ev.timeStamp
+                    }
+                    UsageEvents.Event.MOVE_TO_BACKGROUND -> {
+                        val start = fgStart.remove(ev.packageName) ?: continue
+                        val ms    = (ev.timeStamp - start).coerceAtMost(MAX_MS)
+                        val d     = Calendar.getInstance().apply { timeInMillis = start }
+                            .get(Calendar.DAY_OF_MONTH)
+                        val hour  = Calendar.getInstance().apply { timeInMillis = start }
+                            .get(Calendar.HOUR_OF_DAY)
+                        dayTotalMs[d]  = (dayTotalMs[d]  ?: 0L) + ms
+                        pkgTotalMs[ev.packageName] = (pkgTotalMs[ev.packageName] ?: 0L) + ms
+                        hourTotalMs[hour] += ms
+                    }
                 }
             }
         }
+
+        // Handle apps still in foreground at query time
         fgStart.forEach { (pkg, start) ->
-            val ms = (now - start).coerceAtMost(MAX_MS); val hour = Calendar.getInstance().apply { timeInMillis = start }.get(Calendar.HOUR_OF_DAY)
-            dayTotalMs[today] = (dayTotalMs[today] ?: 0L) + ms; pkgTotalMs[pkg] = (pkgTotalMs[pkg] ?: 0L) + ms; hourTotalMs[hour] += ms
+            val ms   = (now - start).coerceAtMost(MAX_MS)
+            val hour = Calendar.getInstance().apply { timeInMillis = start }.get(Calendar.HOUR_OF_DAY)
+            dayTotalMs[today]  = (dayTotalMs[today]  ?: 0L) + ms
+            pkgTotalMs[pkg]    = (pkgTotalMs[pkg]    ?: 0L) + ms
+            hourTotalMs[hour] += ms
         }
+
+        // ── Build output arrays ───────────────────────────────────────────────
         val todayMins = prefs.getLong(CACHED_TOTAL_MINS, 0L)
-        val breakdown = JSONArray(); val pickupArr = JSONArray()
+        val breakdown = JSONArray()
+        val pickupArr = JSONArray()
+
         for (d in 1..today) {
-            val dayCal = Calendar.getInstance().apply { set(Calendar.YEAR,year); set(Calendar.MONTH,month); set(Calendar.DAY_OF_MONTH,d); set(Calendar.HOUR_OF_DAY,12); set(Calendar.MINUTE,0); set(Calendar.SECOND,0); set(Calendar.MILLISECOND,0) }
+            val dayCal = Calendar.getInstance().apply {
+                set(Calendar.YEAR, year); set(Calendar.MONTH, month)
+                set(Calendar.DAY_OF_MONTH, d); set(Calendar.HOUR_OF_DAY, 12)
+                set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
+            }
             val dayMins = if (d == today) todayMins else (dayTotalMs[d] ?: 0L) / 60_000L
-            breakdown.put(JSONObject().apply { put("day",dayNames[dayCal.get(Calendar.DAY_OF_WEEK)-1]); put("date","${month+1}/$d"); put("minutes",dayMins); put("isToday",d==today) })
-            pickupArr.put(JSONObject().apply { put("date","${month+1}/$d"); put("pickups",if(d==today) prefs.getInt(CACHED_PICKUPS,0) else (dayPickups[d] ?: 0)); put("isToday",d==today) })
+            breakdown.put(JSONObject().apply {
+                put("day",     dayNames[dayCal.get(Calendar.DAY_OF_WEEK) - 1])
+                put("date",    "${month + 1}/$d")
+                put("minutes", dayMins)
+                put("isToday", d == today)
+            })
+            pickupArr.put(JSONObject().apply {
+                put("date",    "${month + 1}/$d")
+                put("pickups", if (d == today) prefs.getInt(CACHED_PICKUPS, 0) else (dayPickups[d] ?: 0))
+                put("isToday", d == today)
+            })
         }
-        val trackedDays = (1..today).count { d -> val mins = if(d==today) todayMins else (dayTotalMs[d]?:0L)/60_000L; mins >= 10 }.coerceAtLeast(1)
-        val hourly = JSONArray(); hourTotalMs.forEachIndexed { h, ms -> hourly.put(JSONObject().apply { put("hour",h); put("minutes",ms/60_000L/trackedDays) }) }
+
+        val trackedDays = (1..today).count { d ->
+            val mins = if (d == today) todayMins else (dayTotalMs[d] ?: 0L) / 60_000L
+            mins >= 10
+        }.coerceAtLeast(1)
+
+        val hourly = JSONArray()
+        hourTotalMs.forEachIndexed { h, ms ->
+            hourly.put(JSONObject().apply { put("hour", h); put("minutes", ms / 60_000L / trackedDays) })
+        }
+
         val appsArr = JSONArray()
-        pkgTotalMs.entries.filter { it.value > 60_000L }.sortedByDescending { it.value }.forEach { (pkg, ms) ->
-            runCatching { val info = pm.getApplicationInfo(pkg,0); appsArr.put(JSONObject().apply { put("packageName",pkg); put("name",pm.getApplicationLabel(info).toString()); put("iconUrl","app-icon://$pkg"); put("monthlyMinutes",ms/60_000L) }) }
-        }
+        pkgTotalMs.entries.filter { it.value > 60_000L }.sortedByDescending { it.value }
+            .forEach { (pkg, ms) ->
+                runCatching {
+                    val info = pm.getApplicationInfo(pkg, 0)
+                    appsArr.put(JSONObject().apply {
+                        put("packageName",    pkg)
+                        put("name",           pm.getApplicationLabel(info).toString())
+                        put("iconUrl",        "app-icon://$pkg")
+                        put("monthlyMinutes", ms / 60_000L)
+                    })
+                }
+            }
+
         return arrayOf(breakdown.toString(), pickupArr.toString(), hourly.toString(), appsArr.toString())
     }
 
