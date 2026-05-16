@@ -137,6 +137,7 @@ object ReferralManager {
             // BUG-REF-2 FIX: write IS_PRO_USER so BedtimeReceiver / startWindDownFilter()
             // (which read from tidyapp_v6, not EntitlementRepository) see Pro immediately.
             .putBoolean(IS_PRO_USER, true)
+            .putInt(REFERRAL_PENDING_EXTENSION_DAYS, bonusDays)
             .apply()
 
         // BUG-REF-2 FIX: grant Pro in EntitlementRepository so BillingBridge.isProUser()
@@ -294,6 +295,11 @@ object ReferralManager {
         // Persist the credited friend code so reinstalls are ignored
         if (!friendCode.isNullOrBlank()) {
             val updated = getCreditedFriendCodes(prefs) + friendCode
+            // ReferralManager.recordFriendInstall() — add to the editor block:
+            val existingOldest = prefs.getLong(REFERRAL_OLDEST_INSTALL_TS, 0L)
+            if (existingOldest == 0L) {
+                editor.putLong(REFERRAL_OLDEST_INSTALL_TS, System.currentTimeMillis())
+            }
             editor.putString(REFERRAL_CREDITED_FRIEND_CODES, updated.joinToString(","))
         }
 
@@ -373,20 +379,25 @@ object ReferralManager {
      */
     fun onThisUserConverted(prefs: SharedPreferences, plan: String) {
         if (!wasReferred(prefs)) return
+
+        // HIGH-3 FIX: only generate a new conv code if this is a new plan (upgrade path)
+        // or if no conv code has been generated yet. Avoids invalidating a code the
+        // referred user already shared with their referrer.
+        val existingPlan = prefs.getString(REFERRAL_THIS_USER_PLAN, null)
+        val existingCode = prefs.getString(REFERRAL_CONV_CONFIRM_CODE, null)
+        if (!existingCode.isNullOrBlank() && existingPlan == plan) return   // same plan, code unchanged
+
         prefs.edit()
             .putBoolean(REFERRAL_THIS_USER_CONVERTED, true)
             .putString(REFERRAL_THIS_USER_PLAN, plan)
             .putLong(REFERRAL_THIS_USER_CONVERSION_TS, System.currentTimeMillis())
             .apply()
 
-        // BUG-01 FIX: generate a plan-prefixed conversion confirmation code.
-        // Encoding: M|A|L + 7 hex chars, so the referrer's device can decode
-        // the plan from the first character when redeeming.
         val incomingCode = prefs.getString(REFERRAL_INCOMING_CODE, "") ?: ""
         val installId    = prefs.getString(REFERRAL_INSTALL_ID, "") ?: ""
         val planPrefix   = when (plan.lowercase()) { "annual" -> "A"; "lifetime" -> "L"; else -> "M" }
-        val hash7        = sha256hex("$incomingCode-$installId-$plan-conv").take(7).uppercase()
-        val convCode     = "$planPrefix$hash7"
+        val hash8        = sha256hex("$incomingCode-$installId-$plan-conv").take(8).uppercase()
+        val convCode     = "$planPrefix$hash8"
         prefs.edit()
             .putString(REFERRAL_CONV_CONFIRM_CODE, convCode)
             .putString(REFERRAL_CONV_CONFIRM_PLAN, plan)

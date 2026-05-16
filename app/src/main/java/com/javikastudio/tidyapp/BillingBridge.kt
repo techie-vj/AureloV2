@@ -31,9 +31,21 @@ class BillingBridge(
     /** Called by AppBridge's BillingListener.onPlanActivated — keeps _activatedPlan in sync. */
     fun recordActivatedPlan(plan: String) {
         _activatedPlan = plan
-        // Persist so the value survives process death between billing confirmation and
-        // the next setProUser(true) call (e.g. when JS reads IS_PRO_USER on restart).
         prefs.edit().putString(BILLING_ACTIVE_PLAN, plan).apply()
+
+        // HIGH-2 FIX: if referral days were earned while the user was on the free tier,
+        // REFERRAL_PENDING_EXTENSION_DAYS is 0. Bank them now that we know the plan.
+        if (plan.lowercase() != "lifetime") {
+            val totalEarned  = prefs.getInt(REFERRAL_TOTAL_DAYS_EARNED, 0)
+            val alreadyBanked = prefs.getInt(REFERRAL_PENDING_EXTENSION_DAYS, 0)
+            val expiryMs     = prefs.getLong(REFERRAL_EXTENSION_EXPIRY_MS, 0L)
+            val activeExtDays = if (expiryMs > System.currentTimeMillis())
+                ((expiryMs - System.currentTimeMillis()) / 86_400_000L).toInt() else 0
+            val unbanked = totalEarned - alreadyBanked - activeExtDays
+            if (unbanked > 0) {
+                ReferralManager.bankExtensionDays(prefs, plan, unbanked)
+            }
+        }
     }
 
     @JavascriptInterface fun isProUser(): Boolean = entitlementRepo.isPro

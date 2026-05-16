@@ -194,7 +194,7 @@ class SmartNotificationWorker(
         if (ReferralManager.shouldFirePendingReferralNudge(prefs)) {
             ensureReferralChannel(nm)
             val title = "⏳ Your friend is still trying Aurelo Pro"
-            val body  = "They've had Pro for 14 days — earn ${REFERRAL_INSTALL_DAYS}+ days free when they subscribe."
+            val body = "They've had Pro for 14 days — earn ${REFERRAL_INSTALL_DAYS}+ days free when they subscribe."
             val notif = NotificationCompat.Builder(appContext, REFERRAL_CHANNEL_ID)
                 .setSmallIcon(android.R.drawable.ic_dialog_info)
                 .setColor(0xFF6C63FF.toInt())
@@ -219,8 +219,17 @@ class SmartNotificationWorker(
                 val totalInstalls    = prefs.getInt(REFERRAL_TOTAL_INSTALLS, 0)
                 val totalConversions = prefs.getInt(REFERRAL_TOTAL_CONVERSIONS, 0)
                 val totalLapsed      = prefs.getInt(REFERRAL_TOTAL_LAPSED, 0)
-                if (daysSince > 30 && totalInstalls > (totalConversions + totalLapsed)) {
-                    ReferralManager.recordFriendLapsed(prefs)
+                val oldestInstallTs = prefs.getLong(REFERRAL_OLDEST_INSTALL_TS, 0L)
+                val daysSinceOldest = if (oldestInstallTs > 0L)
+                    ((System.currentTimeMillis() - oldestInstallTs) / 86_400_000L).toInt() else 0
+
+                if (daysSinceOldest > 30) {
+                    val unresolved = totalInstalls - totalConversions - totalLapsed
+                    if (unresolved > 0) {
+                        repeat(unresolved) { ReferralManager.recordFriendLapsed(prefs) }
+                        // Reset oldest timestamp so the next batch of friends starts fresh
+                        prefs.edit().putLong(REFERRAL_OLDEST_INSTALL_TS, 0L).apply()
+                    }
                 }
             }
         }

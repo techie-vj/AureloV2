@@ -188,6 +188,7 @@ const val REFERRAL_TOTAL_LAPSED            = "referral_total_lapsed"
 // consumePendingConversionNotif() returns the correct cumulative total
 // instead of recalculating from the last recorded plan only.
 const val REFERRAL_PENDING_CONVERSION_DAYS = "referral_pending_conv_days"
+const val REFERRAL_OLDEST_INSTALL_TS = "referral_oldest_install_ts"
 const val BILLING_ACTIVE_PLAN = "billing_active_plan"
 
 // ── Referral confirmation code flow (Bug-1 fix) ─────────────────────────────
