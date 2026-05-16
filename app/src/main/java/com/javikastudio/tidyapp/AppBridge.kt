@@ -461,12 +461,18 @@ class AppBridge(private val context: Context, private val webView: WebView) {
     // method). Explicit two-overload pattern guarantees both call sites work.
     @JavascriptInterface fun recordReferralInstall()                           = referral.recordReferralInstall("")
     @JavascriptInterface fun recordReferralInstall(friendCode: String)         = referral.recordReferralInstall(friendCode)
-    @JavascriptInterface fun recordReferralConversion(plan: String)            = referral.recordReferralConversion(plan)
+    @JavascriptInterface fun recordReferralConversion(plan: String)                          = referral.recordReferralConversion(plan)
+    // BUG-02 FIX: Kotlin default parameters don't generate JVM overloads for @JavascriptInterface.
+    // JS can never pass friendCode without this explicit two-arg overload.
+    @JavascriptInterface fun recordReferralConversion(plan: String, friendCode: String)      = referral.recordReferralConversion(plan, friendCode)
     @JavascriptInterface fun getReferralBonusDays()                           = referral.getReferralBonusDays()
     @JavascriptInterface fun wasReferred()                                     = referral.wasReferred()
     @JavascriptInterface fun isExtensionActive()                               = referral.isExtensionActive()
     @JavascriptInterface fun getExtensionDaysRemaining()                       = referral.getExtensionDaysRemaining()
     @JavascriptInterface fun getPendingExtensionDays()                         = referral.getPendingExtensionDays()
+    // BUG-01 FIX: confirmation code flow delegations
+    @JavascriptInterface fun getConfirmationCodes()                            = referral.getConfirmationCodes()
+    @JavascriptInterface fun redeemReferralCode(code: String)                  = referral.redeemReferralCode(code)
 
     /**
      * handleProDowngrade — called by pro-gate.js (JS side) when the Pro

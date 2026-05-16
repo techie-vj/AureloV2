@@ -65,6 +65,11 @@ class ReferralExtensionWorker(
 
         Log.d(TAG, "Extension expired — revoking Pro access")
         prefs.edit().putBoolean(IS_PRO_USER, false).apply()
+        // BUG-03 FIX: also revoke EntitlementRepository (tidyapp_entitlement_v1).
+        // Previously only IS_PRO_USER in tidyapp_v6 was cleared, causing split-brain:
+        // BillingBridge.isProUser() (reads entitlement repo) still returned true while
+        // native receivers (BedtimeReceiver etc.) saw false from tidyapp_v6.
+        com.javikastudio.tidyapp.billing.EntitlementRepository(context).revokePro()
         postExpiryNotification()
         return Result.success()
     }

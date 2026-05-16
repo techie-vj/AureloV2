@@ -189,3 +189,9 @@ const val REFERRAL_TOTAL_LAPSED            = "referral_total_lapsed"
 // instead of recalculating from the last recorded plan only.
 const val REFERRAL_PENDING_CONVERSION_DAYS = "referral_pending_conv_days"
 const val BILLING_ACTIVE_PLAN = "billing_active_plan"
+
+// ── Referral confirmation code flow (Bug-1 fix) ─────────────────────────────
+// Generated on the referred device so the referrer can enter it to claim credit.
+const val REFERRAL_CONFIRM_CODE      = "referral_confirm_code"        // install confirmation
+const val REFERRAL_CONV_CONFIRM_CODE = "referral_conv_confirm_code"   // conversion confirmation
+const val REFERRAL_CONV_CONFIRM_PLAN = "referral_conv_confirm_plan"   // plan at conversion time

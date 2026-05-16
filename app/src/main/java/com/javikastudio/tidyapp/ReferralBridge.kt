@@ -17,6 +17,12 @@ class ReferralBridge(
     private val bridgeScope: CoroutineScope
 ) : AppBridgeController {
 
+    init {
+        // BUG-06 FIX: seed REFERRAL_INSTALL_ID from ANDROID_ID before any call to
+        // getMyReferralCode(), so the code is stable across reinstalls.
+        ReferralManager.seedInstallId(context, prefs)
+    }
+
     /** Returns this user's unique referral link. */
     @JavascriptInterface
     fun getReferralLink(): String = ReferralManager.getReferralLink(prefs)
@@ -133,6 +139,32 @@ class ReferralBridge(
      */
     fun onThisUserConvertedToPro(plan: String) {
         ReferralManager.onThisUserConverted(prefs, plan)
+    }
+
+    /**
+     * BUG-01 FIX: for the referred device — returns confirmation codes they can
+     * share with their referrer to trigger the reward mechanism.
+     */
+    @JavascriptInterface
+    fun getConfirmationCodes(): String = try {
+        ReferralManager.getConfirmationCodes(prefs).toString()
+    } catch (_: Exception) { "{}" }
+
+    /**
+     * BUG-01 FIX: for the referrer's device — redeem a code that a referred friend
+     * has shared. Auto-detects install vs conversion from code format.
+     * Returns JSON {daysEarned, type} or {error}.
+     */
+    @JavascriptInterface
+    fun redeemReferralCode(code: String): String {
+        val result = try {
+            ReferralManager.redeemReferralCode(prefs, code)
+        } catch (_: Exception) {
+            org.json.JSONObject().apply { put("error", "exception") }
+        }
+        val days = result.optInt("daysEarned", 0)
+        if (days > 0) autoBankExtensionDays(days)
+        return result.toString()
     }
 
     /**

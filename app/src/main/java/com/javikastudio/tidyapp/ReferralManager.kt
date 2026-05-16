@@ -122,6 +122,55 @@ object ReferralManager {
             .putInt(REFERRAL_BONUS_DAYS, 14) // 7 existing trial + 14 bonus = 21 days total
             .putLong(REFERRAL_INSTALL_TS, System.currentTimeMillis())
             .apply()
+
+        // BUG-01 FIX: generate an install confirmation code that the referred user
+        // can share with their referrer. The referrer enters it to trigger
+        // recordFriendInstall(), completing the reward mechanism.
+        val installId = prefs.getString(REFERRAL_INSTALL_ID, null) ?: java.util.UUID.randomUUID().toString()
+        val confirmCode = sha256hex("$incomingCode-$installId-install").take(8).uppercase()
+        prefs.edit().putString(REFERRAL_CONFIRM_CODE, confirmCode).apply()
+    }
+
+    /**
+     * BUG-01 FIX: returns confirmation codes for the referred device to surface.
+     * {installCode, convCode?, plan?, hasInstallCode}
+     */
+    fun getConfirmationCodes(prefs: SharedPreferences): JSONObject {
+        val installCode = prefs.getString(REFERRAL_CONFIRM_CODE, null)
+        val convCode    = prefs.getString(REFERRAL_CONV_CONFIRM_CODE, null)
+        val plan        = prefs.getString(REFERRAL_CONV_CONFIRM_PLAN, null)
+        return JSONObject().apply {
+            put("hasInstallCode", !installCode.isNullOrBlank())
+            if (!installCode.isNullOrBlank()) put("installCode", installCode)
+            if (!convCode.isNullOrBlank())    put("convCode",    convCode)
+            if (!plan.isNullOrBlank())        put("plan",        plan)
+        }
+    }
+
+    /**
+     * BUG-01 FIX: called on the referrer's device when they enter a confirmation code.
+     * Auto-detects code type:
+     *   8-char alphanumeric  → install code  → recordFriendInstall(code)
+     *   9-char, first = M/A/L → conversion code → recordFriendConversion(plan, code)
+     * Returns JSON {daysEarned, type} or {error}.
+     */
+    fun redeemReferralCode(prefs: SharedPreferences, code: String): JSONObject {
+        val cleaned = code.trim().uppercase()
+        return when {
+            cleaned.length == 8 && cleaned.all { it.isLetterOrDigit() } -> {
+                val days = recordFriendInstall(prefs, cleaned)
+                JSONObject().apply { put("daysEarned", days); put("type", "install") }
+            }
+            cleaned.length == 9 && cleaned[0] in listOf('M', 'A', 'L') ->
+                cleaned.drop(1).let { rest ->
+                    if (rest.all { it.isLetterOrDigit() }) {
+                        val plan = when (cleaned[0]) { 'A' -> "annual"; 'L' -> "lifetime"; else -> "monthly" }
+                        val days = recordFriendConversion(prefs, plan, cleaned)
+                        JSONObject().apply { put("daysEarned", days); put("type", "conversion"); put("plan", plan) }
+                    } else JSONObject().apply { put("error", "invalid_code") }
+                }
+            else -> JSONObject().apply { put("error", "invalid_code") }
+        }
     }
 
     // ── Referred-user bonus query ──────────────────────────────────────────────
@@ -274,6 +323,19 @@ object ReferralManager {
             .putBoolean(REFERRAL_THIS_USER_CONVERTED, true)
             .putString(REFERRAL_THIS_USER_PLAN, plan)
             .putLong(REFERRAL_THIS_USER_CONVERSION_TS, System.currentTimeMillis())
+            .apply()
+
+        // BUG-01 FIX: generate a plan-prefixed conversion confirmation code.
+        // Encoding: M|A|L + 7 hex chars, so the referrer's device can decode
+        // the plan from the first character when redeeming.
+        val incomingCode = prefs.getString(REFERRAL_INCOMING_CODE, "") ?: ""
+        val installId    = prefs.getString(REFERRAL_INSTALL_ID, "") ?: ""
+        val planPrefix   = when (plan.lowercase()) { "annual" -> "A"; "lifetime" -> "L"; else -> "M" }
+        val hash7        = sha256hex("$incomingCode-$installId-$plan-conv").take(7).uppercase()
+        val convCode     = "$planPrefix$hash7"
+        prefs.edit()
+            .putString(REFERRAL_CONV_CONFIRM_CODE, convCode)
+            .putString(REFERRAL_CONV_CONFIRM_PLAN, plan)
             .apply()
     }
 
@@ -465,6 +527,27 @@ object ReferralManager {
         val storedMonthKey = prefs.getString(REFERRAL_INSTALLS_MONTH_KEY, "") ?: ""
         val count = if (storedMonthKey == monthKey) prefs.getInt(REFERRAL_INSTALLS_THIS_MONTH, 0) else 0
         return count < MAX_INSTALLS_PER_MONTH
+    }
+
+    /**
+     * BUG-06 FIX: seeds REFERRAL_INSTALL_ID from ANDROID_ID so the referral code
+     * is stable across reinstalls. Previously a random UUID was generated each time
+     * SharedPreferences were wiped on uninstall, producing a new code that made the
+     * self-referral check (incomingCode == myCode) always pass after reinstall.
+     * Call once at startup (from ReferralBridge init) before getMyReferralCode.
+     */
+    fun seedInstallId(context: android.content.Context, prefs: SharedPreferences) {
+        if (!prefs.getString(REFERRAL_INSTALL_ID, null).isNullOrBlank()) return
+        val stableId = try {
+            android.provider.Settings.Secure.getString(
+                context.contentResolver,
+                android.provider.Settings.Secure.ANDROID_ID
+            )?.takeIf { it.isNotBlank() && it != "9774d56d682e549c" } // filter known bad ANDROID_ID
+                ?: java.util.UUID.randomUUID().toString()
+        } catch (_: Exception) {
+            java.util.UUID.randomUUID().toString()
+        }
+        prefs.edit().putString(REFERRAL_INSTALL_ID, stableId).apply()
     }
 
     private fun sha256hex(input: String): String {

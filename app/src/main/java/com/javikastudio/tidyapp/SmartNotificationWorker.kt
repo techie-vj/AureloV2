@@ -208,6 +208,23 @@ class SmartNotificationWorker(
             nm.notify(REFERRAL_PENDING_NOTIF_ID, notif)
         }
 
+        // BUG-04 FIX: mark pending friends as lapsed once they've been in the trial
+        // window for more than 30 days without converting. Previously recordFriendLapsed()
+        // was never called, so REFERRAL_TOTAL_LAPSED stayed at 0 forever and the
+        // "N friends trying Pro" banner inflated indefinitely.
+        run {
+            val lastInstallTs = prefs.getLong(REFERRAL_LAST_INSTALL_TS, 0L)
+            if (lastInstallTs > 0L) {
+                val daysSince = ((System.currentTimeMillis() - lastInstallTs) / 86_400_000L).toInt()
+                val totalInstalls    = prefs.getInt(REFERRAL_TOTAL_INSTALLS, 0)
+                val totalConversions = prefs.getInt(REFERRAL_TOTAL_CONVERSIONS, 0)
+                val totalLapsed      = prefs.getInt(REFERRAL_TOTAL_LAPSED, 0)
+                if (daysSince > 30 && totalInstalls > (totalConversions + totalLapsed)) {
+                    ReferralManager.recordFriendLapsed(prefs)
+                }
+            }
+        }
+
         // ── Referral: friend converted notification ────────────────────────────
         // Fires when a friend converted and we have a pending conversion event.
         val conversionData = ReferralManager.consumePendingConversionNotif(prefs)

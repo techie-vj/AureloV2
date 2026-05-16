@@ -190,6 +190,9 @@ const Referral = (() => {
       <!-- Bottom spacer -->
       <div style="height:32px"></div>
     `;
+
+    // BUG-01 FIX: inject confirmation codes section after render
+    _renderConfirmCodes(root);
   }
 
   // BUG-10 FIX: statKey param added — data-stat attribute enables in-place update by
@@ -222,6 +225,115 @@ const Referral = (() => {
 
   function _escLink(url) {
     return url.replace(/&/g, '&amp;').replace(/</g, '&lt;');
+  }
+
+  // ── BUG-01 FIX: Confirmation code helpers ────────────────────────────────
+
+  function _renderConfirmCodes(root) {
+    if (!IS_NATIVE || typeof N.getConfirmationCodes !== 'function') return;
+    var codes = {};
+    try { codes = JSON.parse(N.getConfirmationCodes() || '{}'); } catch(_) {}
+    var confirmHtml = '';
+
+    // Section 1: this device was referred — show codes to give the referrer
+    if (codes.hasInstallCode && codes.installCode) {
+      var planLabels = { monthly: 'Monthly', annual: 'Annual', lifetime: 'Lifetime' };
+      var planLabel  = codes.plan ? (planLabels[codes.plan] || codes.plan) : null;
+      confirmHtml +=
+        '<div style="margin:0 16px 16px;border-radius:14px;background:rgba(18,212,138,.07);border:1px solid rgba(18,212,138,.2);padding:16px">'
+        + '<div style="font-family:var(--ff-m);font-size:var(--text-2xs);letter-spacing:1.5px;text-transform:uppercase;color:var(--g);margin-bottom:10px">✨ Share with your referrer</div>'
+        + '<div style="font-family:var(--ff-m);font-size:12px;color:var(--t2);margin-bottom:12px;line-height:1.55">Give these codes to the friend who referred you — they\'ll enter them to claim their reward.</div>'
+        + '<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">'
+        + '<div style="flex:1"><div style="font-size:var(--text-2xs);color:var(--t3);margin-bottom:3px">Install code</div>'
+        + '<div style="font-family:monospace;font-size:20px;font-weight:700;color:var(--t1);letter-spacing:3px">' + codes.installCode + '</div></div>'
+        + '<button onclick="Referral.copyCode(\'' + codes.installCode + '\')" style="padding:8px 14px;border-radius:10px;border:none;background:var(--p);color:#fff;font-size:12px;font-weight:700;cursor:pointer">Copy</button>'
+        + '</div>'
+        + (codes.convCode
+            ? '<div style="display:flex;align-items:center;gap:10px;padding-top:10px;border-top:1px solid var(--border2)">'
+              + '<div style="flex:1"><div style="font-size:var(--text-2xs);color:var(--t3);margin-bottom:3px">' + (planLabel ? planLabel + ' plan' : 'Plan') + ' upgrade code</div>'
+              + '<div style="font-family:monospace;font-size:20px;font-weight:700;color:var(--g);letter-spacing:3px">' + codes.convCode + '</div></div>'
+              + '<button onclick="Referral.copyCode(\'' + codes.convCode + '\')" style="padding:8px 14px;border-radius:10px;border:none;background:var(--p);color:#fff;font-size:12px;font-weight:700;cursor:pointer">Copy</button>'
+              + '</div>'
+            : '')
+        + '</div>';
+    }
+
+    // Section 2: code-redemption input — shown to every user so referrers can claim rewards
+    confirmHtml +=
+      '<div style="margin:0 16px 16px;border-radius:14px;background:var(--s1);border:1px solid var(--border2);padding:16px">'
+      + '<div style="font-family:var(--ff-m);font-size:var(--text-2xs);letter-spacing:1.5px;text-transform:uppercase;color:var(--t3);margin-bottom:10px">📥 Got a code from a friend?</div>'
+      + '<div style="font-family:var(--ff-m);font-size:12px;color:var(--t2);margin-bottom:10px">Enter the code your referred friend shared with you to claim your reward.</div>'
+      + '<div style="display:flex;gap:8px">'
+      + '<input id="ref-redeem-input" type="text" maxlength="9" placeholder="e.g. A1B2C3D4" oninput="this.value=this.value.toUpperCase()" '
+      + 'style="flex:1;padding:10px 12px;border-radius:10px;border:1px solid var(--border2);background:var(--s2);font-family:monospace;font-size:15px;color:var(--t1);text-transform:uppercase;letter-spacing:2px" />'
+      + '<button onclick="Referral.redeemCode()" style="padding:10px 16px;border-radius:10px;border:none;background:var(--p);color:#fff;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap">Claim</button>'
+      + '</div>'
+      + '<div id="ref-redeem-msg" style="margin-top:8px;font-family:var(--ff-m);font-size:12px;min-height:18px"></div>'
+      + '</div>';
+
+    var spacer  = root.lastElementChild;
+    var wrapper = document.createElement('div');
+    wrapper.innerHTML = confirmHtml;
+    root.insertBefore(wrapper, spacer);
+  }
+
+  function copyCode(code) {
+    if (!code) return;
+    try {
+      navigator.clipboard.writeText(code).then(function() {
+        if (typeof toast === 'function') toast('Code copied!', 'success');
+      }).catch(function() { _copyCodeFallback(code); });
+    } catch(_) { _copyCodeFallback(code); }
+  }
+
+  function _copyCodeFallback(code) {
+    var ta = document.createElement('textarea');
+    ta.value = code;
+    ta.style.cssText = 'position:fixed;opacity:0;top:0;left:0';
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); } catch(_) {}
+    document.body.removeChild(ta);
+    if (typeof toast === 'function') toast('Code copied!', 'success');
+  }
+
+  function redeemCode() {
+    var input = document.getElementById('ref-redeem-input');
+    var msg   = document.getElementById('ref-redeem-msg');
+    if (!input || !msg) return;
+    var code = (input.value || '').trim().toUpperCase();
+    if (!code) {
+      msg.style.color = 'var(--a)';
+      msg.textContent = 'Please enter a code.';
+      return;
+    }
+    if (!IS_NATIVE || typeof N.redeemReferralCode !== 'function') {
+      msg.style.color = 'var(--t3)';
+      msg.textContent = 'Code redemption not available in this build.';
+      return;
+    }
+    msg.style.color = 'var(--t3)';
+    msg.textContent = 'Checking…';
+    try {
+      var result = JSON.parse(N.redeemReferralCode(code) || '{}');
+      if (result.error === 'invalid_code') {
+        msg.style.color = 'var(--a)';
+        msg.textContent = 'Code not recognised — check it and try again.';
+      } else if (result.daysEarned > 0) {
+        var typeLabel = result.type === 'conversion' ? 'upgrade' : 'install';
+        msg.style.color = 'var(--g)';
+        msg.textContent = '🎉 +' + result.daysEarned + ' Pro day' + (result.daysEarned !== 1 ? 's' : '') + ' earned for your friend\'s ' + typeLabel + '!';
+        input.value = '';
+        // Refresh stats pills
+        setTimeout(_load, 600);
+      } else {
+        msg.style.color = 'var(--t3)';
+        msg.textContent = 'This code has already been redeemed or the monthly limit has been reached.';
+      }
+    } catch(e) {
+      msg.style.color = 'var(--a)';
+      msg.textContent = 'Something went wrong — please try again.';
+    }
   }
 
   // ── Actions ────────────────────────────────────────────────────────────────
@@ -444,10 +556,29 @@ const Referral = (() => {
     } catch (_) {}
   }
 
-  return { open, copyLink, shareLink, shouldShowHomeBanner, markBannerShown };
+  return { open, copyLink, shareLink, copyCode, redeemCode, shouldShowHomeBanner, markBannerShown };
 })();
 
 // ── Global entry point (called from settings referFriend row) ─────────────
 function referFriend() {
   Referral.open();
 }
+
+// ── BUG-05 FIX: onReferralExtensionActivated callback ────────────────────
+// AppBridge calls window.onReferralExtensionActivated(N) when a subscription
+// lapses and banked referral days are activated. Previously this function was
+// never defined, so the extension-active banner on the referral screen was
+// never shown and users had no idea their Pro was being kept alive.
+window.onReferralExtensionActivated = function(days) {
+  if (typeof toast === 'function') {
+    toast('\uD83C\uDF89 Referral reward activated \u2014 ' + days + ' day' + (days !== 1 ? 's' : '') + ' of Pro!', 'success');
+  }
+  // Refresh the referral panel if it happens to be open so the green
+  // "extension active" card appears immediately without requiring a re-open.
+  try {
+    var panel = document.getElementById('referral-panel');
+    if (panel && panel.style.display !== 'none' && panel.style.transform !== 'translateX(100%)') {
+      Referral.open();
+    }
+  } catch(_) {}
+};
