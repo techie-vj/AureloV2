@@ -120,7 +120,7 @@ class SmartNotificationWorker(
                 prefs.edit().putString("recap_sent_date", todayStr).apply()
 
                 // ADD THIS — persist recap to in-app history
-                val histKey = "tidy_notif_history_v2"
+                val histKey = NOTIF_HISTORY_KEY
                 runCatching {
                     val existing = prefs.getString(histKey, "[]") ?: "[]"
                     val arr = org.json.JSONArray(existing)
@@ -412,7 +412,7 @@ class SmartNotificationWorker(
         nm.notify(id, notif)
         // Persist to in-app notification history via SharedPreferences
         val prefs = appContext.getSharedPreferences("tidyapp_v6", Context.MODE_PRIVATE)
-        val key = "tidy_notif_history_v2"
+        val key = NOTIF_HISTORY_KEY
         val existing = prefs.getString(key, "[]") ?: "[]"
         try {
             val arr = JSONArray(existing)

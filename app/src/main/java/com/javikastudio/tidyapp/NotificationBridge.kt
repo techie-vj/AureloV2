@@ -72,7 +72,7 @@ class NotificationBridge(
     }
 
     @JavascriptInterface fun getNotificationHistory(): String {
-        return prefs.getString("tidy_notif_history_v2", "[]") ?: "[]"
+        return prefs.getString(NOTIF_HISTORY_KEY, "[]") ?: "[]"
     }
 
     @JavascriptInterface fun cancelAllNotifications() {
@@ -98,7 +98,7 @@ class NotificationBridge(
     }
 
     @JavascriptInterface fun markNotificationsRead() {
-        val key = "tidy_notif_history_v2"
+        val key = NOTIF_HISTORY_KEY
         runCatching {
             val arr = org.json.JSONArray(prefs.getString(key, "[]") ?: "[]")
             for (i in 0 until arr.length()) arr.getJSONObject(i).put("read", true)
@@ -108,7 +108,7 @@ class NotificationBridge(
 
     @JavascriptInterface fun getUnreadNotificationCount(): Int {
         return runCatching {
-            val arr = org.json.JSONArray(prefs.getString("tidy_notif_history_v2", "[]") ?: "[]")
+            val arr = org.json.JSONArray(prefs.getString(NOTIF_HISTORY_KEY, "[]") ?: "[]")
             var count = 0
             for (i in 0 until arr.length()) {
                 if (!arr.getJSONObject(i).optBoolean("read", false)) count++
@@ -141,6 +141,28 @@ class NotificationBridge(
                 .setCategory(if(type=="warn") NotificationCompat.CATEGORY_ALARM else NotificationCompat.CATEGORY_REMINDER)
                 .apply { if(pendingIntent!=null) setContentIntent(pendingIntent) }.build()
             nm.notify(stableId, notif)
+
+            // Write to history
+            runCatching {
+                val existing = prefs.getString(NOTIF_HISTORY_KEY, "[]") ?: "[]"
+                val arr = JSONArray(existing)
+                val obj = JSONObject()
+                obj.put("id", "$title|$body")
+                obj.put("type", type)
+                obj.put("title", title)
+                obj.put("body", body)
+                obj.put("timestamp", System.currentTimeMillis())
+                obj.put("read", false)
+                val cutoff = System.currentTimeMillis() - 30L * 24 * 60 * 60 * 1000
+                val newArr = JSONArray()
+                newArr.put(obj)
+                for (i in 0 until arr.length()) {
+                    val entry = arr.getJSONObject(i)
+                    if (entry.optLong("timestamp", 0L) > cutoff) newArr.put(entry)
+                }
+                prefs.edit().putString(NOTIF_HISTORY_KEY, newArr.toString()).apply()
+            }
+
         }
     }
 
@@ -164,7 +186,29 @@ class NotificationBridge(
                     .setStyle(NotificationCompat.BigTextStyle().bigText(body)).setPriority(priority).setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
                     .setCategory(if(type=="warn") NotificationCompat.CATEGORY_ALARM else NotificationCompat.CATEGORY_REMINDER).setAutoCancel(true)
                     .apply { if(pendingIntent!=null) setContentIntent(pendingIntent) }.build()
-                nm.notify(stableId, notif); posted++
+                nm.notify(stableId, notif)
+                posted++
+
+                // Write to history
+                runCatching {
+                    val existing = prefs.getString(NOTIF_HISTORY_KEY, "[]") ?: "[]"
+                    val arr = JSONArray(existing)
+                    val obj = JSONObject()
+                    obj.put("id", "$title|$body")
+                    obj.put("type", type)
+                    obj.put("title", title)
+                    obj.put("body", body)
+                    obj.put("timestamp", System.currentTimeMillis())
+                    obj.put("read", false)
+                    val cutoff = System.currentTimeMillis() - 30L * 24 * 60 * 60 * 1000
+                    val newArr = JSONArray()
+                    newArr.put(obj)
+                    for (i in 0 until arr.length()) {
+                        val entry = arr.getJSONObject(i)
+                        if (entry.optLong("timestamp", 0L) > cutoff) newArr.put(entry)
+                    }
+                    prefs.edit().putString(NOTIF_HISTORY_KEY, newArr.toString()).apply()
+                }
             }
         }
     }

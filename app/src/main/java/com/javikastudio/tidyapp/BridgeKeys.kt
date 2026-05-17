@@ -130,6 +130,7 @@ const val BEDTIME_STARTS_AT_MS = "bedtime_starts_at_ms"
 const val NOTIF_CHANNEL_ID     = "tidy_alerts"
 const val SMART_ALERTS_ENABLED = "smart_alerts_enabled"
 const val NOTIF_CLEARED_TS     = "notif_cleared_ts"
+const val NOTIF_HISTORY_KEY = "tidy_notif_history_v2"
 
 // ── Widget ────────────────────────────────────────────────────────────────
 const val WIDGET_THEME           = "widget_theme"
