@@ -113,15 +113,35 @@
     </div>
 </div>
 
-<!-- ─── Notification Panel ────────────────────────────────────────────── -->
+<!-- ─── Notification History Panel ──────────────────────────────────────── -->
 <div class="panel" id="notif-panel">
-    <div class="panel-hdr">
+    <!-- Header -->
+    <div class="panel-hdr" style="gap:8px;padding:12px 14px">
         <div class="panel-back" onclick="closePanel('notif-panel')">←</div>
-        <div class="panel-title">Notifications</div>
-        <div class="header-btn" onclick="clearNotifications()">Clear All</div>
+        <div style="flex:1;min-width:0">
+            <div class="panel-title" style="font-size:18px;line-height:1.1">Notifications</div>
+            <div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);margin-top:1px">Last 30 days</div>
+        </div>
     </div>
-    <div class="panel-body">
-        <div id="notif-list"><div style="text-align:center;font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);padding:30px">Loading…</div></div>
+
+    <!-- Filter tabs -->
+    <div class="nh-tabs" role="tablist">
+        <button class="nh-tab nh-tab--active" data-f="all" role="tab" aria-selected="true"
+                onclick="setNotifFilter('all')">All</button>
+        <button class="nh-tab" data-f="unread" role="tab" aria-selected="false"
+                onclick="setNotifFilter('unread')">
+            Unread
+            <span id="nh-unread-count" class="nh-unread-pill" style="display:none"></span>
+        </button>
+    </div>
+
+    <!-- Notification list -->
+    <div id="notif-list" style="flex:1;overflow-y:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;padding:4px 0 80px">
+        <div class="nh-empty">
+            <div class="nh-empty-icon">🔔</div>
+            <div class="nh-empty-title">No notifications yet</div>
+            <div class="nh-empty-sub">Smart alerts will appear here</div>
+        </div>
     </div>
 </div>
 

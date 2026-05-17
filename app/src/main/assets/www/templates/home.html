@@ -19,8 +19,33 @@
             </div>
             <span id="pro-pill" style="display:none;margin-left:7px;padding:2px 8px 2px 6px;border-radius:40px;background:rgba(247,201,72,0.12);border:1px solid rgba(247,201,72,0.25);color:#f7c948;font-size: var(--text-2xs);font-weight:700;font-family:var(--ff-m);letter-spacing:0.08em;vertical-align:middle">✦ PRO</span>
         </div>
-        <div style="cursor:pointer;width:36px;height:36px;border-radius:10px;background:var(--s1);border:1px solid var(--border);display:flex;align-items:center;justify-content:center" onclick="activateTab('settings')">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--t2)"><circle cx="12" cy="8" r="4"/><path d="M20 21a8 8 0 1 0-16 0"/></svg>
+        <!-- Header right: bell + profile -->
+        <div style="display:flex;align-items:center;gap:8px">
+            <!-- Notification Bell -->
+            <button id="notif-bell-btn"
+                    aria-label="Notification history"
+                    onclick="openPanel('notif-panel');loadNotifHistory()"
+                    style="position:relative;width:36px;height:36px;border-radius:10px;background:var(--s1);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0;flex-shrink:0;transition:background .15s">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--t2)">
+                    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+                    <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+                </svg>
+                <!-- Unread badge -->
+                <span id="notif-unread-badge"
+                      style="display:none;position:absolute;top:-4px;right:-4px;
+                             min-width:17px;height:17px;padding:0 4px;
+                             background:var(--r);color:#fff;
+                             font-family:var(--ff-m);font-size:10px;font-weight:700;
+                             border-radius:999px;border:2px solid var(--bg);
+                             align-items:center;justify-content:center;line-height:1;
+                             box-shadow:0 1px 6px rgba(240,78,122,.5);
+                             animation:nh-badge-pop .3s cubic-bezier(.34,1.56,.64,1)">
+                </span>
+            </button>
+            <!-- Profile / Settings -->
+            <div style="cursor:pointer;width:36px;height:36px;border-radius:10px;background:var(--s1);border:1px solid var(--border);display:flex;align-items:center;justify-content:center" onclick="activateTab('settings')">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--t2)"><circle cx="12" cy="8" r="4"/><path d="M20 21a8 8 0 1 0-16 0"/></svg>
+            </div>
         </div>
     </div>
 
@@ -129,7 +154,7 @@
         <div id="home-cat-summary-list"></div>
     </div>
 
-    <!-- Hidden stubs -->
+    <!-- Hidden legacy stub -->
     <div id="notif-dot" style="display:none"></div>
     <div style="height:20px"></div>
 </div>

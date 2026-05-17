@@ -22,6 +22,7 @@ object SecurityValidators {
         "app_theme",
         "tidy_dismissed_notifs_v1",
         "tidy_notif_cleared_ts",
+        "tidy_notif_history_v2",
         "insight_dismissed_date",
         "screen_score_history",
         "focus_score_history",

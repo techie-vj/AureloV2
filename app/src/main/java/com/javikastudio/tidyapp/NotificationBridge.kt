@@ -71,6 +71,10 @@ class NotificationBridge(
         return result.toString()
     }
 
+    @JavascriptInterface fun getNotificationHistory(): String {
+        return prefs.getString("tidy_notif_history_v2", "[]") ?: "[]"
+    }
+
     @JavascriptInterface fun cancelAllNotifications() {
         runCatching {
             val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
@@ -91,6 +95,26 @@ class NotificationBridge(
 
     @JavascriptInterface fun saveSmartAlertsEnabled(enabled: Boolean) {
         prefs.edit().putBoolean(SMART_ALERTS_ENABLED, enabled).apply()
+    }
+
+    @JavascriptInterface fun markNotificationsRead() {
+        val key = "tidy_notif_history_v2"
+        runCatching {
+            val arr = org.json.JSONArray(prefs.getString(key, "[]") ?: "[]")
+            for (i in 0 until arr.length()) arr.getJSONObject(i).put("read", true)
+            prefs.edit().putString(key, arr.toString()).apply()
+        }
+    }
+
+    @JavascriptInterface fun getUnreadNotificationCount(): Int {
+        return runCatching {
+            val arr = org.json.JSONArray(prefs.getString("tidy_notif_history_v2", "[]") ?: "[]")
+            var count = 0
+            for (i in 0 until arr.length()) {
+                if (!arr.getJSONObject(i).optBoolean("read", false)) count++
+            }
+            count
+        }.getOrElse { 0 }
     }
 
     @JavascriptInterface fun postSmartAlertNotifications() {

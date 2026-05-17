@@ -330,7 +330,13 @@
 <script src="js/app-core.js"></script>
 <script>
     (function(){var _real=window.hideLoading;window.__realHideLoading=_real;window.hideLoading=function(){if(window.__splashDone){_real&&_real();}else{window.__hideLoadingQueued=true;}};})();
+    // Stubs until app-notifications.js loads
+  window.updateNotifDot = function(){};
+  window.loadNotifications = function(){};
+  window.loadNotifHistory  = function(){};
+  window.setNotifFilter    = function(){};
 </script>
+<script src="js/app-notifications.js"></script>
 <script src="js/app-share-utils.js"></script>
 <script src="js/app-coach.js"></script>
 <script src="js/app-share.js"></script>
@@ -339,7 +345,6 @@
 <script src="js/app-wellness-coach.js"></script>
 <script src="js/app-home.js"></script>
 <script src="js/app-home-score.js"></script>
-<script src="js/app-notifications.js"></script>
 <script src="js/app-wellness.js"></script>
 <script src="js/app-wellness-views.js"></script>
 <script src="js/app-wellness-week.js"></script>

@@ -252,7 +252,6 @@ class AppBridge(private val context: Context, private val webView: WebView) {
     @JavascriptInterface fun clearAllData()                    = settings.clearAllData()
     @JavascriptInterface fun clearAllDataFull()                = settings.clearAllDataFull()
     @JavascriptInterface fun checkAndTriggerRateApp(t: String) = settings.checkAndTriggerRateApp(t)
-    @JavascriptInterface fun saveSmartAlertsEnabled(e: Boolean)= notification.saveSmartAlertsEnabled(e)
 
     // ── App Management ─────────────────────────────────────────────────────
     @JavascriptInterface fun getCachedApps()                   = appManagement.getCachedApps()
@@ -402,11 +401,15 @@ class AppBridge(private val context: Context, private val webView: WebView) {
 
     // ── Notifications ──────────────────────────────────────────────────────
     @JavascriptInterface fun getNotifications()                = notification.getNotifications()
+    @JavascriptInterface fun getNotificationHistory()          = notification.getNotificationHistory()
     @JavascriptInterface fun refreshNotifications()            = notification.refreshNotifications()
     @JavascriptInterface fun cancelAllNotifications()          = notification.cancelAllNotifications()
     @JavascriptInterface fun scheduleBackgroundNotifications() = notification.scheduleBackgroundNotifications()
     @JavascriptInterface fun postSmartAlertNotifications()     = notification.postSmartAlertNotifications()
     @JavascriptInterface fun postInAppNotificationsToSystem()  = notification.postInAppNotificationsToSystem()
+    @JavascriptInterface fun markNotificationsRead()           = notification.markNotificationsRead()
+    @JavascriptInterface fun getUnreadNotificationCount()      = notification.getUnreadNotificationCount()
+    @JavascriptInterface fun saveSmartAlertsEnabled(e: Boolean)= notification.saveSmartAlertsEnabled(e)
 
     // ── Widget ─────────────────────────────────────────────────────────────
     @JavascriptInterface fun getWidgetTheme()                  = widget.getWidgetTheme()

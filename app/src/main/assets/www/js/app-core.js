@@ -968,7 +968,10 @@ function doFullRefresh(){
   if(pickedApp){ cancelPickMode(); }
   clearCatHighlights();
   // Clear stale notification panel immediately so it doesn't linger
-  document.getElementById('notif-list').innerHTML='<div style="text-align:center;font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);padding:20px">Refreshing…</div>';
+  const _np = document.getElementById('notif-panel');
+  if(_np && _np.classList.contains('open')){
+    if(typeof loadNotifHistory==='function') loadNotifHistory();
+  }
   document.getElementById('notif-dot') && (document.getElementById('notif-dot').style.display='none');
   DAILY_USE  = JSON.parse(N.getDailyUsageStats()||'[]');
   WEEKLY     = JSON.parse(N.getCachedWeeklyData()||'[]');
@@ -982,5 +985,6 @@ function doFullRefresh(){
   renderAll();
   // Re-check notif dot after refresh
   setTimeout(updateNotifDot, 300);
+  if(typeof loadNotifHistory==='function') setTimeout(loadNotifHistory, 350);
 }
 function skipPerm(){ document.getElementById('perm-screen').classList.add('hidden'); loadDemoData(); }

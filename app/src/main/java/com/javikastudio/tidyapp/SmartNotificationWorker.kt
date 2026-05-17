@@ -118,6 +118,24 @@ class SmartNotificationWorker(
 
                 nm.notify(RECAP_NOTIF_ID, notif)
                 prefs.edit().putString("recap_sent_date", todayStr).apply()
+
+                // ADD THIS — persist recap to in-app history
+                val histKey = "tidy_notif_history_v2"
+                runCatching {
+                    val existing = prefs.getString(histKey, "[]") ?: "[]"
+                    val arr = org.json.JSONArray(existing)
+                    val obj = org.json.JSONObject()
+                    obj.put("id", "recap|$todayStr")
+                    obj.put("type", "recap")
+                    obj.put("title", title)
+                    obj.put("body", body)
+                    obj.put("timestamp", System.currentTimeMillis())
+                    obj.put("read", false)
+                    val newArr = org.json.JSONArray()
+                    newArr.put(obj)
+                    for (i in 0 until arr.length()) newArr.put(arr.get(i))
+                    prefs.edit().putString(histKey, newArr.toString()).apply()
+                }
             }
         }
 
@@ -392,6 +410,31 @@ class SmartNotificationWorker(
             .build()
 
         nm.notify(id, notif)
+        // Persist to in-app notification history via SharedPreferences
+        val prefs = appContext.getSharedPreferences("tidyapp_v6", Context.MODE_PRIVATE)
+        val key = "tidy_notif_history_v2"
+        val existing = prefs.getString(key, "[]") ?: "[]"
+        try {
+            val arr = JSONArray(existing)
+            val obj = org.json.JSONObject()
+            obj.put("id", "$title|$body")
+            obj.put("type", type)
+            obj.put("title", title)
+            obj.put("body", body)
+            obj.put("timestamp", System.currentTimeMillis())
+            obj.put("read", false)
+            // Prepend new entry
+            val thirtyDaysMs = 30L * 24 * 60 * 60 * 1000
+            val newArr = JSONArray()
+            newArr.put(obj)
+            for (i in 0 until arr.length()) {
+                val entry = arr.getJSONObject(i)
+                if (System.currentTimeMillis() - entry.optLong("timestamp", 0L) < thirtyDaysMs) {
+                    newArr.put(entry)
+                }
+            }
+            prefs.edit().putString(key, newArr.toString()).apply()
+        } catch (_: Exception) {}
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
