@@ -74,3 +74,4 @@ System Volume Information/
 /app/build/
 /app/build/
 scripts/__pycache__/
+/app/release/*

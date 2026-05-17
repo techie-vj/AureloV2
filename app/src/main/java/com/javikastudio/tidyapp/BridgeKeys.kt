@@ -196,3 +196,14 @@ const val BILLING_ACTIVE_PLAN = "billing_active_plan"
 const val REFERRAL_CONFIRM_CODE      = "referral_confirm_code"        // install confirmation
 const val REFERRAL_CONV_CONFIRM_CODE = "referral_conv_confirm_code"   // conversion confirmation
 const val REFERRAL_CONV_CONFIRM_PLAN = "referral_conv_confirm_plan"   // plan at conversion time
+
+// CRIT-2 FIX: permanent watermark — total days ever banked (never decremented).
+// Used by BillingBridge.recordActivatedPlan() to compute the delta when banking
+// new days, preventing already-consumed extension days from being re-banked on
+// re-subscribe (the double-banking bug).
+const val REFERRAL_TOTAL_DAYS_EVER_BANKED = "referral_total_days_ever_banked"
+
+// HIGH-3 FIX: rate-limit counters for redeemReferralCode().
+// 5 consecutive failures trigger a 60-second lockout.
+const val REF_REDEEM_FAIL_COUNT = "ref_redeem_fail_count"
+const val REF_REDEEM_LOCK_MS    = "ref_redeem_lock_ms"

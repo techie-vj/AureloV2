@@ -33,15 +33,18 @@ class BillingBridge(
         _activatedPlan = plan
         prefs.edit().putString(BILLING_ACTIVE_PLAN, plan).apply()
 
-        // HIGH-2 FIX: if referral days were earned while the user was on the free tier,
-        // REFERRAL_PENDING_EXTENSION_DAYS is 0. Bank them now that we know the plan.
+        // CRIT-2 FIX: use the permanent watermark (REFERRAL_TOTAL_DAYS_EVER_BANKED) to
+        // compute days not yet banked. The old formula used alreadyBanked (pending days,
+        // zeroed on activation) and activeExtDays (remaining active days), so days that
+        // were already consumed by an active extension appeared "unbanked" and got
+        // re-banked, granting the user free extra days on re-subscribe.
+        //
+        // The watermark is only ever incremented (never decremented) inside bankExtensionDays(),
+        // so totalEarned − everBanked always yields only the genuinely unbanked delta.
         if (plan.lowercase() != "lifetime") {
-            val totalEarned  = prefs.getInt(REFERRAL_TOTAL_DAYS_EARNED, 0)
-            val alreadyBanked = prefs.getInt(REFERRAL_PENDING_EXTENSION_DAYS, 0)
-            val expiryMs     = prefs.getLong(REFERRAL_EXTENSION_EXPIRY_MS, 0L)
-            val activeExtDays = if (expiryMs > System.currentTimeMillis())
-                ((expiryMs - System.currentTimeMillis()) / 86_400_000L).toInt() else 0
-            val unbanked = totalEarned - alreadyBanked - activeExtDays
+            val totalEarned = prefs.getInt(REFERRAL_TOTAL_DAYS_EARNED, 0)
+            val everBanked  = prefs.getInt(REFERRAL_TOTAL_DAYS_EVER_BANKED, 0)
+            val unbanked    = totalEarned - everBanked
             if (unbanked > 0) {
                 ReferralManager.bankExtensionDays(prefs, plan, unbanked)
             }

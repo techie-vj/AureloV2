@@ -63,7 +63,7 @@ class ReferralBridge(
      */
     @JavascriptInterface
     fun recordReferralInstall(friendCode: String = ""): String {
-        val days = ReferralManager.recordFriendInstall(prefs, friendCode.takeIf { it.isNotBlank() })
+        val days = ReferralManager.recordFriendInstall(prefs, friendCode.takeIf { it.isNotBlank() }, securePrefs)
         if (days > 0) autoBankExtensionDays(days)
         return org.json.JSONObject().apply { put("daysEarned", days) }.toString()
     }
@@ -85,7 +85,7 @@ class ReferralBridge(
     @JavascriptInterface
     fun recordReferralConversion(plan: String, friendCode: String = ""): String {
         val days = ReferralManager.recordFriendConversion(
-            prefs, plan, friendCode.takeIf { it.isNotBlank() }
+            prefs, plan, friendCode.takeIf { it.isNotBlank() }, securePrefs
         )
         if (days > 0) autoBankExtensionDays(days)
         return org.json.JSONObject().apply { put("daysEarned", days) }.toString()
@@ -158,7 +158,7 @@ class ReferralBridge(
     @JavascriptInterface
     fun redeemReferralCode(code: String): String {
         val result = try {
-            ReferralManager.redeemReferralCode(prefs, code)
+            ReferralManager.redeemReferralCode(prefs, code, securePrefs)
         } catch (_: Exception) {
             org.json.JSONObject().apply { put("error", "exception") }
         }
@@ -168,11 +168,17 @@ class ReferralBridge(
     }
 
     /**
-     * BUG-M1: marks a pending friend as lapsed (installed but not converted after
-     * 30+ days). Call this from SmartNotificationWorker after the nudge window
-     * has closed without a conversion, so getStats() pending count stays accurate.
+     * HIGH-1 FIX: removed @JavascriptInterface annotation.
+     *
+     * This method increments REFERRAL_TOTAL_LAPSED with no guard. When it was a
+     * @JavascriptInterface, JS could call N.recordFriendLapsed() arbitrarily many
+     * times and inflate the lapsed counter, driving the pending count to 0 and
+     * hiding legitimate pending friends from the referral screen indefinitely.
+     *
+     * It is now internal/native-only: called exclusively from SmartNotificationWorker
+     * after the lapse detection logic confirms a real 30-day timeout. JS cannot reach
+     * it directly.
      */
-    @JavascriptInterface
     fun recordFriendLapsed() {
         ReferralManager.recordFriendLapsed(prefs)
     }

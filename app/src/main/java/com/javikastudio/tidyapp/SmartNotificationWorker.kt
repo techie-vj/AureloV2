@@ -144,7 +144,7 @@ class SmartNotificationWorker(
                 val overBy    = (projectedMins - goalMins).coerceAtLeast(1L)
                 val title     = "🔥 Streak at Risk — $streakDays days"
                 val body      = "At this pace you'll finish ~${fmtM(overBy)} over goal. " +
-                                "${fmtM(minutesLeft)} left today — put the phone down to protect your streak."
+                        "${fmtM(minutesLeft)} left today — put the phone down to protect your streak."
                 postAlertNotification(nm, STREAK_RISK_NOTIF_ID, title, body, "warn", pendingIntent)
                 prefs.edit().putString("streak_risk_sent_date", todayDate).apply()
             }
@@ -174,7 +174,7 @@ class SmartNotificationWorker(
                     val savedMin = avgPast - todayMins
                     val title = "🏆 Personal Best This Week"
                     val body  = "${fmtM(todayMins)} so far — lower than every other day this week. " +
-                                "That's ${fmtM(savedMin)} less than your daily average. Keep it up."
+                            "That's ${fmtM(savedMin)} less than your daily average. Keep it up."
                     postAlertNotification(nm, PERSONAL_BEST_NOTIF_ID, title, body, "success", pendingIntent)
                     prefs.edit().putString("personal_best_sent_date", todayDate).apply()
                 }
@@ -208,27 +208,37 @@ class SmartNotificationWorker(
             nm.notify(REFERRAL_PENDING_NOTIF_ID, notif)
         }
 
-        // BUG-04 FIX: mark pending friends as lapsed once they've been in the trial
-        // window for more than 30 days without converting. Previously recordFriendLapsed()
-        // was never called, so REFERRAL_TOTAL_LAPSED stayed at 0 forever and the
-        // "N friends trying Pro" banner inflated indefinitely.
+        // HIGH-2 FIX: mark exactly ONE friend lapsed per worker run.
+        // The old code called repeat(unresolved) { recordFriendLapsed() } in a single
+        // shot, marking ALL unresolved friends lapsed simultaneously. If a referrer had
+        // 1 old lapsed friend and 2 new friends still in trial, all 3 were marked lapsed
+        // together. The oldest timestamp was then zeroed, so the 2 recent friends
+        // permanently lost their lapse tracking.
+        //
+        // Fix: mark 1 at a time. Keep REFERRAL_OLDEST_INSTALL_TS pointing to the same
+        // timestamp so the next worker run (≈2 h later) sees daysSinceOldest > 30 again
+        // and marks another 1 — repeating until unresolved reaches 0. Only when the
+        // final unresolved friend is marked do we clear the oldest timestamp so a fresh
+        // batch of new installs can start tracking from zero.
         run {
             val lastInstallTs = prefs.getLong(REFERRAL_LAST_INSTALL_TS, 0L)
             if (lastInstallTs > 0L) {
-                val daysSince = ((System.currentTimeMillis() - lastInstallTs) / 86_400_000L).toInt()
                 val totalInstalls    = prefs.getInt(REFERRAL_TOTAL_INSTALLS, 0)
                 val totalConversions = prefs.getInt(REFERRAL_TOTAL_CONVERSIONS, 0)
                 val totalLapsed      = prefs.getInt(REFERRAL_TOTAL_LAPSED, 0)
-                val oldestInstallTs = prefs.getLong(REFERRAL_OLDEST_INSTALL_TS, 0L)
-                val daysSinceOldest = if (oldestInstallTs > 0L)
+                val oldestInstallTs  = prefs.getLong(REFERRAL_OLDEST_INSTALL_TS, 0L)
+                val daysSinceOldest  = if (oldestInstallTs > 0L)
                     ((System.currentTimeMillis() - oldestInstallTs) / 86_400_000L).toInt() else 0
 
                 if (daysSinceOldest > 30) {
-                    val unresolved = totalInstalls - totalConversions - totalLapsed
+                    val unresolved = (totalInstalls - totalConversions - totalLapsed).coerceAtLeast(0)
                     if (unresolved > 0) {
-                        repeat(unresolved) { ReferralManager.recordFriendLapsed(prefs) }
-                        // Reset oldest timestamp so the next batch of friends starts fresh
-                        prefs.edit().putLong(REFERRAL_OLDEST_INSTALL_TS, 0L).apply()
+                        ReferralManager.recordFriendLapsed(prefs)
+                        // Only clear the oldest timestamp when the last unresolved friend is processed,
+                        // so subsequent runs keep firing for any remaining unresolved friends.
+                        if (unresolved == 1) {
+                            prefs.edit().putLong(REFERRAL_OLDEST_INSTALL_TS, 0L).apply()
+                        }
                     }
                 }
             }
@@ -397,7 +407,7 @@ class SmartNotificationWorker(
     private fun hasNotificationPermission(): Boolean {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             return appContext.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) ==
-                PackageManager.PERMISSION_GRANTED
+                    PackageManager.PERMISSION_GRANTED
         }
         return true
     }
