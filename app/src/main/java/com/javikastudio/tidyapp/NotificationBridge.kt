@@ -72,7 +72,18 @@ class NotificationBridge(
     }
 
     @JavascriptInterface fun getNotificationHistory(): String {
-        return prefs.getString(NOTIF_HISTORY_KEY, "[]") ?: "[]"
+        return runCatching {
+            val arr = JSONArray(prefs.getString(NOTIF_HISTORY_KEY, "[]") ?: "[]")
+            val cutoff = System.currentTimeMillis() - 30L * 24 * 60 * 60 * 1000
+            val filtered = JSONArray()
+            for (i in 0 until arr.length()) {
+                val entry = arr.getJSONObject(i)
+                if (entry.optLong("timestamp", 0L) > cutoff) filtered.put(entry)
+            }
+            if (filtered.length() < arr.length())
+                prefs.edit().putString(NOTIF_HISTORY_KEY, filtered.toString()).apply()
+            filtered.toString()
+        }.getOrElse { "[]" }
     }
 
     @JavascriptInterface fun cancelAllNotifications() {
@@ -82,7 +93,6 @@ class NotificationBridge(
             for (id in 0x2000..0x2FFF) nm.cancel(id)
             for (id in 0x3000..0x3FFF) nm.cancel(id)
         }
-        prefs.edit().putLong(NOTIF_CLEARED_TS, System.currentTimeMillis()).apply()
     }
 
     @JavascriptInterface fun scheduleBackgroundNotifications() {

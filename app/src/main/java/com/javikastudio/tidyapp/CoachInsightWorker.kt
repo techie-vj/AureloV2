@@ -189,5 +189,27 @@ class CoachInsightWorker(
             .build()
 
         nm.notify(InsightTemplateLibrary.NOTIFICATION_ID, notification)
+
+        // Write to in-app notification history
+        runCatching {
+            val prefs = context.getSharedPreferences(PREFS_FILE, Context.MODE_PRIVATE)
+            val existing = prefs.getString(NOTIF_HISTORY_KEY, "[]") ?: "[]"
+            val arr = org.json.JSONArray(existing)
+            val obj = org.json.JSONObject()
+            obj.put("id", "coach|${insight.title}")
+            obj.put("type", "coach")
+            obj.put("title", insight.title)
+            obj.put("body", insight.body)
+            obj.put("timestamp", System.currentTimeMillis())
+            obj.put("read", false)
+            val cutoff = System.currentTimeMillis() - 30L * 24 * 60 * 60 * 1000
+            val newArr = org.json.JSONArray()
+            newArr.put(obj)
+            for (i in 0 until arr.length()) {
+                val entry = arr.getJSONObject(i)
+                if (entry.optLong("timestamp", 0L) > cutoff) newArr.put(entry)
+            }
+            prefs.edit().putString(NOTIF_HISTORY_KEY, newArr.toString()).apply()
+        }
     }
 }

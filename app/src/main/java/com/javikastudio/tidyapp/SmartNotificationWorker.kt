@@ -133,7 +133,11 @@ class SmartNotificationWorker(
                     obj.put("read", false)
                     val newArr = org.json.JSONArray()
                     newArr.put(obj)
-                    for (i in 0 until arr.length()) newArr.put(arr.get(i))
+                    val cutoff = System.currentTimeMillis() - 30L * 24 * 60 * 60 * 1000
+                    for (i in 0 until arr.length()) {
+                        val entry = arr.getJSONObject(i)
+                        if (entry.optLong("timestamp", 0L) > cutoff) newArr.put(entry)
+                    }
                     prefs.edit().putString(histKey, newArr.toString()).apply()
                 }
             }
@@ -224,6 +228,7 @@ class SmartNotificationWorker(
                 .apply { if (pendingIntent != null) setContentIntent(pendingIntent) }
                 .build()
             nm.notify(REFERRAL_PENDING_NOTIF_ID, notif)
+            postAlertNotification(nm, REFERRAL_PENDING_NOTIF_ID, title, body, "info", pendingIntent)
         }
 
         // HIGH-2 FIX: mark exactly ONE friend lapsed per worker run.
