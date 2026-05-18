@@ -5,11 +5,12 @@
    ═══════════════════════════════════════════════════════ */
 
 :root {
-  --bg:#060610; --s0:#0B0B1C; --s1:#10101F; --s2:#161628; --s3:#1C1C2E;
-  --border:#1C1C34; --border2:#252545;
+  /* #5 SURFACE DEPTH FIX: wider lightness steps so cards lift off the bg */
+  --bg:#060610; --s0:#0D0D1F; --s1:#131326; --s2:#1B1B32; --s3:#23233E;
+  --border:#222240; --border2:#2D2D52;
   --p:#6C63FF; --p2:#9B95FF; --c:#05C8E8; --g:#12D48A;
   --a:#F7A623; --r:#F04E7A; --pu:#B06EFF;
-  --t1:#EEEEFF; --t2:#8888BB; --t3:#7474A8;
+  --t1:#EEEEFF; --t2:#A0A0CC; --t3:#7878A0;
   --ff-d:'Bodoni Moda',Georgia,serif;
   --ff-b:'Bricolage Grotesque',system-ui,sans-serif;
   --ff-m:'JetBrains Mono','Courier New',monospace;
@@ -61,15 +62,17 @@
   --hc-border: rgba(6,214,184,0.24);
 }
 
-/* ── LIGHT ── */
+/* ── LIGHT ── (#4 FIX: warmer bg, separated surfaces, visible card shadows) */
 :root[data-theme=light] {
-  --bg:#F2F4FA; --s0:#fff; --s1:#fff; --s2:#EAECF5; --s3:#E4E6F0;
-  --border:#DEE1ED; --border2:#CED2E3;
-  --t1:#101223; --t2:#484C6A; --t3:#5A5F80;
-  --nav-bg:rgba(242,244,250,.97);
+  --bg:#F7F5F2; --s0:#FFFFFF; --s1:#FFFFFF; --s2:#EDE9E3; --s3:#E4DFD8;
+  --border:#D6D0C8; --border2:#C8C1B8;
+  --p:#5248CC; --p2:#7B72E8;
+  --t1:#0F1118; --t2:#42476A; --t3:#626880;
+  --nav-bg:rgba(247,245,242,.97);
   --focus-ring-color: var(--p);
-  --shadow-sm:0 2px 8px rgba(0,0,0,.10);
-  --shadow-md:0 8px 28px rgba(0,0,0,.15);
+  --shadow-sm:0 2px 12px rgba(0,0,0,.08);
+  --shadow-md:0 8px 28px rgba(0,0,0,.13);
+  --shadow-lg:0 16px 48px rgba(0,0,0,.18);
 }
 /* ── AMOLED ── */
 :root[data-theme=amoled] {
@@ -95,7 +98,7 @@
   --border:#233150; --border2:#2C3D60;
   --p:#4F8EF7; --p2:#7AAEFF; --c:#38C9E8; --g:#34C28A;
   --a:#F7B623; --r:#F05A7A; --pu:#A07EFF;
-  --t1:#E8EEFF; --t2:#7A8EBB; --t3:#5E6E9A;
+  --t1:#E8EEFF; --t2:#95AACF; --t3:#6678A8;
   --nav-bg:rgba(8,14,30,.95); --focus-ring-color:var(--p2);
 }
 /* ── FOREST ── */

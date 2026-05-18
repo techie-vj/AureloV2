@@ -46,14 +46,14 @@ function _ensureAureloScoreStyles() {
 
 /* ── Card ── */
 .aurelo-score-card {
-  width: 100%;
+  margin-top: 10px;
   border-radius: 20px;
-  padding: 16px;
+  padding: 20px 16px 16px;
   border: 1px solid var(--aurelo-score-card-border);
   cursor: pointer;
   position: relative;
   overflow: hidden;
-  background: var(--aurelo-score-card-bg);
+  background: linear-gradient(160deg, rgba(108,99,255,.18) 0%, var(--aurelo-score-card-bg) 50%);
   box-shadow: var(--aurelo-score-card-shadow);
   color: var(--aurelo-score-title);
   transition: opacity .15s;
@@ -65,27 +65,26 @@ function _ensureAureloScoreStyles() {
 }
 .aurelo-score-card::after {
   content: '';
-  position: absolute; top: -34px; right: -26px;
-  width: 118px; height: 118px; border-radius: 50%;
-  background: var(--aurelo-score-glow);
-  opacity: .5;
+  position: absolute; top: -60px; right: -60px;
+  width: 220px; height: 220px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(108,99,255,.28) 0%, rgba(5,200,232,.12) 45%, transparent 70%);
   pointer-events: none;
 }
 
-/* ── Head row ── */
+/* ── Head row — centered column layout ── */
 .aurelo-score-head {
-  display: flex; align-items: center; gap: 14px;
-  margin-bottom: 14px; position: relative; z-index: 1;
+  display: flex; flex-direction: column; align-items: center; gap: 10px;
+  margin-bottom: 16px; position: relative; z-index: 1;
 }
 
-/* ── Ring ── */
+/* ── Ring — 130px ── */
 .aurelo-score-ring-wrap {
   position: relative;
-  width: 76px; height: 76px;
-  min-width: 76px; min-height: 76px; flex: 0 0 76px;
+  width: 130px; height: 130px;
+  flex-shrink: 0;
 }
 .aurelo-score-ring-wrap svg {
-  display: block; width: 76px; height: 76px;
+  display: block; width: 130px; height: 130px;
 }
 .aurelo-score-ring-track { stroke: var(--aurelo-score-ring-track); }
 .aurelo-score-ring-center {
@@ -96,20 +95,20 @@ function _ensureAureloScoreStyles() {
 }
 .aurelo-score-number {
   font-family: var(--ff-d);
-  font-size: 22px; font-weight: 800;
+  font-size: 38px; font-weight: 800;
+  color: var(--aurelo-score-title);
   line-height: 1;
-  /* color set dynamically to match ring */
 }
 .aurelo-score-ring-label {
   font-family: var(--ff-m);
   font-size: var(--text-2xs);
-  color: var(--aurelo-score-subtitle);
+  color: var(--aurelo-home-hc-text);
   text-transform: uppercase;
-  letter-spacing: .55px; margin-top: 2px; line-height: 1;
+  letter-spacing: .55px; margin-top: 3px; line-height: 1;
 }
 
-/* ── Copy ── */
-.aurelo-score-copy { flex: 1; min-width: 0; }
+/* ── Copy — centered below ring ── */
+.aurelo-score-copy { min-width: 0; text-align: center; }
 .aurelo-score-kicker {
   font-family: var(--ff-m);
   font-size: var(--text-2xs);
@@ -119,12 +118,12 @@ function _ensureAureloScoreStyles() {
 }
 .aurelo-score-grade {
   font-family: var(--ff-d);
-  font-size: 20px; font-weight: 600;
+  font-size: 22px; font-weight: 600;
   margin-bottom: 3px; line-height: 1.15;
   /* color set dynamically */
 }
 .aurelo-score-meta {
-  display: flex; align-items: center; gap: 6px;
+  display: flex; align-items: center; justify-content: center; gap: 6px;
   font-family: var(--ff-m); font-size: var(--text-2xs);
   color: var(--aurelo-score-subtitle);
   line-height: 1.25; flex-wrap: wrap;
@@ -173,6 +172,12 @@ function _ensureAureloScoreStyles() {
   display: flex; flex-direction: column; justify-content: center;
   overflow: hidden; transition: opacity .15s;
 }
+/* #6: per-pillar color tints */
+.aurelo-pillar-tile[data-pillar="screen"] { background:rgba(95,184,232,.07); border-color:rgba(95,184,232,.20); }
+.aurelo-pillar-tile[data-pillar="focus"]  { background:rgba(5,200,232,.07);  border-color:rgba(5,200,232,.20); }
+.aurelo-pillar-tile[data-pillar="sleep"]  { background:rgba(108,99,255,.08); border-color:rgba(108,99,255,.22); }
+.aurelo-pillar-tile[data-pillar="body"]   { background:rgba(18,212,138,.07); border-color:rgba(18,212,138,.22); }
+
 .aurelo-pillar-tile:active { opacity: .85; }
 .aurelo-pillar-tile.is-dashed { border-style: dashed; }
 .aurelo-pillar-tile.is-hc { background: var(--aurelo-home-hc-bg); border-color: var(--aurelo-home-hc-border); }
@@ -668,7 +673,7 @@ function renderAureloScore() {
          aria-label="Aurelo Score: ${overall}. ${g.label}. Tap for details.">
       <div class="aurelo-score-head">
         <div class="aurelo-score-ring-wrap">
-          ${_scoreRingHTML(overall, 76, 6, gradId)}
+          ${_scoreRingHTML(overall, 130, 8, gradId)}
           <div class="aurelo-score-ring-center">
             <div class="aurelo-score-number" style="color:${cols.start}">${overall}</div>
             <div class="aurelo-score-ring-label">SCORE</div>
@@ -679,7 +684,8 @@ function renderAureloScore() {
           <div class="aurelo-score-grade" style="color:${g.color}">${g.label}</div>
           <div class="aurelo-score-meta">${hcLine}</div>
         </div>
-        <div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0;align-self:flex-start">
+      </div>
+      <div style="position:absolute;top:14px;right:14px;display:flex;flex-direction:column;gap:6px;z-index:2">
           <button class="aurelo-score-history-btn"
                   onclick="event.stopPropagation();shareCard('aurelo')"
                   aria-label="Share Aurelo Score"
@@ -701,7 +707,6 @@ function renderAureloScore() {
               <polyline points="11,3 15,3 15,7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
           </button>
-        </div>
       </div>
       <div class="aurelo-pillars-grid">
         ${regularPillarsHTML}
