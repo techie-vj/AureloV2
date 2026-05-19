@@ -187,6 +187,7 @@ const DEMO_EMOJI = {'com.instagram.android':'📸','com.google.android.youtube':
 
 // ── Icon grid (used in DOMContentLoaded init, must be defined before DOMContentLoaded fires)
 let _catAppOrderCache = null;   // ← move from app-categories.js line 221
+let pickedApp = null; // defined here; app-categories.js manages it
 
 /* ═══ CLOCK ══════════════════════════════════════════ */
 

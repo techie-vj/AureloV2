@@ -247,7 +247,7 @@ function activateTab(tab){
       updateLockedSub(); updateHiddenSub(); updateNameUI(); initWidgetSettings();
     }
   }
-  setCatView(S.catView);
+  if (typeof setCatView === 'function') setCatView(S.catView);
 
   // Notify modules that registered a 'tabchange' listener (e.g. app-coach-home.js).
   // Dispatched after all synchronous tab-switch work above is complete.

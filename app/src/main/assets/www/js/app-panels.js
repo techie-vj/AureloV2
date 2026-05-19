@@ -180,6 +180,11 @@ function toggleTempLock(pkg,name,row){
     tempLocked.delete(pkg); chk?.classList.remove('on');
     if(_panelFilters.lock==='selected' && row) row.style.display='none';
   } else {
+    // Gate: PIN must be set up before any app can be locked (6a)
+    if (IS_NATIVE && !N.isPinSetup()) {
+      if (typeof openPinSetupModal === 'function') openPinSetupModal();
+      return;
+    }
     if(!ProTier.isPro && tempLocked.size >= ProTier.getLimit('LOCKED_APPS_UNLIMITED')){
       ProTier.triggerUpsell('LOCKED_APPS_UNLIMITED'); return;
     }

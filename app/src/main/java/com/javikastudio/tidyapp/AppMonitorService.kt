@@ -138,8 +138,17 @@ class AppMonitorService : Service() {
                         when (ev.eventType) {
                             UsageEvents.Event.MOVE_TO_FOREGROUND ->
                                 if (ev.timeStamp > latestFgTs) { latestFgPkg = ev.packageName; latestFgTs = ev.timeStamp }
-                            UsageEvents.Event.MOVE_TO_BACKGROUND ->
+                            UsageEvents.Event.MOVE_TO_BACKGROUND -> {
                                 bgTs[ev.packageName] = maxOf(bgTs[ev.packageName] ?: 0L, ev.timeStamp)
+                                // Only clear session unlock if the background event is NEWER than
+                                // the unlock timestamp. This prevents the bg event fired while
+                                // AppLockActivity was on screen (before PIN was entered) from
+                                // wiping the unlock and re-triggering the lock screen immediately.
+                                val unlockTs = AppLockActivity.sessionUnlockedApps[ev.packageName] ?: 0L
+                                if (unlockTs == 0L || ev.timeStamp > unlockTs) {
+                                    AppLockActivity.sessionUnlockedApps.remove(ev.packageName)
+                                }
+                            }
                         }
                     }
                 }
@@ -156,6 +165,34 @@ class AppMonitorService : Service() {
             focusEngine.onTick(currentFgPkg, now)
             timerEngine.onTick(currentFgPkg, now)
             intentionEngine.onTick(currentFgPkg, now)
+
+            // ── App Lock detection ───────────────────────────────────────────────
+            // Detect locked app in foreground and launch AppLockActivity on top.
+            // Guard: skip if AppLockActivity itself is already showing for this package.
+            if (currentFgPkg.isNotEmpty() && currentFgPkg != packageName) {
+                val alreadyLocking = AppLockActivity.currentLockedPackage == currentFgPkg
+                if (!alreadyLocking && !AppLockActivity.sessionUnlockedApps.containsKey(currentFgPkg)) {
+                    val pinSetup = prefs.getBoolean(APP_LOCK_SETUP_DONE, false)
+                    if (pinSetup) {
+                        val lockedApps = runCatching {
+                            val json = SensitivePrefs.get(this@AppMonitorService)
+                                .getString(LOCKED_APPS_V4, "[]") ?: "[]"
+                            val arr = JSONArray(json)
+                            (0 until arr.length()).map { arr.getString(it) }.toSet()
+                        }.getOrDefault(emptySet())
+                        if (lockedApps.contains(currentFgPkg)) {
+                            val lockIntent = Intent(this@AppMonitorService, AppLockActivity::class.java).apply {
+                                flags = Intent.FLAG_ACTIVITY_NEW_TASK or
+                                        Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
+                                putExtra("locked_package", currentFgPkg)
+                                putExtra("biometric_enabled",
+                                    prefs.getBoolean(APP_LOCK_BIOMETRIC_ENABLED, true))
+                            }
+                            startActivity(lockIntent)
+                        }
+                    }
+                }
+            }
 
             // ── Wind-down snooze expiry ───────────────────────────────────────
             // When the user snoozed the wind-down, the filter is stopped. Once
@@ -226,8 +263,17 @@ class AppMonitorService : Service() {
 
             nm.notify(NOTIF_ID, buildNotification(now))
 
+            // APP LOCK FIX: keep service alive when locked apps are configured so the
+            // poll loop (which contains App Lock detection) continues to run even when
+            // no other feature (Focus/Timer/Bedtime/Filter) is active.
+            val hasLockedApps = prefs.getBoolean(APP_LOCK_SETUP_DONE, false) &&
+                runCatching {
+                    JSONArray(SensitivePrefs.get(this@AppMonitorService)
+                        .getString(LOCKED_APPS_V4, "[]") ?: "[]").length() > 0
+                }.getOrDefault(false)
+
             if (!focusEngine.isActive && !timerEngine.isActive && !intentionEngine.isActive &&
-                !bedtimeEngine.isActive && !filterEngine.isActive() && !inWindDown) {
+                !bedtimeEngine.isActive && !filterEngine.isActive() && !inWindDown && !hasLockedApps) {
                 pollScheduled = false; stopSelf(); return
             }
             handler.postDelayed(this, POLL_MS)

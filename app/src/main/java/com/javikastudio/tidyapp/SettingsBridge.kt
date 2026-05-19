@@ -51,6 +51,12 @@ class SettingsBridge(
         val obDone = securePrefs.getBoolean(ONBOARDING_DONE, false)
         prefs.edit().clear().commit(); securePrefs.edit().clear().commit()
         securePrefs.edit().putBoolean(ONBOARDING_DONE, obDone).commit()
+        // Clear App Lock PIN and setup state
+        prefs.edit()
+            .remove(APP_LOCK_SETUP_DONE)
+            .remove(APP_LOCK_BIOMETRIC_ENABLED)
+            .apply()
+        securePrefs.edit().remove(APP_LOCK_PIN_HASH).apply()
         context.getSharedPreferences("tidyapp_cat_cache_v1", Context.MODE_PRIVATE).edit().clear().commit()
         runCatching { LaunchTracker.get(context).clearAll() }
     }

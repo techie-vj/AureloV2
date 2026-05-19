@@ -255,5 +255,21 @@
             android:exported="false"
             android:foregroundServiceType="specialUse"
             android:stopWithTask="false" />
+
+        <!-- ── APP LOCK ACTIVITY ──────────────────────────────────────────────
+             Full-screen lock screen shown when a locked app comes to foreground.
+             showWhenLocked: renders above the device lock screen.
+             turnScreenOn: wakes screen if needed to show the prompt.
+             launchMode singleTop: prevents stacking multiple instances.
+             excludeFromRecents: hides from the recent apps switcher. -->
+        <activity
+            android:name=".AppLockActivity"
+            android:exported="false"
+            android:theme="@style/AppTheme"
+            android:launchMode="singleTop"
+            android:showWhenLocked="true"
+            android:turnScreenOn="true"
+            android:excludeFromRecents="true"
+            android:noHistory="false" />
     </application>
 </manifest>

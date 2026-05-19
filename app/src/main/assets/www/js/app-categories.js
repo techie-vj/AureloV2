@@ -679,7 +679,6 @@ function saveAddToCat(){
 
 // Move a single app to another category via long-press
 // ── Pick mode for long-press drag across categories (fix #6) ───────────────
-let pickedApp = null; // { pkg, name, fromCat }
 
 function enterPickMode(pkg, name, fromCat){
   pickedApp = { pkg, name, fromCat };
@@ -995,6 +994,160 @@ function saveEditCat(){
   closeModal('edit-cat-modal'); toast(editingCat?`Updated: ${name}`:`Created: ${name}`,'success'); editingCat=null;
 }
 function confirmDelCat(){ if(editingCat) confirmDelCatByName(editingCat); }
+
+/* ══ APP LOCK — PIN SETUP & SETTINGS ════════════════════════════════════════
+ * 6b: PIN setup modal — shown before user can lock any app (no PIN set yet)
+ * 6c: renderAppLockSettings() — shown in the App Lock settings section
+ * ========================================================================= */
+
+/* ── 6b: PIN setup modal ───────────────────────────────────────────────── */
+function openPinSetupModal(isChange) {
+  if (!document.getElementById('pin-setup-modal')) {
+    const html = `
+    <div id="pin-setup-modal" class="modal-bg">
+      <div class="sheet">
+        <div class="sheet-handle"></div>
+        <div class="sheet-hdr">
+          <div class="sheet-title" id="pin-modal-title">Set App Lock PIN</div>
+          <div onclick="closeModal('pin-setup-modal')"
+               style="cursor:pointer;padding:6px 10px;color:var(--t3);font-size:18px;line-height:1">✕</div>
+        </div>
+        <div class="sheet-body" style="padding:20px 20px 40px">
+          <p style="color:var(--t2);font-size:13px;line-height:1.55;margin-bottom:18px;font-family:var(--ff-m)">
+            Create a 4–8 digit PIN to lock apps. You can also use fingerprint or face unlock.
+          </p>
+          <input id="pin-input-1" type="password" inputmode="numeric"
+            maxlength="8" placeholder="Enter PIN"
+            style="width:100%;padding:13px 14px;font-size:15px;letter-spacing:4px;text-align:center;
+                   background:var(--s2);border:1px solid var(--border2);border-radius:12px;
+                   color:var(--t1);box-sizing:border-box;margin-bottom:12px;
+                   outline:none;font-family:var(--ff-m)"/>
+          <input id="pin-input-2" type="password" inputmode="numeric"
+            maxlength="8" placeholder="Confirm PIN"
+            style="width:100%;padding:13px 14px;font-size:15px;letter-spacing:4px;text-align:center;
+                   background:var(--s2);border:1px solid var(--border2);border-radius:12px;
+                   color:var(--t1);box-sizing:border-box;margin-bottom:20px;
+                   outline:none;font-family:var(--ff-m)"/>
+          <div style="display:flex;align-items:center;gap:12px;padding:13px 15px;
+                      background:var(--s1);border:1px solid var(--border);border-radius:12px;
+                      margin-bottom:18px">
+            <div style="flex:1">
+              <div style="font-size:14px;font-weight:600">Fingerprint / Face Unlock</div>
+              <div style="font-family:var(--ff-m);font-size:11px;color:var(--t3);margin-top:2px">
+                Use biometric to unlock locked apps
+              </div>
+            </div>
+            <div id="pin-bio-tog" class="tog on" onclick="pinToggleBiometric(this)">
+              <div class="tog-knob"></div>
+            </div>
+          </div>
+          <button onclick="savePinSetup()"
+            style="width:100%;padding:15px;border-radius:14px;border:none;cursor:pointer;
+                   background:linear-gradient(135deg,var(--p),var(--c));color:#fff;
+                   font-family:var(--ff-d);font-size:16px;min-height:50px">
+            Set PIN
+          </button>
+        </div>
+      </div>
+    </div>`;
+    document.body.insertAdjacentHTML('beforeend', html);
+  }
+  // Update title + clear inputs on every open
+  const titleEl = document.getElementById('pin-modal-title');
+  if (titleEl) titleEl.textContent = isChange ? 'Change App Lock PIN' : 'Set App Lock PIN';
+  const p1 = document.getElementById('pin-input-1');
+  const p2 = document.getElementById('pin-input-2');
+  if (p1) p1.value = '';
+  if (p2) p2.value = '';
+  // Sync biometric toggle state
+  const bioTog = document.getElementById('pin-bio-tog');
+  if (bioTog && IS_NATIVE) {
+    const bioOn = N.isBiometricEnabled();
+    bioTog.classList.toggle('on', bioOn);
+    bioTog.classList.toggle('off', !bioOn);
+  }
+  openModal('pin-setup-modal');
+}
+
+function pinToggleBiometric(tog) {
+  const isOn = tog.classList.contains('on');
+  tog.classList.toggle('on', !isOn);
+  tog.classList.toggle('off', isOn);
+  if (IS_NATIVE) N.setBiometricEnabled(!isOn);
+}
+
+function savePinSetup() {
+  const pin1 = document.getElementById('pin-input-1').value.trim();
+  const pin2 = document.getElementById('pin-input-2').value.trim();
+  if (pin1.length < 4)        { toast('PIN must be at least 4 digits', 'warn'); return; }
+  if (!/^\d+$/.test(pin1))    { toast('PIN must be digits only', 'warn'); return; }
+  if (pin1 !== pin2)           { toast('PINs do not match', 'warn'); return; }
+  if (!IS_NATIVE)              { toast('PIN setup requires the native app', 'warn'); return; }
+  const ok = N.setPin(pin1);
+  if (ok) {
+    closeModal('pin-setup-modal');
+    toast('App Lock PIN set ✓', 'success');
+    // Re-render App Lock settings so it switches to 'Change PIN'
+    const wrap = document.getElementById('app-lock-settings-wrap');
+    if (wrap) wrap.innerHTML = renderAppLockSettings();
+  } else {
+    toast('Could not save PIN — secure storage unavailable', 'error');
+  }
+}
+
+/* ── 6c: App Lock settings rows (PIN + biometric toggle) ───────────────── */
+function renderAppLockSettings() {
+  const pinSetup  = IS_NATIVE && N.isPinSetup();
+  const biometric = IS_NATIVE && N.isBiometricEnabled();
+  if (!pinSetup) {
+    return `
+    <div class="sr" onclick="openPinSetupModal(false)" style="border-radius:13px">
+      <div class="sr-ico sr-ico--lock"></div>
+      <div style="flex:1">
+        <div class="sr-lbl">Set Up App Lock PIN</div>
+        <div class="sr-sub">Required before locking any app</div>
+      </div>
+      <div class="sr-chev">›</div>
+    </div>`;
+  }
+  return `
+  <div class="sr" onclick="openChangePinModal()" style="border-radius:13px 13px 0 0">
+    <div class="sr-ico sr-ico--lock"></div>
+    <div style="flex:1">
+      <div class="sr-lbl">Change PIN</div>
+      <div class="sr-sub">Tap to change your app lock PIN</div>
+    </div>
+    <div class="sr-chev">›</div>
+  </div>
+  <div class="sr" style="border-radius:0 0 13px 13px;border-top:none">
+    <div class="sr-ico" style="background:rgba(108,99,255,.12);color:var(--p2)">👆</div>
+    <div style="flex:1">
+      <div class="sr-lbl">Fingerprint / Face Unlock</div>
+      <div class="sr-sub">Use biometric to unlock apps</div>
+    </div>
+    <div class="tog ${biometric ? 'on' : 'off'}" onclick="appLockToggleBiometric(this)">
+      <div class="tog-knob"></div>
+    </div>
+  </div>`;
+}
+
+function appLockToggleBiometric(tog) {
+  const isOn = tog.classList.contains('on');
+  tog.classList.toggle('on', !isOn);
+  tog.classList.toggle('off', isOn);
+  if (IS_NATIVE) N.setBiometricEnabled(!isOn);
+}
+
+function openChangePinModal() {
+  openPinSetupModal(true);
+}
+
+function openLockPanel() {
+  const wrap = document.getElementById('app-lock-settings-wrap');
+  if (wrap) wrap.innerHTML = renderAppLockSettings();
+  openPanel('lock-panel');
+}
+
 function confirmDelCatByName(name){
   showConfirm(`Delete "${name}"?`,'Apps will move back to auto-categorized groups.',()=>{
     // ── Fix 3: record this category as user-deleted so Play Store sync never restores it ──

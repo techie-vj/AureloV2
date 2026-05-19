@@ -281,6 +281,12 @@ class AppBridge(private val context: Context, private val webView: WebView) {
     @JavascriptInterface fun startPlaySync()                   = appManagement.startPlaySync()
     @JavascriptInterface fun onAdSearchClicked(q: String)      = appManagement.onAdSearchClicked(q)
     @JavascriptInterface fun finishApp()                       = (context as? Activity)?.finish()
+    @JavascriptInterface fun isPinSetup()                      = appManagement.isPinSetup()
+    @JavascriptInterface fun setPin(pin: String)               = appManagement.setPin(pin)
+    @JavascriptInterface fun verifyPin(pin: String)            = appManagement.verifyPin(pin)
+    @JavascriptInterface fun clearPin()                        = appManagement.clearPin()
+    @JavascriptInterface fun isBiometricEnabled()              = appManagement.isBiometricEnabled()
+    @JavascriptInterface fun setBiometricEnabled(enabled: Boolean) = appManagement.setBiometricEnabled(enabled)
 
     // ── Usage Stats ────────────────────────────────────────────────────────
     @JavascriptInterface fun getCachedDailyUsage()             = usage.getCachedDailyUsage()

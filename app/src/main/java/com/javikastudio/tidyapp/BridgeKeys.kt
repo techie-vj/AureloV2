@@ -208,3 +208,10 @@ const val REFERRAL_TOTAL_DAYS_EVER_BANKED = "referral_total_days_ever_banked"
 // 5 consecutive failures trigger a 60-second lockout.
 const val REF_REDEEM_FAIL_COUNT = "ref_redeem_fail_count"
 const val REF_REDEEM_LOCK_MS    = "ref_redeem_lock_ms"
+
+// ── App Lock PIN & Biometric ──────────────────────────────────────────────
+// PIN hash stored in securePrefs (EncryptedSharedPreferences).
+// Setup flag and biometric preference stored in regular prefs.
+const val APP_LOCK_PIN_HASH          = "app_lock_pin_hash_v1"
+const val APP_LOCK_BIOMETRIC_ENABLED = "app_lock_biometric_enabled"
+const val APP_LOCK_SETUP_DONE        = "app_lock_setup_done"

@@ -143,11 +143,69 @@ class AppManagementBridge(
     @JavascriptInterface fun setLockedApps(json: String) {
         if (!secureStorageAvailable()) return
         securePrefs.edit().putString(LOCKED_APPS_V4, json).apply()
+        // APP LOCK FIX: start AppMonitorService so the poll loop runs for App Lock
+        // detection even when no other feature (Focus/Timer/Bedtime/Filter) is active.
+        val hasApps = runCatching { JSONArray(json).length() > 0 }.getOrDefault(false)
+        if (hasApps && prefs.getBoolean(APP_LOCK_SETUP_DONE, false)) {
+            val svc = Intent(context, AppMonitorService::class.java)
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O)
+                context.startForegroundService(svc)
+            else
+                context.startService(svc)
+        }
     }
     @JavascriptInterface fun getHiddenApps(): String = securePrefs.getString(HIDDEN_APPS_V4, "[]") ?: "[]"
     @JavascriptInterface fun setHiddenApps(json: String) {
         if (!secureStorageAvailable()) return
         securePrefs.edit().putString(HIDDEN_APPS_V4, json).apply()
+    }
+
+    // ── PIN setup & verification ────────────────────────────────────────────
+
+    /** Returns true if a PIN has been configured. Called by JS before allowing any app to be locked. */
+    @JavascriptInterface fun isPinSetup(): Boolean =
+        prefs.getBoolean(APP_LOCK_SETUP_DONE, false)
+
+    /**
+     * Saves a new PIN. Input: plain PIN string from JS.
+     * Hashes with SHA-256 before storing in securePrefs.
+     * Returns true on success, false if secure storage is unavailable.
+     */
+    @JavascriptInterface fun setPin(pin: String): Boolean {
+        if (!secureStorageAvailable()) return false
+        if (pin.length < 4 || pin.length > 8) return false
+        if (!pin.all { it.isDigit() }) return false
+        securePrefs.edit().putString(APP_LOCK_PIN_HASH, sha256(pin)).apply()
+        prefs.edit().putBoolean(APP_LOCK_SETUP_DONE, true).apply()
+        return true
+    }
+
+    /** Verifies a PIN attempt from JS. Returns true if correct. */
+    @JavascriptInterface fun verifyPin(pin: String): Boolean {
+        val stored = securePrefs.getString(APP_LOCK_PIN_HASH, null) ?: return false
+        return sha256(pin) == stored
+    }
+
+    /** Clears PIN and removes all locked apps. */
+    @JavascriptInterface fun clearPin() {
+        securePrefs.edit().remove(APP_LOCK_PIN_HASH).apply()
+        prefs.edit().putBoolean(APP_LOCK_SETUP_DONE, false).apply()
+        setLockedApps("[]")
+    }
+
+    /** Returns whether biometric unlock is enabled (user preference). */
+    @JavascriptInterface fun isBiometricEnabled(): Boolean =
+        prefs.getBoolean(APP_LOCK_BIOMETRIC_ENABLED, true)
+
+    /** Saves biometric unlock preference. */
+    @JavascriptInterface fun setBiometricEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean(APP_LOCK_BIOMETRIC_ENABLED, enabled).apply()
+    }
+
+    private fun sha256(input: String): String {
+        val bytes = java.security.MessageDigest.getInstance("SHA-256")
+            .digest(input.toByteArray(Charsets.UTF_8))
+        return bytes.joinToString("") { "%02x".format(it) }
     }
 
     // ── Category overrides ────────────────────────────────────────────────────

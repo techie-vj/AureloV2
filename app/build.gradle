@@ -109,4 +109,7 @@ dependencies {
 
     // Play Install Referrer — read UTM referrer at first launch for referral attribution
     implementation 'com.android.installreferrer:installreferrer:2.2'
+
+    // Biometric — fingerprint + face unlock for App Lock (covers Android 6+)
+    implementation 'androidx.biometric:biometric:1.1.0'
 }
