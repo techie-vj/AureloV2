@@ -668,9 +668,9 @@ window.ScreenFilter = (function () {
   }
 
   var PRESET_SUBS = {
-    soft:    'Eye strain',
-    medium:  'Blue light',
-    bedtime: 'Melatonin',
+    soft:    'Evening • 3400K',
+    medium:  'Focus • 2800K',
+    bedtime: 'Deep Sleep • 2200K',
     custom:  'Manual'
   };
 
