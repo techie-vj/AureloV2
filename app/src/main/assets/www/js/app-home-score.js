@@ -111,6 +111,11 @@ function _bodyPillarScore() {
 }
 
 function _computeAureloScore() {
+  // ── Primary path: delegate to FocusScore.calculateAurelo() ───────────────
+  // calculateAurelo() now calls N.getAureloScore(focusScore) first, making
+  // AureloScoreBridge.kt the single source of truth for the composite formula.
+  // This function is kept as a thin wrapper so all call sites (renderHomeScore,
+  // renderScoreCard, openScoreDetailSheet) are unchanged.
   if (typeof FocusScore !== 'undefined' &&
       typeof FocusScore.calculateAurelo === 'function') {
     try {
@@ -130,16 +135,12 @@ function _computeAureloScore() {
     } catch (_) {}
   }
 
+  // ── Last-resort JS fallback (non-native / FocusScore unavailable) ─────────
+  // Should not be reached in production. Kept for dev/preview environments.
   const screen = _screenPillarScore();
   const focus  = _focusPillarScore();
   const sleep  = _sleepPillarScore();
   const body   = _bodyPillarScore();
-  // F-01: weights now match FocusScore.calculateAurelo() canonical weights.
-  // Without HC: Screen 40%, Focus 35%, Sleep 25%.
-  // With HC body: Screen 35%, Focus 30%, Sleep 20%, Body 15% (F-23).
-  // BUG-04 FIX: When HC is active but sleep is disabled, the old fallback used
-  // { screen:35, focus:30, sleep:0, body:15 } which after renorm made screen=70%.
-  // The canonical calculateAurelo() uses screen=46%, focus=39%, body=15% in that case.
   const hcBodyAvail = body !== null;
   const sleepAvail  = sleep !== null;
   const _sw = hcBodyAvail

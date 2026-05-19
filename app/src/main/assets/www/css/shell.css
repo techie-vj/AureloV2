@@ -31,16 +31,10 @@
   position: absolute; inset: 0;
   overflow-y: auto; overflow-x: hidden;
   display: none; scrollbar-width: none;
-  /* Extra bottom padding = nav (68px) + safe area + 8px breathing room */
-    padding-bottom: 16px;
+  padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
   -webkit-overflow-scrolling: touch;
-  /* FLICKER FIX: Do NOT use contain:content or will-change:transform here.
-     Both create a new stacking context, meaning position:fixed children
-     (score sheets, dialogs) get positioned relative to this element instead
-     of the viewport. When the screen scrolls slightly (e.g. aborted pull-to-
-     refresh), those "fixed" sheets jump = visible flicker.
-     contain:layout is safe — it does NOT create a stacking context. */
   contain: layout;
+  overscroll-behavior-y: contain; /* ADD THIS */
 }
 /* Only promote during actual swipe navigation */
 .screen.swipe-transitioning {
@@ -58,68 +52,110 @@
 }
 .swipe-indicator.visible { opacity: 1; }
 
-/* ── Bottom navigation ────────────────────────────────── */
+/* ── Bottom navigation — Floating Glass Pill ──────────── */
 /* role="navigation" set in HTML; aria-label="Main" */
 .bottom-nav {
   flex-shrink: 0;
-  height: calc(68px + env(safe-area-inset-bottom, 0px));
-  background: var(--nav-bg);
-  border-top: 1px solid var(--border);
-  display: flex; align-items: flex-start;
-  justify-content: space-around;
-  padding: 8px 0 0;
-  padding-bottom: env(safe-area-inset-bottom, 0px);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-}
-
-/* Nav item — role="tab" set in HTML; min touch target via tokens.css */
-.nav-item {
-  display: flex; flex-direction: column;
-  align-items: center; gap: 3px;
-  padding: 8px 16px;
-  /* #7: No rounded-square background containers — bare icon + accent only */
-  border-radius: 0;
-  cursor: pointer;
-  transition: all .18s;
-  position: relative;
-  /* #8: gradient top-border accent on active */
-  border-top: 2px solid transparent;
-}
-.nav-item:active { transform: scale(.88); }
-/* #7+#8: no background box, just accent line + color shift */
-.nav-item.active {
-  border-top: 2px solid var(--p);
+  height: calc(70px + env(safe-area-inset-bottom, 0px));
   background: transparent;
+  border-top: none;
+  display: flex; align-items: flex-start;
+  justify-content: center;
+  padding: 10px 24px 0;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  position: relative;
 }
 
-/* Icon area — animated on active */
+/* Glass pill container */
+.nav-pill {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  width: 100%;
+  max-width: 340px;
+  background: rgba(255, 255, 255, 0.045);
+  backdrop-filter: blur(28px);
+  -webkit-backdrop-filter: blur(28px);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 100px;
+  padding: 5px 6px;
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.45),
+    0 2px 8px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.07);
+}
+
+/* Nav item — role="tab" set in HTML */
+.nav-item {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  padding: 9px 14px;
+  border-radius: 100px;
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  color: var(--t3);
+  position: relative;
+  overflow: hidden;
+  min-width: 46px;
+  transition: background 0.3s cubic-bezier(0.34, 1.56, 0.64, 1),
+              padding   0.3s cubic-bezier(0.34, 1.56, 0.64, 1),
+              gap       0.3s cubic-bezier(0.34, 1.56, 0.64, 1),
+              box-shadow 0.3s ease,
+              color     0.2s ease;
+}
+.nav-item:active { transform: scale(0.88); transition: transform 0.1s; }
+
+.nav-item.active {
+  background: var(--p);
+  color: #fff;
+  gap: 7px;
+  padding: 9px 20px;
+  box-shadow: 0 4px 18px rgba(108, 99, 255, 0.45);
+}
+
+/* Icon wrapper */
 .nav-icon {
-  font-size: 22px; line-height: 1;
-  transition: transform .25s cubic-bezier(.34,1.56,.64,1), filter .18s;
   display: flex; align-items: center; justify-content: center;
-  width: 28px; height: 28px;
-  /* #7: bare icon — no background box */
-  filter: grayscale(0.35) brightness(0.7);
+  width: 22px; height: 22px;
+  flex-shrink: 0;
+  font-size: 18px; line-height: 1;
+  position: relative;
+  transition: color 0.2s ease;
+  color: inherit;
 }
-.nav-item.active .nav-icon {
-  transform: scale(1.22);
-  filter: grayscale(0) brightness(1);
-}
+/* Emoji fallback brightness */
+.nav-item:not(.active) .nav-icon { filter: grayscale(0.2) brightness(0.55); }
+.nav-item.active .nav-icon       { filter: none; }
 
-/* Nav label */
+/* SVG icons inside nav — inherit color from nav-item */
+.nav-icon svg { width: 22px; height: 22px; display: block; }
+
+/* Nav label — collapses when inactive */
 .nav-lbl {
   font-family: var(--ff-m);
   font-size: var(--text-2xs);
-  letter-spacing: .5px;
-  color: var(--t3);
-  transition: color .18s, font-weight .18s;
+  font-weight: var(--fw-bold);
+  letter-spacing: 0.4px;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  max-width: 0;
+  opacity: 0;
+  transition: max-width 0.32s cubic-bezier(0.34, 1.56, 0.64, 1),
+              opacity   0.18s ease;
 }
-.nav-item.active .nav-lbl { color: var(--p2); font-weight: var(--fw-bold); }
+.nav-item.active .nav-lbl {
+  max-width: 52px;
+  opacity: 1;
+}
 
 /* Nav badge (notification dot) */
 .nav-badge {
-  position: absolute; top: 4px; right: 12px;
+  position: absolute; top: 3px; right: 8px;
   min-width: 16px; height: 16px; border-radius: 8px;
   background: var(--r);
   display: none; align-items: center; justify-content: center;

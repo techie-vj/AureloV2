@@ -170,6 +170,7 @@ class AppBridge(private val context: Context, private val webView: WebView) {
     private val billing = BillingBridge(context,webView,prefs,securePrefs,bridgeScope,billingManager,entitlementRepo,PurchaseRestoreHandler(context,webView,billingManager,entitlementRepo),referral)
     internal val healthConnect = HealthConnectBridge(context,webView,prefs,securePrefs,bridgeScope)
     internal val coach = CoachBridge(context,webView,prefs,securePrefs,bridgeScope)
+    internal val aureloScore = AureloScoreBridge(prefs, healthConnect)
 
     private val pendingLaunchActivity: Activity? = null
 
@@ -450,6 +451,9 @@ class AppBridge(private val context: Context, private val webView: WebView) {
     @JavascriptInterface fun disconnectHC()                    = healthConnect.disconnectHC()
     @JavascriptInterface fun syncHCData()                      = healthConnect.syncHCData()
     @JavascriptInterface fun getHCBodyScore()                  = healthConnect.getHCBodyScore()
+    @JavascriptInterface fun getScreenScore()                  = aureloScore.getScreenScore()
+    @JavascriptInterface fun getSleepScore()                   = aureloScore.getSleepScore()
+    @JavascriptInterface fun getAureloScore(focusScore: Int)   = aureloScore.getAureloScore(focusScore)
     @JavascriptInterface fun getHCActivityModifier()           = healthConnect.getHCActivityModifier()
     @JavascriptInterface fun getHCSleepData()                  = healthConnect.getHCSleepData()
     @JavascriptInterface fun getHCUsageSummary()               = healthConnect.getHCUsageSummary()

@@ -299,11 +299,51 @@
     </main>
     <nav class="bottom-nav" role="navigation" aria-label="Main navigation" style="position:relative">
         <div id="swipe-indicator" class="swipe-indicator"></div>
-        <button class="nav-item active" id="nav-home" role="tab" aria-selected="true" aria-label="Home" onclick="activateTab('home')"><div class="nav-icon" aria-hidden="true"><img id="nav-home-icon" src="" style="width:24px;height:24px;border-radius:6px;object-fit:cover" onerror="this.outerHTML='<span>🏠</span>'" alt=""/></div><span class="nav-lbl">Home</span></button>
-        <button class="nav-item" id="nav-wellness" role="tab" aria-selected="false" aria-label="Stats" onclick="activateTab('wellness')"><div class="nav-icon" aria-hidden="true">📊</div><span class="nav-lbl">Stats</span></button>
-        <button class="nav-item" id="nav-focus" role="tab" aria-selected="false" aria-label="Focus" onclick="activateTab('focus')"><div class="nav-icon" aria-hidden="true">🎯</div><span class="nav-lbl">Focus</span></button>
-        <button class="nav-item" id="nav-discover" role="tab" aria-selected="false" aria-label="Discover" onclick="activateTab('discover')" style="display:none"><div class="nav-icon" aria-hidden="true">💡</div><span class="nav-lbl">Discover</span></button>
-        <button class="nav-item" id="nav-settings" role="tab" aria-selected="false" aria-label="Settings" onclick="activateTab('settings')" style="display:none"></button>
+        <div class="nav-pill">
+            <button class="nav-item active" id="nav-home" role="tab" aria-selected="true" aria-label="Home" onclick="activateTab('home')">
+                <div class="nav-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="currentColor" stroke="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z" opacity="0.9"/>
+                    </svg>
+                </div>
+                <span class="nav-lbl">Home</span>
+            </button>
+            <button class="nav-item" id="nav-wellness" role="tab" aria-selected="false" aria-label="Stats" onclick="activateTab('wellness')">
+                <div class="nav-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="currentColor" stroke="none" xmlns="http://www.w3.org/2000/svg">
+                        <rect x="3" y="13" width="4" height="8" rx="1.5"/>
+                        <rect x="10" y="8" width="4" height="13" rx="1.5"/>
+                        <rect x="17" y="3" width="4" height="18" rx="1.5"/>
+                    </svg>
+                </div>
+                <span class="nav-lbl">Stats</span>
+            </button>
+            <button class="nav-item" id="nav-focus" role="tab" aria-selected="false" aria-label="Focus" onclick="activateTab('focus')">
+                <div class="nav-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="currentColor" stroke="none" xmlns="http://www.w3.org/2000/svg">
+                        <path fill-rule="evenodd" clip-rule="evenodd" d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm0 2a8 8 0 100 16A8 8 0 0012 4zm0 3a5 5 0 100 10A5 5 0 0012 7zm0 3a2 2 0 100 4 2 2 0 000-4z"/>
+                    </svg>
+                </div>
+                <span class="nav-lbl">Focus</span>
+            </button>
+            <button class="nav-item" id="nav-discover" role="tab" aria-selected="false" aria-label="Discover" onclick="activateTab('discover')" style="display:none">
+                <div class="nav-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="currentColor" stroke="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M12 2a10 10 0 100 20A10 10 0 0012 2zm4.95 6.05l-3.18 7.42a1 1 0 01-.55.55l-7.42 3.18a.5.5 0 01-.65-.65l3.18-7.42a1 1 0 01.55-.55l7.42-3.18a.5.5 0 01.65.65z"/>
+                        <circle cx="12" cy="12" r="1.5"/>
+                    </svg>
+                </div>
+                <span class="nav-lbl">Discover</span>
+            </button>
+            <button class="nav-item" id="nav-settings" role="tab" aria-selected="false" aria-label="Settings" onclick="activateTab('settings')" style="display:none">
+                <div class="nav-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="currentColor" stroke="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M19.14 12.94c.04-.3.06-.61.06-.94s-.02-.64-.07-.94l2.03-1.58a.49.49 0 00.12-.61l-1.92-3.32a.49.49 0 00-.59-.22l-2.39.96a7.01 7.01 0 00-1.62-.94l-.36-2.54a.484.484 0 00-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96a.47.47 0 00-.59.22L2.74 8.87a.47.47 0 00.12.61l2.03 1.58c-.05.3-.07.62-.07.94s.02.64.07.94l-2.03 1.58a.47.47 0 00-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.35 1.04.68 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.26 1.13-.59 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32a.47.47 0 00-.12-.61l-2.01-1.58zM12 15.6a3.6 3.6 0 110-7.2 3.6 3.6 0 010 7.2z"/>
+                    </svg>
+                </div>
+                <span class="nav-lbl">Settings</span>
+            </button>
+        </div>
     </nav>
 </div>
 

@@ -107,6 +107,14 @@ class HealthConnectBridge(
     }
 
     // ── Scores delegated to calculator objects ────────────────────────────────
+    /**
+     * Internal accessor used by AureloScoreBridge to read HC data without going
+     * through JSON serialization. Safe to call from any thread — _cachedData is
+     * @Volatile and written atomically by refreshCachedData().
+     */
+    internal fun getCachedData(): HCDailyData = _cachedData
+
+
 
     /** Body pillar score 0–100, or -1 if HC not connected / data missing. */
     @JavascriptInterface

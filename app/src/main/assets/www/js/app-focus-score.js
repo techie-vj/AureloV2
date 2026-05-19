@@ -405,9 +405,37 @@ window.FocusScore = (function () {
    *       so HC users feel the Body pillar has meaningful impact.
    * ════════════════════════════════════════════════════════════ */
   function calculateAurelo() {
-    var d         = typeof FocusTab !== 'undefined' ? FocusTab.loadStripData() : {};
-    var focusRes  = calculateFocus(d);
-    var sleepRes  = calculateSleep();
+    var d        = typeof FocusTab !== 'undefined' ? FocusTab.loadStripData() : {};
+    var focusRes = calculateFocus(d);
+
+    // ── Kotlin bridge path (single source of truth) ───────────────────────
+    // AureloScoreBridge.kt now owns Screen Score, Sleep Score, and composite
+    // weight assembly. JS passes the Focus Score (which still needs JS-side
+    // timer/pause state from loadStripData) and receives the full composite back.
+    // Fallback to the JS-only path if the bridge is unavailable (e.g. dev preview).
+    if (IS_NATIVE && typeof N.getAureloScore === 'function') {
+      try {
+        var r = JSON.parse(N.getAureloScore(focusRes.score >= 0 ? focusRes.score : -1));
+        if (r && r.score >= 0) {
+          return {
+            score:       r.score,
+            screenScore: r.screenScore,
+            focusScore:  r.focusScore,
+            sleepScore:  r.sleepScore,
+            hcBodyScore: r.hcBodyScore,
+            hcActive:    r.hcActive,
+            swScreen:    r.swScreen,
+            swFocus:     r.swFocus,
+            swSleep:     r.swSleep,
+            swBody:      r.swBody,
+            sleepEnabled:r.sleepEnabled,
+          };
+        }
+      } catch (_) {}
+    }
+
+    // ── JS fallback (non-native / bridge unavailable) ─────────────────────
+    var sleepRes = calculateSleep();
     var screenScore = -1;
     if (typeof calculateScreenScoreWithHealthConnect === 'function') {
       try { screenScore = calculateScreenScoreWithHealthConnect().effectiveScore; } catch (_) { screenScore = -1; }
@@ -426,20 +454,18 @@ window.FocusScore = (function () {
     }
     var sleepEnabled = effectiveSleepScore >= 0;
 
-    // Health Connect Body Score
     var hcBodyScore = -1, hcActive = false;
     if (typeof HealthConnect !== 'undefined' && HealthConnect.isConnected()) {
       hcBodyScore = HealthConnect.getBodyScore();
       hcActive    = hcBodyScore >= 0;
     }
 
-    // F-23: Body raised to 15% (Sleep reduced from 25% to 20% when both active)
     var swScreen, swFocus, swSleep, swBody;
     if (hcActive) {
       swSleep  = sleepEnabled ? 20 : 0;
       swScreen = sleepEnabled ? 35 : 46;
       swFocus  = sleepEnabled ? 30 : 39;
-      swBody   = 15;  // F-23: was 10
+      swBody   = 15;
     } else {
       swSleep  = sleepEnabled ? 25 : 0;
       swScreen = sleepEnabled ? 40 : 55;
@@ -448,10 +474,10 @@ window.FocusScore = (function () {
     }
 
     var parts = [], weights = [];
-    if (screenScore >= 0)       { parts.push(screenScore * swScreen);          weights.push(swScreen); }
-    if (focusRes.score >= 0)    { parts.push(focusRes.score * swFocus);         weights.push(swFocus);  }
-    if (sleepEnabled)           { parts.push(effectiveSleepScore * swSleep);    weights.push(swSleep);  }
-    if (hcActive)               { parts.push(hcBodyScore * swBody);            weights.push(swBody);   }
+    if (screenScore >= 0)    { parts.push(screenScore * swScreen);         weights.push(swScreen); }
+    if (focusRes.score >= 0) { parts.push(focusRes.score * swFocus);        weights.push(swFocus);  }
+    if (sleepEnabled)        { parts.push(effectiveSleepScore * swSleep);   weights.push(swSleep);  }
+    if (hcActive)            { parts.push(hcBodyScore * swBody);            weights.push(swBody);   }
 
     var totalW = weights.reduce(function(a, b) { return a + b; }, 0);
     var score  = totalW === 0 ? -1 : Math.round(parts.reduce(function(a, b) { return a + b; }, 0) / totalW);

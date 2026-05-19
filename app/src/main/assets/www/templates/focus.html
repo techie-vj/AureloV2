@@ -24,29 +24,26 @@
     </div>
 
     <!-- ── Sub-tab pills ──────────────────────────────── -->
-    <div id="focus-subtab-pills" style="display:flex;gap:6px;padding:12px 16px 12px;flex-shrink:0">
-        <button id="focus-pill-focus" class="w-tpb on" onclick="FocusTab._switchFocusSubTab('focus')"
-                style="flex:1;padding:8px 0;border-radius:10px;border:none;cursor:pointer;
-                   font-family:var(--ff-m);font-size:12px;font-weight:700;transition:all .15s">
-            🎯 Sessions
-        </button>
-        <button id="focus-pill-habits" class="w-tpb off" onclick="FocusTab._switchFocusSubTab('habits')"
-                style="flex:1;padding:8px 0;border-radius:10px;border:none;cursor:pointer;
-                   font-family:var(--ff-m);font-size:12px;font-weight:700;transition:all .15s">
-            🌿 Habits
-        </button>
-        <!-- FIX #5: App Overview button — see all configured apps across every feature -->
-        <button onclick="AppOverview.show()"
-                style="width:38px;height:38px;border-radius:10px;border:1px solid var(--border2);
+    <div style="padding:8px 16px 12px; display:flex; justify-content:center">
+        <div style="display:flex; align-items:center; gap:8px; width:100%; max-width:340px">
+            <div class="w-toggle-pill" style="flex:1">
+            <button id="focus-pill-focus" style="flex:1" class="w-tpb on"
+                    onclick="FocusTab._switchFocusSubTab('focus')">Sessions</button>
+            <button id="focus-pill-habits" style="flex:1" class="w-tpb"
+                    onclick="FocusTab._switchFocusSubTab('habits')">Habits</button>
+            </div>
+             <button onclick="AppOverview.show()"
+                style="width:36px;height:36px;border-radius:10px;border:1px solid var(--border2);
                    background:var(--s1);cursor:pointer;display:flex;align-items:center;
-                   justify-content:center;flex-shrink:0;transition:all .15s"
+                   justify-content:center;flex-shrink:0"
                 title="App configuration overview">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                  stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--t2)">
                 <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
                 <rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
-            </svg>
-        </button>
+                </svg>
+             </button>
+        </div>
     </div>
 
     <!-- ══ FOCUS sub-tab ══════════════════════════════ -->
@@ -87,8 +84,6 @@
               border:1px solid rgba(18,212,138,.2);border-radius:18px;position:relative;overflow:hidden">
             <!-- rendered by app-focus.js _renderIntentionPrompt() -->
         </div>
-
-        <div style="height:20px"></div>
     </div><!-- /focus-subtab-focus -->
 
     <!-- Routine picker modal -->
