@@ -1,0 +1,90 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+  <!-- ── Aurelo arch + crown apex (all inside scaled group) ── -->
+  <group
+      android:scaleX="0.69"
+      android:scaleY="0.69"
+      android:translateX="16.74"
+      android:translateY="16.74">
+
+    <!-- Main arch stroke (clipped) -->
+    <group>
+      <clip-path android:pathData="M0,0h108v108h-108z"/>
+      <path
+          android:pathData="M22,88C22,88 30,30 54,20C78,30 86,88 86,88"
+          android:strokeWidth="7.5"
+          android:fillColor="#00000000"
+          android:strokeLineCap="round">
+        <aapt:attr name="android:strokeColor">
+          <gradient
+              android:startX="28"
+              android:startY="20"
+              android:endX="80"
+              android:endY="90"
+              android:type="linear">
+            <item android:offset="0"    android:color="#FFFFE082"/>
+            <item android:offset="0.55" android:color="#FFFFAA44"/>
+            <item android:offset="1"    android:color="#FFCC88FF"/>
+          </gradient>
+        </aapt:attr>
+      </path>
+    </group>
+
+    <!-- Outer glow trace -->
+    <path
+        android:pathData="M22,88C22,88 30,30 54,20C78,30 86,88 86,88"
+        android:strokeAlpha="0.5"
+        android:strokeWidth="1.5"
+        android:fillColor="#00000000"
+        android:fillAlpha="0.5"
+        android:strokeLineCap="round">
+      <aapt:attr name="android:strokeColor">
+        <gradient
+            android:startX="28"
+            android:startY="20"
+            android:endX="80"
+            android:endY="90"
+            android:type="linear">
+          <item android:offset="0"    android:color="#FFFFE082"/>
+          <item android:offset="0.55" android:color="#FFFFAA44"/>
+          <item android:offset="1"    android:color="#FFCC88FF"/>
+        </gradient>
+      </aapt:attr>
+    </path>
+
+    <!-- Crown replacing the apex dot — centered at (54, 20), local coords
+         Base y=26, peaks up to y=13. After group scale (×0.69) the rendered
+         crown is ~11dp wide × ~9dp tall, sitting right on the arch apex. -->
+    <path android:pathData="M46,26 L46,17 L50.5,21.5 L54,13 L57.5,21.5 L62,17 L62,26 Z">
+      <aapt:attr name="android:fillColor">
+        <gradient
+            android:startX="46"
+            android:startY="13"
+            android:endX="62"
+            android:endY="26"
+            android:type="linear">
+          <item android:offset="0"   android:color="#FFFFF3C0"/>
+          <item android:offset="0.5" android:color="#FFFFD060"/>
+          <item android:offset="1"   android:color="#FFFFAA30"/>
+        </gradient>
+      </aapt:attr>
+    </path>
+
+    <!-- Crown jewel dots at each peak -->
+    <path
+        android:pathData="M46,16m-2,0a2,2 0,1 1,4 0a2,2 0,1 1,-4 0"
+        android:fillColor="#FFFFE090"/>
+    <path
+        android:pathData="M54,12m-2.3,0a2.3,2.3 0,1 1,4.6 0a2.3,2.3 0,1 1,-4.6 0"
+        android:fillColor="#FFFFE090"/>
+    <path
+        android:pathData="M62,16m-2,0a2,2 0,1 1,4 0a2,2 0,1 1,-4 0"
+        android:fillColor="#FFFFE090"/>
+
+  </group>
+</vector>

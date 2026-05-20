@@ -271,5 +271,27 @@
             android:turnScreenOn="true"
             android:excludeFromRecents="true"
             android:noHistory="false" />
+
+        <!-- ── PRO LAUNCHER ICON ────────────────────────────────────────────
+             Enabled by LauncherIconManager when Pro is granted; MainActivity
+             launcher entry is swapped to DEFAULT at the same time so only one
+             icon appears. Disabled again on downgrade / grace-period expiry.
+             android:exported="true" is required for the launcher to resolve it.
+             Explicit intents to MainActivity continue to work regardless of
+             which component is currently enabled. -->
+        <activity-alias
+            android:name=".MainActivityIconPro"
+            android:targetActivity=".MainActivity"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_pro"
+            android:roundIcon="@mipmap/ic_launcher_pro_round"
+            android:label="Aurelo">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
     </application>
 </manifest>

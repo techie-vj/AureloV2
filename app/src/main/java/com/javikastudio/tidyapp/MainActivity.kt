@@ -173,6 +173,12 @@ class MainActivity : AppCompatActivity() {
         bridge = AppBridge(this, webView)
         webView.addJavascriptInterface(bridge, "AppBridge")
 
+        // Sync launcher icon for existing Pro users who upgraded from a build that
+        // predates LauncherIconManager. onProStatusChanged only fires when billing
+        // re-confirms; it won't fire for users already holding a valid entitlement,
+        // so we align the icon here on every cold start instead.
+        LauncherIconManager.updateIcon(this, bridge.entitlementRepo.isPro)
+
         // BUG-01 FIX: checkInstallReferrerAndGrantBonus() was fully implemented in
         // ReferralManager but never called. Every referred install silently received
         // 0 bonus days. Call it here on first launch (before onboarding completes)

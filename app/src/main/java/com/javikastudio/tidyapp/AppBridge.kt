@@ -45,7 +45,7 @@ class AppBridge(private val context: Context, private val webView: WebView) {
     }
 
     private val pm: PackageManager = context.packageManager
-    private val entitlementRepo = EntitlementRepository(context)
+    internal val entitlementRepo = EntitlementRepository(context)
     private val billingManager = BillingManager(context, object : BillingManager.BillingListener {
         override fun onProStatusChanged(isPro: Boolean) {
             // ── Grace-period guard (DOWNGRADE-FIX) ───────────────────────────────
@@ -80,6 +80,9 @@ class AppBridge(private val context: Context, private val webView: WebView) {
             // Write the grant here; the revocation paths below handle the false write.
             if (isPro) prefs.edit().putBoolean(IS_PRO_USER, true).apply()
 
+            // Swap launcher icon immediately so the home screen reflects Pro status.
+            LauncherIconManager.updateIcon(context, isPro)
+
             webView.post { webView.evaluateJavascript("window.__pendingProStatus=$isPro;if(typeof window.onProStatusChanged==='function') window.onProStatusChanged($isPro)",null) }
 
             // ── Downgrade handling (billing-detection path) ───────────────────────
@@ -109,6 +112,8 @@ class AppBridge(private val context: Context, private val webView: WebView) {
                     // above via setProStatus(isPro=false)), causing BillingBridge.isProUser() and
                     // the grace-period guard to operate on stale data for the extension's lifetime.
                     entitlementRepo.setProStatus(true)
+                    // Extension keeps user Pro — revert icon to Pro if it was already flipped.
+                    LauncherIconManager.updateIcon(context, true)
                     android.util.Log.d("AureloBilling",
                         "Billing lapse — referral extension activated: $extensionDays days")
                     // BUG-06 FIX: schedule the expiry worker so Pro is revoked automatically
