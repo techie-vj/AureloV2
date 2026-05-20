@@ -118,6 +118,71 @@ class BootReceiver : BroadcastReceiver() {
         // regardless of receiver execution order.  The call is idempotent — scheduling
         // the same alarm twice replaces the previous PendingIntent via FLAG_UPDATE_CURRENT.
         RoutineAlarmReceiver().rescheduleAllRoutinesOnBoot(ctx)
+
+        // ── 5. App Lock — restart monitor service after reboot / upgrade ──────
+        // AppMonitorService keeps itself alive while locked apps are configured
+        // (via the hasLockedApps guard in pollRunnable). After a device reboot or
+        // app upgrade the process is killed. START_STICKY is unreliable on OEM
+        // devices (Samsung, MIUI aggressive battery optimisation) and may never
+        // fire, leaving App Lock silently broken until the user opens Aurelo and
+        // taps Save. Explicitly restart the service here so the poll loop resumes
+        // immediately without any user action required.
+        //
+        // We start with no action (null intent) — the service's onStartCommand
+        // null branch calls restoreFromPrefs() on all engines and starts polling.
+        // App Lock detection runs every poll tick reading directly from SensitivePrefs,
+        // so no extra restore step is needed beyond starting the service.
+        val appLockSetup = prefs.getBoolean(APP_LOCK_SETUP_DONE, false)
+        if (appLockSetup) {
+            val hasLockedApps = runCatching {
+                org.json.JSONArray(
+                    SensitivePrefs.get(ctx).getString(LOCKED_APPS_V4, "[]") ?: "[]"
+                ).length() > 0
+            }.getOrDefault(false)
+            if (hasLockedApps) {
+                startService(ctx, Intent(ctx, AppMonitorService::class.java))
+            }
+        }
+
+        // ── 6. Mindful Pause — restart monitor service if intention apps configured ─
+        // IntentionEngine.isActive = focus_intention_enabled AND apps list non-empty.
+        // The stop condition in pollRunnable keeps the service alive while this is
+        // true, but only if the service is running in the first place. After a
+        // reboot or upgrade nothing restarts it, so mindful pause overlays never
+        // fire until the user opens Aurelo.
+        val intentionEnabled = prefs.getBoolean(KEY_INTENTION_ENABLED, false)
+        if (intentionEnabled) {
+            val hasIntentionApps = runCatching {
+                org.json.JSONArray(
+                    prefs.getString(KEY_INTENTION_APPS, "[]") ?: "[]"
+                ).length() > 0
+            }.getOrDefault(false)
+            if (hasIntentionApps) {
+                startService(ctx, Intent(ctx, AppMonitorService::class.java))
+            }
+        }
+
+        // ── 7. App Timers — restart if a timer block was active at upgrade time ──
+        // timerblockmode=true means a daily limit was exceeded and the soft-block
+        // overlay was (or should be) showing. TimerBlockingEngine.restoreFromPrefs()
+        // reloads the blocked-app map from timerblock_pkgs_map and sets isActive=true,
+        // keeping the service alive via the stop condition — but again only if the
+        // service is started. Relevant mainly for same-day upgrades where the user
+        // had already hit a timer limit before the upgrade installed.
+        if (prefs.getBoolean("timerblockmode", false)) {
+            startService(ctx, Intent(ctx, AppMonitorService::class.java))
+        }
+
+        // ── 8. Active Focus Session — restart if a session was mid-flight ──────
+        // Uncommon but possible: user starts a Focus session, app upgrades in the
+        // background (Play Store auto-update), service is killed. KEY_FOCUS_ACTIVE
+        // remains true in prefs. FocusBlockingEngine.restoreFromPrefs() will pick
+        // it up and set isActive=true, but only after the service is started.
+        // Note: Focus ROUTINES do NOT need this — rescheduleAllRoutinesOnBoot (step 4)
+        // re-arms the alarm, and RoutineAlarmReceiver starts the service when it fires.
+        if (prefs.getBoolean(KEY_FOCUS_ACTIVE, false)) {
+            startService(ctx, Intent(ctx, AppMonitorService::class.java))
+        }
     }
 
     // ── Schedule window check ─────────────────────────────────────────────────

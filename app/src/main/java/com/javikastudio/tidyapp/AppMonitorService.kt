@@ -26,6 +26,7 @@ import android.os.VibratorManager
 import android.view.Gravity
 import android.view.View
 import android.view.WindowManager
+import android.widget.FrameLayout
 import android.widget.LinearLayout
 import androidx.core.app.NotificationCompat
 import org.json.JSONArray
@@ -121,6 +122,15 @@ class AppMonitorService : Service() {
     private var currentFgPkg   = ""
     private var currentFgPkgTs = 0L
 
+    /**
+     * Packages queued for session-unlock removal pending one more poll tick.
+     * Prevents false re-locks from internal activity transitions that generate
+     * a BG event just before the current poll window ends and the corresponding
+     * FG event arrives in the next window (e.g. WhatsApp main → new chat on
+     * Samsung/OEM devices that emit package-level BG+FG per activity transition).
+     */
+    private val pendingUnlockRemovals = mutableMapOf<String, Long>() // pkg → bg timestamp
+
     // ── Poll runnable ─────────────────────────────────────────────────────────
     private val pollRunnable = object : Runnable {
         override fun run() {
@@ -131,25 +141,59 @@ class AppMonitorService : Service() {
                 val events = runCatching { usm.queryEvents(now - 5000L, now) }.getOrNull()
                 var latestFgPkg = ""; var latestFgTs = 0L
                 val bgTs = mutableMapOf<String, Long>()
+                // Per-package latest foreground timestamp — needed to detect internal
+                // activity transitions (same package goes BG then FG again in the same
+                // poll window, e.g. WhatsApp main → WhatsApp settings → back).
+                // Without this, the BG event from the outgoing activity clears the
+                // session unlock and the lock screen fires again on the next FG event.
+                val fgTs = mutableMapOf<String, Long>()
                 if (events != null) {
                     val ev = UsageEvents.Event()
                     while (events.hasNextEvent()) {
                         events.getNextEvent(ev)
                         when (ev.eventType) {
-                            UsageEvents.Event.MOVE_TO_FOREGROUND ->
+                            UsageEvents.Event.MOVE_TO_FOREGROUND -> {
                                 if (ev.timeStamp > latestFgTs) { latestFgPkg = ev.packageName; latestFgTs = ev.timeStamp }
+                                fgTs[ev.packageName] = maxOf(fgTs[ev.packageName] ?: 0L, ev.timeStamp)
+                            }
                             UsageEvents.Event.MOVE_TO_BACKGROUND -> {
                                 bgTs[ev.packageName] = maxOf(bgTs[ev.packageName] ?: 0L, ev.timeStamp)
-                                // Only clear session unlock if the background event is NEWER than
-                                // the unlock timestamp. This prevents the bg event fired while
-                                // AppLockActivity was on screen (before PIN was entered) from
-                                // wiping the unlock and re-triggering the lock screen immediately.
-                                val unlockTs = AppLockActivity.sessionUnlockedApps[ev.packageName] ?: 0L
-                                if (unlockTs == 0L || ev.timeStamp > unlockTs) {
-                                    AppLockActivity.sessionUnlockedApps.remove(ev.packageName)
-                                }
                             }
                         }
+                    }
+                }
+                // Two-tick pending removal: prevents false re-locks when in-app
+                // navigation (e.g. WhatsApp main → new chat) generates BG+FG events
+                // that straddle a 500ms poll boundary. Poll N sees the BG but not the
+                // subsequent FG (arrives after the query window), so it queues the
+                // removal instead of committing immediately. Poll N+1 confirms: if the
+                // FG event is now visible the queue entry is cancelled; if still no FG
+                // the removal is committed (genuine app exit).
+                //
+                // Gates applied before queuing:
+                //   (a) bg event must post-date the unlock timestamp
+                //   (b) no FG event seen after bg in this poll window (quick internal nav)
+                for ((pkg, bgTimestamp) in bgTs) {
+                    val unlockTs = AppLockActivity.sessionUnlockedApps[pkg] ?: run {
+                        pendingUnlockRemovals.remove(pkg); continue
+                    }
+                    if (unlockTs != 0L && bgTimestamp <= unlockTs) { pendingUnlockRemovals.remove(pkg); continue }
+                    val latestFgForPkg = fgTs[pkg] ?: 0L
+                    if (latestFgForPkg > bgTimestamp) { pendingUnlockRemovals.remove(pkg); continue } // internal nav in same window
+                    // No subsequent FG in this window — queue; commit only if confirmed next tick
+                    pendingUnlockRemovals[pkg] = bgTimestamp
+                }
+                // Commit removals pending from the previous tick
+                val removalIter = pendingUnlockRemovals.iterator()
+                while (removalIter.hasNext()) {
+                    val (pkg, pendingBgTs) = removalIter.next()
+                    if (AppLockActivity.sessionUnlockedApps[pkg] == null) { removalIter.remove(); continue }
+                    val latestFgForPkg = fgTs[pkg] ?: 0L
+                    if (latestFgForPkg > pendingBgTs) {
+                        removalIter.remove() // FG now visible after BG — was internal nav, preserve unlock
+                    } else {
+                        AppLockActivity.sessionUnlockedApps.remove(pkg) // genuine exit confirmed
+                        removalIter.remove()
                     }
                 }
                 when {
@@ -502,9 +546,39 @@ class AppMonitorService : Service() {
             if (activeView != null && priority >= activePriority) return false
             forceRemove()
             filterEngineInstance?.suspend()
+            // Wrap every overlay with a back-key handler so the hardware back button
+            // (and gesture back on older overlays) dismisses the overlay and goes home,
+            // rather than requiring the user to tap the in-overlay close/resist button.
+            val ctx = this@AppMonitorService
+            val wrapper = object : FrameLayout(ctx) {
+                override fun dispatchKeyEvent(event: android.view.KeyEvent): Boolean {
+                    if (event.keyCode == android.view.KeyEvent.KEYCODE_BACK &&
+                        event.action == android.view.KeyEvent.ACTION_UP) {
+                        forceRemove()
+                        runCatching {
+                            ctx.startActivity(
+                                android.content.Intent(android.content.Intent.ACTION_MAIN).apply {
+                                    addCategory(android.content.Intent.CATEGORY_HOME)
+                                    flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK
+                                }
+                            )
+                        }
+                        return true
+                    }
+                    return super.dispatchKeyEvent(event)
+                }
+            }.apply {
+                isFocusable = true
+                isFocusableInTouchMode = true
+                addView(view, FrameLayout.LayoutParams(
+                    FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT
+                ))
+            }
             return runCatching {
-                wm.addView(view, overlayLayoutParams())
-                activeView = view; activePriority = priority; true
+                wm.addView(wrapper, overlayLayoutParams())
+                activeView = wrapper; activePriority = priority
+                wrapper.requestFocus()
+                true
             }.getOrDefault(false)
         }
         fun dismiss(priority: Int) { if (activePriority != priority) return; forceRemove() }
@@ -823,12 +897,24 @@ class AppMonitorService : Service() {
                 .addAction(android.R.drawable.ic_menu_close_clear_cancel, "Turn Off", disablePi).build()
         }
 
-        // ── 6. MINDFUL PAUSE (fallback) ───────────────────────────────────────
-        val count = runCatching { JSONArray(prefs.getString("focus_intention_apps", "[]") ?: "[]").length() }.getOrDefault(0)
+        // ── 6. MINDFUL PAUSE ──────────────────────────────────────────────────
+        if (intentionEngine.isActive) {
+            val count = runCatching { JSONArray(prefs.getString("focus_intention_apps", "[]") ?: "[]").length() }.getOrDefault(0)
+            return NotificationCompat.Builder(this, CHANNEL_ID)
+                .setSmallIcon(android.R.drawable.ic_dialog_info).setColor(0xFF12D48A.toInt())
+                .setContentTitle("Mindful Pause active").setContentText("Pausing before $count app${if (count != 1) "s" else ""}")
+                .setOngoing(true).setPriority(NotificationCompat.PRIORITY_MIN).setVisibility(NotificationCompat.VISIBILITY_SECRET)
+                .apply { openPi?.let { setContentIntent(it) } }.build()
+        }
+
+        // ── 7. APP LOCK ONLY (silent, no text — just keeps service alive) ────
         return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setSmallIcon(android.R.drawable.ic_dialog_info).setColor(0xFF12D48A.toInt())
-            .setContentTitle("Mindful Pause active").setContentText("Pausing before $count app${if (count != 1) "s" else ""}")
-            .setOngoing(true).setPriority(NotificationCompat.PRIORITY_MIN).setVisibility(NotificationCompat.VISIBILITY_SECRET)
+            .setSmallIcon(android.R.drawable.ic_dialog_info)
+            .setContentTitle("Aurelo")
+            .setOngoing(true)
+            .setPriority(NotificationCompat.PRIORITY_MIN)
+            .setVisibility(NotificationCompat.VISIBILITY_SECRET)
+            .setSilent(true)
             .apply { openPi?.let { setContentIntent(it) } }.build()
     }
 

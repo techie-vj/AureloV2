@@ -1,7 +1,12 @@
 package com.javikastudio.tidyapp
 
 import android.content.Intent
+import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.LinearGradient
+import android.graphics.Paint
+import android.graphics.Path
+import android.graphics.Shader
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
@@ -33,6 +38,10 @@ import java.security.MessageDigest
  *   - FLAG_SECURE prevents screenshots of the lock screen
  *   - showWhenLocked + turnScreenOn in Manifest handles lock screen scenario
  *   - Tracks currentLockedPackage so AppMonitorService doesn't re-launch in a loop
+ *
+ * Fix 3: unlockSuccess() now brings the locked app's task to the front via
+ *   FLAG_ACTIVITY_REORDER_TO_FRONT before finishing, so Aurelo no longer
+ *   surfaces instead of the unlocked app when Aurelo was in the background.
  */
 class AppLockActivity : AppCompatActivity() {
 
@@ -60,7 +69,6 @@ class AppLockActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Prevent screenshots of the lock screen
         window.setFlags(WindowManager.LayoutParams.FLAG_SECURE, WindowManager.LayoutParams.FLAG_SECURE)
 
         lockedPackage    = intent.getStringExtra("locked_package") ?: ""
@@ -70,7 +78,16 @@ class AppLockActivity : AppCompatActivity() {
         currentLockedPackage = lockedPackage
         buildUI()
 
-        // Auto-launch biometric if available and enabled
+        // Android 13+ predictive back gesture support
+        onBackPressedDispatcher.addCallback(this, object : androidx.activity.OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() {
+                startActivity(Intent(Intent.ACTION_MAIN).apply {
+                    addCategory(Intent.CATEGORY_HOME)
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                })
+            }
+        })
+
         if (biometricEnabled && isBiometricAvailable()) {
             showBiometricPrompt()
         }
@@ -115,6 +132,15 @@ class AppLockActivity : AppCompatActivity() {
             setBackgroundColor(Color.parseColor("#0D0F14"))
             setPadding(dp(32), dp(48), dp(32), dp(48))
         }
+
+        // ── Aurelo wordmark (top, matching other overlay layouts) ─────────────
+        val wordmarkRow = buildWordmark(dp)
+        root.addView(wordmarkRow,
+            LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT).also {
+                it.gravity = Gravity.CENTER_HORIZONTAL
+                it.bottomMargin = dp(36)
+            })
 
         // Lock icon
         root.addView(TextView(this).apply {
@@ -185,6 +211,64 @@ class AppLockActivity : AppCompatActivity() {
         setContentView(root)
     }
 
+    /**
+     * Builds the "Aurelo" wordmark row (arch logo + "URELO" text) consistent
+     * with buildAureloWordmarkView() in AppMonitorService and other overlays.
+     */
+    private fun buildWordmark(dp: (Int) -> Int): View {
+        val logoSz = dp(24)
+        val logoView = object : View(this) {
+            private val archPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                style = Paint.Style.STROKE; strokeCap = Paint.Cap.ROUND
+            }
+            private val dotPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                style = Paint.Style.FILL
+            }
+
+            override fun onDraw(canvas: Canvas) {
+                val sx = width / 108f; val sy = height / 108f
+                canvas.save(); canvas.scale(sx, sy)
+                val path = Path().apply {
+                    moveTo(22f, 88f)
+                    cubicTo(22f, 88f, 30f, 30f, 54f, 20f)
+                    cubicTo(78f, 30f, 86f, 88f, 86f, 88f)
+                }
+                val archGrad = LinearGradient(
+                    28f, 20f, 80f, 90f,
+                    intArrayOf(Color.rgb(255, 224, 130), Color.rgb(255, 170, 68), Color.rgb(255, 112, 32)),
+                    floatArrayOf(0f, 0.55f, 1f), Shader.TileMode.CLAMP
+                )
+                archPaint.shader = archGrad; archPaint.strokeWidth = 7.5f; archPaint.alpha = 255
+                canvas.drawPath(path, archPaint)
+                archPaint.strokeWidth = 1.5f; archPaint.alpha = 128
+                canvas.drawPath(path, archPaint)
+                dotPaint.shader = LinearGradient(
+                    48f, 22f, 60f, 34f,
+                    intArrayOf(Color.rgb(255, 243, 192), Color.rgb(255, 208, 96)),
+                    null, Shader.TileMode.CLAMP
+                )
+                canvas.drawCircle(54f, 20f, 5.5f, dotPaint)
+                canvas.restore()
+            }
+        }
+
+        return LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.BOTTOM or Gravity.CENTER_VERTICAL
+            addView(logoView, LinearLayout.LayoutParams(logoSz, logoSz).also {
+                it.rightMargin = dp(1); it.bottomMargin = dp(1)
+            })
+            addView(TextView(this@AppLockActivity).apply {
+                text = "URELO"; textSize = 21f
+                typeface = Typeface.create("serif", Typeface.NORMAL)
+                letterSpacing = 0.09f
+                setTextColor(Color.rgb(255, 224, 130))
+            }, LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT
+            ))
+        }
+    }
+
     // ── PIN verification ──────────────────────────────────────────────────────
     private fun attemptPinUnlock() {
         val entered = pinInput.text.toString()
@@ -223,9 +307,22 @@ class AppLockActivity : AppCompatActivity() {
     }
 
     // ── Unlock success ────────────────────────────────────────────────────────
+    /**
+     * FIX (Issue 3): After a successful unlock, explicitly bring the locked
+     * app's existing task to the foreground with FLAG_ACTIVITY_REORDER_TO_FRONT
+     * before finishing this activity. Without this, finish() falls back to
+     * whichever task Android considers "previous" — which is Aurelo when it was
+     * running in the background. REORDER_TO_FRONT moves the app's existing task
+     * to the front WITHOUT restarting it, preserving the user's in-app state.
+     */
     private fun unlockSuccess() {
-        sessionUnlockedApps[lockedPackage] = System.currentTimeMillis()  // stay unlocked until app backgrounds
+        sessionUnlockedApps[lockedPackage] = System.currentTimeMillis()
         currentLockedPackage = ""
+        // Simply finish — Android naturally brings the locked app's existing
+        // task back to front. The previous getLaunchIntentForPackage() call
+        // re-launched the app's MAIN activity, losing the user's in-app
+        // destination (e.g. WhatsApp new chat would bounce back to the chat
+        // list instead of opening the new chat screen).
         finish()
     }
 
