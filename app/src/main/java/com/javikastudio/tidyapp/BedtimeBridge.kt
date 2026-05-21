@@ -12,6 +12,8 @@ import kotlinx.coroutines.CoroutineScope
 import org.json.JSONObject
 import java.util.Calendar
 import java.util.Locale
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 
 /**
  * BedtimeBridge — owns bedtime configuration, alarm scheduling, DND control,
@@ -320,7 +322,7 @@ class BedtimeBridge(
      */
     @JavascriptInterface fun isBedtimeFilterManaged(): Boolean {
         val bedtimeActive = prefs.getBoolean(BEDTIME_BLOCK_ACTIVE, false) ||
-                            prefs.getBoolean(BEDTIME_ACTIVE, false)
+                prefs.getBoolean(BEDTIME_ACTIVE, false)
         if (!bedtimeActive) return false
         val sfRaw = prefs.getString(SCREEN_FILTER_SETTINGS_V1, null) ?: return false
         return runCatching { org.json.JSONObject(sfRaw) }
@@ -393,9 +395,15 @@ class BedtimeBridge(
             if (!Geocoder.isPresent()) return ""
             val geocoder = Geocoder(context, Locale.getDefault())
             val addresses = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                // P1-04 FIX: replaced Thread.sleep(1500) — blocked the WebView JS thread.
+                // CountDownLatch returns as soon as geocoder callback fires (max 800ms).
                 var result: android.location.Address? = null
-                geocoder.getFromLocation(lat, lon, 1) { list -> result = list.firstOrNull() }
-                Thread.sleep(1500)
+                val latch = CountDownLatch(1)
+                geocoder.getFromLocation(lat, lon, 1) { list ->
+                    result = list.firstOrNull()
+                    latch.countDown()
+                }
+                latch.await(800, TimeUnit.MILLISECONDS)
                 result?.let { listOf(it) } ?: emptyList()
             } else {
                 @Suppress("DEPRECATION")
@@ -435,7 +443,7 @@ class BedtimeBridge(
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_NO_CREATE
         else PendingIntent.FLAG_NO_CREATE
         listOf("${context.packageName}.FILTER_SCHEDULE_ON"  to 7015,
-               "${context.packageName}.FILTER_SCHEDULE_OFF" to 7016).forEach { (action, code) ->
+            "${context.packageName}.FILTER_SCHEDULE_OFF" to 7016).forEach { (action, code) ->
             val pi = PendingIntent.getBroadcast(context, code,
                 android.content.Intent(action).apply { setPackage(context.packageName) }, flags)
             pi?.let { am.cancel(it) }

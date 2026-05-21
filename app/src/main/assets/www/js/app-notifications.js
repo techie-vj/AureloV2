@@ -397,31 +397,47 @@ function renderNotifHistory(){
   _attachCardHandlers(filtered);
 }
 
-/* ── Attach tap handlers to rendered cards ── */
-function _attachCardHandlers(filteredHistory){
+// ── Attach tap handlers to rendered cards ──────────────────────
+function _attachCardHandlers(filteredHistory) {
   document.querySelectorAll('.nh-card').forEach(card => {
-    card.addEventListener('pointerup', function(e){
+    card.addEventListener('pointerup', function(e) {
       window._nhTap(parseInt(this.dataset.idx));
     });
   });
 }
 
-/* ── Tap: mark read, update visual ── */
-window._nhTap = function(idx){
+// ── Tap: mark read, update visual ──────────────────────────────
+window._nhTap = function(idx) {
   const history  = _nhPrune(_nhGet());
-  const filtered = _notifFilter === 'unread' ? history.filter(n => !n.read) : history;
+  const filtered = _notifFilter === 'unread'
+    ? history.filter(n => !n.read)
+    : history;
+
   const n = filtered[idx];
-  if(!n) return;
-  if(!n.read){
+  if (!n) return;
+
+  // Always mark as read and update card visuals on any tap
+  if (!n.read) {
     markNotifRead(n.id);
-    const card = document.querySelector('.nh-card[data-idx="'+idx+'"]');
-    if(card){
+    const card = document.querySelector('.nh-card[data-idx="' + idx + '"]');
+    if (card) {
       card.classList.remove('nh-unread');
       card.classList.add('nh-read');
       const dot = card.querySelector('.nh-unread-dot');
-      if(dot) dot.style.opacity = '0'; // fade out dot
-      setTimeout(() => dot && dot.remove(), 300);
+      if (dot) {
+        dot.style.opacity = '0';
+        setTimeout(() => dot && dot.remove(), 300);
+      }
     }
+  }
+
+  // ── Action dispatch ──
+  if (n.type === 'weekly_recap' && typeof WeeklyRecap !== 'undefined') {
+    // Defer open by one frame so the gesture's trailing synthetic click
+    // fires BEFORE the backdrop is inserted into the DOM.
+    // Without this, that click hits the fresh backdrop and immediately
+    // calls WeeklyRecap.close().
+    setTimeout(() => WeeklyRecap.open(n.isoWeekYear || ''), 80);
   }
 };
 

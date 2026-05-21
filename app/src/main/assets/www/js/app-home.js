@@ -217,6 +217,36 @@ function _computeInsightBanner(){
   const streak   = _cachedStreak || 0;
   const h        = new Date().getHours();
 
+  // ── Priority 0: Sunday Weekly Recap banner (PRO only) ──────────────────
+  // Highest priority — only fires once per week on Sunday, dismissing it
+  // permanently for the week via WeeklyRecapBridge.setWeeklyRecapDismissed().
+  if (IS_NATIVE && typeof ProTier !== 'undefined' && ProTier.isPro) {
+    try {
+      if (typeof N !== 'undefined' &&
+          typeof N.shouldShowWeeklyBanner === 'function' &&
+          N.shouldShowWeeklyBanner()) {
+        return {
+          icon: '🏁',
+          color: 'var(--p)',
+          title: 'Your week is ready',
+          body: 'See your Aurelo Score average, top apps, and your weekly summary.',
+          cta: 'View recap',
+          action: () => {
+            if (typeof WeeklyRecap !== 'undefined') WeeklyRecap.open();
+          },
+          onDismiss: () => {
+            try {
+              if (typeof N.getCurrentIsoWeekYear === 'function' &&
+                  typeof N.setWeeklyRecapDismissed === 'function') {
+                N.setWeeklyRecapDismissed(N.getCurrentIsoWeekYear());
+              }
+            } catch(_) {}
+          }
+        };
+      }
+    } catch(_) {}
+  }
+
   if(streak > 3 && h >= 14 && h <= 19 && TODAY_MINS > goalMins * 0.6){
     const dayMinutes = h * 60 + new Date().getMinutes();
     const projected  = dayMinutes > 0 ? (TODAY_MINS * 1440) / dayMinutes : TODAY_MINS;
@@ -314,6 +344,7 @@ function renderInsightBanner(){
   banner.style.borderColor = borderColor;
   banner.style.display = '';
   banner._action = typeof data.action === 'function' ? data.action : null;
+  banner._onDismiss = typeof data.onDismiss === 'function' ? data.onDismiss : null;
   banner.setAttribute('role', banner._action ? 'button' : 'status');
   banner.setAttribute('tabindex', banner._action ? '0' : '-1');
   banner.setAttribute('aria-label', data.cta
@@ -339,7 +370,13 @@ function onInsightBannerKeydown(ev){
 
 function dismissInsightBanner(){
   const banner = document.getElementById('home-insight-banner');
-  if(banner) banner.style.display = 'none';
+  if(banner) {
+    // Fire type-specific dismiss callback (e.g. weekly recap sets native dismiss flag)
+    if(typeof banner._onDismiss === 'function') {
+      try { banner._onDismiss(); } catch(_) {}
+    }
+    banner.style.display = 'none';
+  }
   _insightDismissedDate = new Date().toISOString().slice(0,10);
   _saveInsightDismissedDate(_insightDismissedDate);
 }

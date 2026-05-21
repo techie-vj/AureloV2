@@ -50,7 +50,7 @@ class AppMonitorService : Service() {
     companion object {
         const val CHANNEL_ID = "tidy_app_monitor"
         const val NOTIF_ID   = 6001
-        const val POLL_MS    = 500L
+        const val POLL_MS    = 1500L  // P1-07 FIX: was 500L (~7,200 wakeups/hr); 1500L reduces to ~2,400
         const val GRACE_MS   = 5 * 60_000L
 
         // ── Intent actions ─────────────────────────────────────────────────────
@@ -311,10 +311,10 @@ class AppMonitorService : Service() {
             // poll loop (which contains App Lock detection) continues to run even when
             // no other feature (Focus/Timer/Bedtime/Filter) is active.
             val hasLockedApps = prefs.getBoolean(APP_LOCK_SETUP_DONE, false) &&
-                runCatching {
-                    JSONArray(SensitivePrefs.get(this@AppMonitorService)
-                        .getString(LOCKED_APPS_V4, "[]") ?: "[]").length() > 0
-                }.getOrDefault(false)
+                    runCatching {
+                        JSONArray(SensitivePrefs.get(this@AppMonitorService)
+                            .getString(LOCKED_APPS_V4, "[]") ?: "[]").length() > 0
+                    }.getOrDefault(false)
 
             if (!focusEngine.isActive && !timerEngine.isActive && !intentionEngine.isActive &&
                 !bedtimeEngine.isActive && !filterEngine.isActive() && !inWindDown && !hasLockedApps) {
@@ -411,10 +411,10 @@ class AppMonitorService : Service() {
                 // Without this JS only updates on next app resume, so strips would
                 // keep showing "Bedtime mode on" until the app is re-opened.
                 notifyJs("(function(){" +
-                    "if(typeof FocusBedtime!=='undefined')FocusBedtime.render();" +
-                    "if(typeof FocusScore!=='undefined')FocusScore.renderHabitsDynamicRow();" +
-                    "if(typeof FocusHome!=='undefined')FocusHome._refreshStrips();" +
-                    "})()")
+                        "if(typeof FocusBedtime!=='undefined')FocusBedtime.render();" +
+                        "if(typeof FocusScore!=='undefined')FocusScore.renderHabitsDynamicRow();" +
+                        "if(typeof FocusHome!=='undefined')FocusHome._refreshStrips();" +
+                        "})()")
             }
 
             ACTION_BEDTIME_STOP_SOFT    -> bedtimeEngine.stopSoft()

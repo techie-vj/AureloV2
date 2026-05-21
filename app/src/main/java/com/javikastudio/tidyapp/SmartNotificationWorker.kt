@@ -145,6 +145,72 @@ class SmartNotificationWorker(
 
         // ── Smart Alerts (respect cleared timestamp) ─────────────────────────
         val clearedTs = prefs.getLong(NOTIF_CLEARED_TS, 0L)
+        // Weekly Recap notification (PRO, Sunday only, once per week)
+        // Deduped by ISO week key so re-runs within the same week never re-fire.
+        // Ignores notif_cleared_ts (same rationale as the daily recap above).
+        val isPro     = prefs.getBoolean(IS_PRO_USER, false)
+        val dayOfWeek = cal.get(java.util.Calendar.DAY_OF_WEEK)
+        if (isPro && dayOfWeek == java.util.Calendar.SUNDAY) {
+            val currentWeek   = WeeklyRecapBridge.getIsoWeekYear(cal)
+            val lastRecapWeek = prefs.getString(LAST_WEEKLY_RECAP_WEEK, "") ?: ""
+            if (lastRecapWeek != currentWeek) {
+                ensureRecapChannel(nm)
+                // Note: emoji rendered at runtime; Kotlin string literal uses escape
+                val wrTitle = "Your week is ready \uD83C \uDFC1"
+                val wrBody  = "See your Aurelo Score average, top apps, and weekly summary."
+
+                // Deep-link intent — MainActivity reads EXTRA_OPEN_WEEKLY_RECAP on resume
+                val wrIntent = appContext.packageManager
+                    .getLaunchIntentForPackage(appContext.packageName)
+                    ?.apply { putExtra(EXTRA_OPEN_WEEKLY_RECAP, currentWeek) }
+                val wrPendingFlags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M)
+                    PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+                else PendingIntent.FLAG_UPDATE_CURRENT
+                val wrPendingIntent = if (wrIntent != null)
+                    PendingIntent.getActivity(
+                        appContext, WEEKLY_RECAP_NOTIF_ID, wrIntent, wrPendingFlags)
+                else null
+
+                val wrNotif = NotificationCompat.Builder(appContext, RECAP_CHANNEL_ID)
+                    .setSmallIcon(android.R.drawable.ic_dialog_info)
+                    .setColor(0xFF6C63FF.toInt())
+                    .setContentTitle(wrTitle)
+                    .setContentText(wrBody)
+                    .setStyle(NotificationCompat.BigTextStyle().bigText(wrBody))
+                    .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+                    .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+                    .setCategory(NotificationCompat.CATEGORY_REMINDER)
+                    .setAutoCancel(true)
+                    .apply { if (wrPendingIntent != null) setContentIntent(wrPendingIntent) }
+                    .build()
+
+                nm.notify(WEEKLY_RECAP_NOTIF_ID, wrNotif)
+                prefs.edit().putString(LAST_WEEKLY_RECAP_WEEK, currentWeek).apply()
+
+                // Persist to in-app notification history with isoWeekYear metadata
+                // so tapping the history item opens that specific week's sheet.
+                runCatching {
+                    val existing = prefs.getString(NOTIF_HISTORY_KEY, "[]") ?: "[]"
+                    val arr      = org.json.JSONArray(existing)
+                    val obj      = org.json.JSONObject()
+                    obj.put("id",          "weekly_recap|$currentWeek")
+                    obj.put("type",        "weekly_recap")
+                    obj.put("title",       wrTitle)
+                    obj.put("body",        wrBody)
+                    obj.put("isoWeekYear", currentWeek)
+                    obj.put("timestamp",   System.currentTimeMillis())
+                    obj.put("read",        false)
+                    val cutoff  = System.currentTimeMillis() - 30L * 24 * 60 * 60 * 1000
+                    val newArr  = org.json.JSONArray()
+                    newArr.put(obj)
+                    for (i in 0 until arr.length()) {
+                        val entry = arr.getJSONObject(i)
+                        if (entry.optLong("timestamp", 0L) > cutoff) newArr.put(entry)
+                    }
+                    prefs.edit().putString(NOTIF_HISTORY_KEY, newArr.toString()).apply()
+                }
+            }
+        }
         if (System.currentTimeMillis() - clearedTs < 6 * 60 * 60_000L) return Result.success()
 
         val todayDate   = "${cal.get(java.util.Calendar.YEAR)}-${cal.get(java.util.Calendar.DAY_OF_YEAR)}"
@@ -511,5 +577,9 @@ class SmartNotificationWorker(
         const val REFERRAL_CONVERTED_NOTIF_ID = 5005
         const val REFERRAL_INSTALL_DAYS = 3      // days earned per install reward
         const val WORK_NAME             = "tidy_smart_notifs"
+        // Prefs keys owned by the weekly recap notification path
+        const val WEEKLY_RECAP_NOTIF_ID       = 5006
+        const val LAST_WEEKLY_RECAP_WEEK  = "last_weekly_recap_week"
+        const val EXTRA_OPEN_WEEKLY_RECAP = "open_weekly_recap"
     }
 }

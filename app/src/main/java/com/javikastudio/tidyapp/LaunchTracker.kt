@@ -46,9 +46,10 @@ enum class TimeSlot {
 // ─────────────────────────────────────────────────────────────────────────────
 //  SQLite schema
 // ─────────────────────────────────────────────────────────────────────────────
-private const val DB_NAME    = "tidyapp_launches.db"
-private const val DB_VERSION = 2
-private const val TABLE      = "launch_events"
+private const val DB_NAME         = "tidyapp_launches.db"
+private const val DB_VERSION      = 3  // P1-05: v3 adds score_history table (was in plain prefs)
+private const val TABLE           = "launch_events"
+private const val SCORE_HIST_TABLE = "score_history"
 
 /**
  * SEC-09 FIX: Updated for SQLCipher 4.6.1.
@@ -79,12 +80,31 @@ private class LaunchDatabase(ctx: Context, passphrase: ByteArray)
         """.trimIndent())
         db.execSQL("CREATE INDEX IF NOT EXISTS idx_slot_pkg ON $TABLE(time_slot, package_name)")
         db.execSQL("CREATE INDEX IF NOT EXISTS idx_ts ON $TABLE(timestamp)")
+        // P1-05: score history stored in SQLCipher instead of plain SharedPreferences
+        db.execSQL("""
+            CREATE TABLE IF NOT EXISTS $SCORE_HIST_TABLE (
+                pref_key    TEXT    PRIMARY KEY NOT NULL,
+                value       TEXT    NOT NULL,
+                updated_at  INTEGER NOT NULL
+            )
+        """.trimIndent())
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
         if (oldVersion < 2) {
             db.execSQL("DROP TABLE IF EXISTS $TABLE")
             onCreate(db)
+            return
+        }
+        if (oldVersion < 3) {
+            // P1-05: add score_history table without wiping existing launch_events data
+            db.execSQL("""
+                CREATE TABLE IF NOT EXISTS $SCORE_HIST_TABLE (
+                    pref_key    TEXT    PRIMARY KEY NOT NULL,
+                    value       TEXT    NOT NULL,
+                    updated_at  INTEGER NOT NULL
+                )
+            """.trimIndent())
         }
     }
 }
@@ -305,4 +325,21 @@ class LaunchTracker private constructor(context: Context) {
                     "WHERE day_of_week = ?",
             arrayOf(dayOfWeek.toString())
         ).use { if (it.moveToFirst()) it.getInt(0) else 0 }
+
+    // ── Score History (P1-05 FIX: encrypted SQLCipher, was plain SharedPreferences) ──
+
+    fun getScoreHistory(key: String): String =
+        db.rawQuery(
+            "SELECT value FROM $SCORE_HIST_TABLE WHERE pref_key = ?",
+            arrayOf(key)
+        ).use { if (it.moveToFirst()) it.getString(0) else "" }
+
+    fun saveScoreHistory(key: String, value: String) {
+        val cv = ContentValues().apply {
+            put("pref_key",   key)
+            put("value",      value)
+            put("updated_at", System.currentTimeMillis())
+        }
+        db.insertWithOnConflict(SCORE_HIST_TABLE, null, cv, SQLiteDatabase.CONFLICT_REPLACE)
+    }
 }

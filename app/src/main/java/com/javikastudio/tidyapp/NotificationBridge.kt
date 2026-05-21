@@ -223,5 +223,18 @@ class NotificationBridge(
         }
     }
 
+    // ── Weekly Recap sheet opener ────────────────────────────────────────────
+    // Called when the user taps a "weekly_recap" item in notification history.
+    // Evaluates JS on the WebView main thread to call WeeklyRecap.open(week).
+    @JavascriptInterface fun openWeeklyRecapSheet(isoWeekYear: String) {
+        val safe = isoWeekYear.replace("'", "\\\\'").replace("\"", "\\\\\"")
+        webView.post {
+            webView.evaluateJavascript(
+                "if(typeof WeeklyRecap!=='undefined'&&WeeklyRecap.open)WeeklyRecap.open('$safe')",
+                null
+            )
+        }
+    }
+
     private fun j(vararg pairs: Any): JSONObject { val obj=JSONObject(); var i=0; while(i+1<pairs.size){obj.put(pairs[i].toString(),pairs[i+1]);i+=2}; return obj }
 }

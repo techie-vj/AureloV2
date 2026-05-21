@@ -131,6 +131,7 @@ const val NOTIF_CHANNEL_ID     = "tidy_alerts"
 const val SMART_ALERTS_ENABLED = "smart_alerts_enabled"
 const val NOTIF_CLEARED_TS     = "notif_cleared_ts"
 const val NOTIF_HISTORY_KEY = "tidy_notif_history_v2"
+const val WEEKLY_RECAP_DISMISSED_PREFIX = "weekly_recap_dismissed_"
 
 // ── Widget ────────────────────────────────────────────────────────────────
 const val WIDGET_THEME           = "widget_theme"

@@ -176,6 +176,7 @@ class AppBridge(private val context: Context, private val webView: WebView) {
     internal val healthConnect = HealthConnectBridge(context,webView,prefs,securePrefs,bridgeScope)
     internal val coach = CoachBridge(context,webView,prefs,securePrefs,bridgeScope)
     internal val aureloScore = AureloScoreBridge(prefs, healthConnect)
+    internal val weeklyRecapBridge = WeeklyRecapBridge(context,webView, prefs, bridgeScope, usage, coach)
 
     private val pendingLaunchActivity: Activity? = null
 
@@ -422,6 +423,14 @@ class AppBridge(private val context: Context, private val webView: WebView) {
     @JavascriptInterface fun markNotificationsRead()           = notification.markNotificationsRead()
     @JavascriptInterface fun getUnreadNotificationCount()      = notification.getUnreadNotificationCount()
     @JavascriptInterface fun saveSmartAlertsEnabled(e: Boolean)= notification.saveSmartAlertsEnabled(e)
+
+    // ── Weekly Recap ───────────────────────────────────────────────────────────
+    @JavascriptInterface fun getWeeklyRecapData(isoWeekYear: String) = weeklyRecapBridge.getWeeklyRecapData(isoWeekYear)
+    @JavascriptInterface fun getCurrentIsoWeekYear()                 = weeklyRecapBridge.getCurrentIsoWeekYear()
+    @JavascriptInterface fun getWeeklyRecapDismissed(w: String)      = weeklyRecapBridge.getWeeklyRecapDismissed(w)
+    @JavascriptInterface fun setWeeklyRecapDismissed(w: String)      = weeklyRecapBridge.setWeeklyRecapDismissed(w)
+    @JavascriptInterface fun shouldShowWeeklyBanner()                = weeklyRecapBridge.shouldShowWeeklyBanner()
+    @JavascriptInterface fun openWeeklyRecapSheet(isoWeekYear: String) = notification.openWeeklyRecapSheet(isoWeekYear)
 
     // ── Widget ─────────────────────────────────────────────────────────────
     @JavascriptInterface fun getWidgetTheme()                  = widget.getWidgetTheme()

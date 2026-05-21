@@ -16,8 +16,23 @@ class SettingsBridge(
     private val prefs: android.content.SharedPreferences,
     private val securePrefs: android.content.SharedPreferences,
     private val bridgeScope: CoroutineScope,
-    private val secureStorageAvailable: () -> Boolean
+    private val secureStorageAvailable: () -> Boolean,
+    // P1-02 FIX: caller passes a lambda to revoke Pro so SettingsBridge doesn't
+    // depend directly on EntitlementRepository's internal API.
+    private val clearEntitlementData: () -> Unit = {}
 ) : AppBridgeController {
+
+    companion object {
+        // P1-05 FIX: these keys are redirected to the SQLCipher LaunchTracker DB
+        // instead of being stored in plain SharedPreferences (tidyapp_v6).
+        private val SCORE_HISTORY_KEYS = setOf(
+            "aurelo_score_history",
+            "screen_score_history",
+            "focus_score_history",
+            "sleep_score_history",
+            "body_score_history"
+        )
+    }
 
     @JavascriptInterface fun isOnboardingDone(): Boolean = securePrefs.getBoolean(ONBOARDING_DONE, false)
     @JavascriptInterface fun setOnboardingDone() { securePrefs.edit().putBoolean(ONBOARDING_DONE, true).commit() }
@@ -26,10 +41,14 @@ class SettingsBridge(
     @JavascriptInterface fun saveStreakGoalMins(mins: Int) { prefs.edit().putInt(STREAK_GOAL_MINS, mins).apply() }
     @JavascriptInterface fun getStreakGoalMinsBridge(): Int = prefs.getInt(STREAK_GOAL_MINS, 240)
     @JavascriptInterface fun getStringPref(key: String): String {
+        // P1-05: score history keys are stored in encrypted SQLCipher DB, not plain prefs
+        if (key in SCORE_HISTORY_KEYS) return LaunchTracker.get(context).getScoreHistory(key)
         if (!SecurityValidators.isAllowedPublicPrefKey(key)) return ""
         return (prefs.all[key] ?: "").toString()
     }
     @JavascriptInterface fun setStringPref(key: String, value: String) {
+        // P1-05: score history keys are stored in encrypted SQLCipher DB, not plain prefs
+        if (key in SCORE_HISTORY_KEYS) { LaunchTracker.get(context).saveScoreHistory(key, value); return }
         if (!SecurityValidators.isAllowedPublicPrefKey(key)) return
         prefs.edit().putString(key, value).apply()
     }
@@ -59,12 +78,16 @@ class SettingsBridge(
         securePrefs.edit().remove(APP_LOCK_PIN_HASH).apply()
         context.getSharedPreferences("tidyapp_cat_cache_v1", Context.MODE_PRIVATE).edit().clear().commit()
         runCatching { LaunchTracker.get(context).clearAll() }
+        // P1-02 FIX: revoke Pro entitlement so stale Pro access cannot persist post-reset
+        runCatching { clearEntitlementData() }
     }
 
     @JavascriptInterface fun clearAllDataFull() {
         prefs.edit().clear().commit(); securePrefs.edit().clear().commit()
         context.getSharedPreferences("tidyapp_cat_cache_v1", Context.MODE_PRIVATE).edit().clear().commit()
         runCatching { LaunchTracker.get(context).clearAll() }
+        // P1-02 FIX: same — full clear must also revoke entitlement
+        runCatching { clearEntitlementData() }
     }
 
     @JavascriptInterface fun checkAndTriggerRateApp(trigger: String) {
