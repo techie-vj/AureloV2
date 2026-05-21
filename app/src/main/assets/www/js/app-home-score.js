@@ -18,7 +18,7 @@ function _ensureAureloScoreStyles() {
   const lnk = document.createElement('link');
   lnk.id   = 'aurelo-score-css-link';
   lnk.rel  = 'stylesheet';
-  lnk.href = 'home-score.css';
+  lnk.href = 'css/home-score.css';
   document.head.appendChild(lnk);
 }
 

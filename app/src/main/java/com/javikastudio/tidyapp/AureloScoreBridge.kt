@@ -54,16 +54,10 @@ class AureloScoreBridge(
     @JavascriptInterface
     fun getScreenScore(): String {
         val goalMins    = prefs.getInt(STREAK_GOAL_MINS, 240)
-        val totalMins   = runCatching {
-            prefs.getInt(CACHED_TOTAL_MINS, 0)
-        }.getOrElse {
-            prefs.getLong(CACHED_TOTAL_MINS, 0L).toInt()
-        }
-        val todayPickups = runCatching {
-            prefs.getInt(CACHED_PICKUPS, 0)
-        }.getOrElse {
-            prefs.getLong(CACHED_PICKUPS, 0L).toInt()
-        }
+        // BUG-01 FIX: UsageStatsBridge writes CACHED_TOTAL_MINS as Long (putLong) and
+        // CACHED_PICKUPS as Int (putInt). Read each with the correct type — no try/catch needed.
+        val totalMins    = prefs.getLong(CACHED_TOTAL_MINS, 0L).toInt()
+        val todayPickups = prefs.getInt(CACHED_PICKUPS, 0)
         val firstPickupTs = prefs.getLong(CACHED_FIRST_PICKUP_TS, 0L)
 
         // 7-day pickup average from monthly pickups cache
@@ -86,7 +80,7 @@ class AureloScoreBridge(
         // F-20: new-user guard — if no history yet, treat today as baseline
         // F-21: steeper decay — 1.3× avg now noticeably dents score (was 1.5×)
         val effectiveAvg = if (avgPickups <= 0f && todayPickups > 0) todayPickups.toFloat()
-                           else avgPickups
+        else avgPickups
         val pickupScore: Int = when {
             effectiveAvg <= 0f || todayPickups <= effectiveAvg -> 100
             todayPickups <= effectiveAvg * 1.3f -> {
@@ -240,8 +234,8 @@ class AureloScoreBridge(
 
         val totalW    = parts.sumOf { it.weight }
         val composite = if (totalW == 0) -1
-            else (parts.sumOf { it.score * it.weight }.toFloat() / totalW)
-                .toInt().coerceIn(0, 100)
+        else (parts.sumOf { it.score * it.weight }.toFloat() / totalW)
+            .toInt().coerceIn(0, 100)
 
         return JSONObject().apply {
             put("score",       composite)

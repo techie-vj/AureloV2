@@ -410,7 +410,7 @@ class AppBridge(private val context: Context, private val webView: WebView) {
     @JavascriptInterface fun startScreenFilterSchedule(json: String) = bedtime.startScreenFilterSchedule(json)
     @JavascriptInterface fun stopScreenFilterSchedule()              = bedtime.stopScreenFilterSchedule()
     /** Reverse-geocodes lat/lon to a city name via Android Geocoder for the sun-schedule label. */
-    @JavascriptInterface fun reverseGeocodeCity(lat: Double, lon: Double): String = bedtime.reverseGeocodeCity(lat, lon)
+    @JavascriptInterface fun reverseGeocodeCityAsync(lat: Double, lon: Double, callbackFn: String) = bedtime.reverseGeocodeCityAsync(lat, lon, callbackFn)
 
     // ── Notifications ──────────────────────────────────────────────────────
     @JavascriptInterface fun getNotifications()                = notification.getNotifications()

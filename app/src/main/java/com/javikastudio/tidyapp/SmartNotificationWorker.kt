@@ -156,7 +156,7 @@ class SmartNotificationWorker(
             if (lastRecapWeek != currentWeek) {
                 ensureRecapChannel(nm)
                 // Note: emoji rendered at runtime; Kotlin string literal uses escape
-                val wrTitle = "Your week is ready \uD83C \uDFC1"
+                val wrTitle = "Your week is ready \uD83C\uDFC1"  // BUG-03 FIX: was "\uD83C \uDFC1" (space broke surrogate pair → rendered as ??)
                 val wrBody  = "See your Aurelo Score average, top apps, and weekly summary."
 
                 // Deep-link intent — MainActivity reads EXTRA_OPEN_WEEKLY_RECAP on resume
@@ -294,7 +294,8 @@ class SmartNotificationWorker(
                 .apply { if (pendingIntent != null) setContentIntent(pendingIntent) }
                 .build()
             nm.notify(REFERRAL_PENDING_NOTIF_ID, notif)
-            postAlertNotification(nm, REFERRAL_PENDING_NOTIF_ID, title, body, "info", pendingIntent)
+            // BUG-02 FIX: removed postAlertNotification() here — it was re-posting the same
+            // notification to the wrong channel (tidy_alerts) and duplicating the in-app entry.
         }
 
         // HIGH-2 FIX: mark exactly ONE friend lapsed per worker run.

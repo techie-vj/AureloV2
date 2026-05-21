@@ -9,6 +9,8 @@ import android.os.Build
 import android.webkit.JavascriptInterface
 import android.webkit.WebView
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import org.json.JSONObject
 import java.util.Calendar
 import java.util.Locale
@@ -390,28 +392,31 @@ class BedtimeBridge(
         }
     }
 
-    @JavascriptInterface fun reverseGeocodeCity(lat: Double, lon: Double): String {
-        return runCatching {
-            if (!Geocoder.isPresent()) return ""
-            val geocoder = Geocoder(context, Locale.getDefault())
-            val addresses = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                // P1-04 FIX: replaced Thread.sleep(1500) — blocked the WebView JS thread.
-                // CountDownLatch returns as soon as geocoder callback fires (max 800ms).
-                var result: android.location.Address? = null
-                val latch = CountDownLatch(1)
-                geocoder.getFromLocation(lat, lon, 1) { list ->
-                    result = list.firstOrNull()
-                    latch.countDown()
-                }
-                latch.await(800, TimeUnit.MILLISECONDS)
-                result?.let { listOf(it) } ?: emptyList()
-            } else {
-                @Suppress("DEPRECATION")
-                geocoder.getFromLocation(lat, lon, 1) ?: emptyList()
-            }
-            val addr = addresses.firstOrNull() ?: return ""
-            addr.locality ?: addr.subAdminArea ?: addr.adminArea ?: ""
-        }.getOrDefault("")
+    // BUG-04 FIX: was @JavascriptInterface fun reverseGeocodeCity(lat, lon): String which
+    // blocked the WebView JS thread for up to 800ms (CountDownLatch). Now fire-and-forget:
+    // result delivered via webView.evaluateJavascript callback to the JS function name provided.
+    // JS caller: N.reverseGeocodeCityAsync(lat, lon, "onGeocodeCityResult")
+    @JavascriptInterface fun reverseGeocodeCityAsync(lat: Double, lon: Double, callbackFn: String) {
+        bridgeScope.launch(Dispatchers.IO) {
+            val city = runCatching {
+                if (!Geocoder.isPresent()) return@runCatching ""
+                val geocoder = Geocoder(context, Locale.getDefault())
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    var result: android.location.Address? = null
+                    val latch = CountDownLatch(1)
+                    geocoder.getFromLocation(lat, lon, 1) { list ->
+                        result = list.firstOrNull(); latch.countDown()
+                    }
+                    latch.await(800, TimeUnit.MILLISECONDS)
+                    result
+                } else {
+                    @Suppress("DEPRECATION")
+                    geocoder.getFromLocation(lat, lon, 1)?.firstOrNull()
+                }?.let { it.locality ?: it.subAdminArea ?: it.adminArea ?: "" } ?: ""
+            }.getOrDefault("")
+            val escaped = city.replace("'", "\\'")
+            webView.post { webView.evaluateJavascript("$callbackFn('$escaped')", null) }
+        }
     }
 
     // ── Filter alarm helpers ──────────────────────────────────────────────────

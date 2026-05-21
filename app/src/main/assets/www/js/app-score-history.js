@@ -559,7 +559,9 @@ var ScoreHistory = (function () {
 
     /* ── Chart area ── */
     var chartSection;
-    if (valid.length === 0) {
+    // BUG-05 FIX: was valid.length === 0 — with 1 point the chart render path was taken
+    // but _n < 2 caused an early return leaving a blank white area with no message.
+    if (valid.length < 2) {
       chartSection = '<div class="sh-empty">'
         +'<div class="sh-empty-icon" style="color:'+colorRaw+'">—</div>'
         +'<div class="sh-empty-title">History is building</div>'
