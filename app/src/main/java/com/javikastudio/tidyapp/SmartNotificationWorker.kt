@@ -162,7 +162,10 @@ class SmartNotificationWorker(
                 // Deep-link intent — MainActivity reads EXTRA_OPEN_WEEKLY_RECAP on resume
                 val wrIntent = appContext.packageManager
                     .getLaunchIntentForPackage(appContext.packageName)
-                    ?.apply { putExtra(EXTRA_OPEN_WEEKLY_RECAP, currentWeek) }
+                    ?.apply {
+                        putExtra(EXTRA_OPEN_WEEKLY_RECAP, currentWeek)
+                        putExtra(EXTRA_OPEN_NOTIFICATIONS, true)
+                    }
                 val wrPendingFlags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M)
                     PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
                 else PendingIntent.FLAG_UPDATE_CURRENT
@@ -530,10 +533,11 @@ class SmartNotificationWorker(
     private fun buildLaunchIntent(): PendingIntent? {
         val intent = appContext.packageManager
             .getLaunchIntentForPackage(appContext.packageName) ?: return null
+        intent.putExtra(EXTRA_OPEN_NOTIFICATIONS, true)
         val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M)
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         else PendingIntent.FLAG_UPDATE_CURRENT
-        return PendingIntent.getActivity(appContext, 0, intent, flags)
+        return PendingIntent.getActivity(appContext, 1, intent, flags)
     }
 
     private fun stableId(title: String, body: String): Int =
@@ -582,5 +586,6 @@ class SmartNotificationWorker(
         const val WEEKLY_RECAP_NOTIF_ID       = 5006
         const val LAST_WEEKLY_RECAP_WEEK  = "last_weekly_recap_week"
         const val EXTRA_OPEN_WEEKLY_RECAP = "open_weekly_recap"
+        const val EXTRA_OPEN_NOTIFICATIONS = "open_notifications"
     }
 }

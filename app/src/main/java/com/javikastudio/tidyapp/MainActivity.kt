@@ -303,6 +303,7 @@ class MainActivity : AppCompatActivity() {
                     )
                     // Handle widget deep-link on cold start (page wasn't ready at onCreate time)
                     handleWidgetIntent(intent)
+                    handleNotificationIntent(intent)
                 }
             }
 
@@ -568,6 +569,7 @@ class MainActivity : AppCompatActivity() {
         super.onNewIntent(intent)
         setIntent(intent)
         handleWidgetIntent(intent)
+        handleNotificationIntent(intent)
         // FIX 3: also handle routine notification taps when app is already open.
         // onResume() fires after onNewIntent() and will call consumePendingRoutineIntent()
         // which reads from this.intent — setIntent(intent) above ensures it reads the new one.
@@ -590,5 +592,37 @@ class MainActivity : AppCompatActivity() {
         // producing a double toast for WIDGET_PINNED and double deep-link navigation.
         intent.action = null
         webView.post { webView.evaluateJavascript(js, null) }
+    }
+
+    // ── Notification deep-link routing ────────────────────────────────────────
+    // Handles taps on system notifications — opens notification history panel
+    // and, for weekly recap, also opens the recap sheet.
+    private fun handleNotificationIntent(intent: Intent?) {
+        if (intent == null) return
+        val openNotifs = intent.getBooleanExtra(SmartNotificationWorker.EXTRA_OPEN_NOTIFICATIONS, false)
+        val weeklyRecapWeek = intent.getStringExtra(SmartNotificationWorker.EXTRA_OPEN_WEEKLY_RECAP)
+        if (!openNotifs && weeklyRecapWeek == null) return
+
+        // Consume extras so repeated onPageFinished / onResume calls don't re-fire
+        intent.removeExtra(SmartNotificationWorker.EXTRA_OPEN_NOTIFICATIONS)
+        intent.removeExtra(SmartNotificationWorker.EXTRA_OPEN_WEEKLY_RECAP)
+
+        webView.post {
+            // Open notification history panel
+            webView.evaluateJavascript(
+                "if(typeof openPanel==='function'&&typeof loadNotifHistory==='function'){openPanel('notif-panel');loadNotifHistory();}",
+                null
+            )
+            // If weekly recap notification, also open the recap sheet after a short delay
+            if (weeklyRecapWeek != null) {
+                val safe = weeklyRecapWeek.replace("'", "\\'").replace("\\", "\\\\")
+                webView.postDelayed({
+                    webView.evaluateJavascript(
+                        "if(typeof WeeklyRecap!=='undefined'&&WeeklyRecap.open)WeeklyRecap.open('$safe')",
+                        null
+                    )
+                }, 400L)
+            }
+        }
     }
 }

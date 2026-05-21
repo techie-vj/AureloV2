@@ -169,6 +169,7 @@ const NOTIF_TYPE_ACCENT = {
   goal:    '#12D48A',
   pickup:  '#F04E7A',
   coach:   '#6C63FF',
+  recap:   '#7C6AF7',
 };
 
 /* ── Type → subtle background tint ── */
@@ -180,6 +181,7 @@ const NOTIF_TYPE_BG = {
   goal:    'rgba(18,212,138,0.07)',
   pickup:  'rgba(240,78,122,0.07)',
   coach:   'rgba(108,99,255,0.07)',
+  recap:   'rgba(124,106,247,0.07)',
 };
 
 /* ── Storage helpers ── */
@@ -227,13 +229,13 @@ function _inferType(n){
 }
 
 function _typeDefaultIcon(type){
-  const MAP = {warn:'⚠️',info:'📱',success:'✅',streak:'🔥',goal:'🎯',pickup:'📲',coach:'🤖'};
+  const MAP = {warn:'⚠️',info:'📱',success:'✅',streak:'🔥',goal:'🎯',pickup:'📲',coach:'🤖',recap:'📊'};
   return MAP[type] || '🔔';
 }
 
 function _typeLbl(type){
   const MAP = {warn:'Alert',info:'Info',success:'Achievement',streak:'Streak',
-               goal:'Goal',pickup:'Pickups',coach:'Coach'};
+               goal:'Goal',pickup:'Pickups',coach:'Coach',recap:'Day Recap',weekly_recap:'Weekly Recap' };
   return MAP[type] || 'Notification';
 }
 
@@ -321,7 +323,9 @@ function _renderNotifCard(n, idx){
   const accent = NOTIF_TYPE_ACCENT[n.type] || NOTIF_TYPE_ACCENT.info;
   const bg     = NOTIF_TYPE_BG[n.type]     || NOTIF_TYPE_BG.info;
   const unread = !n.read;
-  return `<div class="nh-card ${unread ? 'nh-unread' : 'nh-read'}"
+  // Types that open a detail sheet get a small chevron affordance
+  const hasSheet = ['coach','streak','success','goal','weekly_recap','recap'].includes(n.type);
+  return `<div class="nh-card ${unread ? 'nh-unread' : 'nh-read'} ${hasSheet ? 'nh-has-sheet' : ''}"
                id="nhc-${idx}" data-idx="${idx}"
                style="--nh-accent:${accent};--nh-bg:${bg};">
     <div class="nh-accent-bar"></div>
@@ -337,6 +341,7 @@ function _renderNotifCard(n, idx){
         <span class="nh-time">${_relTime(n.timestamp)}</span>
       </div>
     </div>
+    ${hasSheet ? '<div class="nh-chevron" aria-hidden="true">›</div>' : ''}
   </div>`;
 }
 
@@ -406,7 +411,7 @@ function _attachCardHandlers(filteredHistory) {
   });
 }
 
-// ── Tap: mark read, update visual ──────────────────────────────
+// ── Tap: mark read + dispatch to appropriate sheet ──────────────
 window._nhTap = function(idx) {
   const history  = _nhPrune(_nhGet());
   const filtered = _notifFilter === 'unread'
@@ -432,12 +437,13 @@ window._nhTap = function(idx) {
   }
 
   // ── Action dispatch ──
+  // Defer by 80ms so the tap gesture fully settles before any backdrop
+  // is inserted into the DOM (prevents instant backdrop-tap close).
   if (n.type === 'weekly_recap' && typeof WeeklyRecap !== 'undefined') {
-    // Defer open by one frame so the gesture's trailing synthetic click
-    // fires BEFORE the backdrop is inserted into the DOM.
-    // Without this, that click hits the fresh backdrop and immediately
-    // calls WeeklyRecap.close().
     setTimeout(() => WeeklyRecap.open(n.isoWeekYear || ''), 80);
+  } else if (['coach', 'streak', 'success', 'goal', 'recap'].includes(n.type) &&
+             typeof NotifSheet !== 'undefined') {
+    setTimeout(() => NotifSheet.open(n), 80);
   }
 };
 
@@ -510,6 +516,7 @@ function _buildDemoHistory(){
     { id:'Goal Achieved|You stayed under your goal yesterday!',         type:'success', icon:'✅', title:'Goal Achieved',          body:'You stayed under your screen time goal yesterday!',             timestamp: now - 86400000,  read: true  },
     { id:'7-Day Streak!|7 consecutive days under your goal!',           type:'streak',  icon:'🔥', title:'7-Day Streak!',          body:'7 consecutive days under your screen time goal!',               timestamp: now - 172800000, read: true  },
     { id:'Personal Best This Week|Lower than every other day.',         type:'success', icon:'🏆', title:'Personal Best This Week',body:'1h 20m — lower than every other day this week.',                timestamp: now - 432000000, read: true  },
+    { id:'recap|demo-today',                                             type:'recap',   icon:'📊', title:'📊 Your Day in Review',  body:'2h 15m screen time · 38 pickups · 4🔥 streak\n🔥 Under goal — solid day. Well done!', timestamp: now - 86400000 * 2, read: false },
   ];
 }
 

@@ -136,8 +136,9 @@ class NotificationBridge(
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
                 nm.createNotificationChannel(NotificationChannel(NOTIF_CHANNEL_ID,"Aurelo Smart Alerts",NotificationManager.IMPORTANCE_HIGH).apply { description="Screen time and usage alerts"; lockscreenVisibility=android.app.Notification.VISIBILITY_PUBLIC; enableVibration(true); setShowBadge(true) })
             val launchIntent = context.packageManager.getLaunchIntentForPackage(context.packageName)
+            launchIntent?.putExtra(SmartNotificationWorker.EXTRA_OPEN_NOTIFICATIONS, true)
             val pendingFlags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) android.app.PendingIntent.FLAG_IMMUTABLE or android.app.PendingIntent.FLAG_UPDATE_CURRENT else android.app.PendingIntent.FLAG_UPDATE_CURRENT
-            val pendingIntent = if (launchIntent!=null) android.app.PendingIntent.getActivity(context,0,launchIntent,pendingFlags) else null
+            val pendingIntent = if (launchIntent!=null) android.app.PendingIntent.getActivity(context,1,launchIntent,pendingFlags) else null
             val tips = JSONArray(usageBridge.getSmartTips())
             var bestTip: JSONObject? = null
             for (i in 0 until tips.length()) { val tip=tips.getJSONObject(i); if (bestTip==null||tip.optString("type")=="warn") { bestTip=tip; if(tip.optString("type")=="warn") break } }
@@ -183,8 +184,9 @@ class NotificationBridge(
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
                 nm.createNotificationChannel(NotificationChannel(NOTIF_CHANNEL_ID,"Aurelo Smart Alerts",NotificationManager.IMPORTANCE_DEFAULT).apply { description="Screen time and usage alerts"; lockscreenVisibility=android.app.Notification.VISIBILITY_PUBLIC; setShowBadge(true) })
             val launchIntent=context.packageManager.getLaunchIntentForPackage(context.packageName)
+            launchIntent?.putExtra(SmartNotificationWorker.EXTRA_OPEN_NOTIFICATIONS, true)
             val pendingFlags=if(Build.VERSION.SDK_INT>=Build.VERSION_CODES.M) android.app.PendingIntent.FLAG_IMMUTABLE or android.app.PendingIntent.FLAG_UPDATE_CURRENT else android.app.PendingIntent.FLAG_UPDATE_CURRENT
-            val pendingIntent=if(launchIntent!=null) android.app.PendingIntent.getActivity(context,0,launchIntent,pendingFlags) else null
+            val pendingIntent=if(launchIntent!=null) android.app.PendingIntent.getActivity(context,1,launchIntent,pendingFlags) else null
             val items=JSONArray(getNotifications()); var posted=0
             for (i in 0 until items.length()) {
                 if (posted>=5) break
