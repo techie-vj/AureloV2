@@ -145,132 +145,182 @@ class IntentionEngine(
 
     private fun buildIntentionOverlayView(pkg: String, appName: String): View {
         val ctx = h.context
+        val MP  = LinearLayout.LayoutParams.MATCH_PARENT
+        val WC  = LinearLayout.LayoutParams.WRAP_CONTENT
 
-        // ── Colours — Aurelo warm amber palette ──────────────────────────────
-        val bgColor       = Color.rgb(10, 8, 5)
-        val amberMid      = Color.rgb(255, 170, 68)
-        val amberLight    = Color.rgb(255, 217, 125)
-        val cream         = Color.rgb(255, 243, 220)
-        val glowFill      = Color.argb(20,  255, 217, 125)
-        val ringOuter     = Color.argb(38,  255, 170, 68)
-        val ringMain      = Color.argb(179, 255, 170, 68)
-        val ringMid       = Color.argb(102, 255, 217, 125)
-        val ringInner     = Color.argb(128, 255, 170, 68)
-        val openBtnFill   = Color.argb(38,  255, 170, 68)
-        val openBtnBorder = Color.argb(128, 255, 170, 68)
-        val resistBorder  = Color.argb(76,  255, 170, 68)
-        val textCream     = Color.argb(230, 255, 243, 220)
-        val textAmber     = Color.argb(179, 255, 170, 68)
-        val textSub       = Color.argb(153, 255, 243, 220)
-        val chipBg        = Color.argb(15,  255, 255, 255)
-        val chipBorder    = Color.argb(26,  255, 255, 255)
+        // ── Colour palette — deep indigo-black with purple accent ─────────────────────────
+        val bgColor        = Color.parseColor("#0A0A14")
+        val accent         = Color.parseColor("#7C6AF7")       // Aurelo purple
+        val accentDark     = Color.parseColor("#5A4FCC")
+        val accentFill     = Color.argb(18,  124, 106, 247)   // very faint fill
+        val accentGlow     = Color.argb(35,  124, 106, 247)   // outer ring glow
+        val accentMid      = Color.argb(120, 124, 106, 247)   // main ring border
+        val accentStrong   = Color.argb(200, 124, 106, 247)   // inner ring border
+        val white90        = Color.argb(230, 255, 255, 255)
+        val white60        = Color.argb(153, 255, 255, 255)
+        val white35        = Color.argb(89,  255, 255, 255)
+        val white15        = Color.argb(38,  255, 255, 255)
+        val pillBg         = Color.argb(22,  255, 255, 255)
+        val pillBorder     = Color.argb(45,  255, 255, 255)
+        val ghostBorder    = Color.argb(55,  255, 255, 255)
 
         val root = FrameLayout(ctx).apply {
             setBackgroundColor(bgColor); clipChildren = false; clipToPadding = false
         }
 
-        // ── Header: wordmark + "Mindful Pause" ───────────────────────────────
-        val mindfulPauseLabel = TextView(ctx).apply {
-            text = "Mindful Pause"; textSize = 19f
-            typeface = android.graphics.Typeface.create("serif", android.graphics.Typeface.NORMAL)
-            setTextColor(textCream); gravity = Gravity.CENTER; letterSpacing = 0.05f
-        }
-        val headerArea = LinearLayout(ctx).apply {
+        // ── Header area: Aurelo wordmark + subtitle ─────────────────────────────────
+        val headerCol = LinearLayout(ctx).apply {
             orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL
         }
-        headerArea.addView(h.buildAureloWordmarkView(), LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT
-        ).apply { gravity = Gravity.CENTER_HORIZONTAL })
-        headerArea.addView(mindfulPauseLabel, h.linearWrap(Gravity.CENTER_HORIZONTAL).also { it.topMargin = h.dpToPx(10) })
-        root.addView(headerArea, FrameLayout.LayoutParams(
-            FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT
-        ).apply {
+        headerCol.addView(h.buildAureloWordmarkView(),
+            LinearLayout.LayoutParams(WC, WC).apply { gravity = Gravity.CENTER_HORIZONTAL })
+        headerCol.addView(TextView(ctx).apply {
+            text = "MINDFUL PAUSE"; textSize = 9.5f; letterSpacing = 0.28f
+            setTextColor(accentMid); gravity = Gravity.CENTER
+        }, LinearLayout.LayoutParams(MP, WC).apply { topMargin = h.dpToPx(5) })
+
+        root.addView(headerCol, FrameLayout.LayoutParams(MP, WC).apply {
             gravity   = Gravity.TOP or Gravity.CENTER_HORIZONTAL
-            topMargin = h.dpToPx(if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) 52 else 36)
+            topMargin = h.dpToPx(if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) 54 else 38)
         })
 
-        // ── App chip: "Opening Instagram" ────────────────────────────────────
-        val appChip = TextView(ctx).apply {
-            text = "Opening  \u00A0$appName"; textSize = 13f; letterSpacing = 0.08f
-            setTextColor(Color.argb(204, 255, 243, 220))
-            setPadding(h.dpToPx(14), h.dpToPx(6), h.dpToPx(14), h.dpToPx(6))
+        // ── App identity pill: [icon] [AppName] ─────────────────────────────────────
+        // Shared between phase1 and phase2 — stays on screen the whole time.
+        val appPill = LinearLayout(ctx).apply {
+            orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER
+            setPadding(h.dpToPx(10), h.dpToPx(7), h.dpToPx(14), h.dpToPx(7))
             background = GradientDrawable().apply {
-                cornerRadius = h.dpToPx(20).toFloat(); setColor(chipBg); setStroke(1, chipBorder)
+                cornerRadius = h.dpToPx(28).toFloat()
+                setColor(pillBg); setStroke(1, pillBorder)
             }
         }
+        try {
+            // Show the real app icon in the pill for instant visual context
+            val icon = ctx.packageManager.getApplicationIcon(pkg)
+            val iconView = android.widget.ImageView(ctx).apply {
+                setImageDrawable(icon)
+                scaleType = android.widget.ImageView.ScaleType.FIT_CENTER
+            }
+            appPill.addView(iconView, LinearLayout.LayoutParams(h.dpToPx(22), h.dpToPx(22)))
+        } catch (_: Exception) {} // graceful fallback: no icon, just name
+        appPill.addView(TextView(ctx).apply {
+            text = appName; textSize = 13f; typeface = android.graphics.Typeface.DEFAULT_BOLD
+            setTextColor(white90)
+        }, LinearLayout.LayoutParams(WC, WC).apply { leftMargin = h.dpToPx(7) })
 
-        // ── Phase 1 — Aura Ring breathing ────────────────────────────────────
+        val pillRow = LinearLayout(ctx).apply {
+            orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER
+        }
+        pillRow.addView(appPill)
+
+        // ── Phase 1: breathing orb ──────────────────────────────────────────────────
         val phase1 = LinearLayout(ctx).apply {
             orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL
             clipChildren = false; clipToPadding = false
-            setPadding(h.dpToPx(32), 0, h.dpToPx(32), 0)
         }
 
-        val ringContainerSz  = h.dpToPx(144)
-        val auraContainer    = FrameLayout(ctx).apply { clipChildren = false; clipToPadding = false }
+        // Orb: 3 concentric rings + center dot (clean, Calm-style)
+        val orbSz      = h.dpToPx(148)
+        val orbContainer = FrameLayout(ctx).apply { clipChildren = false; clipToPadding = false }
 
-        val glowView = View(ctx).apply {
-            background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(glowFill) }
+        // Outer atmospheric halo — large, extremely faint, scaled hard during breathe
+        val outerHalo = View(ctx).apply {
+            background = GradientDrawable().apply {
+                shape = GradientDrawable.OVAL; setColor(accentFill); setStroke(1, accentGlow)
+            }
         }
-        val ring1 = View(ctx).apply {
-            background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(Color.TRANSPARENT); setStroke(1, ringOuter) }
+        // Main breathing ring — clearly visible, pulses with main scale
+        val mainRing = View(ctx).apply {
+            background = GradientDrawable().apply {
+                shape = GradientDrawable.OVAL
+                setColor(accentFill); setStroke(h.dpToPx(2), accentMid)
+            }
         }
-        val ring2 = View(ctx).apply {
-            background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(Color.TRANSPARENT); setStroke(h.dpToPx(2), ringMain) }
+        // Inner core — slightly filled, stronger border, scales with center dot
+        val innerCore = View(ctx).apply {
+            background = GradientDrawable().apply {
+                shape = GradientDrawable.OVAL
+                setColor(Color.argb(30, 124, 106, 247)); setStroke(h.dpToPx(2), accentStrong)
+            }
         }
-        val ring3 = View(ctx).apply {
-            background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(Color.TRANSPARENT); setStroke(1, ringMid) }
-        }
+        // Center dot — solid accent, pulses most dramatically
         val centerDot = View(ctx).apply {
-            background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(amberMid) }
-        }
-        val ring4 = View(ctx).apply {
-            background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(Color.TRANSPARENT); setStroke(1, ringInner) }
+            background = GradientDrawable().apply {
+                shape = GradientDrawable.OVAL; setColor(accent)
+            }
         }
 
-        auraContainer.addView(glowView,   FrameLayout.LayoutParams(h.dpToPx(112), h.dpToPx(112)).apply { gravity = Gravity.CENTER })
-        auraContainer.addView(ring1,      FrameLayout.LayoutParams(h.dpToPx(100), h.dpToPx(100)).apply { gravity = Gravity.CENTER })
-        auraContainer.addView(ring2,      FrameLayout.LayoutParams(h.dpToPx(84),  h.dpToPx(84) ).apply { gravity = Gravity.CENTER })
-        auraContainer.addView(ring3,      FrameLayout.LayoutParams(h.dpToPx(64),  h.dpToPx(64) ).apply { gravity = Gravity.CENTER })
-        auraContainer.addView(centerDot,  FrameLayout.LayoutParams(h.dpToPx(16),  h.dpToPx(16) ).apply { gravity = Gravity.CENTER })
-        auraContainer.addView(ring4,      FrameLayout.LayoutParams(h.dpToPx(28),  h.dpToPx(28) ).apply { gravity = Gravity.CENTER })
+        orbContainer.addView(outerHalo, FrameLayout.LayoutParams(h.dpToPx(148), h.dpToPx(148)).apply { gravity = Gravity.CENTER })
+        orbContainer.addView(mainRing,  FrameLayout.LayoutParams(h.dpToPx(104), h.dpToPx(104)).apply { gravity = Gravity.CENTER })
+        orbContainer.addView(innerCore, FrameLayout.LayoutParams(h.dpToPx(58),  h.dpToPx(58) ).apply { gravity = Gravity.CENTER })
+        orbContainer.addView(centerDot, FrameLayout.LayoutParams(h.dpToPx(12),  h.dpToPx(12) ).apply { gravity = Gravity.CENTER })
 
-        phase1.addView(auraContainer, LinearLayout.LayoutParams(ringContainerSz, ringContainerSz).apply {
-            gravity = Gravity.CENTER_HORIZONTAL; topMargin = h.dpToPx(20); bottomMargin = h.dpToPx(16)
+        phase1.addView(orbContainer, LinearLayout.LayoutParams(orbSz, orbSz).apply {
+            gravity = Gravity.CENTER_HORIZONTAL; topMargin = h.dpToPx(28); bottomMargin = h.dpToPx(18)
         })
 
         val breatheLabel = TextView(ctx).apply {
-            text = "breathe in"; textSize = 11f; letterSpacing = 0.25f
-            setTextColor(textAmber); gravity = Gravity.CENTER
+            text = "breathe in"; textSize = 11f; letterSpacing = 0.22f
+            setTextColor(accent); gravity = Gravity.CENTER
         }
-        phase1.addView(breatheLabel, h.linearWrap(Gravity.CENTER_HORIZONTAL))
+        phase1.addView(breatheLabel, LinearLayout.LayoutParams(MP, WC))
+        phase1.addView(TextView(ctx).apply {
+            text = "take a moment before opening"; textSize = 11.5f
+            setTextColor(white35); gravity = Gravity.CENTER
+        }, LinearLayout.LayoutParams(MP, WC).apply { topMargin = h.dpToPx(7) })
 
-        // ── Phase 2 — CTA (hidden until breathing ends) ───────────────────────
+        // ── Phase 2: intent check ──────────────────────────────────────────────────
         val phase2 = LinearLayout(ctx).apply {
             orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL
-            setPadding(h.dpToPx(32), 0, h.dpToPx(32), 0); visibility = View.GONE; alpha = 0f
+            setPadding(h.dpToPx(30), 0, h.dpToPx(30), 0)
+            visibility = View.GONE; alpha = 0f
         }
 
+        // Question heading — bolder, more direct than before
         phase2.addView(TextView(ctx).apply {
-            text = "Do you intend to open\n$appName right now?"; textSize = 14f
-            typeface = android.graphics.Typeface.create("serif", android.graphics.Typeface.NORMAL)
-            setTextColor(textSub); gravity = Gravity.CENTER; setLineSpacing(0f, 1.6f); letterSpacing = 0.03f
-        }, h.linearWrap(Gravity.CENTER_HORIZONTAL).also { it.bottomMargin = h.dpToPx(24) })
+            text = "What do you need from $appName right now?"; textSize = 21f
+            typeface = android.graphics.Typeface.DEFAULT_BOLD
+            setTextColor(white90); gravity = Gravity.CENTER; setLineSpacing(0f, 1.35f)
+        }, LinearLayout.LayoutParams(MP, WC).apply { topMargin = h.dpToPx(28); bottomMargin = h.dpToPx(10) })
 
-        val btnRow = LinearLayout(ctx).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER }
+        phase2.addView(TextView(ctx).apply {
+            text = "Be intentional — no judgement."; textSize = 12.5f
+            setTextColor(white35); gravity = Gravity.CENTER
+        }, LinearLayout.LayoutParams(MP, WC).apply { bottomMargin = h.dpToPx(32) })
 
-        val resistBtn = TextView(ctx).apply {
-            text = "Resist"; textSize = 11f; letterSpacing = 0.18f; setTextColor(amberMid)
-            gravity = Gravity.CENTER; setPadding(0, h.dpToPx(12), 0, h.dpToPx(12))
+        // Primary CTA: open the app — filled, clearly primary
+        val openBtn = TextView(ctx).apply {
+            text = "Open $appName"; textSize = 15f
+            typeface = android.graphics.Typeface.DEFAULT_BOLD
+            setTextColor(Color.WHITE); gravity = Gravity.CENTER
+            setPadding(0, h.dpToPx(17), 0, h.dpToPx(17))
             background = GradientDrawable().apply {
-                cornerRadius = h.dpToPx(14).toFloat(); setColor(Color.TRANSPARENT); setStroke(1, resistBorder)
+                cornerRadius = h.dpToPx(18).toFloat()
+                // Vertical gradient: lighter top to darker bottom for tactile depth
+                setColors(intArrayOf(accent, accentDark))
+                orientation = GradientDrawable.Orientation.TOP_BOTTOM
+            }
+            isClickable = true; isFocusable = true
+            setOnClickListener {
+                allowedPkgs.add(pkg)   // allow for this foreground session
+                coordinator.dismiss(AppMonitorService.PRIORITY_INTENTION)
+            }
+        }
+        phase2.addView(openBtn, LinearLayout.LayoutParams(MP, WC).apply { bottomMargin = h.dpToPx(11) })
+
+        // Secondary: resist — ghost button, clearly secondary
+        val resistBtn = TextView(ctx).apply {
+            text = "Not now — go back"; textSize = 14f
+            setTextColor(white60); gravity = Gravity.CENTER
+            setPadding(0, h.dpToPx(15), 0, h.dpToPx(15))
+            background = GradientDrawable().apply {
+                cornerRadius = h.dpToPx(18).toFloat()
+                setColor(Color.TRANSPARENT); setStroke(1, ghostBorder)
             }
             isClickable = true; isFocusable = true
             setOnClickListener {
                 coordinator.dismiss(AppMonitorService.PRIORITY_INTENTION)
-                // Remove only this pkg's timestamp so the prompt fires again if user returns to the app.
-                // Don't touch other entries in lastEventMap.
-                lastEventMap.remove(pkg)
+                lastEventMap.remove(pkg)   // allow prompt to fire again on next open
                 recordResist(pkg)
                 runCatching {
                     h.startActivity(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME)
@@ -278,88 +328,79 @@ class IntentionEngine(
                 }
             }
         }
-        val openBtn = TextView(ctx).apply {
-            text = "Continue"; textSize = 11f; letterSpacing = 0.18f; setTextColor(amberLight)
-            gravity = Gravity.CENTER; setPadding(0, h.dpToPx(12), 0, h.dpToPx(12))
-            background = GradientDrawable().apply {
-                cornerRadius = h.dpToPx(14).toFloat(); setColor(openBtnFill); setStroke(1, openBtnBorder)
-            }
-            isClickable = true; isFocusable = true
-            setOnClickListener {
-                // Allow this app for the current foreground session.
-                // The overlay will re-appear only after the user closes and reopens the app.
-                allowedPkgs.add(pkg)
-                coordinator.dismiss(AppMonitorService.PRIORITY_INTENTION)
-            }
-        }
-        btnRow.addView(resistBtn, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-            .also { it.rightMargin = h.dpToPx(10) })
-        btnRow.addView(openBtn,   LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
-        phase2.addView(btnRow, h.linearFill())
+        phase2.addView(resistBtn, LinearLayout.LayoutParams(MP, WC))
 
-        // ── Assemble content column ───────────────────────────────────────────
+        // ── Assemble full content column ─────────────────────────────────────────────
         val contentCol = LinearLayout(ctx).apply {
             orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL
             clipChildren = false; clipToPadding = false
         }
-        contentCol.addView(appChip, h.linearWrap(Gravity.CENTER_HORIZONTAL).also { it.bottomMargin = h.dpToPx(4) })
-        contentCol.addView(phase1,  LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
-        contentCol.addView(phase2,  LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
+        contentCol.addView(pillRow, LinearLayout.LayoutParams(MP, WC))
+        contentCol.addView(phase1,  LinearLayout.LayoutParams(MP, WC))
+        contentCol.addView(phase2,  LinearLayout.LayoutParams(MP, WC))
 
-        root.addView(contentCol, FrameLayout.LayoutParams(
-            FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT
-        ).apply { gravity = Gravity.CENTER })
+        root.addView(contentCol, FrameLayout.LayoutParams(MP, WC).apply { gravity = Gravity.CENTER })
 
-        // ── Breathing animations ───────────────────────────────────────────────
-        val expandRings = ValueAnimator.ofFloat(0.85f, 1.15f).apply {
+        // ── Breathing animations ──────────────────────────────────────────────────
+        // outerHalo + mainRing breathe together (rings expand)
+        val expandRings = ValueAnimator.ofFloat(0.86f, 1.14f).apply {
             duration = 2500L; interpolator = DecelerateInterpolator()
             addUpdateListener { anim ->
                 val v = anim.animatedValue as Float
-                ring1.scaleX = v; ring1.scaleY = v; ring2.scaleX = v; ring2.scaleY = v
-                ring3.scaleX = v; ring3.scaleY = v; ring4.scaleX = v; ring4.scaleY = v
+                outerHalo.scaleX = v; outerHalo.scaleY = v
+                mainRing.scaleX  = v; mainRing.scaleY  = v
             }
         }
-        val expandGlow = ValueAnimator.ofFloat(0.7f, 1.3f).apply {
+        // innerCore + centerDot pulse with slightly wider range for depth
+        val expandCore = ValueAnimator.ofFloat(0.75f, 1.28f).apply {
             duration = 2500L; interpolator = DecelerateInterpolator()
             addUpdateListener { anim ->
                 val v = anim.animatedValue as Float
-                glowView.scaleX = v; glowView.scaleY = v; centerDot.scaleX = v; centerDot.scaleY = v
+                innerCore.scaleX = v; innerCore.scaleY = v
+                centerDot.scaleX = v; centerDot.scaleY = v
             }
         }
-        val contractRings = ValueAnimator.ofFloat(1.15f, 0.85f).apply {
+        val contractRings = ValueAnimator.ofFloat(1.14f, 0.86f).apply {
             duration = 2500L; interpolator = AccelerateDecelerateInterpolator()
             addUpdateListener { anim ->
                 val v = anim.animatedValue as Float
-                ring1.scaleX = v; ring1.scaleY = v; ring2.scaleX = v; ring2.scaleY = v
-                ring3.scaleX = v; ring3.scaleY = v; ring4.scaleX = v; ring4.scaleY = v
+                outerHalo.scaleX = v; outerHalo.scaleY = v
+                mainRing.scaleX  = v; mainRing.scaleY  = v
             }
         }
-        val contractGlow = ValueAnimator.ofFloat(1.3f, 0.7f).apply {
+        val contractCore = ValueAnimator.ofFloat(1.28f, 0.75f).apply {
             duration = 2500L; interpolator = AccelerateDecelerateInterpolator()
             addUpdateListener { anim ->
                 val v = anim.animatedValue as Float
-                glowView.scaleX = v; glowView.scaleY = v; centerDot.scaleX = v; centerDot.scaleY = v
+                innerCore.scaleX = v; innerCore.scaleY = v
+                centerDot.scaleX = v; centerDot.scaleY = v
             }
         }
 
         val phaseHandler = Handler(Looper.getMainLooper())
         root.addOnAttachStateChangeListener(object : View.OnAttachStateChangeListener {
             override fun onViewAttachedToWindow(v: View) {
-                expandRings.start(); expandGlow.start()
+                expandRings.start(); expandCore.start()
                 phaseHandler.postDelayed({
-                    breatheLabel.text = "breathe out"; contractRings.start(); contractGlow.start()
+                    // Smooth label swap: fade out → swap text → fade in
+                    breatheLabel.animate().alpha(0f).setDuration(250L).withEndAction {
+                        breatheLabel.text = "breathe out"
+                        breatheLabel.animate().alpha(1f).setDuration(250L).start()
+                    }.start()
+                    contractRings.start(); contractCore.start()
                 }, 2500L)
                 phaseHandler.postDelayed({
-                    phase1.animate().alpha(0f).setDuration(300L).withEndAction {
-                        phase1.visibility = View.GONE; phase2.visibility = View.VISIBLE
-                        phase2.animate().alpha(1f).setDuration(400L).start()
+                    phase1.animate().alpha(0f).setDuration(350L).withEndAction {
+                        phase1.visibility = View.GONE
+                        phase2.visibility = View.VISIBLE
+                        phase2.animate().alpha(1f).setDuration(450L).start()
                     }.start()
                 }, 5000L)
             }
             override fun onViewDetachedFromWindow(v: View) {
                 phaseHandler.removeCallbacksAndMessages(null)
-                expandRings.cancel(); expandGlow.cancel()
-                contractRings.cancel(); contractGlow.cancel()
+                expandRings.cancel(); expandCore.cancel()
+                contractRings.cancel(); contractCore.cancel()
             }
         })
 

@@ -88,6 +88,17 @@ window.FocusBedtime = (function () {
 
     if (IS_NATIVE && typeof N.saveBedtimeSettings === 'function') {
       try { N.saveBedtimeSettings(JSON.stringify(cfg)); } catch (_) {}
+      // If bedtime blocking is currently running, push the updated blocked-apps list
+      // to the live BedtimeBlockingEngine immediately so added/removed apps take
+      // effect without needing a full stop/restart cycle.
+      // N.updateBedtimeBlock() sends ACTION_BEDTIME_UPDATE to AppMonitorService.
+      try {
+        if (typeof N.isBedtimeBlockActive === 'function' && N.isBedtimeBlockActive() &&
+            typeof N.updateBedtimeBlock === 'function') {
+          var _apps = Array.isArray(cfg.blockedApps) ? cfg.blockedApps : [];
+          N.updateBedtimeBlock(JSON.stringify(_apps));
+        }
+      } catch (_) {}
       // BUG-2a FIX: schedule (or cancel) alarms whenever config is persisted.
       // Previously only saveBedtimeSettings was called — scheduleBedtimeAlarms was
       // never invoked from JS, so BedtimeReceiver.BEDTIME_ON never fired and DND
