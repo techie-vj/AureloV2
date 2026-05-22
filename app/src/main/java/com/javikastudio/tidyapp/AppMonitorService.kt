@@ -823,7 +823,16 @@ class AppMonitorService : Service() {
         }
 
         // ── 2. BEDTIME ACTIVE ─────────────────────────────────────────────────
-        if (bedtimeEngine.isActive) {
+        // BUG-2 FIX: bedtimeEngine.isActive is an in-memory flag that may be false
+        // if the service was killed and restarted (or if ACTION_BEDTIME_START arrived
+        // after ACTION_FILTER_START and the notification was built in-between).
+        // Fall back to the durable BEDTIME_BLOCK_ACTIVE pref so the notification
+        // correctly shows "Bedtime Mode active" even when the engine state is stale,
+        // preventing the filter section (section 5) from showing instead.
+        val isBedtimeActive = bedtimeEngine.isActive ||
+                (prefs.getBoolean(BEDTIME_BLOCK_ACTIVE, false) &&
+                        !prefs.getBoolean(BEDTIME_SKIPPED_TONIGHT, false))
+        if (isBedtimeActive) {
             val snoozeUntilTs = prefs.getLong(BEDTIME_SNOOZE_UNTIL_TS, 0L)
             val isSnoozing    = snoozeUntilTs > now
             val stopPi = PendingIntent.getService(this, 11,

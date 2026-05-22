@@ -240,9 +240,33 @@ window.FocusScore = (function () {
   }
 
   /* ════════════════════════════════════════════════════════════
+  /* ════════════════════════════════════════════════════════════
    * calculateSleep()
    *
-   * F-12: Snooze scoring graduated (0→30, 1→20, 2→10, 3+→0)
+   * Revised Sleep Score formula (v2.1):
+   *
+   * Adherence base (0–40 pts):
+   *   bedtime kept            → 40
+   *   skipped tonight         → 15  (distinct from missing entirely)
+   *   missed (never started)  → 10
+   *
+   * In-window phone usage (0–30 pts, kept only):
+   *   ≤15 min cumulative      → 30  (grace period — alarm/music/notes)
+   *   each 5 min over 15 min  → −3  (max deduction −30, floor 0)
+   *
+   * Friction signals (0–20 pts, kept only):
+   *   snooze deduction        → −5/snooze, max −10
+   *   blocked app attempts    → −2/attempt, max −10
+   *
+   * Streak bonus (0–12 pts, kept only):
+   *   +2 per consecutive night, max +12
+   *
+   * Screen Filter bonus (+3, kept only):
+   *   +3 when bedtime auto-filter was active this night
+   *
+   * Max achievable: 40+30+20+12+3 = 105 → capped at 100
+   *
+   * F-12: Graduated snooze scoring replaced by friction-slot deduction model.
    * ════════════════════════════════════════════════════════════ */
   function calculateSleep() {
     var now = Date.now();
@@ -266,7 +290,7 @@ window.FocusScore = (function () {
       var preWakeMsg = (cfg.wakeHour != null)
         ? 'Check back after ' + wakeTimeLabel
         : 'Check back later today';
-      var r0 = { score: -1, bedStreak, preWakeReason: preWakeMsg };
+      var r0 = { score: -1, bedStreak: bedStreak, preWakeReason: preWakeMsg };
       _sleepScoreCache = r0; _sleepScoreCacheTs = now;
       return r0;
     }
@@ -276,32 +300,64 @@ window.FocusScore = (function () {
 
     var result;
     if (!lastNight || !lastNight.hasData) {
-      result = { score: -1, bedStreak };
+      result = { score: -1, bedStreak: bedStreak };
     } else {
-      var adherePts = lastNight.bedtimeKept ? 50 : 0;
-      // F-12: graduated snooze scoring — was: 0→30, 1→15, 2+→0
-      // BUG-06 FIX: Gate both snoozePts and attemptPts on bedtimeKept. "0 snoozes" on a
-      // night where bedtime was never started is semantically irrelevant and should not
-      // award 30 pts. Only nights where bedtime was actually kept can earn these bonuses.
-      var snoozePts = lastNight.bedtimeKept
-                    ? (lastNight.snoozeCount === 0 ? 30
-                    : lastNight.snoozeCount === 1 ? 20
-                    : lastNight.snoozeCount === 2 ? 10
-                    : 0)
-                    : 0;
-      var attemptPts = lastNight.bedtimeKept
-                     ? Math.max(0, 20 - (lastNight.appAttemptsTotal || 0) * 5)
-                     : 0;
-      // FIX B7: Apply streak bonus as specified in spec §7.2: +3 per streak night,
-      // up to a maximum of +20. bedStreak was already fetched above but was never
-      // included in the score — it was silently discarded every calculation cycle.
-      var streakBonus = Math.min(20, (bedStreak || 0) * 3);
+      var kept          = !!lastNight.bedtimeKept;
+      var skipped       = !!lastNight.skippedTonight;
+      var inWindowMins  = lastNight.inWindowScreenMins || 0;
+      var filterActive  = !!lastNight.filterWasActive;
+
+      // ── Adherence base ───────────────────────────────────────
+      var adherePts = kept ? 40 : (skipped ? 15 : 10);
+
+      // ── In-window usage (grace 15 min, then −3 per 5 min, max −30) ──
+      // Only meaningful when bedtime was kept; for skipped/missed = 0.
+      var inWindowPts = 0;
+      if (kept) {
+        var GRACE_MINS = 15;
+        var overGrace  = Math.max(0, inWindowMins - GRACE_MINS);
+        var deduction  = Math.ceil(overGrace / 5) * 3;
+        inWindowPts    = Math.max(0, 30 - deduction);
+      }
+
+      // ── Friction (snooze + blocked app attempts) — kept only ──
+      // BUG-06 FIX: Gate on bedtimeKept. Snooze count of 0 on a missed night
+      // is irrelevant and should not award points.
+      var snoozePts  = 0;
+      var attemptPts = 0;
+      var frictionPts = 0;
+      if (kept) {
+        var snoozeDed  = Math.min((lastNight.snoozeCount  || 0) * 5, 10);
+        var attemptDed = Math.min((lastNight.appAttemptsTotal || 0) * 2, 10);
+        snoozePts  = Math.max(0, 10 - snoozeDed);    // 0–10
+        attemptPts = Math.max(0, 10 - attemptDed);   // 0–10
+        frictionPts = snoozePts + attemptPts;         // 0–20
+      }
+
+      // ── Streak bonus — kept only ──────────────────────────────
+      var streakBonus = kept ? Math.min(12, (bedStreak || 0) * 2) : 0;
+
+      // ── Screen Filter bonus — kept only ──────────────────────
+      var filterBonus = (kept && filterActive) ? 3 : 0;
+
       result = {
-        score: Math.min(100, adherePts + snoozePts + attemptPts + streakBonus),
-        adherePts, snoozePts, attemptPts, streakBonus,
-        adhereW: 50, snoozeW: 30, attemptW: 20, streakW: 20,
-        lastNight, bedStreak,
-        cfg, // expose cfg for _getEffectiveSleepScore bedtime window calculation
+        score: Math.min(100, adherePts + inWindowPts + frictionPts + streakBonus + filterBonus),
+        adherePts:   adherePts,
+        inWindowPts: inWindowPts,
+        snoozePts:   snoozePts,
+        attemptPts:  attemptPts,
+        frictionPts: frictionPts,
+        streakBonus: streakBonus,
+        filterBonus: filterBonus,
+        // Weights for breakdown UI
+        adhereW:     40,
+        inWindowW:   30,
+        frictionW:   20,
+        streakW:     12,
+        filterW:     3,
+        lastNight:   lastNight,
+        bedStreak:   bedStreak,
+        cfg:         cfg,
       };
     }
     _sleepScoreCache = result; _sleepScoreCacheTs = now;
@@ -1326,9 +1382,11 @@ window.FocusScore = (function () {
           // Bedtime Mode score — previously only showed "kept/missed" and the
           // impact of snoozes + blocked attempts was invisible in HC mode.
           dataLine: ln && ln.hasData
-            ? (ln.bedtimeKept ? 'Bedtime kept ✓' : 'Bedtime missed')
+            ? (ln.bedtimeKept ? 'Bedtime kept ✓' : (ln.skippedTonight ? 'Skipped tonight' : 'Bedtime missed'))
               + ' · ' + (ln.snoozeCount || 0) + ' snooze' + ((ln.snoozeCount || 0) !== 1 ? 's' : '')
-              + ' · ' + (ln.appAttemptsTotal || 0) + ' blocked attempt' + ((ln.appAttemptsTotal || 0) !== 1 ? 's' : '')
+              + ' · ' + (ln.appAttemptsTotal || 0) + ' attempt' + ((ln.appAttemptsTotal || 0) !== 1 ? 's' : '')
+              + ' · ' + (ln.inWindowScreenMins || 0) + ' min phone use' + ((ln.inWindowScreenMins || 0) <= 15 ? ' (within grace)' : ' (over grace)')
+              + ' · Screen Filter ' + (ln.filterWasActive ? '✓' : '✗')
             : 'No data',
         },
         {
@@ -1347,38 +1405,48 @@ window.FocusScore = (function () {
         },
       ];
     } else {
-      // No HC — base bedtime formula (adherence + snooze + attempts + streak bonus)
+      // No HC — new formula: adherence(40) + in-window(30) + friction(20) + streak(12) + filter(3)
+      var ln = res.lastNight || {};
+      var keptLabel   = ln.hasData ? (ln.bedtimeKept ? 'Bedtime window respected' : (ln.skippedTonight ? 'Skipped tonight' : 'Bedtime missed')) : 'No data yet';
+      var winMins     = ln.inWindowScreenMins || 0;
+      var winLabel    = ln.hasData
+        ? (winMins <= 15
+            ? winMins + ' min used — within 15 min grace period'
+            : winMins + ' min used — ' + (winMins - 15) + ' min over 15 min grace')
+        : 'No data';
+      var snoozeLabel  = ln.hasData ? ((ln.snoozeCount || 0) + ' snooze' + ((ln.snoozeCount || 0) !== 1 ? 's' : '') + ' last night') : 'No data';
+      var attemptLabel = ln.hasData ? ((ln.appAttemptsTotal || 0) + ' blocked attempt' + ((ln.appAttemptsTotal || 0) !== 1 ? 's' : '') + ' last night') : 'No data';
+      var streakLabel  = res.bedStreak > 0
+        ? res.bedStreak + '-night streak · +' + (res.streakBonus || 0) + ' pts (max +12)'
+        : 'Build a bedtime streak to earn up to +12 pts';
+      var filterLabel  = ln.hasData
+        ? (ln.filterWasActive ? 'Screen Filter was active during bedtime window (+3 pts)' : 'Screen Filter was not active last night')
+        : 'No data';
+
       components = [
-        {label:'Bedtime Adherence',    weight:50, pts:res.adherePts, maxPts:50,
-          dataLine: ln && ln.hasData
-            ? (ln.bedtimeKept ? 'Bedtime window respected last night' : 'Bedtime window was not respected')
-            : 'No data yet'},
-        {label:'Snooze Count',         weight:30, pts:res.snoozePts, maxPts:30,
-          dataLine: ln && ln.hasData
-            ? (ln.snoozeCount + ' snooze' + (ln.snoozeCount !== 1 ? 's' : '') + ' last night')
-            : 'No data'},
-        {label:'App Attempts Blocked', weight:20, pts:res.attemptPts, maxPts:20,
-          dataLine: ln && ln.hasData
-            ? ((ln.appAttemptsTotal || 0) + ' blocked app attempt'
-               + ((ln.appAttemptsTotal || 0) !== 1 ? 's' : '') + ' last night')
-            : 'No data'},
-        // FIX B7: show streak bonus row so it's visible and not a mystery
-        {label:'Bedtime Streak Bonus', weight:20, pts:res.streakBonus || 0, maxPts:20,
-          dataLine: res.bedStreak > 0
-            ? res.bedStreak + '-night streak · +' + (res.streakBonus || 0) + ' pts (max +20)'
-            : 'Build a bedtime streak to earn up to +20 pts'},
+        { label: 'Bedtime Adherence',
+          weight: 40, pts: res.adherePts,   maxPts: 40, dataLine: keptLabel },
+        { label: 'In-Window Usage',
+          weight: 30, pts: res.inWindowPts, maxPts: 30, dataLine: winLabel },
+        { label: 'Friction (Snooze + Attempts)',
+          weight: 20, pts: res.frictionPts, maxPts: 20,
+          dataLine: ln.hasData ? (snoozeLabel + ' · ' + attemptLabel) : 'No data' },
+        { label: 'Bedtime Streak Bonus',
+          weight: 12, pts: res.streakBonus || 0, maxPts: 12, dataLine: streakLabel },
+        { label: 'Screen Filter Bonus',
+          weight: 3,  pts: res.filterBonus || 0, maxPts: 3,  dataLine: filterLabel },
       ];
     }
 
     // ── Improvements — built after HC blend so impact values are correctly scaled ─
-    // In HC mode the base score (adherePts + snoozePts + attemptPts) feeds only the
-    // 60% component; potential gains must be multiplied by that component's effective
-    // renormalised weight so "+N pts" reflects what actually changes in effectiveScore.
+    // In HC mode the base behavioural score feeds only the 60% Bedtime component;
+    // scale potential gains accordingly so "+N pts" reflects the composite impact.
     // In non-HC mode the raw base pts are the full score — no scaling needed.
     var _impactScale = hcActive ? (0.60 / _totalNomW) : 1;
-    if (res.adherePts  === 0) improvements.push({text:'Respect your bedtime window tonight — no manual disable',  impact: Math.round(50 * _impactScale)});
-    if (res.snoozePts  <  30) improvements.push({text:'Avoid snoozing — 0 snoozes earns full points, 2+ earns 0', impact: Math.round((30 - res.snoozePts)  * _impactScale)});
-    if (res.attemptPts <  20) improvements.push({text:'Keep blocked apps closed during the bedtime window',       impact: Math.round((20 - res.attemptPts) * _impactScale)});
+    if (res.adherePts        <  40) improvements.push({text:'Keep your bedtime window tonight',                                     impact: Math.round((40 - res.adherePts)           * _impactScale)});
+    if ((res.inWindowPts||0) <  30) improvements.push({text:'Keep phone use under 15 min during bedtime (alarm/music is fine)',     impact: Math.round((30 - (res.inWindowPts||0))    * _impactScale)});
+    if ((res.frictionPts||0) <  20) improvements.push({text:'Reduce snoozes and blocked app attempts during bedtime',               impact: Math.round((20 - (res.frictionPts||0))    * _impactScale)});
+    if (!(res.filterBonus))         improvements.push({text:'Enable Screen Filter in Bedtime settings for a small bonus (+3 pts)',  impact: Math.round(3                              * _impactScale)});
 
     var sheetHtml = _buildScoreSheet({
       title:'Sleep Score', score:effectiveScore, scoreKey:_SLEEP_SCORE_KEY,

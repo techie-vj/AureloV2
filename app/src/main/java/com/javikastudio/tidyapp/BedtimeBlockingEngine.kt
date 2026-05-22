@@ -151,11 +151,15 @@ class BedtimeBlockingEngine(
         val attemptsJson  = BedtimePrefs.getAttempts(securePrefs)
         if (!prefs.getBoolean("bedtime_last_night_has_data", false)) {
             prefs.edit()
-                .putInt    ("bedtime_last_night_snooze_count",    snoozeCount)
-                .putInt    ("bedtime_last_night_attempts_total",  attemptsTotal)
-                .putString (BEDTIME_LAST_NIGHT_ATTEMPTS_JSON,     attemptsJson)
-                .putBoolean("bedtime_last_night_kept",            true)
-                .putBoolean("bedtime_last_night_has_data",        true)
+                .putInt    ("bedtime_last_night_snooze_count",              snoozeCount)
+                .putInt    ("bedtime_last_night_attempts_total",            attemptsTotal)
+                .putString (BEDTIME_LAST_NIGHT_ATTEMPTS_JSON,               attemptsJson)
+                .putBoolean("bedtime_last_night_kept",                      true)
+                .putBoolean("bedtime_last_night_has_data",                  true)
+                // New fields — BEDTIME_OFF will overwrite with authoritative values at wake-up.
+                .putInt    (BEDTIME_LAST_NIGHT_IN_WINDOW_SCREEN_MINS,       0)
+                .putBoolean(BEDTIME_LAST_NIGHT_SKIPPED_TONIGHT,             false)
+                .putBoolean(BEDTIME_LAST_NIGHT_FILTER_ACTIVE,                false)
                 .apply()
         }
         coordinator.forceRemove()
@@ -193,10 +197,14 @@ class BedtimeBlockingEngine(
             // Always update the JSON snapshot so the receiver always has fresh data
             putString (BEDTIME_LAST_NIGHT_ATTEMPTS_JSON, attemptsJson)
             if (!alreadySnapshotted) {
-                putInt    ("bedtime_last_night_snooze_count",   snoozeCount)
-                putInt    ("bedtime_last_night_attempts_total", attemptsTotal)
-                putBoolean("bedtime_last_night_kept",           wasNatural)
-                putBoolean("bedtime_last_night_has_data",       true)
+                putInt    ("bedtime_last_night_snooze_count",              snoozeCount)
+                putInt    ("bedtime_last_night_attempts_total",            attemptsTotal)
+                putBoolean("bedtime_last_night_kept",                      wasNatural)
+                putBoolean("bedtime_last_night_has_data",                  true)
+                // New fields — BEDTIME_OFF will overwrite with authoritative values at wake-up.
+                putInt    (BEDTIME_LAST_NIGHT_IN_WINDOW_SCREEN_MINS,       0)
+                putBoolean(BEDTIME_LAST_NIGHT_SKIPPED_TONIGHT,             !wasNatural)
+                putBoolean(BEDTIME_LAST_NIGHT_FILTER_ACTIVE,                false)
             }
             putInt   ("bedtime_snooze_count", 0)
         }.apply()

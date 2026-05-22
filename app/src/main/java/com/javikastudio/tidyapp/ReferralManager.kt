@@ -146,9 +146,8 @@ object ReferralManager {
             .putLong(REFERRAL_INSTALL_TS, now)
             // BUG-REF-2 FIX: write the extension expiry so isExtensionActive() can gate Pro.
             .putLong(REFERRAL_EXTENSION_EXPIRY_MS, expiryMs)
-            // BUG-REF-2 FIX: write IS_PRO_USER so BedtimeReceiver / startWindDownFilter()
-            // (which read from tidyapp_v6, not EntitlementRepository) see Pro immediately.
-            .putBoolean(IS_PRO_USER, true)
+            // IS_PRO_USER is omitted here: EntitlementRepository.setProStatus(true) below
+            // writes it to tidyapp_v6 as the single authoritative write point.
             .putInt(REFERRAL_PENDING_EXTENSION_DAYS, bonusDays)
             .apply()
 

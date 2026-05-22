@@ -125,6 +125,13 @@ const val BEDTIME_SKIPPED_TONIGHT = "bedtime_skipped_tonight"
 // how late doze-mode delivers the wind-down alarm.
 // Cleared on BEDTIME_ON (bedtime started) and WINDOWN_STOP (user turned off wind-down).
 const val BEDTIME_STARTS_AT_MS = "bedtime_starts_at_ms"
+// In-window phone usage minutes recorded at wake-up time (BEDTIME_OFF).
+// Used for the 15-minute grace period in Sleep Score computation.
+const val BEDTIME_LAST_NIGHT_IN_WINDOW_SCREEN_MINS = "bedtime_last_night_in_window_mins"
+// Whether the user explicitly skipped bedtime tonight (distinct from missing it entirely).
+const val BEDTIME_LAST_NIGHT_SKIPPED_TONIGHT       = "bedtime_last_night_skipped_tonight"
+// Whether the bedtime auto-filter (Screen Filter) was configured and active this night.
+const val BEDTIME_LAST_NIGHT_FILTER_ACTIVE          = "bedtime_last_night_filter_active"
 
 // ── Notifications ─────────────────────────────────────────────────────────────
 const val NOTIF_CHANNEL_ID     = "tidy_alerts"

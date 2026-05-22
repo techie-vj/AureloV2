@@ -70,11 +70,9 @@ class BillingBridge(
         entitlementRepo.setProStatus(isPro)
 
         if (isPro) {
-            // BUG FIX (Screen Filter / Bedtime gate): mirror the grant into tidyapp_v6.
-            // BedtimeReceiver.BEDTIME_ON and startWindDownFilter() read IS_PRO_USER from
-            // the main prefs file, not from EntitlementRepository (tidyapp_entitlement_v1).
-            // Without this write the filter check always returned false and blocked activation.
-            prefs.edit().putBoolean(IS_PRO_USER, true).apply()
+            // IS_PRO_USER in tidyapp_v6 is now mirrored by EntitlementRepository.setProStatus(),
+            // so BedtimeReceiver / startWindDownFilter() see the correct value without a
+            // separate write here.
             WidgetUpdater.updateAll(context)
             // Cancel any pending extension-expiry task — user has re-subscribed (BUG-06).
             ReferralExtensionWorker.cancel(context)
@@ -89,15 +87,7 @@ class BillingBridge(
             val extensionDays = ReferralManager.activateExtensionOnLapse(prefs)
             if (extensionDays > 0) {
                 // Extension activated — keep IS_PRO_USER = true for the extension period.
-                // User retains Pro status (and Pro theme) while the extension is active.
-                prefs.edit().putBoolean(IS_PRO_USER, true).apply()
-                // BUG-REF-1 FIX: sync EntitlementRepository so isProUser() returns true
-                // and the 72-h grace-period anchor is refreshed. Without this call the
-                // entitlement repo still holds isPro=false (written by setProStatus(false)
-                // at the top of this function), so BillingBridge.isProUser() returns false
-                // and the grace-period guard expires after 72 h — both causing the billing
-                // listener in AppBridge to treat subsequent foreground queries as a fresh
-                // lapse and run handleProDowngrade() while the extension is still active.
+                // entitlementRepo.setProStatus(true) writes IS_PRO_USER to both stores.
                 entitlementRepo.setProStatus(true)
                 android.util.Log.d("AureloReferral",
                     "Subscription lapsed (JS path) — referral extension activated: $extensionDays days")
@@ -123,9 +113,8 @@ class BillingBridge(
 
             } else {
                 // No extension days banked — user is fully downgraded to free tier.
-                // Clear IS_PRO_USER in tidyapp_v6 so BedtimeReceiver / startWindDownFilter()
-                // immediately see the revoked state.
-                prefs.edit().putBoolean(IS_PRO_USER, false).apply()
+                // entitlementRepo.setProStatus(false) at the top of this function already
+                // wrote IS_PRO_USER=false to tidyapp_v6.
                 // Reset widget theme to the free default immediately.
                 // Full feature cleanup (bedtime, routines, HC, app lists, screen filter)
                 // is triggered by JS: pro-gate.js _handleProDowngrade() calls

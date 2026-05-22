@@ -568,7 +568,19 @@ window.FocusBedtime = (function () {
         if (fadeInEl)  { var fi = fadeInEl.classList.contains('on');  if (sfCfg.fadeIn  !== fi)  { sfCfg.fadeIn  = fi;  changed = true; } }
         if (fadeOutEl) { var fo = fadeOutEl.classList.contains('on'); if (sfCfg.fadeOut !== fo) { sfCfg.fadeOut = fo; changed = true; } }
       }
-      if (changed) ScreenFilter.saveCfg(sfCfg);
+      if (changed) {
+        ScreenFilter.saveCfg(sfCfg);
+        // BUG-1 FIX: saveCfg -> _applyNative returns early when bedtime is active
+        // (guard: btActive && bedtimeAutoApply), so toggling the bedtime Screen Filter
+        // toggle ON while bedtime is already running never starts the overlay.
+        // When autoApply was just enabled AND we're currently in the bedtime window,
+        // call applyBedtimeFilter() directly to bypass that guard.
+        if (autoApply && typeof ScreenFilter !== 'undefined' && typeof ScreenFilter.applyBedtimeFilter === 'function') {
+          var _btNow = IS_NATIVE && typeof N.isInBedtimeWindow === 'function' && !!N.isInBedtimeWindow();
+          var _btSkip = IS_NATIVE && typeof N.isBedtimeSkippedTonight === 'function' && !!N.isBedtimeSkippedTonight();
+          if (_btNow && !_btSkip) ScreenFilter.applyBedtimeFilter();
+        }
+      }
     }());
 
     // Set seeded flag so render() skips re-seeding clock state

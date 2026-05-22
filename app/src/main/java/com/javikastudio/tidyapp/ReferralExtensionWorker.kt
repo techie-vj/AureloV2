@@ -77,10 +77,6 @@ class ReferralExtensionWorker(
         if (newDays > 0) {
             Log.d(TAG, "BUG-REF-3 FIX: $newDays banked day(s) found — extending Pro, skipping revocation")
 
-            // Keep IS_PRO_USER true so native receivers (BedtimeReceiver, startWindDownFilter)
-            // continue to see Pro status without a gap.
-            prefs.edit().putBoolean(IS_PRO_USER, true).apply()
-
             // BUG-REF-5 FIX: refresh EntitlementRepository so lastProConfirmedMs is
             // anchored to now. Without this the 72-h grace window expires relative to
             // when the PREVIOUS extension was activated, causing isWithinRevocationGrace()
@@ -100,11 +96,8 @@ class ReferralExtensionWorker(
         }
 
         Log.d(TAG, "Extension expired — revoking Pro access")
-        prefs.edit().putBoolean(IS_PRO_USER, false).apply()
-        // BUG-03 FIX: also revoke EntitlementRepository (tidyapp_entitlement_v1).
-        // Previously only IS_PRO_USER in tidyapp_v6 was cleared, causing split-brain:
-        // BillingBridge.isProUser() (reads entitlement repo) still returned true while
-        // native receivers (BedtimeReceiver etc.) saw false from tidyapp_v6.
+        // EntitlementRepository.revokePro() now also clears IS_PRO_USER in tidyapp_v6,
+        // so a separate prefs write here is no longer needed.
         com.javikastudio.tidyapp.billing.EntitlementRepository(context).revokePro()
         postExpiryNotification()
         return Result.success()

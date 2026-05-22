@@ -113,6 +113,9 @@ class BedtimeReceiver : BroadcastReceiver() {
                 runCatching<Unit> { stopScreenFilter(ctx) }
                 stopBedtimeBlock(ctx)
 
+                // Read skippedTonight BEFORE the prefs.edit() below clears it.
+                val skippedTonightSnap = prefs.getBoolean(BEDTIME_SKIPPED_TONIGHT, false)
+
                 // BM-028 FIX: read BEDTIME_ON_TS before anything clears it.
                 // BEDTIME_ON_TS is reset to 0 at the END of this handler so that if
                 // tomorrow night BEDTIME_ON never fires, bedOnTs will be 0 here.
@@ -195,6 +198,34 @@ class BedtimeReceiver : BroadcastReceiver() {
                 // BM-028 FIX: clear BEDTIME_ON_TS so tomorrow, if BEDTIME_ON never fires,
                 // bedOnTs will be 0 and the missed-bedtime branch (BM-024) triggers correctly.
                 prefs.edit().putLong(BEDTIME_ON_TS, 0L).apply()
+
+                // ── New fields: in-window screen time, skip-tonight, filter state ──
+                // These are always written at BEDTIME_OFF (not guarded by alreadySnapshotted)
+                // so they reflect authoritative end-of-window data even when the blocking
+                // engine already saved the base snapshot earlier in the night.
+                val filterWasActive = runCatching {
+                    org.json.JSONObject(raw ?: "{}").optJSONObject("screenFilter")
+                        ?.optBoolean("enabled", false) ?: false
+                }.getOrElse { false }
+
+                if (bedOnTs > 0L) {
+                    val inWindowMins = queryInWindowScreenTimeMins(ctx, bedOnTs, System.currentTimeMillis())
+                    prefs.edit()
+                        .putInt    (BEDTIME_LAST_NIGHT_IN_WINDOW_SCREEN_MINS, inWindowMins.toInt())
+                        .putBoolean(BEDTIME_LAST_NIGHT_SKIPPED_TONIGHT,       skippedTonightSnap)
+                        .putBoolean(BEDTIME_LAST_NIGHT_FILTER_ACTIVE,          filterWasActive)
+                        .putBoolean(BEDTIME_LAST_NIGHT_HAS_DATA,               true)
+                        .apply()
+                } else {
+                    // Missed or proactively skipped — save minimal snapshot so JS has data.
+                    prefs.edit()
+                        .putInt    (BEDTIME_LAST_NIGHT_IN_WINDOW_SCREEN_MINS, 0)
+                        .putBoolean(BEDTIME_LAST_NIGHT_SKIPPED_TONIGHT,       skippedTonightSnap)
+                        .putBoolean(BEDTIME_LAST_NIGHT_FILTER_ACTIVE,          false)
+                        .putBoolean(BEDTIME_LAST_NIGHT_KEPT,                   false)
+                        .putBoolean(BEDTIME_LAST_NIGHT_HAS_DATA,               true)
+                        .apply()
+                }
 
                 rescheduleForTomorrow(ctx, prefs, "${ctx.packageName}.BEDTIME_OFF", 7002)
 
@@ -571,6 +602,41 @@ class BedtimeReceiver : BroadcastReceiver() {
     }
 
     // ── Morning summary notification ──────────────────────────────────────────
+
+    /**
+     * Queries UsageStatsManager for total foreground screen time between [fromMs] and [toMs].
+     * Excludes Aurelo itself. Returns minutes, 0 on any error or missing permission.
+     * Used to populate BEDTIME_LAST_NIGHT_IN_WINDOW_SCREEN_MINS at wake-up time.
+     */
+    private fun queryInWindowScreenTimeMins(ctx: Context, fromMs: Long, toMs: Long): Long {
+        return runCatching {
+            val usm = ctx.getSystemService(Context.USAGE_STATS_SERVICE)
+                    as android.app.usage.UsageStatsManager
+            val events = usm.queryEvents(fromMs, toMs)
+            val ev = android.app.usage.UsageEvents.Event()
+            val fgStart  = mutableMapOf<String, Long>()
+            val totalMs  = mutableMapOf<String, Long>()
+            val maxPerAppMs = 4 * 60 * 60_000L  // 4h cap per app (same as UsageStatsBridge)
+            while (events.hasNextEvent()) {
+                events.getNextEvent(ev)
+                if (ev.packageName == ctx.packageName) continue  // exclude Aurelo
+                when (ev.eventType) {
+                    android.app.usage.UsageEvents.Event.MOVE_TO_FOREGROUND ->
+                        fgStart[ev.packageName] = ev.timeStamp
+                    android.app.usage.UsageEvents.Event.MOVE_TO_BACKGROUND -> {
+                        val start = fgStart.remove(ev.packageName) ?: return@runCatching 0L
+                        totalMs[ev.packageName] = (totalMs[ev.packageName] ?: 0L) +
+                                (ev.timeStamp - start).coerceAtMost(maxPerAppMs)
+                    }
+                }
+            }
+            // Close any apps still in foreground at toMs
+            fgStart.forEach { (pkg, start) ->
+                totalMs[pkg] = (totalMs[pkg] ?: 0L) + (toMs - start).coerceAtMost(maxPerAppMs)
+            }
+            totalMs.values.sum() / 60_000L
+        }.getOrElse { 0L }
+    }
 
     private fun postMorningSummary(
         ctx: Context, durationMins: Int, streak: Int, snoozeCount: Int, appAttemptsJson: String

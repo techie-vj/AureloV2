@@ -71,14 +71,9 @@ class AppBridge(private val context: Context, private val webView: WebView) {
 
             // Capture previous state BEFORE updating so we can detect the Pro→Free transition.
             val wasPro = entitlementRepo.isPro
+            // setProStatus() now mirrors IS_PRO_USER to tidyapp_v6 atomically, so no
+            // separate prefs write is needed anywhere in this billing listener.
             entitlementRepo.setProStatus(isPro)
-
-            // BUG FIX (Screen Filter / Bedtime gate): BedtimeReceiver.BEDTIME_ON and
-            // startWindDownFilter() gate on IS_PRO_USER in tidyapp_v6, not on
-            // entitlementRepo (tidyapp_entitlement_v1). This key was never written when
-            // Pro was granted, so the filter check always saw false and blocked activation.
-            // Write the grant here; the revocation paths below handle the false write.
-            if (isPro) prefs.edit().putBoolean(IS_PRO_USER, true).apply()
 
             // Swap launcher icon immediately so the home screen reflects Pro status.
             LauncherIconManager.updateIcon(context, isPro)
@@ -105,12 +100,7 @@ class AppBridge(private val context: Context, private val webView: WebView) {
                 val extensionDays = ReferralManager.activateExtensionOnLapse(prefs)
                 if (extensionDays > 0) {
                     // Referral extension activated — keep user Pro for the extension period.
-                    prefs.edit().putBoolean(IS_PRO_USER, true).apply()
-                    // BUG-REF-1 FIX: also update EntitlementRepository so isProUser() returns
-                    // true and isWithinRevocationGrace() stays current throughout the extension
-                    // window. Without this, the entitlement repo held isPro=false (set two lines
-                    // above via setProStatus(isPro=false)), causing BillingBridge.isProUser() and
-                    // the grace-period guard to operate on stale data for the extension's lifetime.
+                    // entitlementRepo.setProStatus(true) writes IS_PRO_USER to both stores.
                     entitlementRepo.setProStatus(true)
                     // Extension keeps user Pro — revert icon to Pro if it was already flipped.
                     LauncherIconManager.updateIcon(context, true)
@@ -131,9 +121,9 @@ class AppBridge(private val context: Context, private val webView: WebView) {
                 } else {
                     // No extension days banked — perform full native downgrade cleanup.
                     // Runs on main thread; AlarmManager and some bridge methods require it.
-                    // Clear IS_PRO_USER in tidyapp_v6 so BedtimeReceiver / startWindDownFilter()
-                    // immediately see the revoked state (complements the entitlementRepo write above).
-                    prefs.edit().putBoolean(IS_PRO_USER, false).apply()
+                    // entitlementRepo.setProStatus(false) above already wrote IS_PRO_USER=false
+                    // to tidyapp_v6, so BedtimeReceiver / startWindDownFilter() see the revoked
+                    // state immediately without a separate prefs write here.
                     android.os.Handler(android.os.Looper.getMainLooper()).post {
                         try {
                             this@AppBridge.handleProDowngrade()

@@ -465,9 +465,12 @@ class MainActivity : AppCompatActivity() {
 
         // Session not yet running — let JS handle it (app was foregrounded before service started,
         // or this is a pre-session notification tap that should open the routine dialog).
-        val escaped = pendingRoutine.replace("\\", "\\\\").replace("'", "\\'")
+        // FIX (Issue 1): use JSONObject.quote() — consistent with the existing jsString() helper
+        // used for package names. The old replace() chain missed newlines (\n, \r) which are
+        // legal inside JSON string values and would break out of the JS single-quoted literal.
+        val safeJson = org.json.JSONObject.quote(pendingRoutine)
         webView.post {
-            webView.evaluateJavascript("onRoutineTriggered('$escaped')", null)
+            webView.evaluateJavascript("onRoutineTriggered($safeJson)", null)
         }
     }
 
@@ -615,10 +618,12 @@ class MainActivity : AppCompatActivity() {
             )
             // If weekly recap notification, also open the recap sheet after a short delay
             if (weeklyRecapWeek != null) {
-                val safe = weeklyRecapWeek.replace("'", "\\'").replace("\\", "\\\\")
+                // FIX (Issue 1): use JSONObject.quote() so newlines and all other
+                // special characters are escaped — consistent with jsString() usage.
+                val safeJson = org.json.JSONObject.quote(weeklyRecapWeek)
                 webView.postDelayed({
                     webView.evaluateJavascript(
-                        "if(typeof WeeklyRecap!=='undefined'&&WeeklyRecap.open)WeeklyRecap.open('$safe')",
+                        "if(typeof WeeklyRecap!=='undefined'&&WeeklyRecap.open)WeeklyRecap.open($safeJson)",
                         null
                     )
                 }, 400L)

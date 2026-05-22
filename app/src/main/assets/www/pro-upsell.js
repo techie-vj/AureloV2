@@ -646,6 +646,21 @@
     });
     _dismissBtn.addEventListener('click', hide);
 
+    // BUG-4 FIX: swipe down on the sheet to dismiss.
+    // Track touchstart Y on the sheet; if touchend moved down ≥72px, call hide().
+    // passive:true keeps scroll performance fast; we never call preventDefault.
+    var _swipeStartY = 0;
+    var _sheet = _backdrop.querySelector('.pu-sheet');
+    if (_sheet) {
+      _sheet.addEventListener('touchstart', function(e) {
+        _swipeStartY = e.touches[0].clientY;
+      }, { passive: true });
+      _sheet.addEventListener('touchend', function(e) {
+        var dy = e.changedTouches[0].clientY - _swipeStartY;
+        if (dy > 72) hide();
+      }, { passive: true });
+    }
+
     _ctaBtn.addEventListener('click', function() {
       _ctaBtn.disabled = true;
       _ctaBtn.textContent = 'Opening Play Store…';

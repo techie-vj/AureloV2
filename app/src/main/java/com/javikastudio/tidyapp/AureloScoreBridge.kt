@@ -141,10 +141,16 @@ class AureloScoreBridge(
     }
 
     // ── Sleep Score ──────────────────────────────────────────────────────────
-    // Base: 80 if bedtime kept, 25 if missed.
-    // Deductions: −10/snooze (max −20), −4/blocked-app-attempt (max −20).
-    // Streak bonus: +3/day, capped at +20 (B7: was silently dropped in JS).
-    // HC blend: Bedtime 60% + HC sleep duration 25% + HC overnight HRV 15%.
+    // Revised formula v2.1 — must stay in sync with JS calculateSleep():
+    //
+    //   Adherence base (0–40):  kept=40  skipped=15  missed=10
+    //   In-window usage (0–30): ≤15 min grace → 30 pts; each 5 min over → −3 (floor 0)
+    //   Friction (0–20):        snooze −5/each max−10 + attempt −2/each max−10
+    //   Streak bonus (0–12):    +2/night, max +12  (kept only)
+    //   Screen Filter bonus(3): +3 when bedtime auto-filter was active  (kept only)
+    //
+    //   Max achievable: 40+30+20+12+3 = 105 → coerced to 100.
+    //   HC blend (when active): Bedtime 60% + HC Sleep Duration 25% + HC Overnight HRV 15%.
 
     @JavascriptInterface
     fun getSleepScore(): String {
@@ -156,31 +162,62 @@ class AureloScoreBridge(
             }.toString()
         }
 
-        val kept     = prefs.getBoolean(BEDTIME_LAST_NIGHT_KEPT, false)
-        val snoozes  = prefs.getInt(BEDTIME_LAST_NIGHT_SNOOZES, 0)
-        val attempts = prefs.getInt(BEDTIME_LAST_NIGHT_ATTEMPTS, 0)
-        val streak   = prefs.getInt(BEDTIME_STREAK, 0)
+        val kept          = prefs.getBoolean(BEDTIME_LAST_NIGHT_KEPT,                  false)
+        val skipped       = prefs.getBoolean(BEDTIME_LAST_NIGHT_SKIPPED_TONIGHT,       false)
+        val inWindowMins  = prefs.getInt    (BEDTIME_LAST_NIGHT_IN_WINDOW_SCREEN_MINS, 0)
+        val filterActive  = prefs.getBoolean(BEDTIME_LAST_NIGHT_FILTER_ACTIVE,          false)
+        val snoozes       = prefs.getInt    (BEDTIME_LAST_NIGHT_SNOOZES,               0)
+        val attempts      = prefs.getInt    (BEDTIME_LAST_NIGHT_ATTEMPTS,              0)
+        val streak        = prefs.getInt    (BEDTIME_STREAK,                           0)
 
-        val base        = if (kept) 80 else 25
-        val snoozeDed   = (snoozes  * 10).coerceAtMost(20)
-        val attemptDed  = (attempts * 4).coerceAtMost(20)
-        val streakBonus = (streak   * 3).coerceAtMost(20)   // B7 fix: was computed but silently dropped
+        // Adherence base
+        val adherePts = when {
+            kept    -> 40
+            skipped -> 15
+            else    -> 10
+        }
 
-        val rawScore = (base - snoozeDed - attemptDed + streakBonus).coerceIn(0, 100)
+        // In-window usage with 15-min grace period (kept only)
+        val inWindowPts = if (kept) {
+            val overGrace = (inWindowMins - 15).coerceAtLeast(0)
+            val deduction = (kotlin.math.ceil(overGrace / 5.0) * 3).toInt()
+            (30 - deduction).coerceAtLeast(0)
+        } else 0
+
+        // Friction: snooze + blocked app attempts (kept only)
+        val snoozeDed   = (snoozes  * 5).coerceAtMost(10)
+        val attemptDed  = (attempts * 2).coerceAtMost(10)
+        val snoozePts   = if (kept) (10 - snoozeDed).coerceAtLeast(0) else 0
+        val attemptPts  = if (kept) (10 - attemptDed).coerceAtLeast(0) else 0
+        val frictionPts = snoozePts + attemptPts
+
+        // Streak and filter bonuses (kept only)
+        val streakBonus = if (kept) (streak * 2).coerceAtMost(12) else 0
+        val filterBonus = if (kept && filterActive) 3 else 0
+
+        val rawScore = (adherePts + inWindowPts + frictionPts + streakBonus + filterBonus)
+            .coerceIn(0, 100)
 
         val hcData   = healthConnect.getCachedData()
         val enhanced = SleepScoreEnhancer.blend(rawScore, hcData)
 
         return JSONObject().apply {
-            put("score",        enhanced.score)
-            put("hasData",      true)
-            put("base",         base)
-            put("snoozeDeduct", snoozeDed)
-            put("attemptDeduct",attemptDed)
-            put("streakBonus",  streakBonus)
-            put("hcEnhanced",   enhanced.isHCEnhanced)
+            put("score",          enhanced.score)
+            put("hasData",        true)
+            // Expose components so the JS sheet can read from Kotlin path too
+            put("adherePts",      adherePts)
+            put("inWindowPts",    inWindowPts)
+            put("snoozePts",      snoozePts)
+            put("attemptPts",     attemptPts)
+            put("frictionPts",    frictionPts)
+            put("streakBonus",    streakBonus)
+            put("filterBonus",    filterBonus)
+            put("inWindowMins",   inWindowMins)
+            put("skippedTonight", skipped)
+            put("filterActive",   filterActive)
+            put("hcEnhanced",     enhanced.isHCEnhanced)
             if (enhanced.isHCEnhanced) {
-                put("bedtimeComponent",    enhanced.bedtimeComponent)
+                put("bedtimeComponent",     enhanced.bedtimeComponent)
                 enhanced.durationComponent?.let    { put("durationComponent",    it) }
                 enhanced.overnightHrvComponent?.let { put("overnightHrvComponent", it) }
             }

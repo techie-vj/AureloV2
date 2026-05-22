@@ -111,6 +111,17 @@ class AureloWidgetProvider : AppWidgetProvider() {
     }
 
     override fun onReceive(context: Context, intent: Intent) {
+        if (intent.action == ACTION_OPEN_HOME || intent.action == ACTION_OPEN_WELLNESS) {
+            // BUG-3 FIX: these were getActivity PendingIntents that sometimes failed silently
+            // on OEM ROMs. Now broadcast → handled here → startActivity (widgets get a brief
+            // background-activity-start exemption via the PendingIntent invocation).
+            runCatching {
+                context.startActivity(aureloIntent(context, intent.action).apply {
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
+                })
+            }
+            return
+        }
         if (intent.action == ACTION_LAUNCH_APP) {
             val pkg = intent.getStringExtra(EXTRA_PACKAGE) ?: return
             if (!SecurityValidators.isValidPackageName(pkg)) return
@@ -852,18 +863,36 @@ class AureloWidgetProvider : AppWidgetProvider() {
                 PendingIntent.getBroadcast(context, widgetId * 100 + i + 1, launchIntent, pendingFlags()))
         }
 
+        // Widget root → open Aurelo home (tapping header, logo, or any non-interactive area)
+        // BUG-3 FIX: widget_root had no click handler in the normal build path, so tapping
+        // the header area (slot label, logo, learning badge) did nothing. Add a fallback
+        // that opens the app home; specific child clicks override this for their own areas.
+        views.setOnClickPendingIntent(R.id.widget_root,
+            PendingIntent.getBroadcast(context, widgetId * 100 + 100,
+                Intent(context, AureloWidgetProvider::class.java).apply {
+                    action = ACTION_OPEN_HOME
+                    putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, widgetId)
+                }, pendingFlags()))
+
         // More → Aurelo home
+        // BUG-3 FIX: was getActivity — changed to getBroadcast (consistent with other slots)
+        // to avoid stale PendingIntent cache issues on some OEM ROMs where getActivity
+        // from widget context fails silently after app reinstall / widgetId change.
         views.setOnClickPendingIntent(R.id.widget_more_btn,
-            PendingIntent.getActivity(context, widgetId * 100 + 99,
-                aureloIntent(context, ACTION_OPEN_HOME), pendingFlags()))
+            PendingIntent.getBroadcast(context, widgetId * 100 + 99,
+                Intent(context, AureloWidgetProvider::class.java).apply {
+                    action = ACTION_OPEN_HOME
+                    putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, widgetId)
+                }, pendingFlags()))
 
         // Stats strip → Wellness tab
+        // BUG-3 FIX: was getActivity — changed to getBroadcast for the same reason as above.
         views.setOnClickPendingIntent(R.id.widget_st_row,
-            PendingIntent.getActivity(context, widgetId * 100 + 98,
-                aureloIntent(context, ACTION_OPEN_WELLNESS),
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M)
-                    PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
-                else PendingIntent.FLAG_UPDATE_CURRENT))
+            PendingIntent.getBroadcast(context, widgetId * 100 + 98,
+                Intent(context, AureloWidgetProvider::class.java).apply {
+                    action = ACTION_OPEN_WELLNESS
+                    putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, widgetId)
+                }, pendingFlags()))
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────

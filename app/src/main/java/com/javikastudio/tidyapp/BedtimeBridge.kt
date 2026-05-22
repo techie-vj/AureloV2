@@ -99,10 +99,13 @@ class BedtimeBridge(
     }.toString()
 
     @JavascriptInterface fun getBedtimeLastNightStats(): String = JSONObject().apply {
-        put("snoozeCount",      prefs.getInt    (BEDTIME_LAST_NIGHT_SNOOZES,   0))
-        put("appAttemptsTotal", prefs.getInt    (BEDTIME_LAST_NIGHT_ATTEMPTS,  0))
-        put("bedtimeKept",      prefs.getBoolean(BEDTIME_LAST_NIGHT_KEPT,     false))
-        put("hasData",          prefs.getBoolean(BEDTIME_LAST_NIGHT_HAS_DATA, false))
+        put("snoozeCount",           prefs.getInt    (BEDTIME_LAST_NIGHT_SNOOZES,                0))
+        put("appAttemptsTotal",      prefs.getInt    (BEDTIME_LAST_NIGHT_ATTEMPTS,               0))
+        put("bedtimeKept",           prefs.getBoolean(BEDTIME_LAST_NIGHT_KEPT,                   false))
+        put("hasData",               prefs.getBoolean(BEDTIME_LAST_NIGHT_HAS_DATA,               false))
+        put("inWindowScreenMins",    prefs.getInt    (BEDTIME_LAST_NIGHT_IN_WINDOW_SCREEN_MINS,  0))
+        put("skippedTonight",        prefs.getBoolean(BEDTIME_LAST_NIGHT_SKIPPED_TONIGHT,        false))
+        put("filterWasActive",       prefs.getBoolean(BEDTIME_LAST_NIGHT_FILTER_ACTIVE,           false))
     }.toString()
 
     @JavascriptInterface fun getBedtimeWeekDays(): String {

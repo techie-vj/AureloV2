@@ -36,6 +36,12 @@ class EntitlementRepository(private val context: Context) {
         // Cache is valid for 7 days offline — after that, Play re-confirms on next connect
         private const val CACHE_TTL_MS = 7L * 24 * 60 * 60 * 1000
         const val REVOCATION_GRACE_MS  = 72L * 60 * 60 * 1000  // 72 h
+        // Mirror constants for the main prefs file (tidyapp_v6).
+        // Kept private so the billing package stays self-contained; no import of BridgeKeys needed.
+        // EntitlementRepository is now the SINGLE write point for IS_PRO_USER in both stores,
+        // eliminating the multi-site write race described in Issue 2.
+        private const val MAIN_PREFS_FILE = "tidyapp_v6"
+        private const val MAIN_KEY_IS_PRO = "is_pro_user"
     }
 
     private val prefs: SharedPreferences by lazy {
@@ -55,6 +61,13 @@ class EntitlementRepository(private val context: Context) {
             Log.w(TAG, "EncryptedSharedPreferences unavailable, falling back: ${e.message}")
             context.getSharedPreferences(PREFS_FILE, Context.MODE_PRIVATE)
         }
+    }
+
+    // Plain prefs mirror — readers such as BedtimeReceiver and SmartNotificationWorker
+    // that have not yet been migrated to EntitlementRepository read IS_PRO_USER from here.
+    // By writing from setProStatus()/revokePro() only, we eliminate the multi-site write race.
+    private val mainPrefs: SharedPreferences by lazy {
+        context.getSharedPreferences(MAIN_PREFS_FILE, Context.MODE_PRIVATE)
     }
 
     // ── Read ──────────────────────────────────────────────────────
@@ -121,6 +134,10 @@ class EntitlementRepository(private val context: Context) {
             editor.putLong(KEY_LAST_PRO_CONFIRMED_MS, System.currentTimeMillis())
         }
         editor.apply()
+        // Mirror to main prefs so native receivers (BedtimeReceiver, SmartNotificationWorker)
+        // that read IS_PRO_USER from tidyapp_v6 stay in sync. This is the ONLY write site
+        // for IS_PRO_USER — all other callers were migrated to call setProStatus() instead.
+        mainPrefs.edit().putBoolean(MAIN_KEY_IS_PRO, isPro).apply()
     }
 
     /**
@@ -132,5 +149,7 @@ class EntitlementRepository(private val context: Context) {
             .putBoolean(KEY_IS_PRO, false)
             .putLong(KEY_VERIFIED_AT, System.currentTimeMillis())
             .apply()
+        // Mirror revocation to main prefs.
+        mainPrefs.edit().putBoolean(MAIN_KEY_IS_PRO, false).apply()
     }
 }
