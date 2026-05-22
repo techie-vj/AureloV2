@@ -15,7 +15,6 @@ import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
-import android.view.animation.DecelerateInterpolator
 import androidx.core.app.NotificationCompat
 import org.json.JSONArray
 import org.json.JSONObject
@@ -25,10 +24,6 @@ import org.json.JSONObject
  *
  * Owns: focus-mode overlay logic, difficulty levels (Gentle / Firm / Deep),
  * blocked-app list evaluation, session timer, OEM battery prompt, and prefs.
- *
- * Extracted from AppMonitorService.FocusHandler (Phase 5 full refactor).
- * Receives an [AppMonitorService.EngineHelpers] bundle for all service-owned
- * utilities — never touches AppMonitorService fields directly.
  */
 class FocusBlockingEngine(
     private val prefs:       SharedPreferences,
@@ -125,17 +120,11 @@ class FocusBlockingEngine(
         timerTickHandler?.removeCallbacksAndMessages(null)
     }
 
-    /** Used by TimerBlockingEngine to avoid double-blocking the same package. */
     fun isBlockingPackage(pkg: String): Boolean = isActive && blockedPkgs.contains(pkg)
 
-    /**
-     * Called each poll tick. Returns true if focus overlay is active/shown this tick.
-     */
     fun onTick(currentFgPkg: String, now: Long): Boolean {
         if (!isActive) return coordinator.isShowing(AppMonitorService.PRIORITY_FOCUS)
-
         if (sessionEndTs > 0L && now >= sessionEndTs) { onSessionExpired(); return false }
-
         if (coordinator.isShowing(AppMonitorService.PRIORITY_FOCUS)) return true
 
         if (currentFgPkg.isEmpty() || currentFgPkg == h.packageName) {
@@ -143,13 +132,12 @@ class FocusBlockingEngine(
             return false
         }
         if (!blockedPkgs.contains(currentFgPkg)) return false
-
         if (difficulty == "gentle" && currentFgPkg == gentleAllowPkg && now < gentleAllowUntilTs) return false
-
         if (currentFgPkg == lastBlockedPkg && (now - lastBlockedTs) < 2000L) return false
-        lastBlockedPkg = currentFgPkg; lastBlockedTs = now
 
+        lastBlockedPkg = currentFgPkg; lastBlockedTs = now
         val appName = blockedAppNames[currentFgPkg] ?: currentFgPkg.split(".").last()
+
         when (difficulty) {
             "gentle" -> showOverlay(currentFgPkg, appName, canDismiss = true,  gentle = true)
             "firm"   -> showOverlay(currentFgPkg, appName, canDismiss = true,  gentle = false)
@@ -158,7 +146,6 @@ class FocusBlockingEngine(
         return coordinator.isShowing(AppMonitorService.PRIORITY_FOCUS)
     }
 
-    /** Called when bedtime has priority — keeps session state alive without overlay. */
     fun onTickNoOverlay(currentFgPkg: String, now: Long) {
         if (!isActive) return
         if (sessionEndTs > 0L && now >= sessionEndTs) onSessionExpired()
@@ -202,7 +189,7 @@ class FocusBlockingEngine(
         )
         val notif = NotificationCompat.Builder(h.context, h.channelId)
             .setSmallIcon(android.R.drawable.ic_dialog_alert)
-            .setColor(0xFF6C63FF.toInt())
+            .setColor(0xFF8EA2FF.toInt())
             .setContentTitle("🎯 You're in Focus Mode")
             .setContentText("$appName is on your blocked list — stay on track!")
             .setPriority(NotificationCompat.PRIORITY_HIGH)
@@ -217,94 +204,127 @@ class FocusBlockingEngine(
         pkg: String, appName: String,
         canDismiss: Boolean, gentle: Boolean, secsLeft: Int
     ): View {
-        val ctx    = h.context
-        val accent = when {
-            gentle     -> 0xFF6C63FF.toInt()
-            canDismiss -> 0xFFF7A623.toInt()
-            else       -> 0xFFF04E7A.toInt()
-        }
+        val ctx = h.context
+        val animators = mutableListOf<ValueAnimator>()
+
+        // Define modeLabel here so it is accessible in the view construction
         val modeLabel = when {
             gentle     -> "🌿 GENTLE FOCUS"
-            canDismiss -> "🔥 FIRM FOCUS"
+            canDismiss -> "🛡 FIRM FOCUS"
             else       -> "🔒 DEEP FOCUS"
         }
 
-        val root = FrameLayout(ctx).apply { setBackgroundColor(Color.rgb(10, 8, 5)) }
-
-        val col = LinearLayout(ctx).apply {
-            orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL
-            setPadding(h.dpToPx(32), h.dpToPx(16), h.dpToPx(32), h.dpToPx(16))
+        val root = FrameLayout(ctx).apply {
+            background = GradientDrawable(
+                GradientDrawable.Orientation.TOP_BOTTOM,
+                intArrayOf(0xFF10182A.toInt(), 0xFF060912.toInt())
+            )
         }
 
-        // Aurelo wordmark header
-        root.addView(h.buildAureloWordmarkView(), FrameLayout.LayoutParams(
+        // Top Logo + Subtitle
+        val logoWrap = LinearLayout(ctx).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER_HORIZONTAL
+        }
+        logoWrap.addView(h.buildAureloWordmarkView(), LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT
+        ))
+        logoWrap.addView(TextView(ctx).apply {
+            text = "FOCUS MODE"
+            textSize = 10f
+            letterSpacing = 0.2f
+            setTextColor(Color.parseColor("#8EA2FF"))
+            typeface = android.graphics.Typeface.DEFAULT_BOLD
+        }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+            topMargin = h.dpToPx(4)
+        })
+        root.addView(logoWrap, FrameLayout.LayoutParams(
             FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT
         ).apply {
-            gravity   = Gravity.TOP or Gravity.CENTER_HORIZONTAL
+            gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
             topMargin = h.dpToPx(if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) 52 else 36)
         })
 
-        // Mode title
-        root.addView(TextView(ctx).apply {
-            text = "Focus Mode"; textSize = 19f
-            typeface = android.graphics.Typeface.create("serif", android.graphics.Typeface.NORMAL)
-            setTextColor(Color.argb(230, 255, 243, 220)); gravity = Gravity.CENTER; letterSpacing = 0.05f
-        }, FrameLayout.LayoutParams(
-            FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT
-        ).apply {
-            gravity   = Gravity.TOP or Gravity.CENTER_HORIZONTAL
-            topMargin = h.dpToPx(if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) 88 else 72)
+        val shieldContainer = FrameLayout(ctx)
+
+        // Background Layer
+        val shieldBg = View(ctx).apply {
+            background = GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, intArrayOf(0x1E8EA2FF, 0x0A8EA2FF)).apply {
+                cornerRadii = floatArrayOf(
+                    h.dpToPx(122).toFloat(), h.dpToPx(122).toFloat(),
+                    h.dpToPx(122).toFloat(), h.dpToPx(122).toFloat(),
+                    h.dpToPx(64).toFloat(), h.dpToPx(64).toFloat(),
+                    h.dpToPx(64).toFloat(), h.dpToPx(64).toFloat()
+                )
+                setStroke(h.dpToPx(1), 0x338EA2FF)
+            }
+        }
+        shieldContainer.addView(shieldBg, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
+
+        // Centered Core Plate
+        val corePlate = LinearLayout(ctx).apply {
+            orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER
+            background = GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, intArrayOf(0x14FFFFFF, 0x05FFFFFF)).apply {
+                cornerRadius = h.dpToPx(28).toFloat()
+                setStroke(h.dpToPx(1), 0x14FFFFFF)
+            }
+        }
+        val timeLabel = TextView(ctx).apply {
+            textSize = 38f; setTextColor(0xFFFFFFFF.toInt())
+            typeface = android.graphics.Typeface.DEFAULT_BOLD
+            gravity = Gravity.CENTER
+        }
+        val remainingLabel = TextView(ctx).apply {
+            text = "REMAINING"
+            textSize = 10f; setTextColor(Color.argb(153, 255, 255, 255))
+            letterSpacing = 0.05f; typeface = android.graphics.Typeface.DEFAULT_BOLD
+            gravity = Gravity.CENTER; setPadding(0, h.dpToPx(2), 0, 0)
+        }
+        corePlate.addView(timeLabel)
+        corePlate.addView(remainingLabel)
+
+        shieldContainer.addView(corePlate, FrameLayout.LayoutParams(h.dpToPx(130), h.dpToPx(96)).apply {
+            gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
+            topMargin = h.dpToPx(78)
         })
 
-        // Mode badge
-        col.addView(TextView(ctx).apply {
-            text = modeLabel; textSize = 11f; letterSpacing = 0.12f; setTextColor(accent)
-            setPadding(h.dpToPx(12), h.dpToPx(5), h.dpToPx(12), h.dpToPx(5))
-            background = GradientDrawable().also {
-                it.cornerRadius = h.dpToPx(999).toFloat()
-                it.setColor(Color.argb(25, Color.red(accent), Color.green(accent), Color.blue(accent)))
-                it.setStroke(1, Color.argb(60, Color.red(accent), Color.green(accent), Color.blue(accent)))
+        // Orbiting Arch (Positioned to rotate around the plate)
+        val archView = object : View(ctx) {
+            val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+                style = android.graphics.Paint.Style.STROKE
+                strokeWidth = h.dpToPx(4).toFloat()
+                color = 0xFF8EA2FF.toInt()
+                strokeCap = android.graphics.Paint.Cap.ROUND
             }
-        }, h.linearWrap(Gravity.CENTER_HORIZONTAL).also { it.bottomMargin = h.dpToPx(28) })
-
-        // App icon
-        val icoWrap = FrameLayout(ctx)
-        val icoView = ImageView(ctx).apply {
-            scaleType = ImageView.ScaleType.CENTER_CROP
-            runCatching { setImageDrawable(h.packageManager.getApplicationIcon(pkg)) }
-        }
-        val icoBg = View(ctx).apply {
-            background = GradientDrawable().also {
-                it.cornerRadius = h.dpToPx(22).toFloat()
-                it.setColor(Color.argb(60, Color.red(accent), Color.green(accent), Color.blue(accent)))
-                it.setStroke(1, Color.argb(80, Color.red(accent), Color.green(accent), Color.blue(accent)))
+            val rect = android.graphics.RectF()
+            override fun onDraw(canvas: android.graphics.Canvas) {
+                super.onDraw(canvas)
+                val p = paint.strokeWidth
+                rect.set(p, p, width - p, height - p)
+                canvas.drawArc(rect, 200f, 100f, false, paint)
             }
         }
-        val icoSz = h.dpToPx(80)
-        icoWrap.addView(icoBg, FrameLayout.LayoutParams(icoSz + h.dpToPx(8), icoSz + h.dpToPx(8)).apply { gravity = Gravity.CENTER })
-        icoWrap.addView(icoView, FrameLayout.LayoutParams(icoSz, icoSz).apply { gravity = Gravity.CENTER })
-        col.addView(icoWrap, h.linearWrap(Gravity.CENTER_HORIZONTAL).also { it.bottomMargin = h.dpToPx(20) })
+        // Orbiting Arch - Increased size to 180dp, adjusted top margin to 36dp
+        shieldContainer.addView(archView, FrameLayout.LayoutParams(h.dpToPx(180), h.dpToPx(180)).apply {
+            gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
+            // 36dp top margin ensures the 180dp arch remains centered
+            // with the corePlate (which is at 78dp top margin + 48dp half-height = 126dp center)
+            topMargin = h.dpToPx(36)
+        })
 
-        col.addView(TextView(ctx).apply {
-            text = appName; textSize = 22f; setTextColor(Color.argb(230, 255, 243, 220))
-            gravity = Gravity.CENTER
-            typeface = android.graphics.Typeface.create("serif", android.graphics.Typeface.NORMAL)
-        }, h.linearWrap(Gravity.CENTER_HORIZONTAL).also { it.bottomMargin = h.dpToPx(10) })
+        animators.add(ValueAnimator.ofFloat(0f, 360f).apply {
+            duration = 5000L; repeatCount = ValueAnimator.INFINITE
+            interpolator = android.view.animation.LinearInterpolator()
+            addUpdateListener { archView.rotation = it.animatedValue as Float }
+        })
 
-        col.addView(TextView(ctx).apply {
-            text = if (!gentle && !canDismiss) "Deep Focus — You're locked in" else "You're in a Focus Session"
-            textSize = 15f; setTextColor(Color.argb(153, 255, 243, 220)); gravity = Gravity.CENTER
-        }, h.linearWrap(Gravity.CENTER_HORIZONTAL).also { it.bottomMargin = h.dpToPx(8) })
+        // Shifted entire container down
+        root.addView(shieldContainer, FrameLayout.LayoutParams(h.dpToPx(230), h.dpToPx(274)).apply {
+            gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
+            topMargin = h.dpToPx(150) // Pushed down
+        })
 
-        // Live countdown label
-        val secsH = secsLeft / 3600; val secsM = (secsLeft % 3600) / 60; val secsS = secsLeft % 60
-        val timeLabel = TextView(ctx).apply {
-            text = if (secsH > 0) "${secsH}h ${secsM}m left" else "${secsM}m ${secsS}s left"
-            textSize = 12f; setTextColor(Color.argb(120, 255, 170, 68))
-            gravity = Gravity.CENTER; typeface = android.graphics.Typeface.MONOSPACE
-        }
-        col.addView(timeLabel, h.linearWrap(Gravity.CENTER_HORIZONTAL).also { it.bottomMargin = h.dpToPx(36) })
-
+        // Timer Tick Logic
         timerTickHandler?.removeCallbacksAndMessages(null)
         timerTickHandler = Handler(Looper.getMainLooper())
         timerTickRunnable = object : Runnable {
@@ -312,21 +332,51 @@ class FocusBlockingEngine(
                 if (!coordinator.isShowing(AppMonitorService.PRIORITY_FOCUS)) return
                 val sLeft = ((sessionEndTs - System.currentTimeMillis()) / 1000L).coerceAtLeast(0L).toInt()
                 val h2 = sLeft / 3600; val m2 = sLeft % 3600 / 60; val s2 = sLeft % 60
-                timeLabel.text = if (h2 > 0) "${h2}h ${m2}m left" else "${m2}m ${s2}s left"
+                timeLabel.text = if (h2 > 0) "${h2}h ${m2}m" else "${m2}m"
                 timerTickHandler?.postDelayed(this, 1000L)
             }
         }
         timerTickHandler?.post(timerTickRunnable!!)
 
-        // Gentle: allow user to continue to the blocked app
+        // Bottom Stack
+        val stack = LinearLayout(ctx).apply {
+            orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL
+        }
+
+        stack.addView(TextView(ctx).apply {
+            text = modeLabel; textSize = 11f; setTextColor(0xFFEDF3FF.toInt())
+            typeface = android.graphics.Typeface.DEFAULT_BOLD
+            setPadding(h.dpToPx(14), h.dpToPx(8), h.dpToPx(14), h.dpToPx(8))
+            background = GradientDrawable().also {
+                it.cornerRadius = h.dpToPx(100).toFloat()
+                it.setColor(0x12FFFFFF); it.setStroke(1, 0x14FFFFFF)
+            }
+        }, h.linearWrap(Gravity.CENTER_HORIZONTAL).also { it.bottomMargin = h.dpToPx(12) })
+
+        stack.addView(TextView(ctx).apply {
+            text = "$appName is currently outside this session"
+            textSize = 26f; setTextColor(0xFFEDF3FF.toInt())
+            gravity = Gravity.CENTER; typeface = android.graphics.Typeface.DEFAULT_BOLD
+            setLineSpacing(0f, 1.1f)
+        }, h.linearWrap(Gravity.CENTER_HORIZONTAL).also { it.bottomMargin = h.dpToPx(8) })
+
+        stack.addView(TextView(ctx).apply {
+            text = when {
+                !gentle && !canDismiss -> "You're locked in until the session ends."
+                !gentle                -> "You committed to protected work. Maintain the boundary until the timer unlocks."
+                else                   -> "A gentle reminder to stay mindful."
+            }
+            textSize = 14f; setTextColor(Color.argb(153, 237, 243, 255)); gravity = Gravity.CENTER
+            setLineSpacing(0f, 1.4f)
+        }, h.linearWrap(Gravity.CENTER_HORIZONTAL).also { it.bottomMargin = h.dpToPx(24) })
+
+        // Actions
         if (gentle) {
-            col.addView(TextView(ctx).apply {
-                text = "Continue to app →"; textSize = 13f; setTextColor(0xFF060610.toInt())
-                gravity = Gravity.CENTER
-                setPadding(h.dpToPx(24), h.dpToPx(14), h.dpToPx(24), h.dpToPx(14))
-                background = GradientDrawable().also {
-                    it.cornerRadius = h.dpToPx(14).toFloat(); it.setColor(accent)
-                }
+            stack.addView(TextView(ctx).apply {
+                text = "Continue to app"; textSize = 15f; setTextColor(0xFF050811.toInt())
+                gravity = Gravity.CENTER; typeface = android.graphics.Typeface.DEFAULT_BOLD
+                setPadding(0, h.dpToPx(16), 0, h.dpToPx(16))
+                background = GradientDrawable().also { it.cornerRadius = h.dpToPx(20).toFloat(); it.setColor(Color.WHITE) }
                 setOnClickListener {
                     coordinator.dismiss(AppMonitorService.PRIORITY_FOCUS)
                     gentleAllowPkg     = pkg
@@ -334,40 +384,47 @@ class FocusBlockingEngine(
                     lastBlockedPkg     = pkg
                     lastBlockedTs      = System.currentTimeMillis()
                 }
-            }, h.linearFill().also { it.bottomMargin = h.dpToPx(12) })
+            }, h.linearFill().also { it.bottomMargin = h.dpToPx(8) })
+        } else {
+            stack.addView(TextView(ctx).apply {
+                text = "Back to work"; textSize = 15f; setTextColor(0xFF050811.toInt())
+                gravity = Gravity.CENTER; typeface = android.graphics.Typeface.DEFAULT_BOLD
+                setPadding(0, h.dpToPx(16), 0, h.dpToPx(16))
+                background = GradientDrawable().also { it.cornerRadius = h.dpToPx(20).toFloat(); it.setColor(Color.WHITE) }
+                setOnClickListener {
+                    coordinator.dismiss(AppMonitorService.PRIORITY_FOCUS)
+                    runCatching {
+                        h.startActivity(h.packageManager.getLaunchIntentForPackage(h.packageName)
+                            ?.apply { flags = Intent.FLAG_ACTIVITY_NEW_TASK }!!)
+                    }
+                }
+            }, h.linearFill().also { it.bottomMargin = h.dpToPx(8) })
         }
 
-        // Firm: 30-second countdown before dismiss is allowed
         if (!gentle && canDismiss) {
             firmSecsLeft = 30
             val endBtn = TextView(ctx).apply {
-                text = "Wait ${firmSecsLeft}s to end session"; textSize = 13f
-                setTextColor(Color.argb(100, 255, 170, 68)); gravity = Gravity.CENTER
-                setPadding(h.dpToPx(24), h.dpToPx(14), h.dpToPx(24), h.dpToPx(14))
+                text = "Wait ${firmSecsLeft}s to end"; textSize = 14f
+                setTextColor(Color.WHITE); gravity = Gravity.CENTER
+                setPadding(0, h.dpToPx(16), 0, h.dpToPx(16))
                 background = GradientDrawable().also {
-                    it.cornerRadius = h.dpToPx(14).toFloat()
-                    it.setColor(Color.argb(30, 255, 255, 255))
-                    it.setStroke(1, Color.argb(40, 255, 255, 255))
+                    it.cornerRadius = h.dpToPx(20).toFloat()
+                    it.setStroke(h.dpToPx(1), 0x14FFFFFF)
                 }
                 isEnabled = false
             }
-            col.addView(endBtn, h.linearFill().also { it.bottomMargin = h.dpToPx(12) })
+            stack.addView(endBtn, h.linearFill())
             firmHandler?.removeCallbacksAndMessages(null)
             firmHandler = Handler(Looper.getMainLooper())
             firmRunnable = object : Runnable {
                 override fun run() {
                     firmSecsLeft--
                     if (firmSecsLeft <= 0) {
-                        endBtn.text = "End Session"
-                        endBtn.setTextColor(Color.argb(230, 255, 243, 220)); endBtn.isEnabled = true
-                        endBtn.background = GradientDrawable().also {
-                            it.cornerRadius = h.dpToPx(14).toFloat()
-                            it.setColor(Color.argb(50, 247, 166, 35))
-                            it.setStroke(1, Color.argb(100, 247, 166, 35))
-                        }
+                        endBtn.text = "End session"
+                        endBtn.isEnabled = true
                         endBtn.setOnClickListener { coordinator.dismiss(AppMonitorService.PRIORITY_FOCUS); stop() }
                     } else {
-                        endBtn.text = "Wait ${firmSecsLeft}s to end session"
+                        endBtn.text = "Wait ${firmSecsLeft}s to end"
                         firmHandler?.postDelayed(this, 1000L)
                     }
                 }
@@ -375,22 +432,16 @@ class FocusBlockingEngine(
             firmHandler!!.postDelayed(firmRunnable!!, 1000L)
         }
 
-        // Back to session button (all modes)
-        col.addView(TextView(ctx).apply {
-            text = "← Back to session"; textSize = 13f; setTextColor(Color.argb(179, 255, 170, 68))
-            gravity = Gravity.CENTER; setPadding(h.dpToPx(24), h.dpToPx(14), h.dpToPx(24), h.dpToPx(14))
-            setOnClickListener {
-                coordinator.dismiss(AppMonitorService.PRIORITY_FOCUS)
-                runCatching {
-                    h.startActivity(h.packageManager.getLaunchIntentForPackage(h.packageName)
-                        ?.apply { flags = Intent.FLAG_ACTIVITY_NEW_TASK }!!)
-                }
-            }
-        }, h.linearFill())
+        root.addView(stack, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT).apply {
+            gravity = Gravity.BOTTOM
+            leftMargin = h.dpToPx(24); rightMargin = h.dpToPx(24); bottomMargin = h.dpToPx(28)
+        })
 
-        root.addView(col, FrameLayout.LayoutParams(
-            FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT
-        ).apply { gravity = Gravity.CENTER })
+        root.addOnAttachStateChangeListener(object : View.OnAttachStateChangeListener {
+            override fun onViewAttachedToWindow(v: View) { animators.forEach { it.start() } }
+            override fun onViewDetachedFromWindow(v: View) { animators.forEach { it.cancel() } }
+        })
+
         return root
     }
 
@@ -441,11 +492,6 @@ class FocusBlockingEngine(
         blockedPkgs = pkgs; blockedAppNames = names
     }
 
-    /**
-     * Detects OEM and opens the manufacturer-specific battery optimisation settings
-     * page on the very first focus session, so the service survives OEM killers.
-     * Shown only once, guarded by [PREFS_KEYS] "oem_battery_prompt_shown".
-     */
     private fun maybeShowOemBatteryPrompt() {
         if (prefs.getBoolean("oem_battery_prompt_shown", false)) return
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {

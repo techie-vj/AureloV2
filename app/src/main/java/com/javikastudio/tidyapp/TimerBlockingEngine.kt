@@ -1,5 +1,6 @@
 package com.javikastudio.tidyapp
 
+import android.animation.ValueAnimator
 import android.content.Intent
 import android.content.SharedPreferences
 import android.graphics.Color
@@ -23,10 +24,6 @@ import org.json.JSONObject
  * Owns: per-app daily limit enforcement, grace-window management, path-A
  * grace-expiry for apps that were already in foreground, day-rollover reset,
  * hold-to-unlock interaction, and ignore-stats logging.
- *
- * Extracted from AppMonitorService.TimerBlockHandler (Phase 5 full refactor).
- * Receives an [AppMonitorService.EngineHelpers] bundle for all service-owned
- * utilities — never touches AppMonitorService fields directly.
  */
 class TimerBlockingEngine(
     private val prefs:       SharedPreferences,
@@ -36,22 +33,15 @@ class TimerBlockingEngine(
     var isActive = false
         private set
 
-    // pkg -> Triple(appName, usedMins, limitMins)
     private val timerBlockApps  = mutableMapOf<String, Triple<String, Int, Int>>()
     private val gracePerApp     = mutableMapOf<String, Long>()
     private val graceInFgPerApp = mutableMapOf<String, Boolean>()
-
-    // In-memory fg tracking — updated every tick regardless of event window age.
-    // Fixes the grace-expiry bug where users staying in an app >5 min were
-    // never shown the overlay because the FG event was outside the query window.
     private val currentlyInFgApps = mutableSetOf<String>()
 
-    // Display fields for the currently shown overlay
     private var overlayPkg   = ""
     private var overlayName  = ""
     private var overlayUsed  = 0
     private var overlayLimit = 0
-
     private var lastBlockedTs = System.currentTimeMillis()
 
     // ── Public API ────────────────────────────────────────────────────────────
@@ -91,11 +81,8 @@ class TimerBlockingEngine(
         if (timerBlockApps.isNotEmpty()) { isActive = true; lastBlockedTs = System.currentTimeMillis() }
     }
 
-    fun onDestroy() { /* nothing beyond what coordinator handles */ }
+    fun onDestroy() { }
 
-    /**
-     * Called each tick. Returns true if timer overlay is active/shown this tick.
-     */
     fun onTick(currentFgPkg: String, now: Long): Boolean {
         if (!isActive) return coordinator.isShowing(AppMonitorService.PRIORITY_TIMER)
 
@@ -103,25 +90,17 @@ class TimerBlockingEngine(
         if (timerBlockApps.isEmpty()) { isActive = false; coordinator.dismiss(AppMonitorService.PRIORITY_TIMER); return false }
         if (!isSameDay(now, lastBlockedTs)) { clearAll(); return false }
 
-        // ✅ Only update currentlyInFgApps from real events, don't clear blindly
         if (currentFgPkg.isNotEmpty()) {
-            if (timerBlockApps.containsKey(currentFgPkg)) {
-                currentlyInFgApps.add(currentFgPkg)
-            } else {
-                // A non-blocked app came to foreground — clear tracked blocked apps
-                // (they must have gone to background to let this one through)
-                currentlyInFgApps.clear()
-            }
+            if (timerBlockApps.containsKey(currentFgPkg)) currentlyInFgApps.add(currentFgPkg)
+            else currentlyInFgApps.clear()
         }
 
         if (coordinator.isShowing(AppMonitorService.PRIORITY_TIMER)) return true
 
-        // PATH A: grace-expiry for apps that had grace granted while already in fg.
         for ((pkg, _) in timerBlockApps.toMap()) {
             val pkgGrace = gracePerApp[pkg] ?: 0L
             if (pkgGrace in 1..now && graceInFgPerApp[pkg] == true) {
-                gracePerApp[pkg]     = 0L
-                graceInFgPerApp[pkg] = false
+                gracePerApp[pkg]     = 0L; graceInFgPerApp[pkg] = false
                 prefs.edit().remove("timer_grace_until_ts_$pkg").remove("timer_grace_in_fg_$pkg").apply()
                 if (currentlyInFgApps.contains(pkg)) {
                     setDisplayFields(pkg); showTimerOverlay()
@@ -130,9 +109,7 @@ class TimerBlockingEngine(
             }
         }
 
-        // Main path
-        val effectiveFgPkg = if (currentFgPkg.isNotEmpty()) currentFgPkg
-        else currentlyInFgApps.firstOrNull() ?: return false
+        val effectiveFgPkg = if (currentFgPkg.isNotEmpty()) currentFgPkg else currentlyInFgApps.firstOrNull() ?: return false
         if (h.isFocusBlockingPackage(effectiveFgPkg)) return false
         timerBlockApps[effectiveFgPkg] ?: return false
         val grace = gracePerApp[effectiveFgPkg] ?: 0L
@@ -144,22 +121,18 @@ class TimerBlockingEngine(
         return coordinator.isShowing(AppMonitorService.PRIORITY_TIMER)
     }
 
-    /** Called when a higher-priority overlay owns the slot — state maintenance only, no overlay. */
     fun onTickNoOverlay(currentFgPkg: String, now: Long) {
         if (!isActive) return
         syncFromPrefs()
         if (timerBlockApps.isEmpty()) { isActive = false; return }
 
         currentlyInFgApps.clear()
-        if (currentFgPkg.isNotEmpty() && timerBlockApps.containsKey(currentFgPkg))
-            currentlyInFgApps.add(currentFgPkg)
+        if (currentFgPkg.isNotEmpty() && timerBlockApps.containsKey(currentFgPkg)) currentlyInFgApps.add(currentFgPkg)
 
-        // Silently expire grace timestamps
         for ((pkg, _) in timerBlockApps.toMap()) {
             val pkgGrace = gracePerApp[pkg] ?: 0L
             if (pkgGrace in 1..now && graceInFgPerApp[pkg] == true) {
-                gracePerApp[pkg]     = 0L
-                graceInFgPerApp[pkg] = false
+                gracePerApp[pkg]     = 0L; graceInFgPerApp[pkg] = false
                 prefs.edit().remove("timer_grace_until_ts_$pkg").remove("timer_grace_in_fg_$pkg").apply()
             }
         }
@@ -196,112 +169,219 @@ class TimerBlockingEngine(
     }
 
     private fun buildTimerOverlayView(): View {
-        val ctx    = h.context
-        val accent = 0xFFF04E7A.toInt()
+        val ctx = h.context
+        val animators = mutableListOf<ValueAnimator>()
+        val density = ctx.resources.displayMetrics.density
 
-        val root = FrameLayout(ctx).apply { setBackgroundColor(Color.rgb(10, 8, 5)) }
-
-        val col = LinearLayout(ctx).apply {
-            orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL
-            setPadding(h.dpToPx(32), h.dpToPx(16), h.dpToPx(32), h.dpToPx(16))
+        val root = FrameLayout(ctx).apply {
+            background = GradientDrawable(
+                GradientDrawable.Orientation.TOP_BOTTOM,
+                intArrayOf(0xFF1C1018.toInt(), 0xFF07070C.toInt())
+            )
         }
 
-        // Aurelo wordmark header
-        root.addView(h.buildAureloWordmarkView(), FrameLayout.LayoutParams(
+        // 1. Top Logo + Subtitle ("DAILY TIMER")
+        val logoWrap = LinearLayout(ctx).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER_HORIZONTAL
+        }
+
+        logoWrap.addView(h.buildAureloWordmarkView(), LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT
+        ))
+
+        logoWrap.addView(TextView(ctx).apply {
+            text = "DAILY TIMER"
+            textSize = 10f
+            letterSpacing = 0.2f
+            setTextColor(Color.parseColor("#FF7698")) // Match HTML --timer color
+            typeface = android.graphics.Typeface.DEFAULT_BOLD
+        }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+            topMargin = h.dpToPx(4)
+        })
+
+        root.addView(logoWrap, FrameLayout.LayoutParams(
             FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT
         ).apply {
-            gravity   = Gravity.TOP or Gravity.CENTER_HORIZONTAL
+            gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
             topMargin = h.dpToPx(if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) 52 else 36)
         })
 
-        // Mode title
-        root.addView(TextView(ctx).apply {
-            text = "Daily Timer"; textSize = 19f
-            typeface = android.graphics.Typeface.create("serif", android.graphics.Typeface.NORMAL)
-            setTextColor(Color.argb(230, 255, 243, 220)); gravity = Gravity.CENTER; letterSpacing = 0.05f
-        }, FrameLayout.LayoutParams(
-            FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT
-        ).apply {
-            gravity   = Gravity.TOP or Gravity.CENTER_HORIZONTAL
-            topMargin = h.dpToPx(if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) 88 else 72)
+        // 2. V2-A Clock Face & Guaranteed Glow
+        val clockGroup = FrameLayout(ctx)
+
+        // The Glow Layer (Massive radial gradient)
+        val glowSize = h.dpToPx(320)
+        val glowView = View(ctx).apply {
+            background = object : GradientDrawable() {
+                init {
+                    shape = OVAL
+                    gradientType = RADIAL_GRADIENT
+                    // Solid pink center fading to completely transparent edges
+                    colors = intArrayOf(Color.parseColor("#4DFF7698"), Color.TRANSPARENT)
+                    gradientRadius = glowSize / 2f
+                }
+            }
+        }
+        clockGroup.addView(glowView, FrameLayout.LayoutParams(glowSize, glowSize).apply {
+            gravity = Gravity.CENTER
         })
 
-        // Badge
-        col.addView(TextView(ctx).apply {
-            text = "⏱ DAILY LIMIT REACHED"; textSize = 10f; letterSpacing = 0.12f; setTextColor(accent)
-            setPadding(h.dpToPx(12), h.dpToPx(5), h.dpToPx(12), h.dpToPx(5))
-            background = GradientDrawable().also {
-                it.cornerRadius = h.dpToPx(999).toFloat()
-                it.setColor(Color.argb(25, 240, 78, 122)); it.setStroke(1, Color.argb(60, 240, 78, 122))
-            }
-        }, h.linearWrap(Gravity.CENTER_HORIZONTAL).also { it.bottomMargin = h.dpToPx(28) })
-
-        // App icon
-        val icoWrap = FrameLayout(ctx)
-        val icoView = ImageView(ctx).apply {
-            scaleType = ImageView.ScaleType.CENTER_CROP
-            runCatching { setImageDrawable(h.packageManager.getApplicationIcon(overlayPkg)) }
-        }
-        val icoBg = View(ctx).apply {
-            background = GradientDrawable().also {
-                it.cornerRadius = h.dpToPx(22).toFloat()
-                it.setColor(Color.argb(50, 240, 78, 122)); it.setStroke(1, Color.argb(80, 240, 78, 122))
+        // The Clock Face
+        val clockSize = h.dpToPx(184)
+        val clockFace = FrameLayout(ctx).apply {
+            background = GradientDrawable().apply {
+                shape = GradientDrawable.OVAL
+                setColor(Color.parseColor("#08FF7698")) // Faint pink tint inside
+                setStroke(h.dpToPx(2), Color.parseColor("#40FFFFFF")) // Crisp border
             }
         }
-        val icoSz = h.dpToPx(80)
-        icoWrap.addView(icoBg, FrameLayout.LayoutParams(icoSz + h.dpToPx(8), icoSz + h.dpToPx(8)).apply { gravity = Gravity.CENTER })
-        icoWrap.addView(icoView, FrameLayout.LayoutParams(icoSz, icoSz).apply { gravity = Gravity.CENTER })
-        col.addView(icoWrap, h.linearWrap(Gravity.CENTER_HORIZONTAL).also { it.bottomMargin = h.dpToPx(20) })
 
-        col.addView(TextView(ctx).apply {
-            text = overlayName; textSize = 22f; setTextColor(Color.argb(230, 255, 243, 220))
+        // Short Hand
+        val handS = View(ctx).apply {
+            background = GradientDrawable().also {
+                it.cornerRadius = h.dpToPx(4).toFloat()
+                it.setColor(Color.parseColor("#FF9BB4"))
+            }
+            pivotX = density * 2f
+            pivotY = h.dpToPx(64).toFloat()
+        }
+        animators.add(ValueAnimator.ofFloat(22f, 25f).apply {
+            duration = 2000L; repeatMode = ValueAnimator.REVERSE; repeatCount = ValueAnimator.INFINITE
+            interpolator = android.view.animation.AccelerateDecelerateInterpolator()
+            addUpdateListener { handS.rotation = it.animatedValue as Float }
+        })
+
+        // Long Hand
+        val handL = View(ctx).apply {
+            background = GradientDrawable().also {
+                it.cornerRadius = h.dpToPx(4).toFloat()
+                it.setColor(Color.parseColor("#FFD2DD"))
+            }
+            pivotX = density * 1.5f
+            pivotY = h.dpToPx(78).toFloat()
+            rotation = 142f
+        }
+
+        clockFace.addView(handS, FrameLayout.LayoutParams(h.dpToPx(4), h.dpToPx(64)).apply {
+            gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
+            topMargin = h.dpToPx(28)
+        })
+        clockFace.addView(handL, FrameLayout.LayoutParams(h.dpToPx(3), h.dpToPx(78)).apply {
+            gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
+            topMargin = h.dpToPx(14)
+        })
+
+        clockGroup.addView(clockFace, FrameLayout.LayoutParams(clockSize, clockSize).apply {
             gravity = Gravity.CENTER
-            typeface = android.graphics.Typeface.create("serif", android.graphics.Typeface.NORMAL)
-        }, h.linearWrap(Gravity.CENTER_HORIZONTAL).also { it.bottomMargin = h.dpToPx(8) })
+        })
+
+        // 3. Pushing the clock down the screen
+        root.addView(clockGroup, FrameLayout.LayoutParams(glowSize, glowSize).apply {
+            gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
+            // Increased margin to drop the clock much further away from the logo
+            topMargin = h.dpToPx(120)
+        })
+
+        // Tactile Grace Hold Card
+        val col = LinearLayout(ctx).apply {
+            orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL
+            setPadding(h.dpToPx(20), h.dpToPx(20), h.dpToPx(20), h.dpToPx(20))
+            background = GradientDrawable().also {
+                it.cornerRadius = h.dpToPx(28).toFloat()
+                it.setColor(0x0AFFFFFF); it.setStroke(1, 0x14FFFFFF)
+            }
+        }
 
         col.addView(TextView(ctx).apply {
-            text = "${overlayUsed}m used today · ${overlayLimit}m limit"
-            textSize = 13f; setTextColor(Color.argb(153, 255, 243, 220)); gravity = Gravity.CENTER
-        }, h.linearWrap(Gravity.CENTER_HORIZONTAL).also { it.bottomMargin = h.dpToPx(32) })
+            text = "✋ HOLD TO EXTEND"; textSize = 11f; setTextColor(0xFFEDF3FF.toInt())
+            typeface = android.graphics.Typeface.DEFAULT_BOLD
+            setPadding(h.dpToPx(14), h.dpToPx(8), h.dpToPx(14), h.dpToPx(8))
+            background = GradientDrawable().also {
+                it.cornerRadius = h.dpToPx(100).toFloat()
+                it.setColor(0x12FFFFFF); it.setStroke(1, 0x14FFFFFF)
+            }
+        }, h.linearWrap(Gravity.CENTER_HORIZONTAL).also { it.bottomMargin = h.dpToPx(14) })
 
-        // Primary: Take a break
         col.addView(TextView(ctx).apply {
-            text = "Take a break →"; textSize = 14f; setTextColor(0xFF060610.toInt())
-            gravity = Gravity.CENTER; setPadding(h.dpToPx(24), h.dpToPx(15), h.dpToPx(24), h.dpToPx(15))
-            background = GradientDrawable().also { it.cornerRadius = h.dpToPx(14).toFloat(); it.setColor(accent) }
+            text = "Need 5 more minutes?"
+            textSize = 24f; setTextColor(0xFFEDF3FF.toInt())
+            gravity = Gravity.CENTER; typeface = android.graphics.Typeface.DEFAULT_BOLD
+        }, h.linearWrap(Gravity.CENTER_HORIZONTAL).also { it.bottomMargin = h.dpToPx(6) })
+
+        val over = (overlayUsed - overlayLimit).coerceAtLeast(0)
+        col.addView(TextView(ctx).apply {
+            text = "Used ${overlayUsed}m · Limit ${overlayLimit}m · Over by ${over}m"
+            textSize = 12f; setTextColor(Color.argb(153, 237, 243, 255)); gravity = Gravity.CENTER
+        }, h.linearWrap(Gravity.CENTER_HORIZONTAL).also { it.bottomMargin = h.dpToPx(14) })
+
+        // Rail Progress
+        val progressTrack = FrameLayout(ctx).apply {
+            background = GradientDrawable().also { it.cornerRadius = h.dpToPx(999).toFloat(); it.setColor(0x14FFFFFF) }
+        }
+        val progressFill = FrameLayout(ctx).apply {
+            background = GradientDrawable(GradientDrawable.Orientation.LEFT_RIGHT, intArrayOf(Color.parseColor("#FF7698"), Color.parseColor("#FFD1DC"))).apply {
+                cornerRadius = h.dpToPx(999).toFloat()
+            }
+            clipToOutline = true
+        }
+        val shimmer = View(ctx).apply {
+            background = GradientDrawable(GradientDrawable.Orientation.LEFT_RIGHT, intArrayOf(Color.TRANSPARENT, 0x60FFFFFF, Color.TRANSPARENT))
+        }
+        progressFill.addView(shimmer, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
+        progressTrack.addView(progressFill, FrameLayout.LayoutParams(0, FrameLayout.LayoutParams.MATCH_PARENT))
+
+        animators.add(ValueAnimator.ofFloat(-1f, 1f).apply {
+            duration = 3000L; repeatCount = ValueAnimator.INFINITE
+            addUpdateListener {
+                if (progressFill.width > 0) shimmer.translationX = (it.animatedValue as Float) * progressFill.width
+            }
+        })
+
+        col.addView(progressTrack, h.linearFill().also { it.height = h.dpToPx(10); it.bottomMargin = h.dpToPx(8) })
+
+        val holdIndicator = TextView(ctx).apply {
+            text = "0.0s of 3.0s held"; textSize = 11f; setTextColor(Color.argb(153, 237, 243, 255))
+            gravity = Gravity.CENTER; typeface = android.graphics.Typeface.DEFAULT_BOLD
+        }
+        col.addView(holdIndicator, h.linearWrap(Gravity.CENTER_HORIZONTAL).also { it.bottomMargin = h.dpToPx(16) })
+
+        // Actions
+        val btnsLayout = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL }
+
+        btnsLayout.addView(TextView(ctx).apply {
+            text = "Take a break"; textSize = 15f; setTextColor(0xFF050811.toInt())
+            gravity = Gravity.CENTER; typeface = android.graphics.Typeface.DEFAULT_BOLD
+            setPadding(0, h.dpToPx(14), 0, h.dpToPx(14))
+            background = GradientDrawable().also { it.cornerRadius = h.dpToPx(20).toFloat(); it.setColor(Color.WHITE) }
             setOnClickListener {
                 coordinator.dismiss(AppMonitorService.PRIORITY_TIMER)
-                runCatching {
-                    h.startActivity(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME)
-                        .apply { flags = Intent.FLAG_ACTIVITY_NEW_TASK })
-                }
+                runCatching { h.startActivity(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME).apply { flags = Intent.FLAG_ACTIVITY_NEW_TASK }) }
             }
         }, h.linearFill().also { it.bottomMargin = h.dpToPx(10) })
 
-        // Secondary: hold 3 seconds for 5 more minutes
-        val escapeBtn = TextView(ctx)
         var holdHandler: Handler? = null
         var holdProgress = 0
 
+        val escapeBtn = TextView(ctx)
         fun resetHold() {
             holdHandler?.removeCallbacksAndMessages(null); holdProgress = 0
-            escapeBtn.text = "Hold 3s for 5 more minutes"
-            escapeBtn.setTextColor(Color.argb(100, 255, 170, 68))
+            escapeBtn.text = "Keep holding"; escapeBtn.setTextColor(Color.WHITE)
             escapeBtn.background = GradientDrawable().also {
-                it.cornerRadius = h.dpToPx(14).toFloat()
-                it.setColor(Color.argb(20, 255, 255, 255)); it.setStroke(1, Color.argb(30, 255, 255, 255))
+                it.cornerRadius = h.dpToPx(20).toFloat(); it.setStroke(h.dpToPx(1), 0x1AFFFFFF)
             }
+            holdIndicator.text = "0.0s of 3.0s held"
+            progressFill.layoutParams = (progressFill.layoutParams as FrameLayout.LayoutParams).also { it.width = 0 }
+            progressTrack.requestLayout()
         }
 
-        val capturedOverlayPkg = overlayPkg   // capture at build time, not at click time
+        val capturedOverlayPkg = overlayPkg
         escapeBtn.apply {
-            text = "Hold 3s for 5 more minutes"; textSize = 12f
-            setTextColor(Color.argb(100, 255, 170, 68)); gravity = Gravity.CENTER
-            setPadding(h.dpToPx(24), h.dpToPx(13), h.dpToPx(24), h.dpToPx(13))
-            background = GradientDrawable().also {
-                it.cornerRadius = h.dpToPx(14).toFloat()
-                it.setColor(Color.argb(20, 255, 255, 255)); it.setStroke(1, Color.argb(30, 255, 255, 255))
-            }
+            text = "Keep holding"; textSize = 15f; setTextColor(Color.WHITE); gravity = Gravity.CENTER
+            typeface = android.graphics.Typeface.DEFAULT_BOLD
+            setPadding(0, h.dpToPx(14), 0, h.dpToPx(14))
+            background = GradientDrawable().also { it.cornerRadius = h.dpToPx(20).toFloat(); it.setStroke(h.dpToPx(1), 0x1AFFFFFF) }
+
             setOnTouchListener { _, event ->
                 when (event.action) {
                     MotionEvent.ACTION_DOWN -> {
@@ -309,6 +389,19 @@ class TimerBlockingEngine(
                         holdHandler?.postDelayed(object : Runnable {
                             override fun run() {
                                 holdProgress++
+                                val secsF = holdProgress / 3f
+                                val secsFormatted = "%.1f".format(secsF)
+                                holdIndicator.text = "${secsFormatted}s of 3.0s held"
+                                val fraction = (holdProgress / 9f).coerceIn(0f, 1f)
+                                progressTrack.post {
+                                    val trackW = progressTrack.width
+                                    if (trackW > 0) {
+                                        progressFill.layoutParams = (progressFill.layoutParams as FrameLayout.LayoutParams).also {
+                                            it.width = (trackW * fraction).toInt()
+                                        }
+                                        progressFill.requestLayout()
+                                    }
+                                }
                                 val secs = holdProgress / 3
                                 if (secs >= 3) {
                                     val graceTs = System.currentTimeMillis() + AppMonitorService.GRACE_MS
@@ -318,7 +411,6 @@ class TimerBlockingEngine(
                                         .putLong   ("timer_grace_until_ts_$capturedOverlayPkg", graceTs)
                                         .putBoolean("timer_grace_in_fg_$capturedOverlayPkg",    true)
                                         .apply()
-                                    // Log ignore stat
                                     runCatching {
                                         val statsRaw = prefs.getString("timer_ignore_stats_v1", "{}") ?: "{}"
                                         val statsObj = runCatching { JSONObject(statsRaw) }.getOrElse { JSONObject() }
@@ -333,9 +425,7 @@ class TimerBlockingEngine(
                                     coordinator.dismiss(AppMonitorService.PRIORITY_TIMER)
                                     h.notifyJs("if(typeof window.onTimerGraceGranted==='function') window.onTimerGraceGranted('$capturedOverlayPkg')")
                                 } else {
-                                    val rem = 3 - secs
-                                    escapeBtn.text = "Keep holding… ${rem}s"
-                                    escapeBtn.setTextColor(Color.argb(160 + holdProgress * 20, 255, 170, 68))
+                                    escapeBtn.setTextColor(Color.argb(160 + holdProgress * 10, 255, 170, 68))
                                     holdHandler?.postDelayed(this, 333L)
                                 }
                             }
@@ -347,11 +437,19 @@ class TimerBlockingEngine(
                 }
             }
         }
-        col.addView(escapeBtn, h.linearFill())
+        btnsLayout.addView(escapeBtn, h.linearFill())
+        col.addView(btnsLayout, h.linearFill())
 
-        root.addView(col, FrameLayout.LayoutParams(
-            FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT
-        ).apply { gravity = Gravity.CENTER })
+        root.addView(col, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT).apply {
+            gravity = Gravity.BOTTOM
+            leftMargin = h.dpToPx(18); rightMargin = h.dpToPx(18); bottomMargin = h.dpToPx(18)
+        })
+
+        root.addOnAttachStateChangeListener(object : View.OnAttachStateChangeListener {
+            override fun onViewAttachedToWindow(v: View) { animators.forEach { it.start() } }
+            override fun onViewDetachedFromWindow(v: View) { animators.forEach { it.cancel() } }
+        })
+
         return root
     }
 
