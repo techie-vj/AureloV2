@@ -210,17 +210,16 @@ class TimerBlockingEngine(
         // 2. V2-A Clock Face & Guaranteed Glow
         val clockGroup = FrameLayout(ctx)
 
-        // The Glow Layer (Massive radial gradient)
-        val glowSize = h.dpToPx(320)
+        // The Glow Layer: Adjusted size and opacity for better visibility
+        val clockSize = h.dpToPx(184)
+        val glowSize = h.dpToPx(240) // Increased size for better halo reach
         val glowView = View(ctx).apply {
-            background = object : GradientDrawable() {
-                init {
-                    shape = OVAL
-                    gradientType = RADIAL_GRADIENT
-                    // Solid pink center fading to completely transparent edges
-                    colors = intArrayOf(Color.parseColor("#4DFF7698"), Color.TRANSPARENT)
-                    gradientRadius = glowSize / 2f
-                }
+            background = GradientDrawable().apply {
+                shape = GradientDrawable.OVAL
+                gradientType = GradientDrawable.RADIAL_GRADIENT
+                // Increased opacity to 0x80 (approx 50%) so it is clearly visible
+                colors = intArrayOf(Color.parseColor("#80FF7698"), Color.TRANSPARENT)
+                gradientRadius = glowSize / 2f
             }
         }
         clockGroup.addView(glowView, FrameLayout.LayoutParams(glowSize, glowSize).apply {
@@ -228,12 +227,11 @@ class TimerBlockingEngine(
         })
 
         // The Clock Face
-        val clockSize = h.dpToPx(184)
         val clockFace = FrameLayout(ctx).apply {
             background = GradientDrawable().apply {
                 shape = GradientDrawable.OVAL
-                setColor(Color.parseColor("#08FF7698")) // Faint pink tint inside
-                setStroke(h.dpToPx(2), Color.parseColor("#40FFFFFF")) // Crisp border
+                setColor(Color.parseColor("#08FF7698"))
+                setStroke(h.dpToPx(2), Color.parseColor("#40FFFFFF"))
             }
         }
 
@@ -280,7 +278,7 @@ class TimerBlockingEngine(
         root.addView(clockGroup, FrameLayout.LayoutParams(glowSize, glowSize).apply {
             gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
             // Increased margin to drop the clock much further away from the logo
-            topMargin = h.dpToPx(120)
+            topMargin = h.dpToPx(160)
         })
 
         // Tactile Grace Hold Card
