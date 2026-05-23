@@ -896,11 +896,19 @@ class AureloWidgetProvider : AppWidgetProvider() {
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
-    private fun aureloIntent(context: Context, action: String?): Intent =
-        Intent(context, MainActivity::class.java).apply {
+    private fun aureloIntent(context: Context, action: String?): Intent {
+        // When Pro icon is active, LauncherIconManager disables MainActivity as a component.
+        // Targeting MainActivity::class.java directly then throws ActivityNotFoundException.
+        // getLaunchIntentForPackage() resolves to whatever launcher entry is currently
+        // ENABLED (MainActivity for Free, MainActivityIconPro alias for Pro) — both route
+        // correctly to MainActivity, so the activity starts regardless of Pro state.
+        val base = context.packageManager.getLaunchIntentForPackage(context.packageName)
+            ?: Intent(context, MainActivity::class.java)  // fallback: fresh install / edge case
+        return base.apply {
             if (action != null) this.action = action
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
         }
+    }
 
     private fun pendingFlags() =
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M)
