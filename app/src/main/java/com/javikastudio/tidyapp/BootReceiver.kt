@@ -104,11 +104,10 @@ class BootReceiver : BroadcastReceiver() {
         }
 
         // ── 3. Coach insight worker ───────────────────────────────────────────
-        // H4 FIX: Re-enqueue the daily CoachInsightWorker with UPDATE policy so the
-        // initialDelay is recomputed from the current time after every reboot or
-        // package replacement.  Without this the KEEP policy caused the worker to miss
-        // its 08:30 slot for up to a full 24-hour cycle.
-        CoachInsightWorker.schedule(ctx)
+        // FIX Issue 10: call scheduleOnBoot (UPDATE policy) here so the initialDelay
+        // is recomputed from the current post-reboot time.  Normal app launches call
+        // schedule() (KEEP policy) and no longer reset the clock on every cold start.
+        CoachInsightWorker.scheduleOnBoot(ctx)
 
         // ── 4. Focus routine alarms ───────────────────────────────────────────
         // H5 FIX: Explicitly re-schedule all enabled focus routines here in BootReceiver

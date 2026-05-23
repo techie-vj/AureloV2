@@ -33,11 +33,28 @@ class CoachInsightWorker(
         const val WORK_NAME = "aurelo_coach_daily_insight"
 
         /**
-         * Enqueue the daily insight worker.
-         * Uses ExistingPeriodicWorkPolicy.KEEP so re-scheduling on boot
-         * doesn't reset the timer mid-cycle.
+         * Called from MainActivity.onCreate() on every cold start.
+         * Uses KEEP so an already-queued request retains its delay base —
+         * repeated cold starts never reset the 24-hour clock, fixing the
+         * issue where users who open the app daily before 08:30 would never
+         * see the worker fire.
          */
         fun schedule(context: Context) {
+            enqueue(context, ExistingPeriodicWorkPolicy.KEEP)
+        }
+
+        /**
+         * Called exclusively from BootReceiver (device reboot / package replace).
+         * Uses UPDATE to recompute initialDelay from the current time, because
+         * the previous delay base was anchored to a pre-reboot clock and could
+         * be arbitrarily stale.
+         */
+        fun scheduleOnBoot(context: Context) {
+            enqueue(context, ExistingPeriodicWorkPolicy.UPDATE)
+        }
+
+        // FIX Issue 10: shared enqueue logic — policy is the only caller-controlled variable.
+        private fun enqueue(context: Context, policy: ExistingPeriodicWorkPolicy) {
             val prefs = context.getSharedPreferences(PREFS_FILE, Context.MODE_PRIVATE)
 
             // Check smart-alerts toggle (spec §10.6 / §8)
@@ -64,12 +81,7 @@ class CoachInsightWorker(
 
             WorkManager.getInstance(context).enqueueUniquePeriodicWork(
                 WORK_NAME,
-                // H4 FIX: UPDATE (not KEEP) so that after a device reboot or app update the
-                // initialDelay is re-computed from the current time.  KEEP preserved the old
-                // request's delay base, meaning the worker could miss 08:30 by an entire day
-                // after a reboot.  UPDATE cancels-and-replaces the pending work with a fresh
-                // delay calculation while leaving any already-running execution intact.
-                ExistingPeriodicWorkPolicy.UPDATE,
+                policy,
                 request,
             )
         }

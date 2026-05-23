@@ -35,6 +35,7 @@ class ShareBridge(
                 val bytes = android.util.Base64.decode(base64, android.util.Base64.DEFAULT)
                 val bitmap = android.graphics.BitmapFactory.decodeByteArray(bytes,0,bytes.size) ?: return@runCatching
                 val imageUri = saveToMediaStore(bitmap, fileName)
+                bitmap.recycle() // FIX Issue 5: release ~4MB native heap allocation
                 val shareIntent = Intent(Intent.ACTION_SEND).apply { type="image/png"; if(imageUri!=null) putExtra(Intent.EXTRA_STREAM,imageUri); putExtra(Intent.EXTRA_TEXT,"Shared from Aurelo"); addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK) }
                 activity.startActivity(Intent.createChooser(shareIntent,"Share stats").apply { flags=Intent.FLAG_ACTIVITY_NEW_TASK })
             }.onFailure { e -> android.util.Log.e("ShareBridge","shareImage failed",e) }
@@ -48,6 +49,7 @@ class ShareBridge(
                 val bytes = android.util.Base64.decode(base64, android.util.Base64.DEFAULT)
                 val bitmap = android.graphics.BitmapFactory.decodeByteArray(bytes,0,bytes.size) ?: return@runCatching
                 val imageUri = saveToMediaStore(bitmap, fileName)
+                bitmap.recycle() // FIX Issue 5: release ~4MB native heap allocation
                 val shareIntent = Intent(Intent.ACTION_SEND).apply { type="image/png"; if(imageUri!=null) putExtra(Intent.EXTRA_STREAM,imageUri); putExtra(Intent.EXTRA_TEXT,shareText); addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK) }
                 activity.startActivity(Intent.createChooser(shareIntent,"Share stats").apply { flags=Intent.FLAG_ACTIVITY_NEW_TASK })
             }.onFailure { e -> android.util.Log.e("ShareBridge","shareImageWithText failed",e) }
@@ -61,6 +63,7 @@ class ShareBridge(
                 val bytes = android.util.Base64.decode(base64, android.util.Base64.DEFAULT)
                 val bitmap = android.graphics.BitmapFactory.decodeByteArray(bytes,0,bytes.size) ?: return@runCatching
                 val saved = saveToMediaStore(bitmap, fileName) != null
+                bitmap.recycle() // FIX Issue 5: release ~4MB native heap allocation
                 webView.post { webView.evaluateJavascript("if(typeof window.onGallerySaveResult==='function') window.onGallerySaveResult($saved)", null) }
             }.onFailure { webView.post { webView.evaluateJavascript("if(typeof window.onGallerySaveResult==='function') window.onGallerySaveResult(false)", null) } }
         }

@@ -294,20 +294,37 @@ class LaunchTracker private constructor(context: Context) {
         dayOfWeek: Int = -1
     ): Int {
         val since = System.currentTimeMillis() - 30L * 24 * 60 * 60 * 1000L
-        val dayFilter = if (dayOfWeek in 1..7) " AND day_of_week = $dayOfWeek" else ""
+
+        // FIX Issue 11 (SEC-02): use parameterized binds instead of string
+        // interpolation. dayOfWeek is a typed Int so SQL injection is impossible,
+        // but interpolation is still a code-smell and makes the boundary behaviour
+        // (0 and 8 → no day filter) invisible to static analysis. Separate arg
+        // arrays make the two paths explicit and compile-time checkable.
+        val dayClause: String
+        val totalArgs: Array<String>
+        val appArgs:   Array<String>
+        if (dayOfWeek in 1..7) {
+            dayClause = " AND day_of_week = ?"
+            totalArgs = arrayOf(slot.name, since.toString(), dayOfWeek.toString())
+            appArgs   = arrayOf(slot.name, packageName, since.toString(), dayOfWeek.toString())
+        } else {
+            dayClause = ""          // boundary values 0 and 8 intentionally drop the filter
+            totalArgs = arrayOf(slot.name, since.toString())
+            appArgs   = arrayOf(slot.name, packageName, since.toString())
+        }
 
         val totalSessions = db.rawQuery(
             "SELECT COUNT(DISTINCT date(timestamp/1000,'unixepoch')) FROM $TABLE " +
-                    "WHERE time_slot = ? AND timestamp > ?$dayFilter",
-            arrayOf(slot.name, since.toString())
+                    "WHERE time_slot = ? AND timestamp > ?$dayClause",
+            totalArgs
         ).use { if (it.moveToFirst()) it.getLong(0) else 0L }
 
         if (totalSessions < 3L) return 0
 
         val appSessions = db.rawQuery(
             "SELECT COUNT(DISTINCT date(timestamp/1000,'unixepoch')) FROM $TABLE " +
-                    "WHERE time_slot = ? AND package_name = ? AND timestamp > ?$dayFilter",
-            arrayOf(slot.name, packageName, since.toString())
+                    "WHERE time_slot = ? AND package_name = ? AND timestamp > ?$dayClause",
+            appArgs
         ).use { if (it.moveToFirst()) it.getLong(0) else 0L }
 
         val smoothed = (appSessions + 1f) / (totalSessions + 2f)

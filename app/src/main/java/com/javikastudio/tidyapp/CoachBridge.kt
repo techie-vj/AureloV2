@@ -13,13 +13,11 @@ import android.util.Log
 import android.webkit.JavascriptInterface
 import android.webkit.WebView
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.runBlocking
 import org.json.JSONArray
 import org.json.JSONObject
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import kotlinx.coroutines.withTimeoutOrNull
 
 class CoachBridge(
     private val context: Context,
@@ -28,6 +26,15 @@ class CoachBridge(
     private val securePrefs: SharedPreferences,
     private val bridgeScope: CoroutineScope,
 ) {
+
+    // FIX Issue 3 & 4: injected by AppBridge.init {} so we can read the already-
+    // synced HC cache instead of creating new HealthConnectManager/Repository
+    // objects and blocking the WebView thread with runBlocking.
+    internal var healthConnectBridge: HealthConnectBridge? = null
+
+    /** Returns cached HC data or a no-data sentinel — never suspends. */
+    private fun cachedHC(): HCDailyData =
+        healthConnectBridge?.getCachedData() ?: HCDailyData(isAvailable = false)
 
     companion object {
         private const val KEY_COACH_QUERY_COUNT  = "coach_query_count"
@@ -240,22 +247,10 @@ class CoachBridge(
 
         return try {
             val ctx = org.json.JSONObject(contextJson)
-
-            // Build a natural-language query that steers the orchestrator toward
-            // the most meaningful intent for this tab's actual data
             val query = buildTabQuery(tab, ctx)
 
-            // Read Health Connect data (best-effort, non-blocking with timeout)
-            val hcData: HCDailyData = runBlocking {
-                val hcManager = HealthConnectManager(context)
-                if (hcManager.isAvailable() && hcManager.hasAnyPermission()) {
-                    try {
-                        val repo = HealthConnectRepository(hcManager)
-                        kotlinx.coroutines.withTimeoutOrNull(4_000) { repo.readDailyData() }
-                            ?: HCDailyData(isAvailable = false)
-                    } catch (_: Exception) { HCDailyData(isAvailable = false) }
-                } else HCDailyData(isAvailable = false)
-            }
+            // FIX Issue 3 & 4: use pre-synced cache — no blocking, no new objects.
+            val hcData: HCDailyData = cachedHC()
 
             // FIX: drop the hard-coded 7-day window so the orchestrator can
             // surface ESTABLISHED-variant copy for users with 30+ days of data.
@@ -462,16 +457,8 @@ class CoachBridge(
     @JavascriptInterface
     fun refreshHomeInsightSync(): String {
         return try {
-            val hcData: HCDailyData = runBlocking {
-                val hcManager = HealthConnectManager(context)
-                if (hcManager.isAvailable() && hcManager.hasAnyPermission()) {
-                    try {
-                        withTimeoutOrNull(3_000) {
-                            HealthConnectRepository(hcManager).readDailyData()
-                        } ?: HCDailyData(isAvailable = false)
-                    } catch (_: Exception) { HCDailyData(isAvailable = false) }
-                } else HCDailyData(isAvailable = false)
-            }
+            // FIX Issue 3 & 4: use pre-synced cache — no blocking, no new objects.
+            val hcData: HCDailyData = cachedHC()
 
             val summary  = UsageSummaryBuilder(context, prefs).build(hcData)
             val patterns = KotlinPatternDetector.detectAll(summary)
@@ -502,25 +489,8 @@ class CoachBridge(
     fun askCoach(query: String): String {
         return try {
             Log.d("AureloCoach", "CoachBridge.askCoach called query=$query")
-            val hcData: HCDailyData = runBlocking {
-                val hcManager = HealthConnectManager(context)
-
-                if (hcManager.isAvailable() && hcManager.hasAnyPermission()) {
-                    try {
-                        val repo = HealthConnectRepository(hcManager)
-
-                        withTimeoutOrNull(5_000) {
-                            repo.readDailyData()
-                        } ?: HCDailyData(isAvailable = false)
-
-                    } catch (_: Exception) {
-                        HCDailyData(isAvailable = false)
-                    }
-                } else {
-                    HCDailyData(isAvailable = false)
-                }
-            }
-
+            // FIX Issue 3 & 4: use pre-synced cache — no blocking, no new objects.
+            val hcData: HCDailyData = cachedHC()
             val summary = UsageSummaryBuilder(context, prefs).build(hcData)
 
             CoachOrchestrator(context)

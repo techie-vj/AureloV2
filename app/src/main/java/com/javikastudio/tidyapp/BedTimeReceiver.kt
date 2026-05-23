@@ -110,6 +110,8 @@ class BedtimeReceiver : BroadcastReceiver() {
                 val cfg = try { org.json.JSONObject(raw ?: "{}") } catch (_: Exception) { org.json.JSONObject() }
 
                 setDnd(ctx, false)
+                // Snapshot BEFORE stopScreenFilter clears the service
+                val filterWasActive = prefs.getBoolean(SCREEN_FILTER_ACTIVE, false)
                 runCatching<Unit> { stopScreenFilter(ctx) }
                 stopBedtimeBlock(ctx)
 
@@ -203,10 +205,6 @@ class BedtimeReceiver : BroadcastReceiver() {
                 // These are always written at BEDTIME_OFF (not guarded by alreadySnapshotted)
                 // so they reflect authoritative end-of-window data even when the blocking
                 // engine already saved the base snapshot earlier in the night.
-                val filterWasActive = runCatching {
-                    org.json.JSONObject(raw ?: "{}").optJSONObject("screenFilter")
-                        ?.optBoolean("enabled", false) ?: false
-                }.getOrElse { false }
 
                 if (bedOnTs > 0L) {
                     val inWindowMins = queryInWindowScreenTimeMins(ctx, bedOnTs, System.currentTimeMillis())
@@ -624,7 +622,7 @@ class BedtimeReceiver : BroadcastReceiver() {
                     android.app.usage.UsageEvents.Event.MOVE_TO_FOREGROUND ->
                         fgStart[ev.packageName] = ev.timeStamp
                     android.app.usage.UsageEvents.Event.MOVE_TO_BACKGROUND -> {
-                        val start = fgStart.remove(ev.packageName) ?: return@runCatching 0L
+                        val start = fgStart.remove(ev.packageName) ?: continue
                         totalMs[ev.packageName] = (totalMs[ev.packageName] ?: 0L) +
                                 (ev.timeStamp - start).coerceAtMost(maxPerAppMs)
                     }

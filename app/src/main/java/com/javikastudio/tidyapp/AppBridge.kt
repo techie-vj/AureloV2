@@ -168,14 +168,15 @@ class AppBridge(private val context: Context, private val webView: WebView) {
     internal val aureloScore = AureloScoreBridge(prefs, healthConnect)
     internal val weeklyRecapBridge = WeeklyRecapBridge(context,webView, prefs, bridgeScope, usage, coach)
 
-    private val pendingLaunchActivity: Activity? = null
-
     init {
         billingManager.connect()
         // FIX (Issue 3): wire CoachBridge reference into HealthConnectBridge so it
         // can invalidate tab insight caches on HC connect — ensuring coach cards
         // reflect HC data immediately without requiring an app restart.
         healthConnect.coachBridge = coach
+        // FIX Issue 3 & 4: give CoachBridge access to the shared HC cache so it
+        // never needs to create new HC objects or call runBlocking.
+        coach.healthConnectBridge = healthConnect
     }
 
     fun notifyForeground() { billingManager.onAppForegrounded() }
@@ -192,15 +193,34 @@ class AppBridge(private val context: Context, private val webView: WebView) {
         timer.checkTimerThresholds()
     }
 
+    // FIX Issue 7: cache encoded PNG bytes so each icon is only compressed once
+    // per process lifetime instead of on every WebView resource request.
+    // 40 entries × ~3KB avg icon ≈ 120KB — negligible memory cost.
+    private val iconCache = android.util.LruCache<String, ByteArray>(40)
+
     fun serveIcon(packageName: String): android.webkit.WebResourceResponse? {
         return try {
-            val icon = pm.getApplicationIcon(packageName)
-            val bitmap = if (icon is android.graphics.drawable.BitmapDrawable) icon.bitmap else {
-                val b = android.graphics.Bitmap.createBitmap(icon.intrinsicWidth.coerceAtLeast(1),icon.intrinsicHeight.coerceAtLeast(1),android.graphics.Bitmap.Config.ARGB_8888)
-                val canvas = android.graphics.Canvas(b); icon.setBounds(0,0,canvas.width,canvas.height); icon.draw(canvas); b
+            val cached = iconCache.get(packageName)
+            val bytes = if (cached != null) {
+                cached
+            } else {
+                val icon = pm.getApplicationIcon(packageName)
+                val bitmap = if (icon is android.graphics.drawable.BitmapDrawable) icon.bitmap else {
+                    val b = android.graphics.Bitmap.createBitmap(
+                        icon.intrinsicWidth.coerceAtLeast(1),
+                        icon.intrinsicHeight.coerceAtLeast(1),
+                        android.graphics.Bitmap.Config.ARGB_8888
+                    )
+                    val canvas = android.graphics.Canvas(b)
+                    icon.setBounds(0, 0, canvas.width, canvas.height)
+                    icon.draw(canvas)
+                    b
+                }
+                val bos = java.io.ByteArrayOutputStream()
+                bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, bos)
+                bos.toByteArray().also { iconCache.put(packageName, it) }
             }
-            val bos = java.io.ByteArrayOutputStream(); bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG,100,bos)
-            android.webkit.WebResourceResponse("image/png","UTF-8",java.io.ByteArrayInputStream(bos.toByteArray()))
+            android.webkit.WebResourceResponse("image/png", "UTF-8", java.io.ByteArrayInputStream(bytes))
         } catch (e: Exception) { null }
     }
 

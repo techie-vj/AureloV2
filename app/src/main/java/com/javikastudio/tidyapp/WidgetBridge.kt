@@ -5,6 +5,8 @@ import android.content.pm.PackageManager
 import android.webkit.JavascriptInterface
 import android.webkit.WebView
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -84,7 +86,12 @@ class WidgetBridge(
 
     @JavascriptInterface fun recordAppLaunch(packageName: String) {
         if (!SecurityValidators.isInstalledLaunchablePackage(context, packageName)) return
-        Thread { LaunchTracker.get(context).recordLaunch(packageName) }.start()
+        // FIX Issue 9: use bridgeScope instead of a raw unmanaged Thread so the
+        // coroutine is cancelled with the bridge lifetime and never outlives the
+        // Activity context it holds an implicit reference to.
+        bridgeScope.launch(Dispatchers.IO) {
+            LaunchTracker.get(context).recordLaunch(packageName)
+        }
     }
 
     /**
