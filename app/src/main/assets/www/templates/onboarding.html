@@ -1,117 +1,489 @@
-<!-- PERMISSION -->
-<div id="perm-screen" class="hidden">
-    <div style="font-size:56px;margin-bottom:20px">📊</div>
-    <div style="font-family:var(--ff-d);font-size:26px;font-weight:400;margin-bottom:10px">Usage Access Required</div>
-    <p style="font-size:14px;color:var(--t2);line-height:1.7;max-width:290px;margin-bottom:28px">Aurelo needs Usage Access to show real screen time. Tap Grant, then find Aurelo in the list and enable it.</p>
-    <button class="perm-btn" onclick="N&&N.requestUsagePermission();this.textContent='Opening Settings…';this.style.opacity='.7'">Grant Access →</button>
-    <div class="perm-skip" onclick="skipPerm()">Use demo data instead</div>
-</div>
+<!-- ═══════════════════════════════════════════════════════
+     ONBOARDING v2  |  6-step redesigned flow
+     Steps: 0 Hook → 1 Goal → 2 Name → 3 Permission → 4 Scan → 5 Reveal
+     Replaces: templates/onboarding.html
+     ═══════════════════════════════════════════════════════ -->
+<div id="ob-screen" style="display:none" role="main" aria-label="Aurelo setup">
 
-<!-- ONBOARDING -->
-<div id="ob-screen" style="display:none">
+    <!-- ── Step 0 : Hook ──────────────────────────────────── -->
+    <div class="ob-step active" id="ob0" aria-label="Welcome to Aurelo">
 
-    <!-- Step 0: Welcome -->
-    <div class="ob-step active" id="ob0">
-        <div class="ob-icon">🌿</div>
-        <div class="ob-title">Know your phone.<br/>Reclaim your <span class="grad">time.</span></div>
-        <p class="ob-body">Hours disappear into our phones without us even noticing. Aurelo shows you where your time goes — and helps you take it back.</p>
-        <div class="ob-dots" style="margin-top:24px"><div class="ob-dot on"></div><div class="ob-dot"></div><div class="ob-dot"></div><div class="ob-dot"></div></div>
-        <button class="ob-btn" onclick="obNext()">Get Started →</button>
-        <div class="ob-skip" onclick="quickStart()">Skip setup</div>
-        <p style="margin-top:18px;font-size:var(--text-2xs);color:var(--t3);text-align:center;line-height:1.6">
-            By continuing you agree to our
-            <a href="#" onclick="AppBridge.openUrl('https://sites.google.com/view/tidyapp-privacy-policy');return false;"
-               style="color:var(--p);text-decoration:underline">Privacy Policy</a>
-            &amp;
-            <a href="#" onclick="AppBridge.openUrl('https://sites.google.com/view/tidyapp-terms-and-conditions');return false;"
-               style="color:var(--p);text-decoration:underline">Terms & Conditions</a>
-        </p>
-    </div>
-
-    <!-- Step 1: Goal picker -->
-    <div class="ob-step" id="ob1">
-        <div class="ob-icon">🎯</div>
-        <div class="ob-title">What brings<br/>you here?</div>
-        <p class="ob-body" style="margin-bottom:18px">Pick your goals — select all that apply.</p>
-        <div style="width:100%;max-width:320px;display:flex;flex-direction:column;gap:10px">
-            <div class="ob-goal-btn" id="ob-goal-reduce" onclick="obSelectGoal('reduce',this)">
-                <span style="font-size:22px">📉</span>
-                <div><div style="font-size:14px;font-weight:700">Reduce screen time</div><div style="font-size:12px;color:var(--t2);margin-top:2px">Set goals, limits & daily streaks</div></div>
-            </div>
-            <div class="ob-goal-btn" id="ob-goal-organise" onclick="obSelectGoal('organise',this)">
-                <span style="font-size:22px">🗂️</span>
-                <div><div style="font-size:14px;font-weight:700">Organise my apps</div><div style="font-size:12px;color:var(--t2);margin-top:2px">Custom categories & smart widget</div></div>
-            </div>
-            <div class="ob-goal-btn" id="ob-goal-understand" onclick="obSelectGoal('understand',this)">
-                <span style="font-size:22px">📊</span>
-                <div><div style="font-size:14px;font-weight:700">Understand my habits</div><div style="font-size:12px;color:var(--t2);margin-top:2px">Charts, breakdowns & insights</div></div>
+        <div class="ob-hook-top">
+            <div class="ob-wordmark" aria-label="Aurelo">
+                <div class="ob-wordmark-icon" aria-hidden="true">
+                    <svg width="20" height="13" viewBox="0 0 20 13" fill="none" aria-hidden="true">
+                        <path d="M1,11 A9,9 0 0,1 19,11" stroke="#fff" stroke-width="2.5" stroke-linecap="round" opacity="0.9"/>
+                    </svg>
+                </div>
+                <span class="ob-wordmark-text" aria-hidden="true">Aurelo</span>
             </div>
         </div>
-        <div class="ob-dots" style="margin-top:24px"><div class="ob-dot"></div><div class="ob-dot on"></div><div class="ob-dot"></div><div class="ob-dot"></div></div>
-        <button class="ob-btn" id="ob1-next-btn" onclick="obNext()">Next →</button>
-        <div class="ob-skip" onclick="obNext()">Not sure yet</div>
-    </div>
 
-    <!-- Step 2: Permission -->
-    <div class="ob-step" id="ob2">
-        <div class="ob-icon">🔐</div>
-        <div class="ob-title">One permission<br/>unlocks <span class="grad">everything</span></div>
-        <div style="width:100%;max-width:320px;background:var(--s2);border:1px solid var(--border2);border-radius:16px;padding:14px 16px;margin:16px 0;position:relative;overflow:hidden">
-            <div style="display:flex;justify-content:space-between;margin-bottom:10px">
-                <div style="text-align:left"><div style="font-size:20px;font-weight:700;color:var(--g);filter:blur(6px)">2h 14m</div><div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3)">TODAY</div></div>
-                <div style="text-align:left"><div style="font-size:20px;font-weight:700;color:var(--a);filter:blur(6px)">18</div><div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3)">PICKUPS</div></div>
-                <div style="text-align:center"><div style="font-size:20px;font-weight:700;color:var(--p);filter:blur(6px)">5🔥</div><div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3)">STREAK</div></div>
-            </div>
-            <div style="height:4px;background:var(--s3);border-radius:2px;overflow:hidden;margin-bottom:10px"><div style="width:68%;height:100%;background:linear-gradient(90deg,var(--p),var(--c));border-radius:2px;filter:blur(2px)"></div></div>
-            <div style="display:flex;gap:4px">
-                <div style="flex:1;height:28px;background:rgba(240,78,122,.3);border-radius:3px;filter:blur(5px)"></div>
-                <div style="flex:1;height:20px;background:rgba(108,99,255,.3);border-radius:3px;filter:blur(5px)"></div>
-                <div style="flex:1;height:36px;background:rgba(5,200,232,.3);border-radius:3px;filter:blur(5px)"></div>
-                <div style="flex:1;height:24px;background:rgba(18,212,138,.3);border-radius:3px;filter:blur(5px)"></div>
-                <div style="flex:1;height:18px;background:rgba(247,166,35,.3);border-radius:3px;filter:blur(5px)"></div>
-            </div>
-            <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(6,6,16,.55);backdrop-filter:blur(1px);border-radius:16px">
-                <div style="text-align:center"><div style="font-size:24px;margin-bottom:4px">🔒</div><div style="font-family:var(--ff-b);font-size:var(--text-2xs);color:var(--t2)">Grant access to unlock</div></div>
-            </div>
+        <!-- Animated rings -->
+        <div class="ob-rings-wrap" aria-hidden="true">
+            <div class="ob-ring ob-ring-1"></div>
+            <div class="ob-ring ob-ring-2"></div>
+            <div class="ob-ring ob-ring-3"></div>
+            <div class="ob-ring ob-ring-4"></div>
+            <div class="ob-ring-glow"></div>
+            <div class="ob-ring-core"></div>
         </div>
-        <div id="ob-perm-usage" style="background:rgba(108,99,255,.08);border:1px solid rgba(108,99,255,.2);border-radius:14px;padding:12px 14px;width:100%;max-width:320px;box-sizing:border-box;cursor:pointer" onclick="obGrantUsage()">
-            <div style="display:flex;align-items:center;gap:10px">
-                <div style="font-size:22px">📊</div>
-                <div style="flex:1"><div style="font-size:13px;font-weight:700">Usage Access</div><div style="font-size:var(--text-2xs);color:var(--t2);margin-top:2px">Required for screen time tracking</div></div>
-                <div id="ob-usage-badge" style="font-family:var(--ff-m);font-size:var(--text-2xs);padding:3px 9px;border-radius:999px;background:rgba(240,78,122,.15);border:1px solid rgba(240,78,122,.3);color:var(--r);white-space:nowrap">Tap to grant</div>
-            </div>
-        </div>
-        <div class="ob-dots" style="margin:20px 0 16px"><div class="ob-dot"></div><div class="ob-dot"></div><div class="ob-dot on"></div><div class="ob-dot"></div></div>
-        <div class="ob-privacy-pills" style="width:100%;max-width:320px;display:flex;flex-direction:column;gap:10px;margin-bottom:20px">
-            <div class="ob-privacy-pill" style="display:flex;align-items:center;gap:12px;background:var(--s2);border:1px solid var(--border2);padding:12px;border-radius:12px;">
-                <span class="ob-privacy-pill-icon" style="font-size:18px;">🔒</span>
-                <div style="text-align:left;"><div class="ob-privacy-pill-text" style="font-size:13px;font-weight:700;color:var(--t1);">No account required</div><div class="ob-privacy-pill-sub" style="font-size:var(--text-2xs);color:var(--t2);">Nothing to sign up for, ever</div></div>
-            </div>
-            <div class="ob-privacy-pill" style="display:flex;align-items:center;gap:12px;background:var(--s2);border:1px solid var(--border2);padding:12px;border-radius:12px;">
-                <span class="ob-privacy-pill-icon" style="font-size:18px;">📱</span>
-                <div style="text-align:left;"><div class="ob-privacy-pill-text" style="font-size:13px;font-weight:700;color:var(--t1);">100% on-device</div><div class="ob-privacy-pill-sub" style="font-size:var(--text-2xs);color:var(--t2);">Your data never leaves your phone</div></div>
-            </div>
-            <div class="ob-privacy-pill" style="display:flex;align-items:center;gap:12px;background:var(--s2);border:1px solid var(--border2);padding:12px;border-radius:12px;">
-                <span class="ob-privacy-pill-icon" style="font-size:18px;">🛡️</span>
-                <div style="text-align:left;"><div class="ob-privacy-pill-text" style="font-size:13px;font-weight:700;color:var(--t1);">Not even us can see it</div><div class="ob-privacy-pill-sub" style="font-size:var(--text-2xs);color:var(--t2);">No servers, no uploads, no tracking</div></div>
-            </div>
-        </div>
-        <button class="ob-btn" id="ob3-grant-btn" onclick="obHandlePermStep()">Grant Access →</button>
-        <div class="ob-skip" onclick="finishOb()">Skip — use without screen time data</div>
-    </div>
 
-    <!-- Step 3: Scan + first insight -->
-    <div class="ob-step" id="ob3">
-        <div class="ob-icon" style="font-size:40px">🔍</div>
-        <div class="ob-title">Scanning your<br/><span class="grad">apps…</span></div>
-        <div class="scan-bar" style="margin-top:22px"><div class="scan-fill" id="ob-scan-fill"></div></div>
-        <div class="scan-txt" id="ob-scan-txt">Scanning 0 apps…</div>
-        <div class="scan-rows" id="ob-scan-rows" style="display:none;max-height:340px;overflow-y:auto"></div>
-        <div id="ob-first-insight" style="display:none;width:100%;max-width:320px;margin-top:12px;background:linear-gradient(135deg,rgba(108,99,255,.12),rgba(5,200,232,.06));border:1px solid rgba(108,99,255,.25);border-radius:14px;padding:13px 16px;text-align:center">
-            <div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--p2);letter-spacing:1px;margin-bottom:6px">YOUR FIRST INSIGHT</div>
-            <div id="ob-insight-text" style="font-family:var(--ff-b);font-size:14px;font-weight:600;color:var(--t1);line-height:1.5"></div>
+        <!-- Hero content -->
+        <div class="ob-hook-body">
+            <div class="ob-hook-eyebrow">Did you know?</div>
+            <div class="ob-hero-stat" aria-label="96 times">96×</div>
+            <p class="ob-hero-sub">
+                you'll pick up your phone today<br>
+                <span class="ob-muted">Most people have no idea.</span>
+            </p>
+            <div class="ob-hook-claim">
+                Aurelo shows you<br><span class="grad">exactly where it goes.</span>
+            </div>
         </div>
-        <div class="ob-dots" style="margin:16px 0 14px"><div class="ob-dot"></div><div class="ob-dot"></div><div class="ob-dot"></div><div class="ob-dot on"></div></div>
-        <button class="ob-btn" id="ob4-done-btn" onclick="finishOb()" style="display:none">Enter Aurelo →</button>
-    </div>
-</div>
+
+        <!-- Social proof stats strip — fills the dead space between content and footer -->
+        <div class="ob-hook-stats" aria-hidden="true">
+            <div class="ob-hook-stat-item">
+                <span class="ob-hook-stat-val">4h 37m</span>
+                <span class="ob-hook-stat-lbl">UK daily avg</span>
+            </div>
+            <div class="ob-hook-stat-div"></div>
+            <div class="ob-hook-stat-item">
+                <span class="ob-hook-stat-val">96×</span>
+                <span class="ob-hook-stat-lbl">avg pickups</span>
+            </div>
+            <div class="ob-hook-stat-div"></div>
+            <div class="ob-hook-stat-item">
+                <span class="ob-hook-stat-val">100%</span>
+                <span class="ob-hook-stat-lbl">on-device</span>
+            </div>
+        </div>
+
+        <!-- Bottom -->
+        <div class="ob-step-foot">
+            <div class="ob-dots" aria-label="Step 1 of 6">
+                <div class="ob-dot on" aria-hidden="true"></div>
+                <div class="ob-dot" aria-hidden="true"></div>
+                <div class="ob-dot" aria-hidden="true"></div>
+                <div class="ob-dot" aria-hidden="true"></div>
+                <div class="ob-dot" aria-hidden="true"></div>
+                <div class="ob-dot" aria-hidden="true"></div>
+            </div>
+            <button class="ob-btn" onclick="obNext()">
+                Show me where my time goes →
+            </button>
+            <p class="ob-legal">
+                No account · On-device · 100% private ·
+                <a href="#"
+                   onclick="AppBridge&&AppBridge.openUrl('https://sites.google.com/view/tidyapp-privacy-policy');return false;"
+                   style="color:var(--t3);text-decoration:underline">Privacy</a>
+                &amp;
+                <a href="#"
+                   onclick="AppBridge&&AppBridge.openUrl('https://sites.google.com/view/tidyapp-terms-and-conditions');return false;"
+                   style="color:var(--t3);text-decoration:underline">Terms</a>
+            </p>
+        </div>
+
+    </div><!-- /ob0 -->
+
+
+    <!-- ── Step 1 : Goal commitment ───────────────────────── -->
+    <div class="ob-step" id="ob1" aria-label="Set your daily screen time limit">
+
+        <div class="ob-step-head">
+            <div class="ob-step-mono">STEP 1 OF 6</div>
+            <div class="ob-title">Set your<br>daily limit</div>
+            <p class="ob-body">This directly powers your Home arc, streak counter, and Aurelo Score.</p>
+        </div>
+
+        <div class="ob-goal-list" role="radiogroup" aria-label="Select daily screen time goal">
+
+            <div class="ob-goal-card" id="ob-gc-light"
+                 role="radio" aria-checked="false" tabindex="0"
+                 onclick="obGoalSelect('light',90)"
+                 onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();obGoalSelect('light',90);}">
+                <div class="ob-goal-card-main">
+                    <span class="ob-goal-emoji" aria-hidden="true">🌱</span>
+                    <div class="ob-goal-info">
+                        <div class="ob-goal-name">Light <span class="ob-goal-range">1–2 hrs</span></div>
+                        <div class="ob-goal-ctx">Great starting point</div>
+                    </div>
+                    <div class="ob-goal-radio" aria-hidden="true"><div class="ob-goal-radio-dot"></div></div>
+                </div>
+                <!-- Arc preview — hidden until selected -->
+                <div class="ob-arc-preview" id="ob-arc-light" aria-hidden="true">
+                    <svg width="52" height="28" viewBox="0 0 52 28" aria-hidden="true">
+                        <path d="M4,26 A21,21 0 0,1 48,26" fill="none" stroke="var(--s3)" stroke-width="4.5" stroke-linecap="round"/>
+                        <path d="M4,26 A21,21 0 0,1 48,26" fill="none" stroke="var(--p)" stroke-width="4.5"
+                              stroke-linecap="round" stroke-dasharray="66" stroke-dashoffset="40"/>
+                    </svg>
+                    <div class="ob-arc-label">
+                        <span style="color:var(--p2);font-family:var(--ff-m);font-size:var(--text-2xs)">Goal: 1–2 hrs · 90 min/day</span><br>
+                        <span style="color:var(--t3);font-size:var(--text-2xs)">Your Home arc at this limit</span>
+                    </div>
+                </div>
+            </div><!-- /light -->
+
+            <div class="ob-goal-card ob-goal-has-badge" id="ob-gc-balanced"
+                 role="radio" aria-checked="false" tabindex="0"
+                 onclick="obGoalSelect('balanced',150)"
+                 onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();obGoalSelect('balanced',150);}">
+                <div class="ob-pop-badge" aria-label="Popular choice">POPULAR</div>
+                <div class="ob-goal-card-main">
+                    <span class="ob-goal-emoji" aria-hidden="true">⚡</span>
+                    <div class="ob-goal-info">
+                        <div class="ob-goal-name">Balanced <span class="ob-goal-range">2–3 hrs</span></div>
+                        <div class="ob-goal-ctx">Realistic &amp; achievable</div>
+                    </div>
+                    <div class="ob-goal-radio" aria-hidden="true"><div class="ob-goal-radio-dot"></div></div>
+                </div>
+                <div class="ob-arc-preview" id="ob-arc-balanced" aria-hidden="true">
+                    <svg width="52" height="28" viewBox="0 0 52 28" aria-hidden="true">
+                        <path d="M4,26 A21,21 0 0,1 48,26" fill="none" stroke="var(--s3)" stroke-width="4.5" stroke-linecap="round"/>
+                        <path d="M4,26 A21,21 0 0,1 48,26" fill="none" stroke="var(--p)" stroke-width="4.5"
+                              stroke-linecap="round" stroke-dasharray="66" stroke-dashoffset="24"/>
+                    </svg>
+                    <div class="ob-arc-label">
+                        <span style="color:var(--p2);font-family:var(--ff-m);font-size:var(--text-2xs)">Goal: 2–3 hrs · 150 min/day</span><br>
+                        <span style="color:var(--t3);font-size:var(--text-2xs)">Your Home arc at this limit</span>
+                    </div>
+                </div>
+            </div><!-- /balanced -->
+
+            <div class="ob-goal-card" id="ob-gc-heavy"
+                 role="radio" aria-checked="false" tabindex="0"
+                 onclick="obGoalSelect('heavy',210)"
+                 onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();obGoalSelect('heavy',210);}">
+                <div class="ob-goal-card-main">
+                    <span class="ob-goal-emoji" aria-hidden="true">📱</span>
+                    <div class="ob-goal-info">
+                        <div class="ob-goal-name">Heavy user <span class="ob-goal-range">3–4 hrs</span></div>
+                        <div class="ob-goal-ctx">Step down from avg (4h 37m)</div>
+                    </div>
+                    <div class="ob-goal-radio" aria-hidden="true"><div class="ob-goal-radio-dot"></div></div>
+                </div>
+                <div class="ob-arc-preview" id="ob-arc-heavy" aria-hidden="true">
+                    <svg width="52" height="28" viewBox="0 0 52 28" aria-hidden="true">
+                        <path d="M4,26 A21,21 0 0,1 48,26" fill="none" stroke="var(--s3)" stroke-width="4.5" stroke-linecap="round"/>
+                        <path d="M4,26 A21,21 0 0,1 48,26" fill="none" stroke="var(--p)" stroke-width="4.5"
+                              stroke-linecap="round" stroke-dasharray="66" stroke-dashoffset="10"/>
+                    </svg>
+                    <div class="ob-arc-label">
+                        <span style="color:var(--p2);font-family:var(--ff-m);font-size:var(--text-2xs)">Goal: 3–4 hrs · 210 min/day</span><br>
+                        <span style="color:var(--t3);font-size:var(--text-2xs)">Your Home arc at this limit</span>
+                    </div>
+                </div>
+            </div><!-- /heavy -->
+
+        </div><!-- /ob-goal-list -->
+
+        <p class="ob-ctx-note">UK daily average: 4h 37m · You're aiming for better</p>
+
+        <div class="ob-step-foot">
+            <div class="ob-dots" aria-label="Step 2 of 6">
+                <div class="ob-dot" aria-hidden="true"></div>
+                <div class="ob-dot on" aria-hidden="true"></div>
+                <div class="ob-dot" aria-hidden="true"></div>
+                <div class="ob-dot" aria-hidden="true"></div>
+                <div class="ob-dot" aria-hidden="true"></div>
+                <div class="ob-dot" aria-hidden="true"></div>
+            </div>
+            <button class="ob-btn ob-btn--disabled" id="ob1-next-btn"
+                    onclick="obGoalNext()" disabled aria-disabled="true">
+                Choose your limit
+            </button>
+        </div>
+
+    </div><!-- /ob1 -->
+
+
+    <!-- ── Step 2 : Name (optional) ──────────────────────── -->
+    <div class="ob-step" id="ob2" aria-label="Your name — optional">
+
+        <div class="ob-step-head">
+            <div class="ob-step-mono">STEP 2 OF 6</div>
+            <div class="ob-title">What should<br>Aurelo call you?</div>
+            <p class="ob-body">Your Coach will greet you by name. Totally optional.</p>
+        </div>
+
+        <div class="ob-name-wrap">
+            <input type="text" class="ob-name-input" id="ob-name-input"
+                   placeholder="Your first name"
+                   maxlength="30"
+                   autocomplete="given-name"
+                   inputmode="text"
+                   oninput="obUpdateNamePreview(this.value)"
+                   aria-label="First name, optional"/>
+        </div>
+
+        <!-- Live Coach greeting preview -->
+        <div class="ob-coach-preview" role="region" aria-label="Coach greeting preview" aria-live="polite">
+            <div class="ob-coach-preview-hd">
+                <div class="ob-coach-av" aria-hidden="true">🤖</div>
+                <div>
+                    <div class="ob-coach-preview-name">Aurelo Coach</div>
+                    <div class="ob-coach-preview-tag">Preview</div>
+                </div>
+            </div>
+            <p class="ob-coach-preview-txt" id="ob-coach-preview-txt">
+                <span class="ob-placeholder">Type your name to see how Coach greets you</span>
+            </p>
+        </div>
+
+        <div class="ob-step-foot">
+            <div class="ob-dots" aria-label="Step 3 of 6">
+                <div class="ob-dot" aria-hidden="true"></div>
+                <div class="ob-dot" aria-hidden="true"></div>
+                <div class="ob-dot on" aria-hidden="true"></div>
+                <div class="ob-dot" aria-hidden="true"></div>
+                <div class="ob-dot" aria-hidden="true"></div>
+                <div class="ob-dot" aria-hidden="true"></div>
+            </div>
+            <button class="ob-btn" id="ob2-next-btn" onclick="obSaveNameAndNext()">
+                Continue
+            </button>
+            <button class="ob-skip" onclick="obNext()">Skip — add in Settings later</button>
+        </div>
+
+    </div><!-- /ob2 -->
+
+
+    <!-- ── Step 3 : Permission ────────────────────────────── -->
+    <div class="ob-step" id="ob3" aria-label="Grant screen time access">
+
+        <div class="ob-step-head">
+            <div class="ob-step-mono">STEP 3 OF 6</div>
+            <div class="ob-title">Unlock your<br><span class="grad">screen time data</span></div>
+        </div>
+
+        <!-- Value checklist — unlocks after permission -->
+        <div class="ob-value-list" role="list" aria-label="What you unlock">
+            <div class="ob-value-item" role="listitem">
+                <span class="ob-value-tick" aria-hidden="true">✓</span>
+                <span>Real-time screen time tracking</span>
+            </div>
+            <div class="ob-value-item" role="listitem">
+                <span class="ob-value-tick" aria-hidden="true">✓</span>
+                <span>Daily Aurelo Score calculation</span>
+            </div>
+            <div class="ob-value-item" role="listitem">
+                <span class="ob-value-tick" aria-hidden="true">✓</span>
+                <span>Coach insights &amp; streak tracking</span>
+            </div>
+        </div>
+
+        <!-- Blurred home preview -->
+        <div class="ob-perm-preview" aria-hidden="true">
+            <div class="ob-perm-blur-content">
+                <div class="ob-perm-stat-row">
+                    <div class="ob-perm-stat" style="color:var(--g)">
+                        <div class="ob-perm-stat-val">2h 14m</div>
+                        <div class="ob-perm-stat-lbl">TODAY</div>
+                    </div>
+                    <div class="ob-perm-stat" style="color:var(--a)">
+                        <div class="ob-perm-stat-val">18</div>
+                        <div class="ob-perm-stat-lbl">PICKUPS</div>
+                    </div>
+                    <div class="ob-perm-stat" style="color:var(--p)">
+                        <div class="ob-perm-stat-val">5🔥</div>
+                        <div class="ob-perm-stat-lbl">STREAK</div>
+                    </div>
+                </div>
+                <div class="ob-perm-bar-row">
+                    <div class="ob-perm-bar" style="height:32px;background:rgba(240,78,122,.4)"></div>
+                    <div class="ob-perm-bar" style="height:20px;background:rgba(108,99,255,.4)"></div>
+                    <div class="ob-perm-bar" style="height:40px;background:rgba(5,200,232,.4)"></div>
+                    <div class="ob-perm-bar" style="height:26px;background:rgba(18,212,138,.4)"></div>
+                    <div class="ob-perm-bar" style="height:16px;background:rgba(247,166,35,.4)"></div>
+                </div>
+            </div>
+            <div class="ob-perm-overlay">
+                <div class="ob-perm-lock" aria-hidden="true">🔒</div>
+                <div class="ob-perm-lock-txt">Grant access to reveal your data</div>
+            </div>
+        </div>
+
+        <!-- Grant card -->
+        <div class="ob-perm-card" id="ob-perm-usage"
+             onclick="obGrantUsage()" role="button" tabindex="0"
+             onkeydown="if(event.key==='Enter'||event.key===' ')obGrantUsage()"
+             aria-label="Tap to grant Usage Access">
+            <span class="ob-perm-card-icon" aria-hidden="true">📊</span>
+            <div class="ob-perm-card-body">
+                <div class="ob-perm-card-title">Usage Access</div>
+                <div class="ob-perm-card-sub">Required for screen time tracking</div>
+            </div>
+            <div id="ob-usage-badge" class="ob-usage-badge ob-usage-badge--pending">Tap to grant</div>
+        </div>
+
+        <!-- Privacy pills -->
+        <div class="ob-pills" role="list" aria-label="Privacy guarantees">
+            <div class="ob-pill" role="listitem">📱 On-device only</div>
+            <div class="ob-pill" role="listitem">🚫 No account</div>
+            <div class="ob-pill" role="listitem">🔒 Never shared</div>
+        </div>
+
+        <div class="ob-step-foot">
+            <div class="ob-dots" aria-label="Step 4 of 6">
+                <div class="ob-dot" aria-hidden="true"></div>
+                <div class="ob-dot" aria-hidden="true"></div>
+                <div class="ob-dot" aria-hidden="true"></div>
+                <div class="ob-dot on" aria-hidden="true"></div>
+                <div class="ob-dot" aria-hidden="true"></div>
+                <div class="ob-dot" aria-hidden="true"></div>
+            </div>
+            <button class="ob-btn" id="ob3-grant-btn" onclick="obHandlePermStep()">
+                Grant Access &amp; Unblur →
+            </button>
+            <button class="ob-skip" onclick="finishOb()">Skip — screen time tracking won't work</button>
+        </div>
+
+    </div><!-- /ob3 -->
+
+
+    <!-- ── Step 4 : Scan ──────────────────────────────────── -->
+    <div class="ob-step" id="ob4" aria-label="Scanning your apps">
+
+        <div class="ob-step-head">
+            <div class="ob-step-mono">STEP 4 OF 6</div>
+            <div class="ob-title">Reading your<br><span class="grad">apps…</span></div>
+            <p class="ob-scan-count" id="ob-scan-count" aria-live="polite">Scanning installed apps</p>
+        </div>
+
+        <div class="scan-bar" role="progressbar" aria-label="Scan progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+            <div class="scan-fill" id="ob-scan-fill"></div>
+        </div>
+        <div class="scan-txt" id="ob-scan-txt" aria-live="polite">Starting…</div>
+
+        <div class="scan-rows" id="ob-scan-rows" role="list" aria-label="Discovered app categories"></div>
+
+        <div class="ob-step-foot ob-step-foot--scan">
+            <div class="ob-dots" aria-label="Step 5 of 6">
+                <div class="ob-dot" aria-hidden="true"></div>
+                <div class="ob-dot" aria-hidden="true"></div>
+                <div class="ob-dot" aria-hidden="true"></div>
+                <div class="ob-dot" aria-hidden="true"></div>
+                <div class="ob-dot on" aria-hidden="true"></div>
+                <div class="ob-dot" aria-hidden="true"></div>
+            </div>
+            <button class="ob-btn" id="ob4-done-btn" onclick="obNext()"
+                    style="display:none" aria-label="See your starting score">
+                See your starting score →
+            </button>
+        </div>
+
+    </div><!-- /ob4 -->
+
+
+    <!-- ── Step 5 : Score Reveal ──────────────────────────── -->
+    <div class="ob-step" id="ob5" aria-label="Your Aurelo Score baseline">
+
+        <div class="ob-reveal-tag" aria-live="polite">🎉 ALL SET</div>
+
+        <!-- Score card -->
+        <div class="ob-score-card" role="region" aria-label="Your day-one Aurelo Score baseline">
+            <div class="ob-score-card-eyebrow">YOUR AURELO SCORE</div>
+
+            <svg class="ob-reveal-arc" width="160" height="90" viewBox="0 0 160 90"
+                 aria-label="Score arc, building from day one" role="img">
+                <!-- Track -->
+                <path d="M12,82 A58,58 0 0,1 148,82"
+                      fill="none" stroke="var(--s3)" stroke-width="8" stroke-linecap="round"/>
+                <!-- Fill — animates in via CSS -->
+                <path id="ob-arc-fill" d="M12,82 A58,58 0 0,1 148,82"
+                      fill="none" stroke="url(#obArcGrad)" stroke-width="8"
+                      stroke-linecap="round" stroke-dasharray="182" stroke-dashoffset="182"/>
+                <defs>
+                    <linearGradient id="obArcGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                        <stop offset="0%" stop-color="var(--p)"/>
+                        <stop offset="100%" stop-color="var(--c)"/>
+                    </linearGradient>
+                </defs>
+            </svg>
+
+            <div class="ob-score-dash" aria-label="Score will build from day one">—</div>
+            <div class="ob-score-baseline">Day 1 baseline · builds as you use Aurelo</div>
+
+            <!-- Pillar tiles -->
+            <div class="ob-pillar-row" role="list" aria-label="Score pillars">
+                <div class="ob-pillar-tile" role="listitem" style="--ptc:var(--c)">
+                    <div class="ob-pillar-val" aria-hidden="true">📱</div>
+                    <div class="ob-pillar-name">Screen</div>
+                    <div class="ob-pillar-sub">tracking</div>
+                </div>
+                <div class="ob-pillar-tile" role="listitem" style="--ptc:var(--g)">
+                    <div class="ob-pillar-val" aria-hidden="true">🎯</div>
+                    <div class="ob-pillar-name">Focus</div>
+                    <div class="ob-pillar-sub">ready</div>
+                </div>
+                <div class="ob-pillar-tile" role="listitem" style="--ptc:var(--p)">
+                    <div class="ob-pillar-val" aria-hidden="true">🌙</div>
+                    <div class="ob-pillar-name">Sleep</div>
+                    <div class="ob-pillar-sub">unlock</div>
+                </div>
+            </div>
+        </div><!-- /ob-score-card -->
+
+        <!-- What you get — 3 highlight rows -->
+        <div class="ob-reveal-feats" role="list" aria-label="What Aurelo does for you">
+            <div class="ob-reveal-feat" role="listitem">
+                <div class="ob-reveal-feat-icon" aria-hidden="true">📊</div>
+                <div class="ob-reveal-feat-body">
+                    <div class="ob-reveal-feat-title">Screen time tracked from minute one</div>
+                    <div class="ob-reveal-feat-sub">Every app, every session — clear and honest</div>
+                </div>
+            </div>
+            <div class="ob-reveal-feat" role="listitem">
+                <div class="ob-reveal-feat-icon" aria-hidden="true">🏆</div>
+                <div class="ob-reveal-feat-body">
+                    <div class="ob-reveal-feat-title">Your Aurelo Score builds daily</div>
+                    <div class="ob-reveal-feat-sub">Screen · Focus · Sleep — all in one number</div>
+                </div>
+            </div>
+            <div class="ob-reveal-feat" role="listitem">
+                <div class="ob-reveal-feat-icon" aria-hidden="true">🤖</div>
+                <div class="ob-reveal-feat-body">
+                    <div class="ob-reveal-feat-title">Coach insight ready tomorrow</div>
+                    <div class="ob-reveal-feat-sub">Personalised — entirely on-device</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- What happens next strip -->
+        <div class="ob-next-strip" role="note" aria-label="What happens next">
+            <div class="ob-next-strip-title">What happens next?</div>
+            <div class="ob-next-strip-sub">Your score updates daily. First coaching insight drops tomorrow morning.</div>
+        </div>
+
+        <!-- Coach nudge — first-use contextual prompt for Pro -->
+        <div class="ob-coach-nudge" role="region" aria-label="Aurelo Coach introduction">
+            <div class="ob-coach-nudge-av" aria-hidden="true">🤖</div>
+            <div class="ob-coach-nudge-body">
+                <div class="ob-coach-nudge-hd">
+                    Aurelo Coach
+                    <span class="ob-pro-badge" aria-label="Pro feature">PRO</span>
+                </div>
+                <p class="ob-coach-nudge-txt" id="ob-coach-nudge-txt">
+                    Your first personalised insight will be ready tomorrow morning.
+                </p>
+            </div>
+        </div>
+
+        <div class="ob-step-foot">
+            <div class="ob-dots" aria-label="Step 6 of 6, final step">
+                <div class="ob-dot" aria-hidden="true"></div>
+                <div class="ob-dot" aria-hidden="true"></div>
+                <div class="ob-dot" aria-hidden="true"></div>
+                <div class="ob-dot" aria-hidden="true"></div>
+                <div class="ob-dot" aria-hidden="true"></div>
+                <div class="ob-dot on" aria-hidden="true"></div>
+            </div>
+            <button class="ob-btn" onclick="finishOb()">
+                Start building my score →
+            </button>
+        </div>
+
+    </div><!-- /ob5 -->
+
+</div><!-- /ob-screen -->
