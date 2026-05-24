@@ -177,12 +177,13 @@ function _ensureGoalModal() {
 
   var presets = [
     { mins: 60,  label: '1h' },
-
     { mins: 120, label: '2h' },
     { mins: 180, label: '3h' },
     { mins: 240, label: '4h' },
     { mins: 300, label: '5h' },
     { mins: 360, label: '6h' },
+    { mins: 420, label: '7h' },
+    { mins: 480, label: '8h' },
   ];
   var btnHtml = presets.map(function(p) {
     return '<div class="dur-btn" onclick="selGoal(' + p.mins + ',this)">' + p.label + '</div>';

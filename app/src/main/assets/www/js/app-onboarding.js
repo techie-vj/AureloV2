@@ -22,7 +22,7 @@ let _obMoodId     = '';
 let _obScanIv     = null;
 let _scanBufReady = false;
 
-const _OB_GOAL_LABELS = { light:'1–2 hours', balanced:'2–3 hours', heavy:'3–4 hours' };
+const _OB_GOAL_LABELS = { light:'2-3 hours', balanced:'3–4 hours', heavy:'4–5 hours' };
 
 // ── Subtle UI sounds (Web Audio API — no files needed) ───────────────────────
 let _obAudioCtx = null;
@@ -384,6 +384,69 @@ function _obInitReveal() {
       }
     }, 320);
   });
+
+  // Show real today's data if permission was granted
+  if (IS_NATIVE && _obHasPerm()) {
+    try {
+      const totalMs   = (typeof N.getTotalScreenTimeToday === 'function') ? N.getTotalScreenTimeToday() : 0;
+      const pickups   = (typeof N.getPickupCountToday    === 'function') ? N.getPickupCountToday()    : 0;
+      const goalMs    = (_obGoalMins || S.streakGoalMins || 120) * 60000;
+
+      // Format screen time
+      // Was: const totalMs = N.getTotalScreenTimeToday(); const totalMins = Math.round(totalMs / 60000);
+      const totalMins = (typeof N.getTotalScreenTimeToday === 'function') ? (N.getTotalScreenTimeToday() || 0) : 0;
+      const hh = Math.floor(totalMins / 60), mm = totalMins % 60;
+      const timeStr = hh > 0 ? hh + 'h ' + mm + 'm' : (mm > 0 ? mm + 'm' : '—');
+      // Simple Screen Score: goal adherence 50% + pickup component 30% + first-use 20%
+      const adherence = totalMs <= goalMs
+        ? 100
+        : Math.max(0, 100 - ((totalMs - goalMs) / (goalMs * 0.5)) * 100);
+      const pickupScore = Math.max(0, 100 - Math.max(0, pickups - 60) * 2); // rough
+      const screenScore = Math.round(adherence * 0.5 + pickupScore * 0.3 + 80 * 0.2);
+
+      // Fetch top app from daily usage stats
+      let topAppName = '—';
+      try {
+        const usageRaw = N.getDailyUsageStats ? N.getDailyUsageStats() : '[]';
+        const usage = JSON.parse(usageRaw);
+        if (usage && usage.length > 0) topAppName = usage[0].name;
+      } catch(e) {}
+
+      // Update score number
+      const scoreEl = document.getElementById('ob-score-num');
+      if (scoreEl) {
+        scoreEl.textContent = screenScore;
+        scoreEl.removeAttribute('aria-label');
+      }
+
+      // Update arc fill to match score (182 = full arc dasharray)
+      const arcFill = document.getElementById('ob-arc-fill');
+      if (arcFill) {
+        const offset = Math.round(182 - (screenScore / 100) * 182);
+        setTimeout(() => {
+          arcFill.style.transition = 'stroke-dashoffset 1.4s cubic-bezier(0.34, 1.56, 0.64, 1)';
+          arcFill.style.strokeDashoffset = offset;
+        }, 320);
+      }
+
+      // Update subtitle
+      const baselineEl = document.querySelector('#ob5 .ob-score-baseline');
+      if (baselineEl) baselineEl.textContent = 'Screen Score · ' + timeStr + ' used · ' + pickups + ' pickups';
+
+      // Update pillar tiles with real values
+      const tiles = document.querySelectorAll('#ob5 .ob-pillar-tile');
+      if (tiles[0]) { tiles[0].querySelector('.ob-pillar-val').textContent = timeStr; }
+      if (tiles[1]) { tiles[1].querySelector('.ob-pillar-val').textContent = pickups + ' picks'; }
+      if (tiles[2]) {
+        tiles[2].querySelector('.ob-pillar-val').textContent = topAppName !== '—' ? '📱' : '—';
+        tiles[2].querySelector('.ob-pillar-name').textContent = topAppName !== '—' ? topAppName.split(' ')[0] : 'Top App';
+        tiles[2].querySelector('.ob-pillar-sub').textContent  = topAppName !== '—' ? 'today' : 'none yet';
+        // Update the CSS color var to match the other tiles (no longer sleep's purple)
+        tiles[2].style.setProperty('--ptc', 'var(--a)');
+      }
+
+    } catch(e) { /* fail silently — stays as — */ }
+  }
 
   // Personalise Coach nudge
   const nudge = document.getElementById('ob-coach-nudge-txt');

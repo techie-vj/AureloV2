@@ -184,7 +184,17 @@
 <!-- Aurelo Coach FAB -->
 <div id="coach-fab" aria-label="Open Aurelo Coach" onclick="CoachUI.open(null)">
     <div id="coach-fab-ring"></div>
-    <svg width="20" height="20" viewBox="0 0 20 20" fill="white" aria-hidden="true"><path d="M10 2L11.8 7.6H17.6L12.9 10.9L14.7 16.5L10 13.2L5.3 16.5L7.1 10.9L2.4 7.6H8.2L10 2Z"/></svg>
+    <svg width="22" height="22" viewBox="0 0 108 108" fill="none" aria-hidden="true" overflow="visible">
+        <defs>
+            <linearGradient id="fabArchGold" x1="28" y1="20" x2="80" y2="90" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stop-color="#FFE082"/>
+                <stop offset="55%" stop-color="#FFAA44"/>
+                <stop offset="100%" stop-color="#FF7020"/>
+            </linearGradient>
+        </defs>
+        <path d="M 22 88 C 22 88 30 30 54 20 C 78 30 86 88 86 88" stroke="url(#fabArchGold)" stroke-width="8" fill="none" stroke-linecap="round"/>
+        <circle cx="54" cy="20" r="6" fill="#FFE082"/>
+    </svg>
 </div>
 
 <div id="coach-modal" role="dialog" aria-modal="true" aria-label="Aurelo Coach" onclick="if(event.target===this)CoachUI.close()">
