@@ -79,12 +79,11 @@
 /* Light theme splash — all rules now live in index.html splash-styles for specificity.
    These fallbacks cover the case where themes.css loads after splash-styles is cleared. */
 :root[data-theme=light] #loading-screen {
-  background: linear-gradient(160deg,#F0F0FA 0%,#E8E8F5 100%);
+  background: linear-gradient(175deg, #FFFFFF 0%, #FDFDFB 50%, #FAFAFA 100%);
 }
 :root[data-theme=light] .ls-aura {
-  background: radial-gradient(circle,rgba(108,99,255,.06) 0%,transparent 60%) !important;
-  filter: blur(56px) !important;
-  opacity: .7 !important;
+  opacity: 0 !important;
+  animation: none !important;
 }
 /* ls-grid: hide on light bg — it was a dark-mode-only decorative element */
 :root[data-theme=light] .ls-grid { opacity: 0 !important; }
@@ -98,7 +97,41 @@
 :root[data-theme=light] .ls-bar {
   box-shadow: none !important;
 }
+/* ── Light: nav fixes ── */
+:root[data-theme=light] .nav-item.active {
+  background: rgba(82,72,204,.13) !important;
+  color: var(--p) !important;
+  box-shadow: none !important;
+}
+:root[data-theme=light] .nav-item.active .nav-lbl,
+:root[data-theme=light] .nav-item.active .nav-icon {
+  color: var(--p) !important;
+  filter: none !important;
+}
+:root[data-theme=light] .nav-item:not(.active) {
+  color: var(--t2) !important;
+}
+:root[data-theme=light] .nav-item:not(.active) .nav-icon {
+  filter: none !important;
+}
 
+/* ── Warm: nav fixes ── */
+:root[data-theme=warm] .nav-item.active {
+  background: rgba(139,105,20,.13) !important;
+  color: var(--p) !important;
+  box-shadow: none !important;
+}
+:root[data-theme=warm] .nav-item.active .nav-lbl,
+:root[data-theme=warm] .nav-item.active .nav-icon {
+  color: var(--p) !important;
+  filter: none !important;
+}
+:root[data-theme=warm] .nav-item:not(.active) {
+  color: var(--t2) !important;
+}
+:root[data-theme=warm] .nav-item:not(.active) .nav-icon {
+  filter: none !important;
+}
 /* ══ AMOLED THEME OVERRIDES ════════════════════════════ */
 :root[data-theme=amoled] .cat-tile,
 :root[data-theme=amoled] .cat-exp-card,
