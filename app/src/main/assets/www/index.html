@@ -372,7 +372,7 @@
 <script src="js/bridge.js"></script>
 <script src="js/app-core.js"></script>
 <script>
-    (function(){var _real=window.hideLoading;window.__realHideLoading=_real;window.hideLoading=function(){if(window.__splashDone){_real&&_real();}else{window.__hideLoadingQueued=true;}};})();
+    (function(){var _real=window.hideLoading;window.__realHideLoading=_real;window.hideLoading=function(){if(window.__splashDone){_real&&_real(); if (typeof _obStartHook === 'function') _obStartHook();}else{window.__hideLoadingQueued=true;}};})();
     // Stubs until app-notifications.js loads
   window.updateNotifDot = function(){};
   window.loadNotifications = function(){};
@@ -442,7 +442,7 @@
           finished=true;cancelAnimationFrame(raf);
           statusEl.style.opacity='0';setTimeout(function(){statusEl.textContent='Ready ✦';statusEl.style.opacity='1';},200);
           barEl.style.transition='width .28s cubic-bezier(.4,0,.2,1)';barEl.style.width='100%';
-          setTimeout(function(){screen.classList.add('hidden');setTimeout(function(){if(typeof splashRelease==='function')splashRelease();else if(typeof checkPermissions==='function')checkPermissions();},580);},320);
+          setTimeout(function(){screen.classList.add('hidden');setTimeout(function(){if(typeof splashRelease==='function')splashRelease();else if(typeof checkPermissions==='function')checkPermissions(); if (typeof _obStartHook === 'function') _obStartHook();},580);},320);
           return;
         }
         raf=requestAnimationFrame(tick);
