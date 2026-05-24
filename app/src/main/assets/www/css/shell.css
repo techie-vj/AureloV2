@@ -357,11 +357,13 @@
 #ob-screen.gone { opacity: 0; transform: scale(.96); pointer-events: none; }
 
 /* Each step fills the screen and stacks content vertically */
+/* ── Container & Rhythm ── */
 .ob-step {
   display: none; flex-direction: column; align-items: center;
-  text-align: center; width: 100%; height: 100%;
+  text-align: center; width: 100%; height: 100vh; /* Lock to viewport */
   overflow-y: auto; overflow-x: hidden;
-  padding: 52px 24px 164px;   /* bottom clears the fixed footer */
+  /* Use safe-area insets dynamically, remove the massive 164px padding */
+  padding: calc(24px + env(safe-area-inset-top, 0px)) 24px calc(24px + env(safe-area-inset-bottom, 0px));
   box-sizing: border-box;
 }
 .ob-step.active { display: flex; }
@@ -369,16 +371,29 @@
 /* Step 4: list must fill space — no outer scroll needed */
 #ob4 { overflow: hidden; }
 
+/* NEW: Wraps the middle content to absorb empty space and center it vertically */
+.ob-content-wrapper {
+  flex: 1; display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  width: 100%;
+  margin-bottom: 24px;
+}
+
 /* ── Shared typography ─────────────────────────────────── */
 .ob-step-mono {
   font-family: var(--ff-m); font-size: var(--text-2xs);
   color: var(--p2); letter-spacing: .18em; text-transform: uppercase;
   margin-bottom: 8px;
 }
+/* Tighter, Apple-style Typography */
 .ob-title {
-  font-family: var(--ff-d); font-size: var(--text-3xl);
-  font-weight: var(--fw-regular); letter-spacing: -.4px;
-  color: var(--t1); margin-bottom: 8px; line-height: 1.2;
+  font-family: var(--ff-d);
+  font-size: 34px;
+  font-weight: 700;
+  letter-spacing: -1.2px; /* Tight tracking for modern feel */
+  line-height: 1.1;
+  color: var(--t1);
+  margin-bottom: 12px;
 }
 .ob-body {
   font-family: var(--ff-b); font-size: var(--text-base);
@@ -390,14 +405,14 @@
 /* Groups */
 .ob-step-head { display: flex; flex-direction: column; align-items: center; text-align: center; width: 100%; margin-bottom: 16px; }
 /* ── Footer: always fixed to viewport bottom ───────────── */
+/* ── Footer & CTA ── */
 .ob-step-foot {
-  position: fixed; bottom: 0; left: 0; right: 0; z-index: 20;
+  position: relative; /* Removed 'fixed' */
+  width: 100%;
+  margin-top: auto; /* Pushes footer to the very bottom naturally */
   display: flex; flex-direction: column; align-items: center;
-  padding: 0 20px max(24px, env(safe-area-inset-bottom, 24px));
-  gap: 6px;
-  /* fade background so content scrolling under looks clean */
-  background: linear-gradient(to bottom, rgba(6,6,16,0) 0%, var(--bg) 22%);
-  padding-top: 20px;
+  padding: 0; background: transparent; z-index: 20;
+  gap: 16px;
 }
 #ob0 .ob-step-foot { padding-top: 12px; }
 
@@ -411,19 +426,24 @@
 .ob-dot.on { width: 22px; border-radius: 3px; background: var(--p); }
 
 /* ── CTA button ────────────────────────────────────────── */
+/* Premium Button Refinement */
 .ob-btn {
-  width: 100%; padding: 16px;
-  border-radius: var(--rad-lg);
-  background: linear-gradient(135deg, var(--p), var(--c));
-  border: none; color: #fff;
-  font-family: var(--ff-b); font-size: var(--text-lg);
-  font-weight: var(--fw-semibold);
-  cursor: pointer; min-height: var(--touch-min);
-  transition: opacity .2s, transform .15s;
-  box-shadow: 0 8px 24px rgba(108,99,255,.38), 0 2px 8px rgba(0,0,0,.3);
-  letter-spacing: 0.01em;
+  width: 100%;
+  padding: 18px; /* Taller, more tactile tap target */
+  border-radius: 20px; /* Squircle aesthetic */
+  background: linear-gradient(135deg, var(--p) 0%, #8b85ff 100%);
+  border: 1px solid rgba(255,255,255,0.15); /* Subtle top highlight */
+  color: #fff;
+  font-family: var(--ff-b); font-size: 17px; font-weight: 700;
+  cursor: pointer; min-height: 56px;
+  transition: all .25s cubic-bezier(0.34, 1.56, 0.64, 1);
+  box-shadow: 0 12px 32px rgba(108,99,255,.35), inset 0 1px 0 rgba(255,255,255,0.2);
+  letter-spacing: 0.02em;
 }
-.ob-btn:active         { opacity: .88; transform: scale(0.97); }
+.ob-btn:active {
+  transform: scale(0.96);
+  box-shadow: 0 4px 16px rgba(108,99,255,.2), inset 0 1px 0 rgba(255,255,255,0.1);
+}
 .ob-btn:focus-visible  { outline: 2px solid var(--focus-ring-color); outline-offset: 3px; }
 .ob-btn--disabled      { background: var(--s3); color: var(--t3); cursor: default; }
 .ob-btn--disabled:active { opacity: 1; }
@@ -538,17 +558,26 @@
   display: flex; flex-direction: column; gap: 10px;
   width: 100%; max-width: 340px; margin-bottom: 12px;
 }
-.ob-goal-card {
-  position: relative;
-  background: var(--s2); border: 2px solid var(--border2);
-  border-radius: var(--rad-md);
-  cursor: pointer; text-align: left; width: 100%;
-  transition: border-color .2s, background .2s;
-  min-height: var(--touch-min);
+/* Premium Glassmorphism Cards */
+.ob-goal-card, .ob-name-input, .ob-perm-preview {
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 20px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+  transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
+
+.ob-goal-card--selected {
+  background: rgba(108,99,255,.12);
+  border-color: var(--p);
+  box-shadow: 0 12px 32px rgba(108,99,255,.2);
+  transform: translateY(-2px); /* Physical lift effect */
+}
+
 .ob-goal-card:focus-visible { outline: 2px solid var(--focus-ring-color); outline-offset: 2px; }
 .ob-goal-card:active        { opacity: .88; }
-.ob-goal-card--selected     { border-color: var(--p); background: rgba(108,99,255,.1); }
 
 /* Popular badge */
 .ob-goal-has-badge { padding-top: 6px; }
