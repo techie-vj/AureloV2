@@ -251,6 +251,7 @@ function saveUserName(){
   const val=(document.getElementById('settings-name-input').value||'').trim();
   S.userName = val;
   saveS();
+  if(IS_NATIVE) nCall('setStringPref','user_name',val);
   updateNameUI();
   updateGreeting();
   closeModal('edit-name-modal');

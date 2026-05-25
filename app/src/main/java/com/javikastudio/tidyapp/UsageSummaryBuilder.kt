@@ -54,6 +54,7 @@ data class UsageSummary(
     val hcConnected: Boolean,
     /** 7 for Phase 1 / Phase 2 rule engine; 30 for Gemini Nano. */
     val dataWindowDays: Int,
+    val userName: String = "",
 )
 
 class UsageSummaryBuilder(
@@ -166,6 +167,7 @@ class UsageSummaryBuilder(
             // Falls back to the explicitly-supplied window when caller forces one.
             dataWindowDays                = if (dataWindowDays >= 0) dataWindowDays
             else effectiveDataWindowDays(weekly),
+            userName                      = prefs.getString("user_name", "") ?: "",
         )
     }
 
@@ -234,6 +236,7 @@ class UsageSummaryBuilder(
         put("aureloScoreYesterday", summary.aureloScoreYesterday)
         put("hcConnected",        summary.hcConnected)
         put("dataWindowDays",     summary.dataWindowDays)
+        put("userName",           summary.userName)
         // Pillar sub-scores — now sourced from UsageSummary (populated in build())
         put("screenScore",  summary.screenScore)
         put("focusScore",   summary.focusScore)

@@ -1857,6 +1857,7 @@ object InsightTemplateLibrary {
      * Unknown slots are left as-is so missing data is visible during QA.
      */
     fun fillSlots(template: InsightText, summary: UsageSummary): InsightText {
+        val userName = summary.userName.trim()
         fun safeScore(score: Int): String = if (score > 0) score.toString() else "still calculating"
         fun safePickupAvg(avg: Float): String = if (avg > 0f) avg.toInt().toString() else "still building"
         fun safeTopCategory(category: String): String = category.ifBlank { "your top category" }
@@ -1875,6 +1876,7 @@ object InsightTemplateLibrary {
 
             // ── Screen / Aurelo slots ────────────────────────────────────
             s = s.replace("{streak_days}",       summary.streakDays.toString())
+            s = s.replace("{name}", userName.ifEmpty { "you" })
             s = s.replace("{goal_hours}",         (summary.dailyGoalMinutes / 60).toString())
             s = s.replace("{goal_minutes}",       summary.dailyGoalMinutes.toString())
             s = s.replace("{today_minutes}",      summary.todayMinutes.toString())
@@ -1971,7 +1973,11 @@ object InsightTemplateLibrary {
             return s
         }
 
-        return template.copy(title = template.title.fill(), body = template.body.fill())
+        val filled = template.copy(title = template.title.fill(), body = template.body.fill())
+        // Personalise celebratory titles with the user's name when set
+        return if (userName.isNotEmpty() && template.variant == TemplateVariant.CELEBRATORY) {
+            filled.copy(title = "$userName — ${filled.title}")
+        } else filled
     }
 
     // ── Backward-compatible entry point (used by CoachInsightWorker) ────────

@@ -65,6 +65,7 @@ class SmartNotificationWorker(
         val todayMins   = prefs.getLong(CACHED_TOTAL_MINS, 0L)
         val pickups     = prefs.getInt(CACHED_PICKUPS, 0)
         val goalMins    = prefs.getInt(STREAK_GOAL_MINS, 240).toLong()
+        val userName    = (prefs.getString("user_name", "") ?: "").trim()
 
         // ── Daily Recap (8–9 PM, once per day, ignores cleared timestamp) ───
         // Research basis: evening reflection at 8–9 PM is the most effective window
@@ -95,7 +96,7 @@ class SmartNotificationWorker(
                         "${fmtM(underMin)} under your goal. Great discipline. ✅"
                 }
 
-                val title = "📊 Your Day in Review"
+                val title = if (userName.isNotEmpty()) "📊 $userName's Day in Review" else "📊 Your Day in Review"
                 val body  = buildString {
                     append("${fmtM(todayMins)} screen time · $pickups pickups")
                     if (streakDays > 0) append(" · ${streakDays}🔥 streak")
@@ -156,7 +157,7 @@ class SmartNotificationWorker(
             if (lastRecapWeek != currentWeek) {
                 ensureRecapChannel(nm)
                 // Note: emoji rendered at runtime; Kotlin string literal uses escape
-                val wrTitle = "Your week is ready \uD83C\uDFC1"  // BUG-03 FIX: was "\uD83C \uDFC1" (space broke surrogate pair → rendered as ??)
+                val wrTitle = if (userName.isNotEmpty()) "$userName, your week is ready \uD83C\uDFC1" else "Your week is ready \uD83C\uDFC1"
                 val wrBody  = "See your Aurelo Score average, top apps, and weekly summary."
 
                 // Deep-link intent — MainActivity reads EXTRA_OPEN_WEEKLY_RECAP on resume
@@ -233,7 +234,7 @@ class SmartNotificationWorker(
             val minutesLeft       = ((24 - hour) * 60).toLong()
             if (projectedMins > goalMins && todayMins > goalMins * 0.6) {
                 val overBy    = (projectedMins - goalMins).coerceAtLeast(1L)
-                val title     = "🔥 Streak at Risk — $streakDays days"
+                val title     = if (userName.isNotEmpty()) "🔥 $userName — $streakDays-day streak at risk" else "🔥 Streak at Risk — $streakDays days"
                 val body      = "At this pace you'll finish ~${fmtM(overBy)} over goal. " +
                         "${fmtM(minutesLeft)} left today — put the phone down to protect your streak."
                 postAlertNotification(nm, STREAK_RISK_NOTIF_ID, title, body, "warn", pendingIntent)
@@ -263,7 +264,7 @@ class SmartNotificationWorker(
                 if (pastMins.size >= 3 && pastMins.all { todayMins < it }) {
                     val avgPast = pastMins.average().toLong()
                     val savedMin = avgPast - todayMins
-                    val title = "🏆 Personal Best This Week"
+                    val title = if (userName.isNotEmpty()) "🏆 $userName — Personal Best!" else "🏆 Personal Best This Week"
                     val body  = "${fmtM(todayMins)} so far — lower than every other day this week. " +
                             "That's ${fmtM(savedMin)} less than your daily average. Keep it up."
                     postAlertNotification(nm, PERSONAL_BEST_NOTIF_ID, title, body, "success", pendingIntent)
@@ -393,17 +394,30 @@ class SmartNotificationWorker(
         }
 
         // Pickup frequency
+        // FIX: "nearly once a minute" was wrong — it compared pickups against
+        // the full 1440-min day, not actual elapsed time or screen time.
+        // Now computes two meaningful stats:
+        //   intervalMins  — avg minutes between pickups across elapsed day time
+        //   perHourOfUse  — pickups per hour of actual screen time
+        val dayMinsElapsed = (hour * 60 + cal.get(java.util.Calendar.MINUTE)).coerceAtLeast(1)
+        val intervalMins   = (dayMinsElapsed / pickups.coerceAtLeast(1)).coerceAtLeast(1)
+        val perHourOfUse   = if (todayMins > 0) (pickups * 60 / todayMins).toInt() else pickups
+        val intervalLabel  = when {
+            intervalMins < 5  -> "once every ${intervalMins}m"
+            intervalMins < 60 -> "once every ${intervalMins}m"
+            else              -> "once every ${intervalMins / 60}h ${intervalMins % 60}m"
+        }
         when {
             pickups > 80 ->
                 alerts += Triple(
-                    "Very High Pickups 📲",
-                    "$pickups phone pickups today — nearly once a minute. Put it down for a while.",
+                    "High Pickup Count 📲",
+                    "$pickups pickups today — $intervalLabel on average, $perHourOfUse times per hour of screen time. Try batching your checks.",
                     "warn"
                 )
             pickups > 50 ->
                 alerts += Triple(
                     "Frequent Pickups 🔔",
-                    "$pickups checks today. Batching your phone use helps maintain focus.",
+                    "$pickups checks today ($intervalLabel on average). Batching your phone use helps maintain focus.",
                     "info"
                 )
         }

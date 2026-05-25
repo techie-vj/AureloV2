@@ -19,6 +19,7 @@ object SecurityValidators {
     )
 
     private val PREF_ALLOWLIST = setOf(
+        "user_name",
         "app_theme",
         "tidy_dismissed_notifs_v1",
         "tidy_notif_cleared_ts",

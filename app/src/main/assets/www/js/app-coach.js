@@ -1472,12 +1472,14 @@ window.CoachUI = {
   // FIX: show personalised greeting when userName is set
   _renderGreeting: function() {
     var s = this._summary;
-    if (!s || !s.userName) return;
+    var name = (s && s.userName && s.userName.trim()) ||
+               (typeof S !== 'undefined' && S.userName && S.userName.trim()) || '';
+    if (!name) return;
     var introEl = document.getElementById('coach-intro');
     if (!introEl) return;
     var greetEl = introEl.querySelector('.coach-intro-greeting');
     if (greetEl) {
-      greetEl.textContent = 'Hi ' + s.userName + ' — ask me anything about your habits.';
+      greetEl.textContent = 'Hi ' + name + ' — ask me anything about your habits.';
     }
   },
 
