@@ -529,23 +529,25 @@ function _obInitReveal() {
     receiptApps.textContent = totalApps + ' apps across ' + catCount + ' categories';
   }
 
-  // Compute score and fill arc
-  let screenScore = 72; // fallback for non-native / no permission
+  // Compute score and fill arc — use same path as Home so values match
+  let screenScore = 72; // fallback
 
   if (IS_NATIVE && _obHasPerm()) {
     try {
+      // Prefer the real composite Aurelo Score (same as Home card)
+      if (typeof _computeAureloScore === 'function') {
+        const a = _computeAureloScore();
+        if (a && a.overall >= 0) screenScore = a.overall;
+      } else if (typeof FocusScore !== 'undefined' &&
+                 typeof FocusScore.calculateAurelo === 'function') {
+        const a = FocusScore.calculateAurelo();
+        if (a && a.score >= 0) screenScore = a.score;
+      }
+
       const totalMins = (typeof N.getTotalScreenTimeToday === 'function')
         ? (N.getTotalScreenTimeToday() || 0) : 0;
       const pickups   = (typeof N.getPickupCountToday === 'function')
         ? (N.getPickupCountToday() || 0)    : 0;
-      const goalMs    = (_obGoalMins || S.streakGoalMins || 120) * 60000;
-      const totalMs   = totalMins * 60000;
-
-      const adherence   = totalMs <= goalMs
-        ? 100
-        : Math.max(0, 100 - ((totalMs - goalMs) / (goalMs * 0.5)) * 100);
-      const pickupScore = Math.max(0, 100 - Math.max(0, pickups - 60) * 2);
-      screenScore       = Math.round(adherence * 0.5 + pickupScore * 0.3 + 80 * 0.2);
 
       // Update subtitle
       const hh = Math.floor(totalMins / 60), mm = totalMins % 60;
