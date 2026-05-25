@@ -268,56 +268,48 @@
 
             <div class="ob-content-wrapper">
 
-                <!-- Mood picker — full-width cards -->
+                <!-- Mood picker — animated face row (rendered by Mood.renderOnboardingFaces) -->
                 <div class="ob-mood-section" aria-live="polite">
                     <div class="ob-mood-section-label">How are you feeling right now?</div>
                     <div class="ob-mood-purpose">Aurelo Coach adapts its tone to match your headspace.</div>
-                    <div class="ob-mood-row" role="group" aria-label="Select your mood">
-
-                        <button class="ob-mood-btn" id="ob-mood-chill"
-                                onclick="obMoodSelect('chill','🙂')"
-                                aria-label="Chill">
-                            <span class="ob-mood-emoji">🙂</span>
-                            <div class="ob-mood-info">
-                                <div class="ob-mood-name">Chill</div>
-                                <div class="ob-mood-desc-txt">Taking it day by day</div>
+                    <div id="ob-mood-face-row" role="group" aria-label="Select your mood">
+                        <div class="mood-row">
+                            <div class="mood-item" id="ob-mood-item-awful" style="--mood-color:#F04E7A" onclick="Mood.selectMood('awful','ob-mood')" role="radio" aria-checked="false" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' ')Mood.selectMood('awful','ob-mood')">
+                                <div class="mood-face-wrap" id="ob-mood-fw-awful">
+                                    <div class="mood-ring"></div>
+                                    <svg class="mood-face-svg" viewBox="0 0 52 52" fill="none" overflow="visible" aria-hidden="true"><circle cx="26" cy="26" r="23" fill="rgba(240,78,122,0.13)" stroke="#F04E7A" stroke-width="1.5"/><g class="mood-anim-fire" style="opacity:0"><ellipse cx="14" cy="45" rx="5" ry="7" fill="#F04E7A" opacity=".6" style="animation:moodFireFlicker 0.4s ease-in-out infinite;transform-origin:14px 45px"/><ellipse cx="26" cy="43" rx="6" ry="9" fill="#F7A623" opacity=".7" style="animation:moodFireFlicker 0.35s ease-in-out .1s infinite;transform-origin:26px 43px"/><ellipse cx="38" cy="45" rx="5" ry="7" fill="#F04E7A" opacity=".6" style="animation:moodFireFlicker 0.45s ease-in-out .05s infinite;transform-origin:38px 45px"/></g><path class="mood-anim-brow-l" d="M16 19l5 2.5" stroke="#F04E7A" stroke-width="2" stroke-linecap="round"/><path class="mood-anim-brow-r" d="M36 19l-5 2.5" stroke="#F04E7A" stroke-width="2" stroke-linecap="round"/><ellipse cx="19" cy="24" rx="2.5" ry="2.5" fill="#F04E7A"/><ellipse cx="33" cy="24" rx="2.5" ry="2.5" fill="#F04E7A"/><path d="M19 34c1.8-4 12.2-4 14 0" stroke="#F04E7A" stroke-width="2.2" stroke-linecap="round"/><path class="mood-anim-steam-l" d="M10 12 Q8 9 10 6" stroke="#F04E7A" stroke-width="1.5" stroke-linecap="round" opacity="0"/><path class="mood-anim-steam-r" d="M42 12 Q44 9 42 6" stroke="#F04E7A" stroke-width="1.5" stroke-linecap="round" opacity="0"/></svg>
+                                </div>
+                                <div class="mood-lbl">Rough day</div>
                             </div>
-                            <div class="ob-mood-check"></div>
-                        </button>
-
-                        <button class="ob-mood-btn" id="ob-mood-motivated"
-                                onclick="obMoodSelect('motivated','💪')"
-                                aria-label="Motivated">
-                            <span class="ob-mood-emoji">💪</span>
-                            <div class="ob-mood-info">
-                                <div class="ob-mood-name">Motivated</div>
-                                <div class="ob-mood-desc-txt">Ready to make a change</div>
+                            <div class="mood-item" id="ob-mood-item-low" style="--mood-color:#F7A623" onclick="Mood.selectMood('low','ob-mood')" role="radio" aria-checked="false" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' ')Mood.selectMood('low','ob-mood')">
+                                <div class="mood-face-wrap" id="ob-mood-fw-low">
+                                    <div class="mood-ring"></div>
+                                    <svg class="mood-face-svg" viewBox="0 0 52 52" fill="none" overflow="visible" aria-hidden="true"><circle cx="26" cy="26" r="23" fill="rgba(247,166,35,0.10)" stroke="#F7A623" stroke-width="1.5"/><ellipse cx="19" cy="24" rx="2.2" ry="2.2" fill="#F7A623"/><path class="mood-anim-eye-l" d="M16.5 23 Q19 21 21.5 23" stroke="#F7A623" stroke-width="2.5" stroke-linecap="round" fill="none" opacity="0"/><ellipse cx="33" cy="24" rx="2.2" ry="2.2" fill="#F7A623"/><path class="mood-anim-eye-r" d="M30.5 23 Q33 21 35.5 23" stroke="#F7A623" stroke-width="2.5" stroke-linecap="round" fill="none" opacity="0"/><path d="M19 31c1.5-2.5 12.5-2.5 14 0" stroke="#F7A623" stroke-width="2" stroke-linecap="round"/><circle class="mood-anim-tear-l" cx="19" cy="27" r="1.5" fill="#F7A623" opacity="0"/><circle class="mood-anim-tear-r" cx="33" cy="27" r="1.5" fill="#F7A623" opacity="0"/></svg>
+                                </div>
+                                <div class="mood-lbl">Meh...</div>
                             </div>
-                            <div class="ob-mood-check"></div>
-                        </button>
-
-                        <button class="ob-mood-btn" id="ob-mood-frustrated"
-                                onclick="obMoodSelect('frustrated','😤')"
-                                aria-label="Frustrated">
-                            <span class="ob-mood-emoji">😤</span>
-                            <div class="ob-mood-info">
-                                <div class="ob-mood-name">Frustrated</div>
-                                <div class="ob-mood-desc-txt">Phone feels out of control</div>
+                            <div class="mood-item" id="ob-mood-item-okay" style="--mood-color:#A0A0CC" onclick="Mood.selectMood('okay','ob-mood')" role="radio" aria-checked="false" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' ')Mood.selectMood('okay','ob-mood')">
+                                <div class="mood-face-wrap" id="ob-mood-fw-okay">
+                                    <div class="mood-ring"></div>
+                                    <svg class="mood-face-svg" viewBox="0 0 52 52" fill="none" overflow="visible" aria-hidden="true"><circle cx="26" cy="26" r="23" fill="rgba(160,160,204,0.08)" stroke="#A0A0CC" stroke-width="1.5"/><ellipse cx="19" cy="23" rx="2.2" ry="2.2" fill="#A0A0CC"/><ellipse cx="33" cy="23" rx="2.2" ry="2.2" fill="#A0A0CC"/><path d="M19 30h14" stroke="#A0A0CC" stroke-width="2" stroke-linecap="round"/><path class="mood-anim-arm-l" d="M10 30 Q8 26 12 24" stroke="#A0A0CC" stroke-width="1.8" stroke-linecap="round" opacity="0"/><path class="mood-anim-arm-r" d="M42 30 Q44 26 40 24" stroke="#A0A0CC" stroke-width="1.8" stroke-linecap="round" opacity="0"/></svg>
+                                </div>
+                                <div class="mood-lbl">Could be worse</div>
                             </div>
-                            <div class="ob-mood-check"></div>
-                        </button>
-
-                        <button class="ob-mood-btn" id="ob-mood-zen"
-                                onclick="obMoodSelect('zen','🧘')"
-                                aria-label="Zen">
-                            <span class="ob-mood-emoji">🧘</span>
-                            <div class="ob-mood-info">
-                                <div class="ob-mood-name">Zen</div>
-                                <div class="ob-mood-desc-txt">Calm and focused</div>
+                            <div class="mood-item" id="ob-mood-item-good" style="--mood-color:#12D48A" onclick="Mood.selectMood('good','ob-mood')" role="radio" aria-checked="false" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' ')Mood.selectMood('good','ob-mood')">
+                                <div class="mood-face-wrap" id="ob-mood-fw-good">
+                                    <div class="mood-ring"></div>
+                                    <svg class="mood-face-svg" viewBox="0 0 52 52" fill="none" overflow="visible" aria-hidden="true"><circle cx="26" cy="26" r="23" fill="rgba(18,212,138,0.09)" stroke="#12D48A" stroke-width="1.5"/><ellipse cx="19" cy="23" rx="2.2" ry="2.2" fill="#12D48A"/><ellipse cx="33" cy="23" rx="2.2" ry="2.2" fill="#12D48A"/><path d="M18 29c1.8 3 14.2 3 16 0" stroke="#12D48A" stroke-width="2.2" stroke-linecap="round"/><ellipse class="mood-anim-cheek-l" cx="14" cy="28" rx="3.5" ry="2" fill="#12D48A" opacity=".2"/><ellipse class="mood-anim-cheek-r" cx="38" cy="28" rx="3.5" ry="2" fill="#12D48A" opacity=".2"/></svg>
+                                </div>
+                                <div class="mood-lbl">Doing well</div>
                             </div>
-                            <div class="ob-mood-check"></div>
-                        </button>
-
+                            <div class="mood-item" id="ob-mood-item-great" style="--mood-color:#9B95FF" onclick="Mood.selectMood('great','ob-mood')" role="radio" aria-checked="false" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' ')Mood.selectMood('great','ob-mood')">
+                                <div class="mood-face-wrap" id="ob-mood-fw-great">
+                                    <div class="mood-ring"></div>
+                                    <svg class="mood-face-svg" viewBox="0 0 52 52" fill="none" overflow="visible" aria-hidden="true"><g class="mood-anim-sparks" style="opacity:0"><circle cx="5" cy="10" r="2" fill="#9B95FF" style="--sx:-8px;--sy:-10px"/><circle cx="47" cy="10" r="2" fill="#9B95FF" style="--sx:8px;--sy:-10px"/><circle cx="3" cy="28" r="1.5" fill="#05C8E8" style="--sx:-10px;--sy:0px"/><circle cx="49" cy="28" r="1.5" fill="#05C8E8" style="--sx:10px;--sy:0px"/><circle cx="10" cy="5" r="1.5" fill="#9B95FF" style="--sx:-5px;--sy:-12px"/><circle cx="42" cy="5" r="1.5" fill="#9B95FF" style="--sx:5px;--sy:-12px"/></g><circle cx="26" cy="26" r="23" fill="rgba(155,149,255,0.13)" stroke="#9B95FF" stroke-width="1.5"/><ellipse cx="19" cy="22" rx="2.5" ry="2.5" fill="#9B95FF"/><ellipse cx="33" cy="22" rx="2.5" ry="2.5" fill="#9B95FF"/><path d="M16 28c2 5 18 5 20 0" stroke="#9B95FF" stroke-width="2.5" stroke-linecap="round"/><path d="M16 28c2 5 18 5 20 0" fill="rgba(155,149,255,.15)"/><ellipse cx="13" cy="29" rx="4" ry="2.2" fill="#9B95FF" opacity=".2"/><ellipse cx="39" cy="29" rx="4" ry="2.2" fill="#9B95FF" opacity=".2"/></svg>
+                                </div>
+                                <div class="mood-lbl">Loving it!</div>
+                            </div>
+                        </div>
                     </div>
                 </div><!-- /ob-mood-section -->
 

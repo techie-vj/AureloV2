@@ -913,4 +913,8 @@ function renderCategorySummary() {
 function renderHomeSectionLabelsDeferred() {
   // Small delay so coach card (async) has time to appear
   setTimeout(_renderHomeSectionLabels, 200);
+  // Mood morning prompt — fires once per morning window, once per day
+  if (typeof Mood !== 'undefined') {
+    setTimeout(function () { Mood.checkMorningPrompt(); }, 800);
+  }
 }

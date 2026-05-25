@@ -46,6 +46,15 @@ var ScoreHistory = (function () {
     { id:'focus',  label:'Focus',   key:'focus_score_history',  cssVar:'--g'  },
     { id:'sleep',  label:'Sleep',   key:'sleep_score_history',  cssVar:'--pu' },
     { id:'body',   label:'Body ✦',  key:'body_score_history',   cssVar:'--a'  },
+    { id:'mood',   label:'Mood',    key:'mood_history',          cssVar:'#B09AFF', isMood:true },
+  ];
+
+  /* Mood-specific zone labels (awful=0, low=25, okay=50, good=75, great=100) */
+  var ZONES_MOOD = [
+    { lo:88, hi:101, cssVar:'#B09AFF', label:'Great' },
+    { lo:63, hi:88,  cssVar:'--g',     label:'Good'  },
+    { lo:38, hi:63,  cssVar:'--a',     label:'Okay'  },
+    { lo:0,  hi:38,  cssVar:'--r',     label:'Low'   },
   ];
 
   var WINDOWS = [
@@ -69,9 +78,12 @@ var ScoreHistory = (function () {
   var _isDragging = false;
   var _pts        = [];
   var _n          = 0;
+  var _moodDataMap = {}; // dateStr -> {m, t} for mood pillar scrub tooltip
 
   /* ── Color helpers ───────────────────────────────────────────── */
   function _css(varName) {
+    if (!varName) return '';
+    if (varName[0] === '#') return varName; // direct hex — no CSS var lookup needed
     return getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
   }
 
@@ -92,7 +104,10 @@ var ScoreHistory = (function () {
 
   function _pCfg()  { return PILLARS.find(function(p){ return p.id === _pillar; }); }
   function _wCfg()  { return WINDOWS.find(function(w){ return w.id === _win;    }); }
-  function _color() { return 'var(' + _pCfg().cssVar + ')'; }
+  function _color() {
+    var pc = _pCfg();
+    return (pc.cssVar && pc.cssVar[0] === '#') ? pc.cssVar : 'var(' + pc.cssVar + ')';
+  }
   function _colorRaw() { return _css(_pCfg().cssVar); }
 
   function _grade(v) {
@@ -117,6 +132,29 @@ var ScoreHistory = (function () {
   function _getData(pillarId, days) {
     var p = PILLARS.find(function(x){ return x.id === pillarId; });
     if (!p) return [];
+
+    /* ── Mood pillar: convert mood entries to 0-100 scale ── */
+    if (pillarId === 'mood') {
+      var MOOD_VAL = { awful:0, low:25, okay:50, good:75, great:100 };
+      var entries = [];
+      if (typeof Mood !== 'undefined' && typeof Mood.getMoodHistory === 'function') {
+        entries = Mood.getMoodHistory(days);
+      }
+      // build dateStr -> entry map
+      var entryMap = {};
+      entries.forEach(function(e) { entryMap[e.d] = e; });
+      var today = new Date();
+      var out   = [];
+      for (var i = days - 1; i >= 0; i--) {
+        var d = new Date(today);
+        d.setDate(today.getDate() - i);
+        var k = d.toISOString().slice(0, 10);
+        var entry = entryMap[k];
+        out.push(entry ? (MOOD_VAL[entry.m] !== undefined ? MOOD_VAL[entry.m] : null) : null);
+      }
+      return out;
+    }
+
     var hist  = _loadRaw(p.key);
 
     /* Body pillar: seed today from the live HC bridge when the saved pref entry
@@ -468,6 +506,12 @@ var ScoreHistory = (function () {
 
     /* ── Compute data ── */
     var rawData  = _getData(_pillar, wc.days);
+
+    /* Populate mood entry map for scrub tooltip tag display */
+    _moodDataMap = {};
+    if (_pillar === 'mood' && typeof Mood !== 'undefined' && typeof Mood.getMoodHistory === 'function') {
+      Mood.getMoodHistory(wc.days).forEach(function(e) { _moodDataMap[e.d] = e; });
+    }
     var data = (function() {
     if (!wc.weekly) return rawData;
     var weekly      = _toWeekly(rawData);
@@ -547,7 +591,8 @@ var ScoreHistory = (function () {
     }).join('');
 
     /* ── Zone rows ── */
-    var zonesHtml = ZONES.map(function(z){
+    var activeZones = (_pillar === 'mood') ? ZONES_MOOD : ZONES;
+    var zonesHtml = activeZones.map(function(z){
       var active = avg !== null && avg >= z.lo && avg < z.hi;
       var dotCol = active ? _css(z.cssVar) : _rgba(z.cssVar, 0.4);
       return '<div class="sh-zone-row'+(active?' sh-zone-row-on':'')+'">'
@@ -1130,9 +1175,11 @@ var ScoreHistory = (function () {
 
   /* ── Zone highlight update ────────────────────────────────────── */
   function _updateZoneHighlights(score) {
+    var activeZones = (_pillar === 'mood') ? ZONES_MOOD : ZONES;
     var rows = document.querySelectorAll('.sh-zone-row');
     rows.forEach(function(row, idx){
-      var z = ZONES[idx];
+      var z = activeZones[idx];
+      if (!z) return;
       var active = score !== null && score >= z.lo && score < z.hi;
       row.classList.toggle('sh-zone-row-on', active);
       var dot = row.querySelector('.sh-zone-dot');
@@ -1240,10 +1287,40 @@ var ScoreHistory = (function () {
         tt.style.left  = _scrub.frac > 0.65 ? 'auto' : ((_scrub.frac*100).toFixed(1)+'%');
         tt.style.right = _scrub.frac > 0.65 ? (((1-_scrub.frac)*100).toFixed(1)+'%') : 'auto';
         tt.style.transform = _scrub.frac > 0.65 ? 'none' : 'translateX(-50%)';
-        tt.innerHTML =
-          '<div class="sh-tt-date">'+_scrub.date+'</div>'
-          +'<div class="sh-tt-score" style="color:'+colorRaw+'">'+_scrub.v+'</div>'
-          +'<div class="sh-tt-grade" style="color:'+g.color+'">'+g.label+'</div>';
+
+        if (_pillar === 'mood') {
+          /* Mood tooltip: show label + tags instead of numeric score */
+          var _MOOD_META = {
+            awful: { label:'Rough day',    color:'#F04E7A' },
+            low:   { label:'Meh...',       color:'#F7A623' },
+            okay:  { label:'Could be worse',color:'#A0A0CC'},
+            good:  { label:'Doing well',   color:'#12D48A' },
+            great: { label:'Loving it!',   color:'#9B95FF' },
+          };
+          var _MOOD_VAL_ID = { 0:'awful', 25:'low', 50:'okay', 75:'good', 100:'great' };
+          var _moodId  = _MOOD_VAL_ID[_scrub.v] || null;
+          var _moodMeta= _moodId ? (_MOOD_META[_moodId] || {}) : {};
+          /* Resolve the date key for this scrub index */
+          var _today2 = new Date();
+          var _sd = new Date(_today2);
+          _sd.setDate(_today2.getDate() - (_n - 1 - _scrub.idx));
+          var _moodKey = _sd.toISOString().slice(0, 10);
+          var _moodEntry = _moodDataMap[_moodKey];
+          var _tagsHtml = (_moodEntry && _moodEntry.t && _moodEntry.t.length)
+            ? '<div style="font-family:var(--ff-m);font-size:9px;color:var(--t3);margin-top:2px">'
+              + _moodEntry.t.slice(0, 3).join(' · ')
+              + '</div>'
+            : '';
+          tt.innerHTML =
+            '<div class="sh-tt-date">'+_scrub.date+'</div>'
+            +'<div class="sh-tt-score" style="color:'+(_moodMeta.color||colorRaw)+'">'+(_moodMeta.label||_scrub.v)+'</div>'
+            + _tagsHtml;
+        } else {
+          tt.innerHTML =
+            '<div class="sh-tt-date">'+_scrub.date+'</div>'
+            +'<div class="sh-tt-score" style="color:'+colorRaw+'">' + _scrub.v + '</div>'
+            +'<div class="sh-tt-grade" style="color:'+g.color+'">' + g.label + '</div>';
+        }
       }
     }
 

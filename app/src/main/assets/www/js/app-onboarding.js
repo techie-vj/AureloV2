@@ -174,6 +174,7 @@ function obNext() {
 
   _obTransition(from, obStep, 'forward');
 
+  if (obStep === 2) obInitMoodFaces();
   if (obStep === 3) _obUpdatePermBadge();
   if (obStep === 4) runObScan();
   if (obStep === 5) _obInitReveal();
@@ -277,7 +278,7 @@ function obGoalNext() {
 
 // ── Step 2 — Mood ─────────────────────────────────────────────
 function obMoodSelect(mood, emoji) {
-  ['chill', 'motivated', 'frustrated', 'zen'].forEach(m => {
+  ['awful', 'low', 'okay', 'good', 'great'].forEach(m => {
     const btn = document.getElementById('ob-mood-' + m);
     if (!btn) return;
     btn.classList.remove('selected');
@@ -303,12 +304,24 @@ function obMoodSelect(mood, emoji) {
   obUpdateNamePreview(name);
 }
 
+/**
+ * Renders the new animated Mood faces into #ob-mood-face-row.
+ * Called by the onboarding template once ob2 is in the DOM.
+ */
+function obInitMoodFaces() {
+  if (typeof Mood !== 'undefined') {
+    Mood.renderOnboardingFaces('ob-mood-face-row');
+  }
+}
+
 // ── Step 2 — Name ─────────────────────────────────────────────
 const _OB_MOOD_LINES = {
-  chill:       'Take it easy — your score builds automatically.',
-  motivated:   'That energy shows. Let\'s channel it into your score.',
-  frustrated:  'Totally valid. Aurelo will show you exactly what\'s draining you.',
-  zen:         'Perfect headspace. Your focus score will love this.',
+  // New 5-mood system
+  awful:     'Rough start — Aurelo will show you exactly what\'s draining you.',
+  low:       'Totally valid. Small wins add up — let\'s find yours.',
+  okay:      'Fair enough. Your score builds automatically from here.',
+  good:      'That energy shows. Let\'s channel it into your score.',
+  great:     'Perfect headspace. Your focus score will love this.',
 };
 
 function obUpdateNamePreview(val) {
@@ -705,6 +718,7 @@ function _obConfetti() {
 // ── Finish & teardown ─────────────────────────────────────────
 function finishOb() {
   if (_obGoalMins > 0) S.streakGoalMins = _obGoalMins;
+  if (_obMoodId && typeof Mood !== 'undefined') Mood.logOnboardingMood(_obMoodId);
   S.onboardingDone = true;
   saveS();
 

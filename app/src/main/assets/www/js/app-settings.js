@@ -758,6 +758,9 @@ function applySettings(){
   updateStreakGoalSub();
   updateBedtimeSub();
   renderReferralSettingsStats();
+  if (typeof Mood !== 'undefined' && typeof Mood.renderSettingsSection === 'function') {
+    Mood.renderSettingsSection();
+  }
     // Defer so ProTier.init() has run before we read isPro
     setTimeout(function() {
      if (typeof _updateProUI === 'function') _updateProUI();
