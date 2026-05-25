@@ -662,7 +662,19 @@ window.FocusScore = (function () {
     if (scoreToSave >= 0) saveScoreForToday(_SLEEP_SCORE_KEY, scoreToSave);
 
     var d = typeof FocusTab !== 'undefined' ? FocusTab.loadStripData() : {};
-    var habitsBedtimeDays = (d.bedtimeDays||[false,false,false,false,false,false,false]).slice();
+    // Use rolling last-7-days from sleep score history (consistent with Focus streak day pills)
+    var habitsBedtimeDays = [false,false,false,false,false,false,false];
+    try {
+      var _sleepHistRaw = {};
+      try { var _sh = IS_NATIVE && N.getStringPref ? N.getStringPref(_SLEEP_SCORE_KEY) : localStorage.getItem(_SLEEP_SCORE_KEY); _sleepHistRaw = JSON.parse(_sh||'{}'); } catch(_) {}
+      var _cutoff7 = new Date(); _cutoff7.setDate(_cutoff7.getDate()-6);
+      var _cutoff7Str = _cutoff7.toISOString().slice(0,10);
+      Object.keys(_sleepHistRaw).forEach(function(dateStr) {
+        if (dateStr >= _cutoff7Str && _sleepHistRaw[dateStr] >= 0) {
+          habitsBedtimeDays[new Date(dateStr+'T00:00:00').getDay()] = true;
+        }
+      });
+    } catch(_) {}
     try {
       var cfg2   = typeof FocusBedtime !== 'undefined' ? FocusBedtime.getCfg() : {};
       var nowH2  = new Date().getHours() + new Date().getMinutes()/60;

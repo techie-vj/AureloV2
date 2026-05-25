@@ -1,0 +1,495 @@
+/* ═══════════════════════════════════════════════════════════
+   AURELO  |  ONBOARDING ADDITIONS v3.0
+   Load AFTER shell.css — overrides & new components only.
+
+   New in v3.0:
+     • Slide-in/out step transitions (absolute positioning layer)
+     • Top progress bar (2px gradient line)
+     • Back button (steps 1–3)
+     • CTA shimmer animation
+     • Social proof avatar strip (step 1)
+     • Full-width mood cards with colored accents (step 2)
+     • Blur dissolve on permission grant (step 3)
+     • Score count-up + grade badge (step 5)
+     • Arc glow pulse (step 5)
+     • Confetti canvas (step 5)
+     • Receipt summary (step 5)
+     • Keyboard-aware layout (step 2)
+     • Swipe gesture support (JS-driven)
+   ═══════════════════════════════════════════════════════════ */
+
+/* ── Layout: switch steps to absolute so slides don't reflow ── */
+/* ob-screen is already position:fixed inset:0 overflow:hidden  */
+.ob-step {
+  position: absolute !important;
+  inset: 0 !important;
+  display: flex !important;
+  flex-direction: column;
+  opacity: 0;
+  pointer-events: none;
+  will-change: transform, opacity;
+}
+.ob-step.active {
+  opacity: 1 !important;
+  pointer-events: auto !important;
+}
+
+/* ── Slide transition keyframes ─────────────────────────────── */
+@keyframes obSlideIn {
+  from { opacity: 0; transform: translateX(40px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes obSlideInBack {
+  from { opacity: 0; transform: translateX(-40px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes obSlideOut {
+  from { opacity: 1; transform: translateX(0) scale(1); }
+  to   { opacity: 0; transform: translateX(-22px) scale(0.98); }
+}
+@keyframes obSlideOutBack {
+  from { opacity: 1; transform: translateX(0); }
+  to   { opacity: 0; transform: translateX(36px); }
+}
+
+.ob-step.ob-enter      { animation: obSlideIn      0.38s cubic-bezier(0.32,0,0.18,1) both; }
+.ob-step.ob-enter-back { animation: obSlideInBack  0.38s cubic-bezier(0.32,0,0.18,1) both; }
+.ob-step.ob-exit       {
+  animation: obSlideOut 0.30s cubic-bezier(0.4,0,1,1) both;
+  pointer-events: none !important;
+}
+.ob-step.ob-exit-back  {
+  animation: obSlideOutBack 0.30s cubic-bezier(0.4,0,1,1) both;
+  pointer-events: none !important;
+}
+
+/* ── Top progress bar ───────────────────────────────────────── */
+#ob-progress-bar {
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: rgba(255,255,255,0.05);
+  z-index: 200;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.35s ease;
+}
+#ob-progress-bar.ob-bar-visible { opacity: 1; }
+#ob-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--p), var(--c));
+  border-radius: 0 1px 1px 0;
+  width: 0%;
+  transition: width 0.50s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 0 8px rgba(108,99,255,0.7);
+}
+
+/* ── Confetti canvas ────────────────────────────────────────── */
+#ob-confetti-canvas {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 190;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+#ob-confetti-canvas.ob-confetti-active { opacity: 1; }
+
+/* ── Back button ────────────────────────────────────────────── */
+.ob-back-btn {
+  position: absolute;
+  top: 14px; left: 16px;
+  width: 38px; height: 38px;
+  border-radius: 12px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.09);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; z-index: 20;
+  transition: background 0.18s, transform 0.13s;
+  -webkit-tap-highlight-color: transparent;
+  flex-shrink: 0;
+}
+.ob-back-btn:active {
+  background: rgba(255,255,255,0.1);
+  transform: scale(0.90);
+}
+.ob-back-btn svg {
+  width: 18px; height: 18px;
+  stroke: var(--t2); fill: none;
+  stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
+}
+
+/* ── Step counter — replace "STEP X OF Y" with minimal "x / y" ─ */
+.ob-step-mono {
+  font-family: var(--ff-m) !important;
+  font-size: 10px !important;
+  color: var(--t3) !important;
+  letter-spacing: 0.08em !important;
+  text-transform: none !important;
+  margin-bottom: 7px !important;
+}
+
+/* ── CTA button shimmer (idle sweep every 3.5s) ─────────────── */
+.ob-btn {
+  position: relative;
+  overflow: hidden;
+}
+.ob-btn:not(.ob-btn--disabled)::after {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+  background: linear-gradient(
+    108deg,
+    transparent 25%,
+    rgba(255,255,255,0.18) 48%,
+    rgba(255,255,255,0.10) 52%,
+    transparent 70%
+  );
+  background-size: 250% 100%;
+  background-position: -250% 0;
+  animation: obBtnShimmer 3.6s ease-in-out 1.8s infinite;
+  pointer-events: none;
+  border-radius: inherit;
+}
+@keyframes obBtnShimmer {
+  0%           { background-position: -250% 0; opacity: 0; }
+  8%           { opacity: 1; }
+  42%          { background-position: 250% 0; opacity: 1; }
+  48%, 100%    { background-position: 250% 0; opacity: 0; }
+}
+
+/* ── Social proof strip (step 1 — goal) ─────────────────────── */
+.ob-social-proof {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  width: 100%; max-width: 340px;
+  padding: 10px 14px;
+  background: rgba(108,99,255,0.07);
+  border: 1px solid rgba(108,99,255,0.16);
+  border-radius: 12px;
+  margin-bottom: 14px;
+  animation: obFadeUp 0.38s ease 0.14s both;
+}
+.ob-avatar-strip {
+  display: flex;
+  flex-direction: row-reverse;
+  flex-shrink: 0;
+}
+.ob-avatar {
+  width: 26px; height: 26px;
+  border-radius: 50%;
+  border: 2px solid var(--s1);
+  margin-left: -8px;
+  overflow: hidden;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.ob-avatar:last-child { margin-left: 0; }
+.ob-avatar-1 { background: linear-gradient(135deg,#6c63ff,#9b94ff); color: #fff; }
+.ob-avatar-2 { background: linear-gradient(135deg,#05c8e8,#12d48a); color: #fff; }
+.ob-avatar-3 { background: linear-gradient(135deg,#f7a623,#f04e7a); color: #fff; }
+.ob-avatar-4 { background: linear-gradient(135deg,#12d48a,#05c8e8); color: #fff; }
+.ob-social-proof-text {
+  font-family: var(--ff-b);
+  font-size: var(--text-xs);
+  color: var(--t2);
+  line-height: 1.45;
+  flex: 1;
+}
+.ob-social-proof-text strong {
+  color: var(--p2); font-weight: 600;
+}
+
+/* Social proof per-card sentence */
+.ob-goal-social {
+  font-family: var(--ff-b);
+  font-size: 10px;
+  color: var(--t3);
+  padding: 0 14px 11px;
+  line-height: 1.45;
+  animation: obFadeUp 0.3s ease both;
+  display: none;
+}
+.ob-goal-card--selected .ob-goal-social { display: block; }
+
+/* ── Full-width mood cards (step 2) ─────────────────────────── */
+.ob-mood-section-label {
+  font-family: var(--ff-b);
+  font-size: var(--text-xs);
+  color: var(--t2);
+  align-self: flex-start;
+  width: 100%; max-width: 340px;
+  margin-bottom: 3px;
+}
+.ob-mood-purpose {
+  font-family: var(--ff-b);
+  font-size: 10px;
+  color: var(--t3);
+  font-style: italic;
+  align-self: flex-start;
+  width: 100%; max-width: 340px;
+  margin-bottom: 10px;
+}
+
+/* Override the existing square emoji-only buttons */
+.ob-mood-row {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 7px !important;
+  width: 100%; max-width: 340px;
+  margin-bottom: 16px !important;
+}
+.ob-mood-btn {
+  flex: none !important;
+  aspect-ratio: auto !important;
+  width: 100% !important;
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  gap: 12px !important;
+  padding: 13px 16px !important;
+  border-radius: 13px !important;
+  min-height: 60px !important;
+  font-size: inherit !important;
+  position: relative !important;
+  overflow: hidden !important;
+  text-align: left !important;
+}
+.ob-mood-emoji {
+  font-size: 22px; flex-shrink: 0;
+  transition: transform 0.22s cubic-bezier(0.34,1.56,0.64,1);
+  line-height: 1;
+}
+.ob-mood-info {
+  flex: 1; min-width: 0;
+  display: flex; flex-direction: column; gap: 2px;
+}
+.ob-mood-name {
+  font-family: var(--ff-b);
+  font-size: var(--text-md);
+  font-weight: 600;
+  color: var(--t1);
+  line-height: 1.2;
+}
+.ob-mood-desc-txt {
+  font-family: var(--ff-b);
+  font-size: 10px;
+  color: var(--t3);
+  line-height: 1.3;
+}
+/* Per-mood accent glow (::before overlay) */
+.ob-mood-btn::before {
+  content: '';
+  position: absolute; inset: 0;
+  opacity: 0;
+  transition: opacity 0.22s ease;
+  pointer-events: none;
+  border-radius: inherit;
+}
+#ob-mood-chill::before     { background: linear-gradient(120deg, rgba(5,200,232,0.14) 0%, transparent 65%); }
+#ob-mood-motivated::before { background: linear-gradient(120deg, rgba(108,99,255,0.18) 0%, transparent 65%); }
+#ob-mood-frustrated::before{ background: linear-gradient(120deg, rgba(240,78,122,0.15) 0%, transparent 65%); }
+#ob-mood-zen::before       { background: linear-gradient(120deg, rgba(18,212,138,0.14) 0%, transparent 65%); }
+
+.ob-mood-btn.selected::before { opacity: 1; }
+.ob-mood-btn.selected .ob-mood-emoji { transform: scale(1.22); }
+.ob-mood-btn.selected { border-color: var(--p) !important; }
+
+/* Selection checkmark circle */
+.ob-mood-check {
+  width: 22px; height: 22px; border-radius: 50%;
+  border: 1.5px solid var(--border2);
+  flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.2s cubic-bezier(0.34,1.56,0.64,1);
+  font-size: 11px;
+}
+.ob-mood-btn.selected .ob-mood-check {
+  background: var(--p);
+  border-color: var(--p);
+  color: #fff;
+}
+
+/* ── Permission blur dissolve (step 3) ─────────────────────── */
+.ob-perm-blur-content {
+  transition: filter 0.55s cubic-bezier(0.4,0,0.2,1) !important;
+}
+.ob-perm-blur-content.ob-perm-revealed {
+  filter: none !important;
+}
+.ob-perm-overlay {
+  transition: opacity 0.45s ease, transform 0.45s ease !important;
+}
+.ob-perm-overlay.ob-perm-hidden {
+  opacity: 0 !important;
+  transform: scale(0.9) !important;
+  pointer-events: none !important;
+}
+
+/* Flash overlay inside the preview */
+.ob-perm-flash {
+  position: absolute; inset: 0;
+  background: rgba(18,212,138,0.12);
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0;
+}
+.ob-perm-flash.ob-perm-flash-active {
+  animation: obPermFlash 0.75s ease forwards;
+}
+@keyframes obPermFlash {
+  0%   { opacity: 0; }
+  18%  { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+/* T&C link on permission footer */
+.ob-tc-line {
+  font-family: var(--ff-b);
+  font-size: var(--text-2xs);
+  color: var(--t3);
+  text-align: center;
+  line-height: 1.6;
+  max-width: 260px;
+}
+.ob-tc-link {
+  color: var(--t2);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+/* ── Grade badge (step 5) ───────────────────────────────────── */
+#ob-grade-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 11px;
+  border-radius: 999px;
+  font-family: var(--ff-m);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  margin: 4px auto 2px;
+  opacity: 0;
+}
+#ob-grade-badge.ob-badge-show {
+  animation: obGradePop 0.52s cubic-bezier(0.34,1.56,0.64,1) 0.72s both;
+}
+@keyframes obGradePop {
+  from { opacity: 0; transform: scale(0.55); }
+  65%  { transform: scale(1.14); }
+  to   { opacity: 1; transform: scale(1); }
+}
+.ob-badge-excellent { background: rgba(18,212,138,0.15); color: var(--g); border: 1px solid rgba(18,212,138,0.3); }
+.ob-badge-good      { background: rgba(18,212,138,0.11); color: var(--g); border: 1px solid rgba(18,212,138,0.22); }
+.ob-badge-fair      { background: rgba(247,166,35,0.14); color: var(--a); border: 1px solid rgba(247,166,35,0.28); }
+.ob-badge-start     { background: rgba(108,99,255,0.12); color: var(--p2); border: 1px solid rgba(108,99,255,0.24); }
+
+/* ── Arc glow ring (step 5) ─────────────────────────────────── */
+.ob-arc-wrap {
+  position: relative;
+  display: inline-block;
+}
+.ob-arc-glow-ring {
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -44%);
+  width: 110px; height: 110px;
+  border-radius: 50%;
+  background: radial-gradient(circle,
+    rgba(108,99,255,0.35) 0%,
+    rgba(5,200,232,0.15) 45%,
+    transparent 70%);
+  opacity: 0;
+  pointer-events: none;
+}
+.ob-arc-glow-ring.ob-glow-fire {
+  animation: obArcGlow 1.4s cubic-bezier(0.4,0,0.2,1) 0.35s both;
+}
+@keyframes obArcGlow {
+  0%   { opacity: 0;   transform: translate(-50%,-44%) scale(0.5);  }
+  38%  { opacity: 1;   transform: translate(-50%,-44%) scale(1.15); }
+  100% { opacity: 0;   transform: translate(-50%,-44%) scale(1.7);  }
+}
+
+/* ── Receipt summary (step 5) ───────────────────────────────── */
+.ob-receipt {
+  width: 100%; max-width: 340px;
+  background: var(--s2);
+  border: 1px solid var(--border2);
+  border-radius: 14px;
+  overflow: hidden;
+  margin-bottom: 12px;
+  animation: obFadeUp 0.46s ease 0.52s both;
+}
+.ob-receipt-header {
+  font-family: var(--ff-m);
+  font-size: 9px;
+  letter-spacing: 0.17em;
+  text-transform: uppercase;
+  color: var(--t3);
+  padding: 10px 14px 6px;
+}
+.ob-receipt-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 14px;
+  border-top: 1px solid var(--border);
+  opacity: 0;
+}
+.ob-receipt-row.ob-row-show {
+  animation: obFadeUp 0.38s ease both;
+  opacity: 1;
+}
+.ob-receipt-row:nth-child(2).ob-row-show { animation-delay: 0.58s; }
+.ob-receipt-row:nth-child(3).ob-row-show { animation-delay: 0.66s; }
+.ob-receipt-row:nth-child(4).ob-row-show { animation-delay: 0.74s; }
+.ob-receipt-icon { font-size: 15px; flex-shrink: 0; }
+.ob-receipt-label {
+  font-family: var(--ff-b); font-size: 12px;
+  font-weight: 500; color: var(--t1); flex: 1;
+}
+.ob-receipt-status {
+  font-family: var(--ff-b); font-size: 10px;
+  color: var(--g); white-space: nowrap; flex-shrink: 0;
+}
+
+/* ── Score number count-up feedback ────────────────────────── */
+.ob-score-dash.ob-score-counting {
+  animation: obScoreCount 0.22s ease both;
+}
+@keyframes obScoreCount {
+  from { opacity: 0.6; transform: scale(0.92); }
+  to   { opacity: 1;   transform: scale(1); }
+}
+
+/* ── Keyboard-aware name step ───────────────────────────────── */
+#ob2.ob-kb-open .ob-mood-section   { display: none !important; }
+#ob2.ob-kb-open .ob-coach-preview  { margin-bottom: 6px; }
+
+/* ── Swipe hint text under hook CTA ─────────────────────────── */
+.ob-swipe-hint {
+  font-family: var(--ff-b);
+  font-size: 9px;
+  color: var(--t3);
+  text-align: center;
+  letter-spacing: 0.06em;
+  opacity: 0;
+  animation: obFadeUp 0.3s ease 2.6s both;
+}
+
+/* ── Reduced motion overrides ───────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .ob-step.ob-enter, .ob-step.ob-enter-back,
+  .ob-step.ob-exit, .ob-step.ob-exit-back {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+  .ob-btn::after    { animation: none !important; }
+  .ob-arc-glow-ring { animation: none !important; }
+  #ob-grade-badge   { opacity: 1 !important; animation: none !important; }
+  .ob-perm-blur-content { transition: none !important; }
+  .ob-confetti-canvas   { display: none !important; }
+}

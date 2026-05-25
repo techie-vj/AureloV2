@@ -541,11 +541,17 @@ class BedtimeBlockingEngine(
         }, h.linearFill().also { it.bottomMargin = h.dpToPx(8) })
 
         stack.addView(TextView(ctx).apply {
-            text = "Snooze 15 minutes"; textSize = 15f; setTextColor(Color.WHITE); gravity = Gravity.CENTER
+            text = "Open anyway"; textSize = 15f; setTextColor(Color.WHITE); gravity = Gravity.CENTER
             typeface = android.graphics.Typeface.DEFAULT_BOLD
             setPadding(0, h.dpToPx(16), 0, h.dpToPx(16))
             background = GradientDrawable().also { it.cornerRadius = h.dpToPx(20).toFloat(); it.setStroke(h.dpToPx(1), 0x1AFFFFFF) }
-            setOnClickListener { coordinator.dismiss(AppMonitorService.PRIORITY_BEDTIME); snooze(15) }
+            setOnClickListener {
+                allowedPkg       = pkg
+                allowedUntilTs   = System.currentTimeMillis() + 5 * 60_000L
+                allowedAppIsInFg = true
+                lastBlockedPkg   = pkg; lastBlockedTs = System.currentTimeMillis()
+                coordinator.dismiss(AppMonitorService.PRIORITY_BEDTIME)
+            }
         }, h.linearFill())
 
         root.addView(stack, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT).apply {
