@@ -28,6 +28,17 @@
     <!-- top spacing -->
     <div style="height:16px"></div>
 
+    <!-- Profile -->
+    <div class="sg" style="margin-bottom:24px">
+        <div class="sg-lbl">Profile</div>
+        <div class="sr" onclick="openEditNameModal()">
+            <div class="sr-ico sr-ico--person"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div>
+            <div style="flex:1"><div class="sr-lbl">Your Name</div><div class="sr-sub" id="name-sub">Tap to add your name</div></div>
+            <div id="name-display" style="font-family:var(--ff-m);font-size:13px;color:var(--t3);max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-right:4px"></div>
+            <span class="sr-chev">›</span>
+        </div>
+    </div>
+
     <!-- Refer a Friend — above Daily Goal, right after integrations -->
     <div class="sg" style="margin-bottom:24px" id="settings-referral-card">
         <div class="sg-lbl">Referral</div>
