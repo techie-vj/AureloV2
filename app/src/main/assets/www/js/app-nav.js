@@ -282,7 +282,12 @@ window.onBackPressed = function () {
   // 5. Close score-sheet backdrop (Focus / Screen / Sleep score panels)
   var scoreSheet = document.getElementById('score-sheet-backdrop');
   if (scoreSheet) { scoreSheet.remove(); return true; }
-  // 6. Close any open modal
+  // 6. Close upsell sheet if visible
+  if (document.querySelector('.pu-backdrop.pu-visible')) {
+    if (typeof ProUpsell !== 'undefined') ProUpsell.hide();
+    return true;
+  }
+  // 7. Close any open modal
   var openModal = document.querySelector('.modal-bg.open');
   if (openModal) { openModal.classList.remove('open'); return true; }
   // 7. Close any open panel
