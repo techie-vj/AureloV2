@@ -141,6 +141,31 @@ function toggleSmartAlerts(){
   if(IS_NATIVE) try{ N.saveSmartAlertsEnabled(newVal); }catch(_){}
   toast('Smart alerts '+(newVal?'enabled':'disabled'),'info');
 }
+
+// Sound cues toggle — gates SoundEffects (Kotlin) and the JS-side mood
+// chime. Persists in S so the UI is consistent on next launch even before
+// the native bridge is consulted; the native getter is authoritative.
+//
+// NOTE: this function was missing from the original sound-design PR — the
+// settings.html row references onclick="toggleSoundCues()" but the
+// definition didn't land in the committed diff, so tapping the toggle
+// threw ReferenceError. This restoration completes the feature.
+function toggleSoundCues(){
+  const el=document.getElementById('tog-sound'); const on=el.classList.contains('on');
+  const newVal=!on; setTog('tog-sound',newVal);
+  S.settings.soundCues=newVal; saveS();
+  if (IS_NATIVE && typeof N.setSoundCuesEnabled === 'function') {
+    try { N.setSoundCuesEnabled(newVal); } catch(_) {}
+  }
+  // Sample the chosen cue so the user hears what they just enabled — the
+  // single best way to make this setting feel responsive. Skip on disable
+  // (silence speaks for itself).
+  if (newVal && IS_NATIVE && typeof N.playSoundCue === 'function') {
+    try { N.playSoundCue('SESSION_START'); } catch(_) {}
+  }
+  toast('Sound cues '+(newVal?'enabled':'disabled'),'info');
+}
+
 function toggleSetting(togId,key){
   const el=document.getElementById(togId); const on=el.classList.contains('on');
   setTog(togId,!on); S.settings[key]=!on; saveS();
