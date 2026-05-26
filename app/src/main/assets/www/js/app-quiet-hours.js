@@ -167,7 +167,7 @@
 
     var enabledRow =
       '<div class="sr" onclick="QuietHours.toggle()" style="border-bottom:1px solid var(--border2)">' +
-        '<div class="sr-ico" style="background:rgba(108,99,255,.15);width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:17px">🔕</div>' +
+        '<div class="sr-ico sr-ico--moon" style="background:rgba(108,99,255,.15);width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:17px">🔕</div>' +
         '<div style="flex:1">' +
           '<div class="sr-lbl">Enable Quiet Hours</div>' +
           '<div class="sr-sub">' +
@@ -254,30 +254,98 @@
   }
 
   function _editTime(label, hour, minute, onPick) {
-    // Reuse the simple HTML time input — opens the native time picker on
-    // Android via WebView. Avoids re-implementing a wheel picker for a feature
-    // the user touches at most a few times.
-    var input = document.createElement('input');
-    input.type = 'time';
-    input.value = (hour < 10 ? '0' + hour : hour) + ':' + (minute < 10 ? '0' + minute : minute);
-    input.style.position = 'fixed';
-    input.style.left = '-9999px';
-    document.body.appendChild(input);
-    input.addEventListener('change', function () {
-      var parts = (input.value || '').split(':');
-      if (parts.length === 2) {
-        var h = parseInt(parts[0], 10), m = parseInt(parts[1], 10);
-        if (!isNaN(h) && !isNaN(m)) onPick(h, m);
+    // Bottom-sheet grid time picker — identical pattern to Screen Filter's
+    // _openTimePicker(). Reuses .sf-backdrop / .sf-perm-sheet / .sf-tp-sheet /
+    // .sf-drag / .sf-tp-cell CSS already loaded via screen-filter.css.
+    // The hidden <input type="time"> approach is unreliable in Android WebViews.
+    var bd = document.createElement('div');
+    bd.className = 'sf-backdrop';
+    var sh = document.createElement('div');
+    sh.className = 'sf-perm-sheet sf-tp-sheet';
+
+    var state = {
+      h: hour % 12 === 0 ? 12 : hour % 12,
+      m: Math.min(55, Math.round(minute / 5) * 5),
+      p: hour >= 12 ? 'PM' : 'AM'
+    };
+
+    var hourCells = '', minCells = '';
+    for (var h = 1; h <= 12; h++) {
+      hourCells += '<div class="sf-tp-cell" id="qhph-' + h + '" onclick="window._qhPickerSetH(' + h + ')">' + h + '</div>';
+    }
+    for (var m = 0; m < 60; m += 5) {
+      minCells += '<div class="sf-tp-cell" id="qhpm-' + m + '" onclick="window._qhPickerSetM(' + m + ')">:' + (m < 10 ? '0' + m : m) + '</div>';
+    }
+
+    sh.innerHTML =
+      '<div class="sf-drag"></div>' +
+      '<div style="display:flex;align-items:center;justify-content:space-between;padding:0 2px 10px">' +
+        '<div style="font-family:var(--ff-d);font-size:var(--text-sm);font-weight:700;color:var(--t1)">' + label + '</div>' +
+        '<div style="display:flex;align-items:center;gap:10px">' +
+          '<div style="display:flex;background:var(--s2,rgba(255,255,255,.06));border-radius:10px;' +
+               'border:1px solid var(--border2,rgba(255,255,255,.1));overflow:hidden">' +
+            '<div id="qh-tp-am" onclick="window._qhPickerSetP(\'AM\')" ' +
+              'style="padding:6px 14px;font-family:var(--ff-m);font-size:var(--text-2xs);font-weight:700;cursor:pointer;transition:all .12s">AM</div>' +
+            '<div id="qh-tp-pm" onclick="window._qhPickerSetP(\'PM\')" ' +
+              'style="padding:6px 14px;font-family:var(--ff-m);font-size:var(--text-2xs);font-weight:700;cursor:pointer;transition:all .12s">PM</div>' +
+          '</div>' +
+          '<div onclick="window._qhPickerDone()" ' +
+            'style="font-family:var(--ff-m);font-size:var(--text-xs);font-weight:700;color:var(--p);cursor:pointer;padding:4px 0 4px 4px">Done</div>' +
+        '</div>' +
+      '</div>' +
+      '<div id="qh-tp-display" style="text-align:center;font-family:var(--ff-d);font-size:var(--text-3xl);' +
+        'font-weight:700;color:var(--t1);letter-spacing:-1.5px;padding:2px 16px 12px;line-height:1.1"></div>' +
+      '<div style="padding:0 0 8px">' +
+        '<div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);letter-spacing:.8px;margin-bottom:6px">HOUR</div>' +
+        '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px">' + hourCells + '</div>' +
+      '</div>' +
+      '<div style="padding:8px 0 16px">' +
+        '<div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);letter-spacing:.8px;margin-bottom:6px">MINUTE</div>' +
+        '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px">' + minCells + '</div>' +
+      '</div>';
+
+    document.body.appendChild(bd);
+    document.body.appendChild(sh);
+
+    function _refresh() {
+      for (var i = 1; i <= 12; i++) {
+        var el = document.getElementById('qhph-' + i);
+        if (el) el.classList.toggle('sf-tp-cell--on', i === state.h);
       }
-      document.body.removeChild(input);
-    });
-    // Some Android WebViews fire 'blur' without 'change' if the user cancels;
-    // remove the orphan input after a short delay to avoid leaks.
-    setTimeout(function () {
-      if (input.parentNode) input.parentNode.removeChild(input);
-    }, 30000);
-    try { input.showPicker ? input.showPicker() : input.click(); }
-    catch (_) { input.click(); }
+      for (var j = 0; j < 60; j += 5) {
+        var el2 = document.getElementById('qhpm-' + j);
+        if (el2) el2.classList.toggle('sf-tp-cell--on', j === state.m);
+      }
+      var amEl = document.getElementById('qh-tp-am');
+      var pmEl = document.getElementById('qh-tp-pm');
+      if (amEl) { amEl.style.background = state.p === 'AM' ? 'var(--p)' : 'transparent'; amEl.style.color = state.p === 'AM' ? '#fff' : 'var(--t3)'; }
+      if (pmEl) { pmEl.style.background = state.p === 'PM' ? 'var(--p)' : 'transparent'; pmEl.style.color = state.p === 'PM' ? '#fff' : 'var(--t3)'; }
+      var disp = document.getElementById('qh-tp-display');
+      if (disp) disp.textContent = String(state.h).padStart(2, '0') + ':' + String(state.m).padStart(2, '0') + ' ' + state.p;
+    }
+
+    function _dismiss() {
+      if (bd.parentNode) bd.parentNode.removeChild(bd);
+      if (sh.parentNode) sh.parentNode.removeChild(sh);
+      delete window._qhPickerSetH;
+      delete window._qhPickerSetM;
+      delete window._qhPickerSetP;
+      delete window._qhPickerDone;
+    }
+
+    window._qhPickerSetH = function (h) { state.h = h; _refresh(); };
+    window._qhPickerSetM = function (m) { state.m = m; _refresh(); };
+    window._qhPickerSetP = function (p) { state.p = p; _refresh(); };
+    window._qhPickerDone = function () {
+      var h24 = state.p === 'AM'
+        ? (state.h === 12 ? 0 : state.h)
+        : (state.h === 12 ? 12 : state.h + 12);
+      _dismiss();
+      onPick(h24, state.m);
+    };
+
+    bd.onclick = _dismiss;
+    _refresh();
   }
 
   function editStart() {
