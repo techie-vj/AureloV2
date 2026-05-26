@@ -1,3 +1,16 @@
+<!-- ═══ QUIET HOURS PANEL ════════════════════════════════════════════════
+     Minimal scheduled DND. Distinct from Bedtime Mode (which bundles
+     wind-down, screen filter, and morning summary specifically for sleep).
+     Body is rendered by app-quiet-hours.js when the panel opens. -->
+<div class="panel" id="quiet-hours-panel">
+    <div class="panel-hdr">
+        <div class="panel-back" onclick="closeQuietHoursPanel()">←</div>
+        <div class="panel-title">🔕 Quiet Hours</div>
+        <div></div>
+    </div>
+    <div class="panel-body" id="quiet-hours-body"></div>
+</div>
+
 <!-- ═══ FOCUS APP PICKER PANEL ═══════════════════════════════════════════ -->
 <div class="panel" id="focus-picker-panel">
     <div class="panel-hdr">

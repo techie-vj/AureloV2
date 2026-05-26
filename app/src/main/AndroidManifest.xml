@@ -218,6 +218,20 @@
             </intent-filter>
         </receiver>
 
+        <!-- QuietHoursReceiver — receives scheduled Quiet Hours alarms and
+             the notification action broadcasts (End now / Pause 30m). -->
+        <receiver
+            android:name=".QuietHoursReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="${applicationId}.QUIET_HOURS_ON" />
+                <action android:name="${applicationId}.QUIET_HOURS_OFF" />
+                <action android:name="${applicationId}.QUIET_HOURS_END_NOW" />
+                <action android:name="${applicationId}.QUIET_HOURS_PAUSE_30" />
+                <action android:name="${applicationId}.QUIET_HOURS_SNOOZE_EXPIRE" />
+            </intent-filter>
+        </receiver>
+
         <!-- RoutineAlarmReceiver — fires scheduled focus-routine alarms -->
         <receiver android:name=".RoutineAlarmReceiver" android:exported="false">
             <intent-filter>
