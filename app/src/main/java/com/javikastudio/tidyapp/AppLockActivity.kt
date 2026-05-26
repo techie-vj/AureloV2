@@ -624,10 +624,22 @@ class AppLockActivity : AppCompatActivity() {
     }
 
     private fun goHome() {
+        // Back-bypass fix: clear the static lock guard BEFORE starting home
+        // so AppMonitorService can re-fire the lock on the next foreground
+        // of the same package. Without this clear, the alreadyLocking guard
+        // in AppMonitorService.pollRunnable suppresses the new lock screen
+        // and the user gets straight into the protected app.
+        if (currentLockedPackage == lockedPackage) currentLockedPackage = ""
         startActivity(Intent(Intent.ACTION_MAIN).apply {
             addCategory(Intent.CATEGORY_HOME)
             flags = Intent.FLAG_ACTIVITY_NEW_TASK
         })
+        // finishAndRemoveTask() tears down this activity's task entirely —
+        // matches the existing android:excludeFromRecents="true" intent
+        // (the lock task shouldn't linger as a phantom in Recents) and
+        // prevents the dormant activity from being mistaken for a live
+        // lock screen by the poll-loop guard above.
+        finishAndRemoveTask()
     }
 
     private fun sha256(input: String): String {
