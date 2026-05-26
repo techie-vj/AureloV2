@@ -1289,38 +1289,47 @@ var ScoreHistory = (function () {
         tt.style.transform = _scrub.frac > 0.65 ? 'none' : 'translateX(-50%)';
 
         if (_pillar === 'mood') {
-          /* Mood tooltip: show label + tags instead of numeric score */
-          var _MOOD_META = {
-            awful: { label:'Rough day',    color:'#F04E7A' },
-            low:   { label:'Meh...',       color:'#F7A623' },
-            okay:  { label:'Could be worse',color:'#A0A0CC'},
-            good:  { label:'Doing well',   color:'#12D48A' },
-            great: { label:'Loving it!',   color:'#9B95FF' },
-          };
-          var _MOOD_VAL_ID = { 0:'awful', 25:'low', 50:'okay', 75:'good', 100:'great' };
-          var _moodId  = _MOOD_VAL_ID[_scrub.v] || null;
-          var _moodMeta= _moodId ? (_MOOD_META[_moodId] || {}) : {};
-          /* Resolve the date key for this scrub index */
-          var _today2 = new Date();
-          var _sd = new Date(_today2);
-          _sd.setDate(_today2.getDate() - (_n - 1 - _scrub.idx));
-          var _moodKey = _sd.toISOString().slice(0, 10);
-          var _moodEntry = _moodDataMap[_moodKey];
-          var _tagsHtml = (_moodEntry && _moodEntry.t && _moodEntry.t.length)
-            ? '<div style="font-family:var(--ff-m);font-size:9px;color:var(--t3);margin-top:2px">'
-              + _moodEntry.t.slice(0, 3).join(' · ')
-              + '</div>'
-            : '';
-          tt.innerHTML =
-            '<div class="sh-tt-date">'+_scrub.date+'</div>'
-            +'<div class="sh-tt-score" style="color:'+(_moodMeta.color||colorRaw)+'">'+(_moodMeta.label||_scrub.v)+'</div>'
-            + _tagsHtml;
-        } else {
-          tt.innerHTML =
-            '<div class="sh-tt-date">'+_scrub.date+'</div>'
-            +'<div class="sh-tt-score" style="color:'+colorRaw+'">' + _scrub.v + '</div>'
-            +'<div class="sh-tt-grade" style="color:'+g.color+'">' + g.label + '</div>';
-        }
+                  /* Mood tooltip: show label + tags + note instead of numeric score */
+                  var _MOOD_META = {
+                    awful: { label:'Rough day',      color:'#F04E7A' },
+                    low:   { label:'Meh...',         color:'#F7A623' },
+                    okay:  { label:'Could be worse', color:'#A0A0CC' },
+                    good:  { label:'Doing well',     color:'#12D48A' },
+                    great: { label:'Loving it!',     color:'#9B95FF' },
+                  };
+                  var _MOOD_VAL_ID = { 0:'awful', 25:'low', 50:'okay', 75:'good', 100:'great' };
+                  var _moodId  = _MOOD_VAL_ID[_scrub.v] || null;
+                  var _moodMeta= _moodId ? (_MOOD_META[_moodId] || {}) : {};
+
+                  /* Resolve the date key for this scrub index */
+                  var _today2 = new Date();
+                  var _sd = new Date(_today2);
+                  _sd.setDate(_today2.getDate() - (_n - 1 - _scrub.idx));
+                  var _moodKey = _sd.toISOString().slice(0, 10);
+                  var _moodEntry = _moodDataMap[_moodKey];
+
+                  var _tagsHtml = (_moodEntry && _moodEntry.t && _moodEntry.t.length)
+                    ? '<div style="font-family:var(--ff-m);font-size:9px;color:var(--t3);margin-top:2px">'
+                      + _moodEntry.t.slice(0, 3).join(' · ')
+                      + '</div>'
+                    : '';
+
+                  var _noteHtml = (_moodEntry && _moodEntry.n && _moodEntry.n.trim() !== '')
+                    ? '<div style="font-family:var(--ff-b);font-size:10px;color:var(--t2);margin-top:6px;padding-top:6px;border-top:1px solid var(--border2);font-style:italic;">"'
+                      + _moodEntry.n.replace(/</g, "&lt;").replace(/>/g, "&gt;") + '"</div>'
+                    : '';
+
+                  tt.innerHTML =
+                    '<div class="sh-tt-date">' + _scrub.date + '</div>'
+                    + '<div class="sh-tt-score" style="color:' + (_moodMeta.color || colorRaw) + '">' + (_moodMeta.label || _scrub.v) + '</div>'
+                    + _tagsHtml
+                    + _noteHtml;
+                } else {
+                  tt.innerHTML =
+                    '<div class="sh-tt-date">' + _scrub.date + '</div>'
+                    + '<div class="sh-tt-score" style="color:' + colorRaw + '">' + _scrub.v + '</div>'
+                    + '<div class="sh-tt-grade" style="color:' + g.color + '">' + g.label + '</div>';
+                }
       }
     }
 

@@ -1,41 +1,16 @@
-<!-- ═══════════════════════════════════════════════════════════
-     AURELO  |  ONBOARDING v3.0
-     0 Hook → 1 Goal → 2 Name+Mood → 3 Permission → 4 Scan → 5 Reveal
-
-     Changes from v2.1:
-       • Top progress bar (#ob-progress-bar)
-       • Confetti canvas (#ob-confetti-canvas)
-       • Back buttons on steps 1–3
-       • Step counters changed from "STEP X OF 4" to "x / 4"
-       • Step 1: Social proof avatar strip
-       • Step 1: Per-card social context sentence
-       • Step 2: Full-width mood cards (emoji + label + desc + check)
-       • Step 2: Mood purpose sub-label
-       • Step 3: T&C footnote, blur dissolve elements
-       • Step 5: Grade badge (#ob-grade-badge)
-       • Step 5: Arc glow ring (#ob-arc-glow-ring)
-       • Step 5: Receipt summary (.ob-receipt)
-       • Step 5: Confetti triggered by JS
-
-     All existing JS bridge IDs preserved.
-     ═══════════════════════════════════════════════════════════ -->
 <div id="ob-screen" style="display:none" role="main" aria-label="Aurelo setup">
 
-    <!-- Top progress bar (visible from step 1 onward, driven by JS) -->
     <div id="ob-progress-bar" aria-hidden="true">
         <div id="ob-progress-fill"></div>
     </div>
 
-    <!-- Confetti canvas (drawn by JS on step 5) -->
     <canvas id="ob-confetti-canvas" aria-hidden="true"></canvas>
 
 
-    <!-- ── Step 0 : Hook ──────────────────────────────────── -->
     <div class="ob-step active" id="ob0" aria-label="Welcome to Aurelo">
         <div class="ob-step-body">
 
             <div class="ob-hook-top">
-                <!-- Aurelo integrated wordmark -->
                 <div style="display:flex;align-items:flex-end;gap:1px">
                     <svg width="28" height="28" viewBox="0 0 108 108" fill="none" style="flex-shrink:0;margin-bottom:1px">
                         <defs>
@@ -92,556 +67,485 @@
                 </div>
             </div>
 
-        </div><!-- /ob-step-body -->
-
-        <div class="ob-step-foot">
-            <div class="ob-dots" aria-label="Step 1 of 6">
-                <div class="ob-dot on" aria-hidden="true"></div>
-                <div class="ob-dot" aria-hidden="true"></div>
-                <div class="ob-dot" aria-hidden="true"></div>
-                <div class="ob-dot" aria-hidden="true"></div>
-                <div class="ob-dot" aria-hidden="true"></div>
-                <div class="ob-dot" aria-hidden="true"></div>
-            </div>
-            <button class="ob-btn" onclick="obNext()">
-                Show me where my time goes →
-            </button>
-            <p class="ob-legal">
-                No account · On-device · 100% private ·
-                <a href="#" onclick="AppBridge&&AppBridge.openUrl('https://sites.google.com/view/tidyapp-privacy-policy');return false;" style="color:var(--t3);text-decoration:underline">Privacy</a>
-                &amp;
-                <a href="#" onclick="AppBridge&&AppBridge.openUrl('https://sites.google.com/view/tidyapp-terms-and-conditions');return false;" style="color:var(--t3);text-decoration:underline">Terms</a>
-            </p>
+        </div><div class="ob-step-foot">
+        <div class="ob-dots" aria-label="Step 1 of 6">
+            <div class="ob-dot on" aria-hidden="true"></div>
+            <div class="ob-dot" aria-hidden="true"></div>
+            <div class="ob-dot" aria-hidden="true"></div>
+            <div class="ob-dot" aria-hidden="true"></div>
+            <div class="ob-dot" aria-hidden="true"></div>
+            <div class="ob-dot" aria-hidden="true"></div>
         </div>
-    </div><!-- /ob0 -->
-
-
-    <!-- ── Step 1 : Goal commitment ───────────────────────── -->
-    <div class="ob-step" id="ob1" aria-label="Set your daily screen time limit">
-
-        <!-- Back button -->
-        <button class="ob-back-btn" onclick="obBack()" aria-label="Go back">
-            <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+        <button class="ob-btn" onclick="obNext()">
+            Show me where my time goes →
         </button>
+        <p class="ob-legal">
+            No account · On-device · 100% private ·
+            <a href="#" onclick="AppBridge&&AppBridge.openUrl('https://sites.google.com/view/tidyapp-privacy-policy');return false;" style="color:var(--t3);text-decoration:underline">Privacy</a>
+            &amp;
+            <a href="#" onclick="AppBridge&&AppBridge.openUrl('https://sites.google.com/view/tidyapp-terms-and-conditions');return false;" style="color:var(--t3);text-decoration:underline">Terms</a>
+        </p>
+    </div>
+    </div><div class="ob-step" id="ob1" aria-label="Set your daily screen time limit">
 
-        <div class="ob-step-body">
-            <div class="ob-step-head">
-                <div class="ob-step-mono">1 / 4</div>
-                <div class="ob-title">Set your<br>daily limit</div>
-                <p class="ob-body">Powers your Home arc, streak counter, and Aurelo Score.</p>
-            </div>
+    <button class="ob-back-btn" onclick="obBack()" aria-label="Go back">
+        <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+    </button>
 
-            <div class="ob-content-wrapper">
-
-                <!-- Social proof avatar strip -->
-                <div class="ob-social-proof" aria-label="Expert-backed goals">
-                    <div class="ob-avatar-strip" aria-hidden="true">
-                        <div class="ob-avatar ob-avatar-1">🎯</div>
-                        <div class="ob-avatar ob-avatar-2">🧘</div>
-                        <div class="ob-avatar ob-avatar-3">⚡</div>
-                        <div class="ob-avatar ob-avatar-4">🧠</div>
-                    </div>
-                    <div class="ob-social-proof-text">
-                        <strong>The 3.5-Hour Baseline</strong>
-                        Research identifies this as the optimal threshold for cognitive focus. Most start at 4 hours to build a sustainable habit.
-                    </div>
-                </div>
-
-                <div class="ob-goal-list" role="radiogroup" aria-label="Select daily screen time goal">
-
-                    <!-- Light -->
-                    <div class="ob-goal-card" id="ob-gc-light"
-                         role="radio" aria-checked="false" tabindex="0"
-                         onclick="obGoalSelect('light',180)"
-                         onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();obGoalSelect('light',180);}">
-                        <div class="ob-goal-card-main">
-                            <span class="ob-goal-emoji" aria-hidden="true">🌱</span>
-                            <div class="ob-goal-info">
-                                <div class="ob-goal-name">Light <span class="ob-goal-range">2–3 hrs</span></div>
-                                <div class="ob-goal-ctx">Well below global average · ambitious</div>
-                            </div>
-                            <div class="ob-goal-radio" aria-hidden="true"><div class="ob-goal-radio-dot"></div></div>
-                        </div>
-                        <div class="ob-arc-preview" id="ob-arc-light" aria-hidden="true">
-                            <svg width="52" height="28" viewBox="0 0 52 28">
-                                <path d="M4,26 A21,21 0 0,1 48,26" fill="none" stroke="var(--s3)" stroke-width="4.5" stroke-linecap="round"/>
-                                <path d="M4,26 A21,21 0 0,1 48,26" fill="none" stroke="var(--p)" stroke-width="4.5" stroke-linecap="round" stroke-dasharray="66" stroke-dashoffset="40"/>
-                            </svg>
-                            <div class="ob-arc-label">
-                                <div class="ob-arc-label-val">Goal: 2–3 hrs · 180 min/day</div>
-                                <div class="ob-arc-label-sub">Your Home arc at this limit</div>
-                            </div>
-                        </div>
-                        <div class="ob-goal-social">22% of Aurelo users chose this — you're aiming high.</div>
-                    </div>
-
-                    <!-- Balanced (popular) -->
-                    <div class="ob-goal-card ob-goal-has-badge" id="ob-gc-balanced"
-                         role="radio" aria-checked="false" tabindex="0"
-                         onclick="obGoalSelect('balanced',240)"
-                         onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();obGoalSelect('balanced',240);}">
-                        <div class="ob-pop-badge" aria-label="Popular choice">POPULAR</div>
-                        <div class="ob-goal-card-main">
-                            <span class="ob-goal-emoji" aria-hidden="true">⚡</span>
-                            <div class="ob-goal-info">
-                                <div class="ob-goal-name">Balanced <span class="ob-goal-range">3–4 hrs</span></div>
-                                <div class="ob-goal-ctx">Around global average · achievable</div>
-                            </div>
-                            <div class="ob-goal-radio" aria-hidden="true"><div class="ob-goal-radio-dot"></div></div>
-                        </div>
-                        <div class="ob-arc-preview" id="ob-arc-balanced" aria-hidden="true">
-                            <svg width="52" height="28" viewBox="0 0 52 28">
-                                <path d="M4,26 A21,21 0 0,1 48,26" fill="none" stroke="var(--s3)" stroke-width="4.5" stroke-linecap="round"/>
-                                <path d="M4,26 A21,21 0 0,1 48,26" fill="none" stroke="var(--p)" stroke-width="4.5" stroke-linecap="round" stroke-dasharray="66" stroke-dashoffset="24"/>
-                            </svg>
-                            <div class="ob-arc-label">
-                                <div class="ob-arc-label-val">Goal: 3–4 hrs · 240 min/day</div>
-                                <div class="ob-arc-label-sub">Your Home arc at this limit</div>
-                            </div>
-                        </div>
-                        <div class="ob-goal-social">57% of users chose Balanced — and 68% hit it within two weeks.</div>
-                    </div>
-
-                    <!-- Heavy user -->
-                    <div class="ob-goal-card" id="ob-gc-heavy"
-                         role="radio" aria-checked="false" tabindex="0"
-                         onclick="obGoalSelect('heavy',300)"
-                         onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();obGoalSelect('heavy',300);}">
-                        <div class="ob-goal-card-main">
-                            <span class="ob-goal-emoji" aria-hidden="true">📱</span>
-                            <div class="ob-goal-info">
-                                <div class="ob-goal-name">Heavy user <span class="ob-goal-range">4–5 hrs</span></div>
-                                <div class="ob-goal-ctx">Honest first step · build from here</div>
-                            </div>
-                            <div class="ob-goal-radio" aria-hidden="true"><div class="ob-goal-radio-dot"></div></div>
-                        </div>
-                        <div class="ob-arc-preview" id="ob-arc-heavy" aria-hidden="true">
-                            <svg width="52" height="28" viewBox="0 0 52 28">
-                                <path d="M4,26 A21,21 0 0,1 48,26" fill="none" stroke="var(--s3)" stroke-width="4.5" stroke-linecap="round"/>
-                                <path d="M4,26 A21,21 0 0,1 48,26" fill="none" stroke="var(--p)" stroke-width="4.5" stroke-linecap="round" stroke-dasharray="66" stroke-dashoffset="10"/>
-                            </svg>
-                            <div class="ob-arc-label">
-                                <div class="ob-arc-label-val">Goal: 4–5 hrs · 300 min/day</div>
-                                <div class="ob-arc-label-sub">Your Home arc at this limit</div>
-                            </div>
-                        </div>
-                        <div class="ob-goal-social">Honest start beats an unachievable one. Easy to adjust later.</div>
-                    </div>
-
-                </div><!-- /ob-goal-list -->
-
-                <p class="ob-ctx-note">Global daily average: 4h 40m · You're aiming for better</p>
-            </div>
-        </div><!-- /ob-step-body -->
-
-        <div class="ob-step-foot">
-            <div class="ob-dots" aria-label="Step 2 of 6">
-                <div class="ob-dot" aria-hidden="true"></div>
-                <div class="ob-dot on" aria-hidden="true"></div>
-                <div class="ob-dot" aria-hidden="true"></div>
-                <div class="ob-dot" aria-hidden="true"></div>
-                <div class="ob-dot" aria-hidden="true"></div>
-                <div class="ob-dot" aria-hidden="true"></div>
-            </div>
-            <button class="ob-btn ob-btn--disabled" id="ob1-next-btn"
-                    onclick="obGoalNext()" disabled aria-disabled="true">
-                Choose your limit
-            </button>
+    <div class="ob-step-body">
+        <div class="ob-step-head">
+            <div class="ob-step-mono">1 / 4</div>
+            <div class="ob-title">Set your<br>daily limit</div>
+            <p class="ob-body">Powers your Home arc, streak counter, and Aurelo Score.</p>
         </div>
-    </div><!-- /ob1 -->
 
+        <div class="ob-content-wrapper">
 
-    <!-- ── Step 2 : Name + Mood ──────────────────────────── -->
-    <div class="ob-step" id="ob2" aria-label="Your name — optional">
-
-        <!-- Back button -->
-        <button class="ob-back-btn" onclick="obBack()" aria-label="Go back">
-            <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
-        </button>
-
-        <div class="ob-step-body">
-            <div class="ob-step-head">
-                <div class="ob-step-mono">2 / 4</div>
-                <div class="ob-title">What should<br>Aurelo call you?</div>
-                <p class="ob-body">Your Coach greets you by name. Totally optional.</p>
+            <div class="ob-social-proof" aria-label="Expert-backed goals">
+                <div class="ob-avatar-strip" aria-hidden="true">
+                    <div class="ob-avatar ob-avatar-1">🎯</div>
+                    <div class="ob-avatar ob-avatar-2">🧘</div>
+                    <div class="ob-avatar ob-avatar-3">⚡</div>
+                    <div class="ob-avatar ob-avatar-4">🧠</div>
+                </div>
+                <div class="ob-social-proof-text">
+                    <strong>The 3.5-Hour Baseline</strong>
+                    Research identifies this as the optimal threshold for cognitive focus. Most start at 4 hours to build a sustainable habit.
+                </div>
             </div>
 
-            <div class="ob-content-wrapper">
+            <div class="ob-goal-list" role="radiogroup" aria-label="Select daily screen time goal">
 
-                <!-- Mood picker — animated face row (rendered by Mood.renderOnboardingFaces) -->
-                <div class="ob-mood-section" aria-live="polite">
-                    <div class="ob-mood-section-label">How are you feeling right now?</div>
-                    <div class="ob-mood-purpose">Aurelo Coach adapts its tone to match your headspace.</div>
-                    <div id="ob-mood-face-row" role="group" aria-label="Select your mood">
-                        <div class="mood-row">
-                            <div class="mood-item" id="ob-mood-item-awful" style="--mood-color:#F04E7A" onclick="Mood.selectMood('awful','ob-mood')" role="radio" aria-checked="false" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' ')Mood.selectMood('awful','ob-mood')">
-                                <div class="mood-face-wrap" id="ob-mood-fw-awful">
-                                    <div class="mood-ring"></div>
-                                    <svg class="mood-face-svg" viewBox="0 0 52 52" fill="none" overflow="visible" aria-hidden="true"><circle cx="26" cy="26" r="23" fill="rgba(240,78,122,0.13)" stroke="#F04E7A" stroke-width="1.5"/><g class="mood-anim-fire" style="opacity:0"><ellipse cx="14" cy="45" rx="5" ry="7" fill="#F04E7A" opacity=".6" style="animation:moodFireFlicker 0.4s ease-in-out infinite;transform-origin:14px 45px"/><ellipse cx="26" cy="43" rx="6" ry="9" fill="#F7A623" opacity=".7" style="animation:moodFireFlicker 0.35s ease-in-out .1s infinite;transform-origin:26px 43px"/><ellipse cx="38" cy="45" rx="5" ry="7" fill="#F04E7A" opacity=".6" style="animation:moodFireFlicker 0.45s ease-in-out .05s infinite;transform-origin:38px 45px"/></g><path class="mood-anim-brow-l" d="M16 19l5 2.5" stroke="#F04E7A" stroke-width="2" stroke-linecap="round"/><path class="mood-anim-brow-r" d="M36 19l-5 2.5" stroke="#F04E7A" stroke-width="2" stroke-linecap="round"/><ellipse cx="19" cy="24" rx="2.5" ry="2.5" fill="#F04E7A"/><ellipse cx="33" cy="24" rx="2.5" ry="2.5" fill="#F04E7A"/><path d="M19 34c1.8-4 12.2-4 14 0" stroke="#F04E7A" stroke-width="2.2" stroke-linecap="round"/><path class="mood-anim-steam-l" d="M10 12 Q8 9 10 6" stroke="#F04E7A" stroke-width="1.5" stroke-linecap="round" opacity="0"/><path class="mood-anim-steam-r" d="M42 12 Q44 9 42 6" stroke="#F04E7A" stroke-width="1.5" stroke-linecap="round" opacity="0"/></svg>
-                                </div>
-                                <div class="mood-lbl">Rough day</div>
-                            </div>
-                            <div class="mood-item" id="ob-mood-item-low" style="--mood-color:#F7A623" onclick="Mood.selectMood('low','ob-mood')" role="radio" aria-checked="false" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' ')Mood.selectMood('low','ob-mood')">
-                                <div class="mood-face-wrap" id="ob-mood-fw-low">
-                                    <div class="mood-ring"></div>
-                                    <svg class="mood-face-svg" viewBox="0 0 52 52" fill="none" overflow="visible" aria-hidden="true"><circle cx="26" cy="26" r="23" fill="rgba(247,166,35,0.10)" stroke="#F7A623" stroke-width="1.5"/><ellipse cx="19" cy="24" rx="2.2" ry="2.2" fill="#F7A623"/><path class="mood-anim-eye-l" d="M16.5 23 Q19 21 21.5 23" stroke="#F7A623" stroke-width="2.5" stroke-linecap="round" fill="none" opacity="0"/><ellipse cx="33" cy="24" rx="2.2" ry="2.2" fill="#F7A623"/><path class="mood-anim-eye-r" d="M30.5 23 Q33 21 35.5 23" stroke="#F7A623" stroke-width="2.5" stroke-linecap="round" fill="none" opacity="0"/><path d="M19 31c1.5-2.5 12.5-2.5 14 0" stroke="#F7A623" stroke-width="2" stroke-linecap="round"/><circle class="mood-anim-tear-l" cx="19" cy="27" r="1.5" fill="#F7A623" opacity="0"/><circle class="mood-anim-tear-r" cx="33" cy="27" r="1.5" fill="#F7A623" opacity="0"/></svg>
-                                </div>
-                                <div class="mood-lbl">Meh...</div>
-                            </div>
-                            <div class="mood-item" id="ob-mood-item-okay" style="--mood-color:#A0A0CC" onclick="Mood.selectMood('okay','ob-mood')" role="radio" aria-checked="false" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' ')Mood.selectMood('okay','ob-mood')">
-                                <div class="mood-face-wrap" id="ob-mood-fw-okay">
-                                    <div class="mood-ring"></div>
-                                    <svg class="mood-face-svg" viewBox="0 0 52 52" fill="none" overflow="visible" aria-hidden="true"><circle cx="26" cy="26" r="23" fill="rgba(160,160,204,0.08)" stroke="#A0A0CC" stroke-width="1.5"/><ellipse cx="19" cy="23" rx="2.2" ry="2.2" fill="#A0A0CC"/><ellipse cx="33" cy="23" rx="2.2" ry="2.2" fill="#A0A0CC"/><path d="M19 30h14" stroke="#A0A0CC" stroke-width="2" stroke-linecap="round"/><path class="mood-anim-arm-l" d="M10 30 Q8 26 12 24" stroke="#A0A0CC" stroke-width="1.8" stroke-linecap="round" opacity="0"/><path class="mood-anim-arm-r" d="M42 30 Q44 26 40 24" stroke="#A0A0CC" stroke-width="1.8" stroke-linecap="round" opacity="0"/></svg>
-                                </div>
-                                <div class="mood-lbl">Could be worse</div>
-                            </div>
-                            <div class="mood-item" id="ob-mood-item-good" style="--mood-color:#12D48A" onclick="Mood.selectMood('good','ob-mood')" role="radio" aria-checked="false" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' ')Mood.selectMood('good','ob-mood')">
-                                <div class="mood-face-wrap" id="ob-mood-fw-good">
-                                    <div class="mood-ring"></div>
-                                    <svg class="mood-face-svg" viewBox="0 0 52 52" fill="none" overflow="visible" aria-hidden="true"><circle cx="26" cy="26" r="23" fill="rgba(18,212,138,0.09)" stroke="#12D48A" stroke-width="1.5"/><ellipse cx="19" cy="23" rx="2.2" ry="2.2" fill="#12D48A"/><ellipse cx="33" cy="23" rx="2.2" ry="2.2" fill="#12D48A"/><path d="M18 29c1.8 3 14.2 3 16 0" stroke="#12D48A" stroke-width="2.2" stroke-linecap="round"/><ellipse class="mood-anim-cheek-l" cx="14" cy="28" rx="3.5" ry="2" fill="#12D48A" opacity=".2"/><ellipse class="mood-anim-cheek-r" cx="38" cy="28" rx="3.5" ry="2" fill="#12D48A" opacity=".2"/></svg>
-                                </div>
-                                <div class="mood-lbl">Doing well</div>
-                            </div>
-                            <div class="mood-item" id="ob-mood-item-great" style="--mood-color:#9B95FF" onclick="Mood.selectMood('great','ob-mood')" role="radio" aria-checked="false" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' ')Mood.selectMood('great','ob-mood')">
-                                <div class="mood-face-wrap" id="ob-mood-fw-great">
-                                    <div class="mood-ring"></div>
-                                    <svg class="mood-face-svg" viewBox="0 0 52 52" fill="none" overflow="visible" aria-hidden="true"><g class="mood-anim-sparks" style="opacity:0"><circle cx="5" cy="10" r="2" fill="#9B95FF" style="--sx:-8px;--sy:-10px"/><circle cx="47" cy="10" r="2" fill="#9B95FF" style="--sx:8px;--sy:-10px"/><circle cx="3" cy="28" r="1.5" fill="#05C8E8" style="--sx:-10px;--sy:0px"/><circle cx="49" cy="28" r="1.5" fill="#05C8E8" style="--sx:10px;--sy:0px"/><circle cx="10" cy="5" r="1.5" fill="#9B95FF" style="--sx:-5px;--sy:-12px"/><circle cx="42" cy="5" r="1.5" fill="#9B95FF" style="--sx:5px;--sy:-12px"/></g><circle cx="26" cy="26" r="23" fill="rgba(155,149,255,0.13)" stroke="#9B95FF" stroke-width="1.5"/><ellipse cx="19" cy="22" rx="2.5" ry="2.5" fill="#9B95FF"/><ellipse cx="33" cy="22" rx="2.5" ry="2.5" fill="#9B95FF"/><path d="M16 28c2 5 18 5 20 0" stroke="#9B95FF" stroke-width="2.5" stroke-linecap="round"/><path d="M16 28c2 5 18 5 20 0" fill="rgba(155,149,255,.15)"/><ellipse cx="13" cy="29" rx="4" ry="2.2" fill="#9B95FF" opacity=".2"/><ellipse cx="39" cy="29" rx="4" ry="2.2" fill="#9B95FF" opacity=".2"/></svg>
-                                </div>
-                                <div class="mood-lbl">Loving it!</div>
-                            </div>
+                <div class="ob-goal-card" id="ob-gc-light"
+                     role="radio" aria-checked="false" tabindex="0"
+                     onclick="obGoalSelect('light',180)"
+                     onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();obGoalSelect('light',180);}">
+                    <div class="ob-goal-card-main">
+                        <span class="ob-goal-emoji" aria-hidden="true">🌱</span>
+                        <div class="ob-goal-info">
+                            <div class="ob-goal-name">Light <span class="ob-goal-range">2–3 hrs</span></div>
+                            <div class="ob-goal-ctx">Well below global average · ambitious</div>
                         </div>
+                        <div class="ob-goal-radio" aria-hidden="true"><div class="ob-goal-radio-dot"></div></div>
                     </div>
-                </div><!-- /ob-mood-section -->
-
-                <!-- Name input -->
-                <div class="ob-name-wrap">
-                    <input type="text" class="ob-name-input" id="ob-name-input"
-                           placeholder="Your first name"
-                           maxlength="30"
-                           autocomplete="given-name"
-                           inputmode="text"
-                           oninput="obUpdateNamePreview(this.value)"
-                           aria-label="First name, optional"/>
-                </div>
-
-                <!-- Coach preview -->
-                <div class="ob-coach-preview" role="region" aria-label="Coach greeting preview" aria-live="polite">
-                    <div class="ob-coach-preview-hd">
-                        <div class="ob-coach-av" aria-hidden="true">
-                            <svg width="28" height="28" viewBox="0 0 108 108" fill="none" overflow="visible">
-                                <defs>
-                                    <linearGradient id="obAvGold" x1="28" y1="20" x2="80" y2="90" gradientUnits="userSpaceOnUse">
-                                        <stop offset="0%" stop-color="#FFE082"/>
-                                        <stop offset="55%" stop-color="#FFAA44"/>
-                                        <stop offset="100%" stop-color="#FF7020"/>
-                                    </linearGradient>
-                                </defs>
-                                <path d="M 22 88 C 22 88 30 30 54 20 C 78 30 86 88 86 88" stroke="url(#obAvGold)" stroke-width="9" fill="none" stroke-linecap="round"/>
-                                <circle cx="54" cy="20" r="6" fill="#FFE082"/>
-                            </svg>
-                        </div>
-                        <div>
-                            <div class="ob-coach-preview-name">Aurelo Coach</div>
-                            <div class="ob-coach-preview-tag">Preview</div>
-                        </div>
-                    </div>
-                    <p class="ob-coach-preview-txt" id="ob-coach-preview-txt">
-                        <span class="ob-placeholder">Type your name to see how Coach greets you</span>
-                    </p>
-                </div>
-
-            </div>
-        </div><!-- /ob-step-body -->
-
-        <div class="ob-step-foot">
-            <div class="ob-dots" aria-label="Step 3 of 6">
-                <div class="ob-dot" aria-hidden="true"></div>
-                <div class="ob-dot" aria-hidden="true"></div>
-                <div class="ob-dot on" aria-hidden="true"></div>
-                <div class="ob-dot" aria-hidden="true"></div>
-                <div class="ob-dot" aria-hidden="true"></div>
-                <div class="ob-dot" aria-hidden="true"></div>
-            </div>
-            <button class="ob-btn" id="ob2-next-btn" onclick="obSaveNameAndNext()">
-                Continue
-            </button>
-            <button class="ob-skip" onclick="obNext()">Skip — add name in Settings later</button>
-        </div>
-    </div><!-- /ob2 -->
-
-
-    <!-- ── Step 3 : Permission ────────────────────────────── -->
-    <div class="ob-step" id="ob3" aria-label="Grant screen time access">
-
-        <!-- Back button -->
-        <button class="ob-back-btn" onclick="obBack()" aria-label="Go back">
-            <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
-        </button>
-
-        <div class="ob-step-body">
-            <div class="ob-step-head">
-                <div class="ob-step-mono">3 / 4</div>
-                <div class="ob-title">Unlock your<br><span class="grad">screen time data</span></div>
-            </div>
-
-            <div class="ob-content-wrapper">
-                <!-- Value checklist -->
-                <div class="ob-value-list" role="list" aria-label="What you unlock">
-                    <div class="ob-value-item" role="listitem">
-                        <div class="ob-value-check" aria-hidden="true">✓</div>
-                        <div class="ob-value-txt">Real-time screen time tracking</div>
-                    </div>
-                    <div class="ob-value-item" role="listitem">
-                        <div class="ob-value-check" aria-hidden="true">✓</div>
-                        <div class="ob-value-txt">Daily Aurelo Score calculation</div>
-                    </div>
-                    <div class="ob-value-item" role="listitem">
-                        <div class="ob-value-check" aria-hidden="true">✓</div>
-                        <div class="ob-value-txt">Streak tracking &amp; Coach insights</div>
-                    </div>
-                </div>
-
-                <!-- Blurred preview — dissolves when permission granted -->
-                <div class="ob-perm-preview" aria-hidden="true">
-                    <div class="ob-perm-blur-content">
-                        <div class="ob-perm-stat-row">
-                            <div class="ob-perm-stat" style="color:var(--g)">
-                                <div class="ob-perm-stat-val">2h 14m</div>
-                                <div class="ob-perm-stat-lbl">TODAY</div>
-                            </div>
-                            <div class="ob-perm-stat" style="color:var(--a)">
-                                <div class="ob-perm-stat-val">18</div>
-                                <div class="ob-perm-stat-lbl">PICKUPS</div>
-                            </div>
-                            <div class="ob-perm-stat" style="color:var(--p)">
-                                <div class="ob-perm-stat-val">5🔥</div>
-                                <div class="ob-perm-stat-lbl">STREAK</div>
-                            </div>
-                        </div>
-                        <div class="ob-perm-bar-row">
-                            <div class="ob-perm-bar" style="height:32px;background:rgba(240,78,122,.4)"></div>
-                            <div class="ob-perm-bar" style="height:20px;background:rgba(108,99,255,.4)"></div>
-                            <div class="ob-perm-bar" style="height:40px;background:rgba(5,200,232,.4)"></div>
-                            <div class="ob-perm-bar" style="height:26px;background:rgba(18,212,138,.4)"></div>
-                            <div class="ob-perm-bar" style="height:16px;background:rgba(247,166,35,.4)"></div>
-                        </div>
-                    </div>
-                    <!-- Lock overlay — hidden by JS on grant -->
-                    <div class="ob-perm-overlay">
-                        <div class="ob-perm-lock" aria-hidden="true">🔒</div>
-                        <div class="ob-perm-lock-txt">Grant access to reveal your data</div>
-                    </div>
-                    <!-- Green flash on reveal -->
-                    <div class="ob-perm-flash" aria-hidden="true"></div>
-                </div>
-
-                <!-- Grant card -->
-                <div class="ob-perm-card" id="ob-perm-usage"
-                     onclick="obGrantUsage()" role="button" tabindex="0"
-                     onkeydown="if(event.key==='Enter'||event.key===' ')obGrantUsage()"
-                     aria-label="Tap to grant Usage Access">
-                    <span class="ob-perm-card-icon" aria-hidden="true">📊</span>
-                    <div class="ob-perm-card-body">
-                        <div class="ob-perm-card-title">Usage Access</div>
-                        <div class="ob-perm-card-sub">Required for screen time tracking</div>
-                    </div>
-                    <div id="ob-usage-badge" class="ob-usage-badge ob-usage-badge--pending">Tap to grant</div>
-                </div>
-
-                <!-- Privacy pills -->
-                <div class="ob-pills" role="list" aria-label="Privacy guarantees">
-                    <div class="ob-pill" role="listitem">📱 On-device only</div>
-                    <div class="ob-pill" role="listitem">🚫 No account</div>
-                    <div class="ob-pill" role="listitem">🔒 Never shared</div>
-                </div>
-            </div>
-        </div><!-- /ob-step-body -->
-
-        <div class="ob-step-foot">
-            <div class="ob-dots" aria-label="Step 4 of 6">
-                <div class="ob-dot" aria-hidden="true"></div>
-                <div class="ob-dot" aria-hidden="true"></div>
-                <div class="ob-dot" aria-hidden="true"></div>
-                <div class="ob-dot on" aria-hidden="true"></div>
-                <div class="ob-dot" aria-hidden="true"></div>
-                <div class="ob-dot" aria-hidden="true"></div>
-            </div>
-            <button class="ob-btn" id="ob3-grant-btn" onclick="obHandlePermStep()">
-                Grant &amp; unlock my data
-            </button>
-            <button class="ob-skip" onclick="finishOb()">Skip — screen time tracking won't work</button>
-            <p class="ob-tc-line">
-                By continuing you agree to our
-                <a class="ob-tc-link" href="#" onclick="AppBridge&&AppBridge.openUrl('https://sites.google.com/view/tidyapp-terms-and-conditions');return false;">Terms</a>
-                &amp;
-                <a class="ob-tc-link" href="#" onclick="AppBridge&&AppBridge.openUrl('https://sites.google.com/view/tidyapp-privacy-policy');return false;">Privacy Policy</a>
-            </p>
-        </div>
-    </div><!-- /ob3 -->
-
-
-    <!-- ── Step 4 : Scan ──────────────────────────────────── -->
-    <div class="ob-step" id="ob4" aria-label="Scanning your apps">
-        <div class="ob-step-body">
-
-            <div class="ob-step-head">
-                <div class="ob-step-mono">4 / 4</div>
-                <div class="ob-title">Reading your<br><span class="grad">apps…</span></div>
-                <p class="ob-scan-count" id="ob-scan-count" aria-live="polite">Scanning installed apps</p>
-            </div>
-
-            <div class="scan-bar" role="progressbar" aria-label="Scan progress"
-                 aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
-                <div class="scan-fill" id="ob-scan-fill"></div>
-            </div>
-            <div class="scan-txt" id="ob-scan-txt" aria-live="polite">Starting…</div>
-
-            <div class="scan-rows" id="ob-scan-rows" role="list" aria-label="Discovered app categories"></div>
-
-        </div><!-- /ob-step-body -->
-
-        <div class="ob-step-foot ob-step-foot--scan">
-            <div class="ob-dots" aria-label="Step 5 of 6">
-                <div class="ob-dot" aria-hidden="true"></div>
-                <div class="ob-dot" aria-hidden="true"></div>
-                <div class="ob-dot" aria-hidden="true"></div>
-                <div class="ob-dot" aria-hidden="true"></div>
-                <div class="ob-dot on" aria-hidden="true"></div>
-                <div class="ob-dot" aria-hidden="true"></div>
-            </div>
-            <button class="ob-btn" id="ob4-done-btn" onclick="obNext()"
-                    style="display:none" aria-label="See your starting score">
-                See your starting score →
-            </button>
-        </div>
-    </div><!-- /ob4 -->
-
-
-    <!-- ── Step 5 : Score Reveal ──────────────────────────── -->
-    <div class="ob-step" id="ob5" aria-label="Your Aurelo Score baseline">
-        <div class="ob-step-body">
-
-            <!-- Celebration header -->
-            <div class="ob-reveal-celebration" role="status">
-                <div class="ob-reveal-emoji">🎉</div>
-                <div class="ob-reveal-title" id="ob-reveal-title">You're all set.</div>
-                <div class="ob-reveal-sub">Here's where you stand on Day 1.</div>
-            </div>
-
-            <div class="ob-content-wrapper">
-
-                <!-- Score card -->
-                <div class="ob-score-card" role="region" aria-label="Your day-one Aurelo Score baseline">
-                    <div class="ob-score-card-eyebrow">YOUR AURELO SCORE · DAY 1</div>
-
-                    <!-- Arc wrapped for glow effect -->
-                    <div class="ob-arc-wrap">
-                        <svg class="ob-reveal-arc" width="160" height="90" viewBox="0 0 160 90"
-                             aria-label="Score arc, building from day one" role="img">
-                            <path d="M12,82 A58,58 0 0,1 148,82"
-                                  fill="none" stroke="var(--s3)" stroke-width="8" stroke-linecap="round"/>
-                            <path id="ob-arc-fill" d="M12,82 A58,58 0 0,1 148,82"
-                                  fill="none" stroke="url(#obArcGrad)" stroke-width="8"
-                                  stroke-linecap="round" stroke-dasharray="182" stroke-dashoffset="182"/>
-                            <defs>
-                                <linearGradient id="obArcGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-                                    <stop offset="0%" stop-color="var(--p)"/>
-                                    <stop offset="100%" stop-color="var(--c)"/>
-                                </linearGradient>
-                            </defs>
+                    <div class="ob-arc-preview" id="ob-arc-light" aria-hidden="true">
+                        <svg width="52" height="28" viewBox="0 0 52 28">
+                            <path d="M4,26 A21,21 0 0,1 48,26" fill="none" stroke="var(--s3)" stroke-width="4.5" stroke-linecap="round"/>
+                            <path d="M4,26 A21,21 0 0,1 48,26" fill="none" stroke="var(--p)" stroke-width="4.5" stroke-linecap="round" stroke-dasharray="66" stroke-dashoffset="40"/>
                         </svg>
-                        <!-- Glow pulse ring (activated by JS) -->
-                        <div class="ob-arc-glow-ring" id="ob-arc-glow-ring" aria-hidden="true"></div>
+                        <div class="ob-arc-label">
+                            <div class="ob-arc-label-val">Goal: 2–3 hrs · 180 min/day</div>
+                            <div class="ob-arc-label-sub">Your Home arc at this limit</div>
+                        </div>
                     </div>
+                    <div class="ob-goal-social">22% of Aurelo users chose this — you're aiming high.</div>
+                </div>
 
-                    <div class="ob-score-dash" id="ob-score-num">—</div>
-                    <!-- Grade badge (populated + animated by JS) -->
-                    <div id="ob-grade-badge" aria-live="polite"></div>
-                    <div class="ob-score-baseline" id="ob-score-baseline-txt">
-                        Screen Score · builds as you use Aurelo
+                <div class="ob-goal-card ob-goal-has-badge" id="ob-gc-balanced"
+                     role="radio" aria-checked="false" tabindex="0"
+                     onclick="obGoalSelect('balanced',240)"
+                     onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();obGoalSelect('balanced',240);}">
+                    <div class="ob-pop-badge" aria-label="Popular choice">POPULAR</div>
+                    <div class="ob-goal-card-main">
+                        <span class="ob-goal-emoji" aria-hidden="true">⚡</span>
+                        <div class="ob-goal-info">
+                            <div class="ob-goal-name">Balanced <span class="ob-goal-range">3–4 hrs</span></div>
+                            <div class="ob-goal-ctx">Around global average · achievable</div>
+                        </div>
+                        <div class="ob-goal-radio" aria-hidden="true"><div class="ob-goal-radio-dot"></div></div>
                     </div>
+                    <div class="ob-arc-preview" id="ob-arc-balanced" aria-hidden="true">
+                        <svg width="52" height="28" viewBox="0 0 52 28">
+                            <path d="M4,26 A21,21 0 0,1 48,26" fill="none" stroke="var(--s3)" stroke-width="4.5" stroke-linecap="round"/>
+                            <path d="M4,26 A21,21 0 0,1 48,26" fill="none" stroke="var(--p)" stroke-width="4.5" stroke-linecap="round" stroke-dasharray="66" stroke-dashoffset="24"/>
+                        </svg>
+                        <div class="ob-arc-label">
+                            <div class="ob-arc-label-val">Goal: 3–4 hrs · 240 min/day</div>
+                            <div class="ob-arc-label-sub">Your Home arc at this limit</div>
+                        </div>
+                    </div>
+                    <div class="ob-goal-social">57% of users chose Balanced — and 68% hit it within two weeks.</div>
+                </div>
 
-                    <div class="ob-pillar-row" role="list" aria-label="Score pillars">
-                        <div class="ob-pillar-tile" role="listitem" style="--ptc:var(--c)">
-                            <div class="ob-pillar-val" aria-hidden="true">📱</div>
-                            <div class="ob-pillar-name">Screen</div>
-                            <div class="ob-pillar-sub">tracking</div>
+                <div class="ob-goal-card" id="ob-gc-heavy"
+                     role="radio" aria-checked="false" tabindex="0"
+                     onclick="obGoalSelect('heavy',300)"
+                     onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();obGoalSelect('heavy',300);}">
+                    <div class="ob-goal-card-main">
+                        <span class="ob-goal-emoji" aria-hidden="true">📱</span>
+                        <div class="ob-goal-info">
+                            <div class="ob-goal-name">Heavy user <span class="ob-goal-range">4–5 hrs</span></div>
+                            <div class="ob-goal-ctx">Honest first step · build from here</div>
                         </div>
-                        <div class="ob-pillar-tile" role="listitem" style="--ptc:var(--g)">
-                            <div class="ob-pillar-val" aria-hidden="true">🎯</div>
-                            <div class="ob-pillar-name">Pickups</div>
-                            <div class="ob-pillar-sub">Today</div>
+                        <div class="ob-goal-radio" aria-hidden="true"><div class="ob-goal-radio-dot"></div></div>
+                    </div>
+                    <div class="ob-arc-preview" id="ob-arc-heavy" aria-hidden="true">
+                        <svg width="52" height="28" viewBox="0 0 52 28">
+                            <path d="M4,26 A21,21 0 0,1 48,26" fill="none" stroke="var(--s3)" stroke-width="4.5" stroke-linecap="round"/>
+                            <path d="M4,26 A21,21 0 0,1 48,26" fill="none" stroke="var(--p)" stroke-width="4.5" stroke-linecap="round" stroke-dasharray="66" stroke-dashoffset="10"/>
+                        </svg>
+                        <div class="ob-arc-label">
+                            <div class="ob-arc-label-val">Goal: 4–5 hrs · 300 min/day</div>
+                            <div class="ob-arc-label-sub">Your Home arc at this limit</div>
                         </div>
-                        <div class="ob-pillar-tile" role="listitem" style="--ptc:var(--a)">
-                            <div class="ob-pillar-val" aria-hidden="true">📱</div>
-                            <div class="ob-pillar-name">Top App</div>
-                            <div class="ob-pillar-sub">Today</div>
-                        </div>
+                    </div>
+                    <div class="ob-goal-social">Honest start beats an unachievable one. Easy to adjust later.</div>
+                </div>
+
+            </div><p class="ob-ctx-note">Global daily average: 4h 40m · You're aiming for better</p>
+        </div>
+    </div><div class="ob-step-foot">
+    <div class="ob-dots" aria-label="Step 2 of 6">
+        <div class="ob-dot" aria-hidden="true"></div>
+        <div class="ob-dot on" aria-hidden="true"></div>
+        <div class="ob-dot" aria-hidden="true"></div>
+        <div class="ob-dot" aria-hidden="true"></div>
+        <div class="ob-dot" aria-hidden="true"></div>
+        <div class="ob-dot" aria-hidden="true"></div>
+    </div>
+    <button class="ob-btn ob-btn--disabled" id="ob1-next-btn"
+            onclick="obGoalNext()" disabled aria-disabled="true">
+        Choose your limit
+    </button>
+</div>
+</div><div class="ob-step" id="ob2" aria-label="Your name — optional">
+
+    <button class="ob-back-btn" onclick="obBack()" aria-label="Go back">
+        <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+    </button>
+
+    <div class="ob-step-body">
+        <div class="ob-step-head">
+            <div class="ob-step-mono">2 / 4</div>
+            <div class="ob-title">What should<br>Aurelo call you?</div>
+            <p class="ob-body">Your Coach greets you by name. Totally optional.</p>
+        </div>
+
+        <div class="ob-content-wrapper">
+
+            <div class="ob-mood-section" aria-live="polite" id="ob-mood-card" style="transition: --c1 0.3s, --c2 0.3s, --cr 0.3s;">
+                <div class="ob-mood-section-label">How are you feeling right now?</div>
+                <div class="ob-mood-purpose">Aurelo Coach adapts its tone to match your headspace.</div>
+
+                <div class="mood-big" style="min-height:90px; margin-bottom:15px;">
+                    <div class="mood-big-face" id="ob-big-face">😐</div>
+                    <div class="mood-big-label" id="ob-big-label">Okay</div>
+                    <div class="mood-big-sub" id="ob-big-sub">Tap a mood to continue</div>
+                </div>
+
+                <div class="mood-row" id="ob-mood-row" role="group" aria-label="Select your mood">
+                    <div class="mood-node" id="ob-item-awful" onclick="Mood.selectMood('awful','ob')">
+                        <div class="mood-node-emoji">😞</div><div class="mood-node-lbl">Rough</div>
+                    </div>
+                    <div class="mood-node" id="ob-item-low" onclick="Mood.selectMood('low','ob')">
+                        <div class="mood-node-emoji">😕</div><div class="mood-node-lbl">Low</div>
+                    </div>
+                    <div class="mood-node" id="ob-item-okay" onclick="Mood.selectMood('okay','ob')">
+                        <div class="mood-node-emoji">😐</div><div class="mood-node-lbl">Okay</div>
+                    </div>
+                    <div class="mood-node" id="ob-item-good" onclick="Mood.selectMood('good','ob')">
+                        <div class="mood-node-emoji">🙂</div><div class="mood-node-lbl">Good</div>
+                    </div>
+                    <div class="mood-node" id="ob-item-great" onclick="Mood.selectMood('great','ob')">
+                        <div class="mood-node-emoji">🤩</div><div class="mood-node-lbl">Great</div>
                     </div>
                 </div>
 
-                <!-- Receipt summary — replaces ob-next-strip -->
-                <div class="ob-receipt" role="region" aria-label="What Aurelo set up for you">
-                    <div class="ob-receipt-header">WHAT WE SET UP</div>
-                    <div class="ob-receipt-row">
-                        <span class="ob-receipt-icon">🎯</span>
-                        <span class="ob-receipt-label" id="ob-receipt-goal">Daily limit saved</span>
-                        <span class="ob-receipt-status">✓ ready</span>
-                    </div>
-                    <div class="ob-receipt-row">
-                        <span class="ob-receipt-icon">📱</span>
-                        <span class="ob-receipt-label" id="ob-receipt-apps">Apps scanned</span>
-                        <span class="ob-receipt-status">✓ done</span>
-                    </div>
-                    <div class="ob-receipt-row">
-                        <span class="ob-receipt-icon">🤖</span>
-                        <span class="ob-receipt-label">Coach insight</span>
-                        <span class="ob-receipt-status">⏳ 8am tomorrow</span>
-                    </div>
+                <div class="mood-tags-wrap" id="ob-tags-wrap-cont" style="max-height:0; opacity:0; overflow:hidden; transition: max-height .35s ease, opacity .25s ease;">
+                    <div class="mood-section-lbl" style="font-family:var(--ff-m); font-size:10px; font-weight:var(--fw-bold); letter-spacing:.08em; text-transform:uppercase; color:var(--t3); margin-bottom:10px;">What shaped today?</div>
+                    <div class="mood-tags" id="ob-tags"></div>
                 </div>
+            </div><div class="ob-name-wrap">
+            <input type="text" class="ob-name-input" id="ob-name-input"
+                   placeholder="Your first name"
+                   maxlength="30"
+                   autocomplete="given-name"
+                   inputmode="text"
+                   oninput="obUpdateNamePreview(this.value)"
+                   aria-label="First name, optional"/>
+        </div>
 
-                <!-- Coach nudge -->
-                <div class="ob-coach-nudge" role="region" aria-label="Aurelo Coach introduction">
-                    <div class="ob-coach-nudge-av" aria-hidden="true">
+            <div class="ob-coach-preview" role="region" aria-label="Coach greeting preview" aria-live="polite">
+                <div class="ob-coach-preview-hd">
+                    <div class="ob-coach-av" aria-hidden="true">
                         <svg width="28" height="28" viewBox="0 0 108 108" fill="none" overflow="visible">
                             <defs>
-                                <linearGradient id="obNudgeGold" x1="28" y1="20" x2="80" y2="90" gradientUnits="userSpaceOnUse">
+                                <linearGradient id="obAvGold" x1="28" y1="20" x2="80" y2="90" gradientUnits="userSpaceOnUse">
                                     <stop offset="0%" stop-color="#FFE082"/>
                                     <stop offset="55%" stop-color="#FFAA44"/>
                                     <stop offset="100%" stop-color="#FF7020"/>
                                 </linearGradient>
                             </defs>
-                            <path d="M 22 88 C 22 88 30 30 54 20 C 78 30 86 88 86 88" stroke="url(#obNudgeGold)" stroke-width="9" fill="none" stroke-linecap="round"/>
+                            <path d="M 22 88 C 22 88 30 30 54 20 C 78 30 86 88 86 88" stroke="url(#obAvGold)" stroke-width="9" fill="none" stroke-linecap="round"/>
                             <circle cx="54" cy="20" r="6" fill="#FFE082"/>
                         </svg>
                     </div>
-                    <div class="ob-coach-nudge-body">
-                        <div class="ob-coach-nudge-hd">
-                            Aurelo Coach
-                            <span class="ob-pro-badge" aria-label="Pro feature">PRO</span>
-                        </div>
-                        <p class="ob-coach-nudge-txt" id="ob-coach-nudge-txt">
-                            Your first personalised insight will be ready tomorrow morning.
-                        </p>
+                    <div>
+                        <div class="ob-coach-preview-name">Aurelo Coach</div>
+                        <div class="ob-coach-preview-tag">Preview</div>
                     </div>
                 </div>
-
+                <p class="ob-coach-preview-txt" id="ob-coach-preview-txt">
+                    <span class="ob-placeholder">Type your name to see how Coach greets you</span>
+                </p>
             </div>
-        </div><!-- /ob-step-body -->
 
-        <div class="ob-step-foot">
-            <div class="ob-dots" aria-label="Step 6 of 6, final step">
-                <div class="ob-dot" aria-hidden="true"></div>
-                <div class="ob-dot" aria-hidden="true"></div>
-                <div class="ob-dot" aria-hidden="true"></div>
-                <div class="ob-dot" aria-hidden="true"></div>
-                <div class="ob-dot" aria-hidden="true"></div>
-                <div class="ob-dot on" aria-hidden="true"></div>
-            </div>
-            <button class="ob-btn" onclick="finishOb()">
-                Start building my score →
-            </button>
         </div>
-    </div><!-- /ob5 -->
+    </div><div class="ob-step-foot">
+    <div class="ob-dots" aria-label="Step 3 of 6">
+        <div class="ob-dot" aria-hidden="true"></div>
+        <div class="ob-dot" aria-hidden="true"></div>
+        <div class="ob-dot on" aria-hidden="true"></div>
+        <div class="ob-dot" aria-hidden="true"></div>
+        <div class="ob-dot" aria-hidden="true"></div>
+        <div class="ob-dot" aria-hidden="true"></div>
+    </div>
+    <button class="ob-btn" id="ob2-next-btn" onclick="obSaveNameAndNext()">
+        Continue
+    </button>
+    <button class="ob-skip" onclick="obNext()">Skip — add name in Settings later</button>
+</div>
+</div><div class="ob-step" id="ob3" aria-label="Grant screen time access">
 
-</div><!-- /ob-screen -->
+    <button class="ob-back-btn" onclick="obBack()" aria-label="Go back">
+        <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+    </button>
+
+    <div class="ob-step-body">
+        <div class="ob-step-head">
+            <div class="ob-step-mono">3 / 4</div>
+            <div class="ob-title">Unlock your<br><span class="grad">screen time data</span></div>
+        </div>
+
+        <div class="ob-content-wrapper">
+            <div class="ob-value-list" role="list" aria-label="What you unlock">
+                <div class="ob-value-item" role="listitem">
+                    <div class="ob-value-check" aria-hidden="true">✓</div>
+                    <div class="ob-value-txt">Real-time screen time tracking</div>
+                </div>
+                <div class="ob-value-item" role="listitem">
+                    <div class="ob-value-check" aria-hidden="true">✓</div>
+                    <div class="ob-value-txt">Daily Aurelo Score calculation</div>
+                </div>
+                <div class="ob-value-item" role="listitem">
+                    <div class="ob-value-check" aria-hidden="true">✓</div>
+                    <div class="ob-value-txt">Streak tracking &amp; Coach insights</div>
+                </div>
+            </div>
+
+            <div class="ob-perm-preview" aria-hidden="true">
+                <div class="ob-perm-blur-content">
+                    <div class="ob-perm-stat-row">
+                        <div class="ob-perm-stat" style="color:var(--g)">
+                            <div class="ob-perm-stat-val">2h 14m</div>
+                            <div class="ob-perm-stat-lbl">TODAY</div>
+                        </div>
+                        <div class="ob-perm-stat" style="color:var(--a)">
+                            <div class="ob-perm-stat-val">18</div>
+                            <div class="ob-perm-stat-lbl">PICKUPS</div>
+                        </div>
+                        <div class="ob-perm-stat" style="color:var(--p)">
+                            <div class="ob-perm-stat-val">5🔥</div>
+                            <div class="ob-perm-stat-lbl">STREAK</div>
+                        </div>
+                    </div>
+                    <div class="ob-perm-bar-row">
+                        <div class="ob-perm-bar" style="height:32px;background:rgba(240,78,122,.4)"></div>
+                        <div class="ob-perm-bar" style="height:20px;background:rgba(108,99,255,.4)"></div>
+                        <div class="ob-perm-bar" style="height:40px;background:rgba(5,200,232,.4)"></div>
+                        <div class="ob-perm-bar" style="height:26px;background:rgba(18,212,138,.4)"></div>
+                        <div class="ob-perm-bar" style="height:16px;background:rgba(247,166,35,.4)"></div>
+                    </div>
+                </div>
+                <div class="ob-perm-overlay">
+                    <div class="ob-perm-lock" aria-hidden="true">🔒</div>
+                    <div class="ob-perm-lock-txt">Grant access to reveal your data</div>
+                </div>
+                <div class="ob-perm-flash" aria-hidden="true"></div>
+            </div>
+
+            <div class="ob-perm-card" id="ob-perm-usage"
+                 onclick="obGrantUsage()" role="button" tabindex="0"
+                 onkeydown="if(event.key==='Enter'||event.key===' ')obGrantUsage()"
+                 aria-label="Tap to grant Usage Access">
+                <span class="ob-perm-card-icon" aria-hidden="true">📊</span>
+                <div class="ob-perm-card-body">
+                    <div class="ob-perm-card-title">Usage Access</div>
+                    <div class="ob-perm-card-sub">Required for screen time tracking</div>
+                </div>
+                <div id="ob-usage-badge" class="ob-usage-badge ob-usage-badge--pending">Tap to grant</div>
+            </div>
+
+            <div class="ob-pills" role="list" aria-label="Privacy guarantees">
+                <div class="ob-pill" role="listitem">📱 On-device only</div>
+                <div class="ob-pill" role="listitem">🚫 No account</div>
+                <div class="ob-pill" role="listitem">🔒 Never shared</div>
+            </div>
+        </div>
+    </div><div class="ob-step-foot">
+    <div class="ob-dots" aria-label="Step 4 of 6">
+        <div class="ob-dot" aria-hidden="true"></div>
+        <div class="ob-dot" aria-hidden="true"></div>
+        <div class="ob-dot" aria-hidden="true"></div>
+        <div class="ob-dot on" aria-hidden="true"></div>
+        <div class="ob-dot" aria-hidden="true"></div>
+        <div class="ob-dot" aria-hidden="true"></div>
+    </div>
+    <button class="ob-btn" id="ob3-grant-btn" onclick="obHandlePermStep()">
+        Grant &amp; unlock my data
+    </button>
+    <button class="ob-skip" onclick="finishOb()">Skip — screen time tracking won't work</button>
+    <p class="ob-tc-line">
+        By continuing you agree to our
+        <a class="ob-tc-link" href="#" onclick="AppBridge&&AppBridge.openUrl('https://sites.google.com/view/tidyapp-terms-and-conditions');return false;">Terms</a>
+        &amp;
+        <a class="ob-tc-link" href="#" onclick="AppBridge&&AppBridge.openUrl('https://sites.google.com/view/tidyapp-privacy-policy');return false;">Privacy Policy</a>
+    </p>
+</div>
+</div><div class="ob-step" id="ob4" aria-label="Scanning your apps">
+    <div class="ob-step-body">
+
+        <div class="ob-step-head">
+            <div class="ob-step-mono">4 / 4</div>
+            <div class="ob-title">Reading your<br><span class="grad">apps…</span></div>
+            <p class="ob-scan-count" id="ob-scan-count" aria-live="polite">Scanning installed apps</p>
+        </div>
+
+        <div class="scan-bar" role="progressbar" aria-label="Scan progress"
+             aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+            <div class="scan-fill" id="ob-scan-fill"></div>
+        </div>
+        <div class="scan-txt" id="ob-scan-txt" aria-live="polite">Starting…</div>
+
+        <div class="scan-rows" id="ob-scan-rows" role="list" aria-label="Discovered app categories"></div>
+
+    </div><div class="ob-step-foot ob-step-foot--scan">
+    <div class="ob-dots" aria-label="Step 5 of 6">
+        <div class="ob-dot" aria-hidden="true"></div>
+        <div class="ob-dot" aria-hidden="true"></div>
+        <div class="ob-dot" aria-hidden="true"></div>
+        <div class="ob-dot" aria-hidden="true"></div>
+        <div class="ob-dot on" aria-hidden="true"></div>
+        <div class="ob-dot" aria-hidden="true"></div>
+    </div>
+    <button class="ob-btn" id="ob4-done-btn" onclick="obNext()"
+            style="display:none" aria-label="See your starting score">
+        See your starting score →
+    </button>
+</div>
+</div><div class="ob-step" id="ob5" aria-label="Your Aurelo Score baseline">
+    <div class="ob-step-body">
+
+        <div class="ob-reveal-celebration" role="status">
+            <div class="ob-reveal-emoji">🎉</div>
+            <div class="ob-reveal-title" id="ob-reveal-title">You're all set.</div>
+            <div class="ob-reveal-sub">Here's where you stand on Day 1.</div>
+        </div>
+
+        <div class="ob-content-wrapper">
+
+            <div class="ob-score-card" role="region" aria-label="Your day-one Aurelo Score baseline">
+                <div class="ob-score-card-eyebrow">YOUR AURELO SCORE · DAY 1</div>
+
+                <div class="ob-arc-wrap">
+                    <svg class="ob-reveal-arc" width="160" height="90" viewBox="0 0 160 90"
+                         aria-label="Score arc, building from day one" role="img">
+                        <path d="M12,82 A58,58 0 0,1 148,82"
+                              fill="none" stroke="var(--s3)" stroke-width="8" stroke-linecap="round"/>
+                        <path id="ob-arc-fill" d="M12,82 A58,58 0 0,1 148,82"
+                              fill="none" stroke="url(#obArcGrad)" stroke-width="8"
+                              stroke-linecap="round" stroke-dasharray="182" stroke-dashoffset="182"/>
+                        <defs>
+                            <linearGradient id="obArcGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                                <stop offset="0%" stop-color="var(--p)"/>
+                                <stop offset="100%" stop-color="var(--c)"/>
+                            </linearGradient>
+                        </defs>
+                    </svg>
+                    <div class="ob-arc-glow-ring" id="ob-arc-glow-ring" aria-hidden="true"></div>
+                </div>
+
+                <div class="ob-score-dash" id="ob-score-num">—</div>
+                <div id="ob-grade-badge" aria-live="polite"></div>
+                <div class="ob-score-baseline" id="ob-score-baseline-txt">
+                    Screen Score · builds as you use Aurelo
+                </div>
+
+                <div class="ob-pillar-row" role="list" aria-label="Score pillars">
+                    <div class="ob-pillar-tile" role="listitem" style="--ptc:var(--c)">
+                        <div class="ob-pillar-val" aria-hidden="true">📱</div>
+                        <div class="ob-pillar-name">Screen</div>
+                        <div class="ob-pillar-sub">tracking</div>
+                    </div>
+                    <div class="ob-pillar-tile" role="listitem" style="--ptc:var(--g)">
+                        <div class="ob-pillar-val" aria-hidden="true">🎯</div>
+                        <div class="ob-pillar-name">Pickups</div>
+                        <div class="ob-pillar-sub">Today</div>
+                    </div>
+                    <div class="ob-pillar-tile" role="listitem" style="--ptc:var(--a)">
+                        <div class="ob-pillar-val" aria-hidden="true">📱</div>
+                        <div class="ob-pillar-name">Top App</div>
+                        <div class="ob-pillar-sub">Today</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="ob-receipt" role="region" aria-label="What Aurelo set up for you">
+                <div class="ob-receipt-header">WHAT WE SET UP</div>
+                <div class="ob-receipt-row">
+                    <span class="ob-receipt-icon">🎯</span>
+                    <span class="ob-receipt-label" id="ob-receipt-goal">Daily limit saved</span>
+                    <span class="ob-receipt-status">✓ ready</span>
+                </div>
+                <div class="ob-receipt-row">
+                    <span class="ob-receipt-icon">📱</span>
+                    <span class="ob-receipt-label" id="ob-receipt-apps">Apps scanned</span>
+                    <span class="ob-receipt-status">✓ done</span>
+                </div>
+                <div class="ob-receipt-row">
+                    <span class="ob-receipt-icon">🤖</span>
+                    <span class="ob-receipt-label">Coach insight</span>
+                    <span class="ob-receipt-status">⏳ 8am tomorrow</span>
+                </div>
+            </div>
+
+            <div class="ob-coach-nudge" role="region" aria-label="Aurelo Coach introduction">
+                <div class="ob-coach-nudge-av" aria-hidden="true">
+                    <svg width="28" height="28" viewBox="0 0 108 108" fill="none" overflow="visible">
+                        <defs>
+                            <linearGradient id="obNudgeGold" x1="28" y1="20" x2="80" y2="90" gradientUnits="userSpaceOnUse">
+                                <stop offset="0%" stop-color="#FFE082"/>
+                                <stop offset="55%" stop-color="#FFAA44"/>
+                                <stop offset="100%" stop-color="#FF7020"/>
+                            </linearGradient>
+                        </defs>
+                        <path d="M 22 88 C 22 88 30 30 54 20 C 78 30 86 88 86 88" stroke="url(#obNudgeGold)" stroke-width="9" fill="none" stroke-linecap="round"/>
+                        <circle cx="54" cy="20" r="6" fill="#FFE082"/>
+                    </svg>
+                </div>
+                <div class="ob-coach-nudge-body">
+                    <div class="ob-coach-nudge-hd">
+                        Aurelo Coach
+                        <span class="ob-pro-badge" aria-label="Pro feature">PRO</span>
+                    </div>
+                    <p class="ob-coach-nudge-txt" id="ob-coach-nudge-txt">
+                        Your first personalised insight will be ready tomorrow morning.
+                    </p>
+                </div>
+            </div>
+
+        </div>
+    </div><div class="ob-step-foot">
+    <div class="ob-dots" aria-label="Step 6 of 6, final step">
+        <div class="ob-dot" aria-hidden="true"></div>
+        <div class="ob-dot" aria-hidden="true"></div>
+        <div class="ob-dot" aria-hidden="true"></div>
+        <div class="ob-dot" aria-hidden="true"></div>
+        <div class="ob-dot" aria-hidden="true"></div>
+        <div class="ob-dot on" aria-hidden="true"></div>
+    </div>
+    <button class="ob-btn" onclick="finishOb()">
+        Start building my score →
+    </button>
+</div>
+</div></div>```
