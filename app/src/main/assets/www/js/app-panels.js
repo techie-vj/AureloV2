@@ -193,10 +193,68 @@ function toggleTempLock(pkg,name,row){
   _updatePanelSaveBtn('lock', tempLocked.size);
 }
 function saveLockedApps(){
+  // Overlay permission gate. Without "Display over other apps" the
+  // AppMonitorService can detect a locked-app foreground event but cannot
+  // actually render the lock screen — it falls back to a notification.
+  // That's a silently-broken state from the user's perspective. Mirror the
+  // pattern used by App Timers / Focus / Bedtime / Mindful Pause: prompt
+  // here, set a pending flag, and complete the save automatically when
+  // the user returns from the system settings page.
+  // Only prompt when the user is actually trying to lock apps — saving an
+  // empty list (i.e. clearing the lock list) doesn't need the permission.
+  if (tempLocked.size > 0 && IS_NATIVE &&
+      typeof N.hasOverlayPermission === 'function' && !N.hasOverlayPermission()) {
+    if (typeof showConfirm === 'function') {
+      showConfirm(
+        'Display Over Other Apps',
+        'App Lock needs this permission to show a lock screen when you open a locked app. Tap Grant, then return — your changes will save automatically.',
+        function () {
+          if (typeof N.requestOverlayPermission === 'function') N.requestOverlayPermission();
+          window._pendingLockSave = true;
+        },
+        'Grant Permission', 'Cancel'
+      );
+    } else if (typeof N.requestOverlayPermission === 'function') {
+      // Fallback when showConfirm is unavailable for some reason (e.g. early
+      // boot path). Route the user directly to the settings page.
+      N.requestOverlayPermission();
+      window._pendingLockSave = true;
+    }
+    return;
+  }
+  _doSaveLockedApps();
+}
+
+function _doSaveLockedApps(){
   S.lockedPkgs=[...tempLocked]; saveS();
   nCall('setLockedApps',JSON.stringify(S.lockedPkgs));
   updateLockedSub(); closePanel('lock-panel'); toast(`${S.lockedPkgs.length} apps locked`,'success');
 }
+
+// Track the pending-save flag and clean it up when the user returns from
+// the system overlay-settings page (regardless of whether they actually
+// granted the permission). The existing onAppResume chain in app-focus.js
+// fires window.onAppResume on every foreground resume; we just chain on
+// top of whatever's already registered.
+window._pendingLockSave = false;
+(function () {
+  var _prev = window.onAppResume;
+  window.onAppResume = function () {
+    if (typeof _prev === 'function') _prev();
+    if (window._pendingLockSave) {
+      window._pendingLockSave = false;
+      // Only complete the save if the user actually granted permission.
+      // If they declined, leave tempLocked intact so the panel stays open
+      // and the user can either re-grant or cancel.
+      if (IS_NATIVE && typeof N.hasOverlayPermission === 'function' &&
+          N.hasOverlayPermission()) {
+        _doSaveLockedApps();
+      } else if (typeof toast === 'function') {
+        toast('Permission not granted — apps were not locked', 'info', 3500);
+      }
+    }
+  };
+})();
 function updateLockedSub(){
   document.getElementById('locked-sub').textContent=S.lockedPkgs.length?`${S.lockedPkgs.length} app${S.lockedPkgs.length!==1?'s':''} locked`:'Tap to configure';
 }
