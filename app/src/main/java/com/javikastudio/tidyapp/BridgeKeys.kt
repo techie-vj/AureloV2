@@ -150,6 +150,11 @@ const val STREAK_GOAL_MINS = "streak_goal_mins"
 const val ONBOARDING_DONE  = "onboarding_done"
 const val IS_PRO_USER      = "is_pro_user"
 
+// Sound cues toggle — gates SoundEffects playback. Default ON.
+// Users who upgrade from a pre-cues build get sounds on first launch and
+// can disable in Settings → Usage Controls if unwanted.
+const val SOUND_CUES_ENABLED = "sound_cues_enabled"
+
 const val HC_CONNECTED = "hc_connected"
 
 const val SCREEN_FILTER_SETTINGS_V1       = "screen_filter_settings_v1"
@@ -157,35 +162,6 @@ const val SCREEN_FILTER_ACTIVE            = "screen_filter_active"
 // CB-017: snapshot of the user's manual filter state saved at wind-down/bedtime start;
 // restored when BEDTIME_OFF fires so the manual filter is exactly as the user left it.
 const val SCREEN_FILTER_PRE_BEDTIME_STATE = "screen_filter_pre_bedtime_state"
-
-// ── Quiet Hours ─────────────────────────────────────────────────────────────
-// Minimal "schedule DND" feature distinct from Bedtime Mode. Stored in plain
-// prefs (not securePrefs) — a time window is not sensitive and keeping it out
-// of EncryptedSharedPreferences avoids the rooted-device degradation path.
-// Schema (JSON):
-//   { "enabled": true, "startHour": 9, "startMin": 0,
-//     "endHour": 17, "endMin": 0,
-//     "days": [false,true,true,true,true,true,false] }   // Sun..Sat
-const val QUIET_HOURS_SETTINGS_V1   = "quiet_hours_settings_v1"
-const val QUIET_HOURS_ACTIVE        = "quiet_hours_active"
-const val QUIET_HOURS_STARTS_AT_MS  = "quiet_hours_starts_at_ms"
-const val QUIET_HOURS_ENDS_AT_MS    = "quiet_hours_ends_at_ms"
-// Snapshot of the system InterruptionFilter taken just before Quiet Hours
-// engaged DND, so we can restore the user's prior setting at end-of-window
-// instead of unconditionally clamping back to FILTER_ALL.
-const val QUIET_HOURS_PRE_DND_FILTER  = "quiet_hours_pre_dnd_filter"
-// Set when the user taps "End now" from the persistent notification so the
-// current window does not re-arm if the device wakes inside the same window.
-const val QUIET_HOURS_SKIPPED_TODAY = "quiet_hours_skipped_today_ymd"
-const val QUIET_HOURS_SNOOZE_UNTIL_TS = "quiet_hours_snooze_until_ts"
-
-// DND ownership token — written by whichever subsystem currently holds DND
-// (bedtime / quiet_hours / "" for none). Lets a releasing subsystem avoid
-// clobbering DND if another subsystem still claims it.
-const val DND_OWNER                 = "dnd_owner_v1"
-const val DND_OWNER_NONE            = ""
-const val DND_OWNER_BEDTIME         = "bedtime"
-const val DND_OWNER_QUIET_HOURS     = "quiet_hours"
 
 // ── Rate-app prompt ───────────────────────────────────────────────────────
 const val KEY_RATE_INSTALL_MS    = "rate_install_ms"

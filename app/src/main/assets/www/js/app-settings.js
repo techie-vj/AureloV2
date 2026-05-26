@@ -754,10 +754,19 @@ window.onAppsChanged = function(action, pkg){
 
 function applySettings(){
   setTog('tog-notif', S.settings.notif!==false);
+  // Sound cues default ON. Read native value when available so the toggle
+  // reflects what Kotlin will actually do, falling back to S for the
+  // browser/demo path where N is undefined.
+  var soundOn = true;
+  if (IS_NATIVE && typeof N.getSoundCuesEnabled === 'function') {
+    try { soundOn = !!N.getSoundCuesEnabled(); } catch (_) { soundOn = S.settings.soundCues !== false; }
+  } else {
+    soundOn = S.settings.soundCues !== false;
+  }
+  setTog('tog-sound', soundOn);
   // setTog('tog-theme', S.theme!=='light');
   updateStreakGoalSub();
   updateBedtimeSub();
-  if (typeof updateQuietHoursSub === 'function') updateQuietHoursSub();
   renderReferralSettingsStats();
   if (typeof Mood !== 'undefined' && typeof Mood.renderSettingsSection === 'function') {
     Mood.renderSettingsSection();
