@@ -182,6 +182,16 @@ class BootReceiver : BroadcastReceiver() {
         if (prefs.getBoolean(KEY_FOCUS_ACTIVE, false)) {
             startService(ctx, Intent(ctx, AppMonitorService::class.java))
         }
+
+        // ── 9. Quiet Hours alarms ────────────────────────────────────────────
+        // Re-arm Quiet Hours start/end alarms. The receiver companion is
+        // idempotent (FLAG_UPDATE_CURRENT) so this is safe to call multiple
+        // times. If the device booted inside an active window AND Quiet Hours
+        // is enabled today, resumeIfActive() re-engages DND immediately so
+        // the user isn't briefly un-silenced after reboot.
+        AppCtxHolder.init(ctx)
+        QuietHoursReceiver.scheduleAlarms(ctx)
+        QuietHoursReceiver.resumeIfActive(ctx)
     }
 
     // ── Schedule window check ─────────────────────────────────────────────────

@@ -757,6 +757,7 @@ function applySettings(){
   // setTog('tog-theme', S.theme!=='light');
   updateStreakGoalSub();
   updateBedtimeSub();
+  if (typeof updateQuietHoursSub === 'function') updateQuietHoursSub();
   renderReferralSettingsStats();
   if (typeof Mood !== 'undefined' && typeof Mood.renderSettingsSection === 'function') {
     Mood.renderSettingsSection();

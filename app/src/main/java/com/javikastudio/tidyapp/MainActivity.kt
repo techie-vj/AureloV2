@@ -102,6 +102,11 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        // Initialise the package-name holder used by QuietHoursReceiver to
+        // build action strings without holding a Context. Safe to call
+        // repeatedly — write is idempotent.
+        AppCtxHolder.init(applicationContext)
+
         // Full-screen colours — set before setContentView so they apply to the first frame
         window.statusBarColor     = Color.TRANSPARENT
         window.navigationBarColor = Color.TRANSPARENT
