@@ -74,6 +74,7 @@ class FocusBlockingEngine(
             .putString ("focus_active_routine_id",  activeRoutineId)
             .apply()
         maybeShowOemBatteryPrompt()
+        SoundEffects.play(h.context, SoundEffects.Tone.SESSION_START)
     }
 
     fun update(intent: Intent) {

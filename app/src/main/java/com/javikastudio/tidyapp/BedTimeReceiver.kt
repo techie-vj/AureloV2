@@ -102,6 +102,11 @@ class BedtimeReceiver : BroadcastReceiver() {
                 }
 
                 rescheduleForTomorrow(ctx, prefs, "${ctx.packageName}.BEDTIME_ON", 7001)
+                // Soft descending pair — calm signal that bedtime has begun.
+                // Bedtime owns DND from setDnd(true) above, so SoundEffects'
+                // own gate would suppress this — bypass that since this is
+                // the legitimate audio cue for the transition itself.
+                SoundEffects.play(ctx, SoundEffects.Tone.BEDTIME_START, bypassDndCheck = true)
             }
 
             // ── BEDTIME_OFF ───────────────────────────────────────────────────
