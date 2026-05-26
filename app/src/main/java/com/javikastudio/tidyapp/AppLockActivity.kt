@@ -58,6 +58,14 @@ class AppLockActivity : AppCompatActivity() {
     private var biometricEnabled = true
     private lateinit var securePrefs: android.content.SharedPreferences
 
+    // Tracks whether the user successfully unlocked this instance. Used by
+    // onStop() to distinguish a legitimate unlock-then-finish (no state
+    // cleanup needed; unlockSuccess already cleared it) from a dismissal
+    // without auth (back gesture, Recents swipe, task kill) — in which
+    // case we must clear currentLockedPackage so AppMonitorService re-fires
+    // the lock on the next foreground of the locked app.
+    private var unlocked = false
+
     // PIN state
     private val MAX_PIN_LEN = 6          // supports 4–6 digit PINs
     private val pinBuffer   = StringBuilder()
@@ -106,6 +114,26 @@ class AppLockActivity : AppCompatActivity() {
     override fun onDestroy() {
         super.onDestroy()
         if (currentLockedPackage == lockedPackage) currentLockedPackage = ""
+    }
+
+    /**
+     * Back-bypass fix: when the lock UI is dismissed without a successful
+     * unlock (back gesture → goHome, Recents swipe, task kill), we must
+     * clear the static [currentLockedPackage] guard. Otherwise the next
+     * AppMonitorService poll tick will see `alreadyLocking == true` for
+     * the same package and skip launching a fresh lock screen — letting
+     * the user straight into the locked app on re-launch.
+     *
+     * isChangingConfigurations excludes rotation/locale changes, where
+     * onStop fires but onCreate immediately follows on a new instance
+     * (which would re-set currentLockedPackage anyway).
+     */
+    override fun onStop() {
+        super.onStop()
+        if (!unlocked && !isChangingConfigurations &&
+            currentLockedPackage == lockedPackage) {
+            currentLockedPackage = ""
+        }
     }
 
     // ── UI construction ───────────────────────────────────────────────────────
@@ -593,6 +621,7 @@ class AppLockActivity : AppCompatActivity() {
     // ── Unlock / helpers ──────────────────────────────────────────────────────
 
     private fun unlockSuccess() {
+        unlocked = true
         sessionUnlockedApps[lockedPackage] = System.currentTimeMillis()
         currentLockedPackage = ""
         SoundEffects.play(applicationContext, SoundEffects.Tone.UNLOCK)
