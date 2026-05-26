@@ -156,6 +156,7 @@ class AppBridge(private val context: Context, private val webView: WebView) {
     private val focusRoutine = FocusRoutineBridge(context,webView,prefs,securePrefs,bridgeScope)
     private val intention = IntentionPromptBridge(context,webView,prefs,securePrefs,bridgeScope)
     private val bedtime = BedtimeBridge(context,webView,prefs,securePrefs,bridgeScope)
+    private val quietHours = QuietHoursBridge(context,webView,prefs)
     private val notification = NotificationBridge(context,webView,prefs,securePrefs,bridgeScope,usage,timer)
     private val widget = WidgetBridge(context,webView,prefs,securePrefs,bridgeScope,pm,appManagement)
     private val share = ShareBridge(context,webView,prefs,securePrefs,bridgeScope)
@@ -407,6 +408,14 @@ class AppBridge(private val context: Context, private val webView: WebView) {
     @JavascriptInterface fun setBedtimeDnd(enable: Boolean)    = bedtime.setBedtimeDnd(enable)
     @JavascriptInterface fun isDndPolicyGranted()              = bedtime.isDndPolicyGranted()
     @JavascriptInterface fun setBedtimeGrayscale(enable:Boolean)= bedtime.setBedtimeGrayscale(enable)
+
+    // ── Quiet Hours ────────────────────────────────────────────────────────────
+    @JavascriptInterface fun getQuietHoursSettings()           = quietHours.getQuietHoursSettings()
+    @JavascriptInterface fun saveQuietHoursSettings(j: String) = quietHours.saveQuietHoursSettings(j)
+    @JavascriptInterface fun getQuietHoursState()              = quietHours.getQuietHoursState()
+    @JavascriptInterface fun endQuietHoursNow()                = quietHours.endQuietHoursNow()
+    @JavascriptInterface fun pauseQuietHours(mins: Int)        = quietHours.pauseQuietHours(mins)
+
     // ── Screen Filter delegations ──────────────────────────────────────────────
     @JavascriptInterface fun getScreenFilterSettings()             = bedtime.getScreenFilterSettings()
     @JavascriptInterface fun saveScreenFilterSettings(j: String)   = bedtime.saveScreenFilterSettings(j)
