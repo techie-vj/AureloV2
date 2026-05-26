@@ -96,14 +96,14 @@
             <div style="flex:1"><div class="sr-lbl">Smart Alerts</div><div class="sr-sub" id="perm-notif-sub">Usage-based notifications</div></div>
             <div class="tog on" id="tog-notif" onclick="toggleSmartAlerts()"><div class="tog-knob"></div></div>
         </div>
+        <div class="sr">
+            <div class="sr-ico" style="background:rgba(176,110,255,.15);width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 18v-6a9 9 0 0118 0v6"/><path d="M21 19a2 2 0 01-2 2h-1a2 2 0 01-2-2v-3a2 2 0 012-2h3zM3 19a2 2 0 002 2h1a2 2 0 002-2v-3a2 2 0 00-2-2H3z"/></svg></div>
+            <div style="flex:1"><div class="sr-lbl">Sound cues</div><div class="sr-sub">Subtle chimes on focus, bedtime &amp; unlock</div></div>
+            <div class="tog on" id="tog-sound" onclick="toggleSoundCues()"><div class="tog-knob"></div></div>
+        </div>
         <div class="sr" onclick="openBedtimePicker()">
             <div class="sr-ico sr-ico--moon" style="background:rgba(18,212,138,.12)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg></div>
             <div style="flex:1"><div class="sr-lbl">Bedtime Mode</div><div class="sr-sub" id="bedtime-sub">Disabled</div></div>
-            <span class="sr-chev">›</span>
-        </div>
-        <div class="sr" onclick="openQuietHoursPanel()">
-            <div class="sr-ico" style="background:rgba(108,99,255,.15);width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><line x1="1" y1="1" x2="23" y2="23"/></svg></div>
-            <div style="flex:1"><div class="sr-lbl">Quiet Hours</div><div class="sr-sub" id="quiet-hours-sub">Disabled</div></div>
             <span class="sr-chev">›</span>
         </div>
 

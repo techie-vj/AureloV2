@@ -407,14 +407,6 @@ class AppBridge(private val context: Context, private val webView: WebView) {
     @JavascriptInterface fun setBedtimeDnd(enable: Boolean)    = bedtime.setBedtimeDnd(enable)
     @JavascriptInterface fun isDndPolicyGranted()              = bedtime.isDndPolicyGranted()
     @JavascriptInterface fun setBedtimeGrayscale(enable:Boolean)= bedtime.setBedtimeGrayscale(enable)
-
-    // ── Quiet Hours ────────────────────────────────────────────────────────────
-    @JavascriptInterface fun getQuietHoursSettings()           = quietHours.getQuietHoursSettings()
-    @JavascriptInterface fun saveQuietHoursSettings(j: String) = quietHours.saveQuietHoursSettings(j)
-    @JavascriptInterface fun getQuietHoursState()              = quietHours.getQuietHoursState()
-    @JavascriptInterface fun endQuietHoursNow()                = quietHours.endQuietHoursNow()
-    @JavascriptInterface fun pauseQuietHours(mins: Int)        = quietHours.pauseQuietHours(mins)
-
     // ── Screen Filter delegations ──────────────────────────────────────────────
     @JavascriptInterface fun getScreenFilterSettings()             = bedtime.getScreenFilterSettings()
     @JavascriptInterface fun saveScreenFilterSettings(j: String)   = bedtime.saveScreenFilterSettings(j)
@@ -429,6 +421,26 @@ class AppBridge(private val context: Context, private val webView: WebView) {
     @JavascriptInterface fun stopScreenFilterSchedule()              = bedtime.stopScreenFilterSchedule()
     /** Reverse-geocodes lat/lon to a city name via Android Geocoder for the sun-schedule label. */
     @JavascriptInterface fun reverseGeocodeCityAsync(lat: Double, lon: Double, callbackFn: String) = bedtime.reverseGeocodeCityAsync(lat, lon, callbackFn)
+
+    // ── Sound cues ─────────────────────────────────────────────────────────────
+    // JS-driven cues for in-app interactions (mood check-in, streak share, etc.).
+    // Background events (focus complete, bedtime start, morning summary, mindful
+    // pause overlay, app-lock unlock) call SoundEffects.play() directly from
+    // their receivers/services and don't route through the bridge.
+    @JavascriptInterface
+    fun playSoundCue(name: String) {
+        val tone = runCatching { SoundEffects.Tone.valueOf(name) }.getOrNull() ?: return
+        SoundEffects.play(context, tone)
+    }
+
+    @JavascriptInterface
+    fun getSoundCuesEnabled(): Boolean =
+        prefs.getBoolean(SOUND_CUES_ENABLED, true)
+
+    @JavascriptInterface
+    fun setSoundCuesEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean(SOUND_CUES_ENABLED, enabled).apply()
+    }
 
     // ── Notifications ──────────────────────────────────────────────────────
     @JavascriptInterface fun getNotifications()                = notification.getNotifications()
