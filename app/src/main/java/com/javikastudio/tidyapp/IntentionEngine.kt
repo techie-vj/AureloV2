@@ -144,7 +144,10 @@ class IntentionEngine(
         h.vibrate(longArrayOf(0, 25))
         val root = buildIntentionOverlayView(pkg, appName)
         val shown = coordinator.show(AppMonitorService.PRIORITY_INTENTION, root)
-        if (!shown) showFallbackNotification(appName)
+        if (!shown) { showFallbackNotification(appName); return }
+        // Soft cue paired with the overlay reveal — reinforces the
+        // "breathe, then decide" gesture the overlay is asking for.
+        SoundEffects.play(h.context, SoundEffects.Tone.MINDFUL_PAUSE)
     }
 
     // ─────────────────────────────────────────────────────────────────────────

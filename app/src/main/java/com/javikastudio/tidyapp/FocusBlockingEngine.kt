@@ -168,6 +168,12 @@ class FocusBlockingEngine(
         timerTickHandler?.removeCallbacksAndMessages(null)
         h.vibrate(longArrayOf(0, 80, 60, 120))
         h.updateNotification("🎉 Session complete!", "Great work!")
+        // Bypass DND check: this cue fires precisely when the user has
+        // earned a break and the prior focus block has cleared. Skipping it
+        // because DND happens to still be held by a sibling subsystem
+        // (rare race) would lose the moment that the entire feature builds
+        // towards.
+        SoundEffects.play(h.context, SoundEffects.Tone.SESSION_COMPLETE, bypassDndCheck = true)
         notifyJsSessionEnded(routineId)
     }
 

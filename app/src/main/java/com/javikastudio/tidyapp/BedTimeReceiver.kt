@@ -405,35 +405,10 @@ class BedtimeReceiver : BroadcastReceiver() {
         runCatching {
             val nm = ctx.getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
             if (!nm.isNotificationPolicyAccessGranted) return
-            // Route through DndController so the shared owner token is kept
-            // consistent. Bedtime always takes priority over Quiet Hours: an
-            // acquire here will overwrite a QUIET_HOURS owner, and a release
-            // here will hand back to Quiet Hours via resumeIfActive() below.
-            val prefs = ctx.getSharedPreferences(PREFS_FILE, Context.MODE_PRIVATE)
-            if (enable) {
-                // Snapshot prior filter only if no owner currently holds DND,
-                // matching DndController.acquire() semantics.
-                if ((prefs.getString(DND_OWNER, DND_OWNER_NONE) ?: DND_OWNER_NONE) == DND_OWNER_NONE) {
-                    runCatching {
-                        prefs.edit().putInt(QUIET_HOURS_PRE_DND_FILTER,
-                            nm.currentInterruptionFilter).apply()
-                    }
-                }
-                nm.setInterruptionFilter(android.app.NotificationManager.INTERRUPTION_FILTER_ALARMS)
-                prefs.edit().putString(DND_OWNER, DND_OWNER_BEDTIME).apply()
-            } else {
-                val priorFilter = prefs.getInt(QUIET_HOURS_PRE_DND_FILTER,
-                    android.app.NotificationManager.INTERRUPTION_FILTER_ALL)
-                nm.setInterruptionFilter(priorFilter)
-                prefs.edit()
-                    .putString(DND_OWNER, DND_OWNER_NONE)
-                    .remove(QUIET_HOURS_PRE_DND_FILTER)
-                    .apply()
-                // Hand back to Quiet Hours if a window is currently active.
-                // Wrapped in runCatching so a Quiet Hours bug never blocks
-                // bedtime cleanup.
-                runCatching { QuietHoursReceiver.resumeIfActive(ctx) }
-            }
+            nm.setInterruptionFilter(
+                if (enable) android.app.NotificationManager.INTERRUPTION_FILTER_ALARMS
+                else android.app.NotificationManager.INTERRUPTION_FILTER_ALL
+            )
         }
     }
 
@@ -718,6 +693,23 @@ class BedtimeReceiver : BroadcastReceiver() {
                 .setStyle(androidx.core.app.NotificationCompat.BigTextStyle().bigText(body))
                 .setPriority(androidx.core.app.NotificationCompat.PRIORITY_DEFAULT)
                 .setAutoCancel(true).build())
+            // Gentle ascending pair to accompany the morning notification.
+            // BEDTIME_OFF has already released DND via setDnd(false) so the
+            // normal gating applies — no bypass needed.
+            SoundEffects.play(ctx, SoundEffects.Tone.MORNING)
+            // Streak milestones get a separate triad on top of the morning
+            // cue. Spaced ~700 ms apart so both reads as distinct events;
+            // dispatched on a worker so we don't block the receiver.
+            val streakNow = streak
+            if (streakNow == 3 || streakNow == 7 || streakNow == 14 || streakNow == 30 ||
+                (streakNow > 30 && streakNow % 30 == 0)) {
+                Thread {
+                    runCatching {
+                        Thread.sleep(700)
+                        SoundEffects.play(ctx, SoundEffects.Tone.STREAK_MILESTONE)
+                    }
+                }.apply { isDaemon = true }.start()
+            }
         }
     }
 

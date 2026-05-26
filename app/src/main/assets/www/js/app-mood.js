@@ -386,18 +386,32 @@ var Mood = (function () {
     if (succSt) succSt.classList.add('show');
 
     if (navigator.vibrate) navigator.vibrate([20, 25, 20]);
-    try {
-      _audioCtx = _audioCtx || new (window.AudioContext || window.webkitAudioContext)();
-      var now = _audioCtx.currentTime;
-      [0, .14].forEach(function(d, i) {
-        var o = _audioCtx.createOscillator(), g = _audioCtx.createGain();
-        o.connect(g); g.connect(_audioCtx.destination);
-        o.type = 'sine'; o.frequency.value = 600 + i * 150;
-        g.gain.setValueAtTime(.22, now + d);
-        g.gain.exponentialRampToValueAtTime(.001, now + d + .16);
-        o.start(now + d); o.stop(now + d + .18);
-      });
-    } catch(e) {}
+    // Sound cue — honour the global Sound cues setting introduced with
+    // the sound-design pass. When the native bridge is available we route
+    // through it (same gating logic as bedtime / focus / unlock cues);
+    // otherwise we fall back to the existing in-page Web Audio chime so
+    // the browser/demo path stays audible.
+    var soundOn = true;
+    try { soundOn = (typeof S !== 'undefined' && S.settings && S.settings.soundCues !== false); } catch (_) {}
+    if (soundOn) {
+      if (typeof IS_NATIVE !== 'undefined' && IS_NATIVE &&
+          typeof N !== 'undefined' && typeof N.playSoundCue === 'function') {
+        try { N.playSoundCue('MOOD_LOGGED'); } catch (_) {}
+      } else {
+        try {
+          _audioCtx = _audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+          var now = _audioCtx.currentTime;
+          [0, .14].forEach(function(d, i) {
+            var o = _audioCtx.createOscillator(), g = _audioCtx.createGain();
+            o.connect(g); g.connect(_audioCtx.destination);
+            o.type = 'sine'; o.frequency.value = 600 + i * 150;
+            g.gain.setValueAtTime(.22, now + d);
+            g.gain.exponentialRampToValueAtTime(.001, now + d + .16);
+            o.start(now + d); o.stop(now + d + .18);
+          });
+        } catch(e) {}
+      }
+    }
 
     setTimeout(_close, 2200);
     setTimeout(renderSettingsSection, 2300);

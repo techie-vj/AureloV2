@@ -595,6 +595,7 @@ class AppLockActivity : AppCompatActivity() {
     private fun unlockSuccess() {
         sessionUnlockedApps[lockedPackage] = System.currentTimeMillis()
         currentLockedPackage = ""
+        SoundEffects.play(applicationContext, SoundEffects.Tone.UNLOCK)
         finish()
     }
 
