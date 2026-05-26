@@ -410,10 +410,35 @@ class BedtimeReceiver : BroadcastReceiver() {
         runCatching {
             val nm = ctx.getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
             if (!nm.isNotificationPolicyAccessGranted) return
-            nm.setInterruptionFilter(
-                if (enable) android.app.NotificationManager.INTERRUPTION_FILTER_ALARMS
-                else android.app.NotificationManager.INTERRUPTION_FILTER_ALL
-            )
+            // Route through DndController so the shared owner token is kept
+            // consistent. Bedtime always takes priority over Quiet Hours: an
+            // acquire here will overwrite a QUIET_HOURS owner, and a release
+            // here will hand back to Quiet Hours via resumeIfActive() below.
+            val prefs = ctx.getSharedPreferences(PREFS_FILE, Context.MODE_PRIVATE)
+            if (enable) {
+                // Snapshot prior filter only if no owner currently holds DND,
+                // matching DndController.acquire() semantics.
+                if ((prefs.getString(DND_OWNER, DND_OWNER_NONE) ?: DND_OWNER_NONE) == DND_OWNER_NONE) {
+                    runCatching {
+                        prefs.edit().putInt(QUIET_HOURS_PRE_DND_FILTER,
+                            nm.currentInterruptionFilter).apply()
+                    }
+                }
+                nm.setInterruptionFilter(android.app.NotificationManager.INTERRUPTION_FILTER_ALARMS)
+                prefs.edit().putString(DND_OWNER, DND_OWNER_BEDTIME).apply()
+            } else {
+                val priorFilter = prefs.getInt(QUIET_HOURS_PRE_DND_FILTER,
+                    android.app.NotificationManager.INTERRUPTION_FILTER_ALL)
+                nm.setInterruptionFilter(priorFilter)
+                prefs.edit()
+                    .putString(DND_OWNER, DND_OWNER_NONE)
+                    .remove(QUIET_HOURS_PRE_DND_FILTER)
+                    .apply()
+                // Hand back to Quiet Hours if a window is currently active.
+                // Wrapped in runCatching so a Quiet Hours bug never blocks
+                // bedtime cleanup.
+                runCatching { QuietHoursReceiver.resumeIfActive(ctx) }
+            }
         }
     }
 
