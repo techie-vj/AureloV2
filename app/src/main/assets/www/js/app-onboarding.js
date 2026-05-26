@@ -277,41 +277,21 @@ function obGoalNext() {
 }
 
 // ── Step 2 — Mood ─────────────────────────────────────────────
-function obMoodSelect(mood, emoji) {
-  ['awful', 'low', 'okay', 'good', 'great'].forEach(m => {
-    const btn = document.getElementById('ob-mood-' + m);
-    if (!btn) return;
-    btn.classList.remove('selected');
-    // Reset check mark text
-    const chk = btn.querySelector('.ob-mood-check');
-    if (chk) chk.textContent = '';
-  });
-
-  const btn = document.getElementById('ob-mood-' + mood);
-  if (btn) {
-    btn.classList.add('selected');
-    const chk = btn.querySelector('.ob-mood-check');
-    if (chk) chk.textContent = '✓';
-  }
-
-  _obMoodId = mood;
-  S.onboardingMood = mood;
-  saveS();
-
-  _obSound('mood');
-
-  const name = (document.getElementById('ob-name-input') || {}).value || '';
-  obUpdateNamePreview(name);
-}
+// NOTE: obMoodSelect(mood, emoji) removed — dead code since the face row was
+// migrated to Mood.selectMood() / ob-item-* nodes. The old function targeted
+// ob-mood-* buttons that no longer exist in the template.
 
 /**
- * Renders the new animated Mood faces into #ob-mood-face-row.
- * Called by the onboarding template once ob2 is in the DOM.
+ * Called when onboarding step 2 becomes active.
+ * The face nodes (ob-item-*) are already hardcoded in onboarding.html so no
+ * re-render is needed. Mood.selectMood() derives mode from the 'ob' prefix
+ * directly, so there is no dependency on renderOnboardingFaces() here.
+ * NOTE: The previous call — Mood.renderOnboardingFaces('ob-mood-face-row') —
+ * was silently failing because 'ob-mood-face-row' does not exist in the
+ * template (correct id is 'ob-mood-row'). Removed to avoid future confusion.
  */
 function obInitMoodFaces() {
-  if (typeof Mood !== 'undefined') {
-    Mood.renderOnboardingFaces('ob-mood-face-row');
-  }
+  // intentional no-op — see note above
 }
 
 // ── Step 2 — Name ─────────────────────────────────────────────
@@ -330,8 +310,12 @@ function obUpdateNamePreview(val) {
   if (!el) return;
 
   const name     = val.trim();
-  const moodLine = _obMoodId
-    ? _OB_MOOD_LINES[_obMoodId]
+  // FIX P1: _obMoodId is not updated by the new Mood.selectMood() path
+  // (let-scoped, not on window). Fall back to S.onboardingMood which
+  // _obSyncMoodState() writes when a face is tapped.
+  const obMood   = _obMoodId || (typeof S !== 'undefined' && S.onboardingMood) || '';
+  const moodLine = obMood
+    ? _OB_MOOD_LINES[obMood]
     : 'Your score is building — check in tomorrow for your first insight.';
 
   if (name) {
@@ -718,7 +702,11 @@ function _obConfetti() {
 // ── Finish & teardown ─────────────────────────────────────────
 function finishOb() {
   if (_obGoalMins > 0) S.streakGoalMins = _obGoalMins;
-  if (_obMoodId && typeof Mood !== 'undefined') Mood.logOnboardingMood(_obMoodId);
+  // FIX P1: _obMoodId is `let`-scoped so Mood._obSyncMoodState() cannot set it
+  // via window. It writes S.onboardingMood instead. Use that as fallback so
+  // the mood selected on the new face row is not silently dropped.
+  var _moodToLog = _obMoodId || (typeof S !== 'undefined' && S.onboardingMood) || '';
+  if (_moodToLog && typeof Mood !== 'undefined') Mood.logOnboardingMood(_moodToLog);
   S.onboardingDone = true;
   saveS();
 

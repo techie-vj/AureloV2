@@ -168,6 +168,8 @@ class AppBridge(private val context: Context, private val webView: WebView) {
     internal val aureloScore = AureloScoreBridge(prefs, healthConnect)
     internal val weeklyRecapBridge = WeeklyRecapBridge(context,webView, prefs, bridgeScope, usage, coach)
 
+    internal val quietHoursBridge = QuietHoursBridge(context, webView, prefs)
+
     init {
         billingManager.connect()
         // FIX (Issue 3): wire CoachBridge reference into HealthConnectBridge so it
@@ -409,11 +411,11 @@ class AppBridge(private val context: Context, private val webView: WebView) {
     @JavascriptInterface fun setBedtimeGrayscale(enable:Boolean)= bedtime.setBedtimeGrayscale(enable)
 
     // ── Quiet Hours ────────────────────────────────────────────────────────────
-    @JavascriptInterface fun getQuietHoursSettings()           = quietHours.getQuietHoursSettings()
-    @JavascriptInterface fun saveQuietHoursSettings(j: String) = quietHours.saveQuietHoursSettings(j)
-    @JavascriptInterface fun getQuietHoursState()              = quietHours.getQuietHoursState()
-    @JavascriptInterface fun endQuietHoursNow()                = quietHours.endQuietHoursNow()
-    @JavascriptInterface fun pauseQuietHours(mins: Int)        = quietHours.pauseQuietHours(mins)
+    @JavascriptInterface fun getQuietHoursSettings()           = quietHoursBridge.getQuietHoursSettings()
+    @JavascriptInterface fun saveQuietHoursSettings(j: String) = quietHoursBridge.saveQuietHoursSettings(j)
+    @JavascriptInterface fun getQuietHoursState()              = quietHoursBridge.getQuietHoursState()
+    @JavascriptInterface fun endQuietHoursNow()                = quietHoursBridge.endQuietHoursNow()
+    @JavascriptInterface fun pauseQuietHours(mins: Int)        = quietHoursBridge.pauseQuietHours(mins)
 
     // ── Screen Filter delegations ──────────────────────────────────────────────
     @JavascriptInterface fun getScreenFilterSettings()             = bedtime.getScreenFilterSettings()

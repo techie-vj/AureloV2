@@ -1254,13 +1254,17 @@ function pinToggleBiometric(tog) {
 function savePinSetup() { _pinTrySave(); }
 
 /* ── 6c: App Lock settings rows (PIN + biometric toggle) ───────────────── */
+/* SVG constants — matching the inline SVG pattern from settings.html */
+const _SVG_LOCK = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>`;
+const _SVG_FINGERPRINT = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 12c0 1-.4 3.5-.8 5.5"/><path d="M10 11.5A2 2 0 0 1 12 10a2 2 0 0 1 2 2c0 2-.5 5-1.2 7"/><path d="M8 12a4 4 0 0 1 4-4 4 4 0 0 1 4 4c0 3-.8 6.5-2 9"/><path d="M5.5 14.5A7 7 0 0 1 5 12a7 7 0 0 1 7-7 7 7 0 0 1 7 7 17 17 0 0 1-1.5 7"/><path d="M2.5 15.5A10 10 0 0 1 2 12a10 10 0 0 1 10-10 10 10 0 0 1 10 10 23 23 0 0 1-1.5 8"/></svg>`;
+
 function renderAppLockSettings() {
   const pinSetup  = IS_NATIVE && N.isPinSetup();
   const biometric = IS_NATIVE && N.isBiometricEnabled();
   if (!pinSetup) {
     return `
     <div class="sr" onclick="openPinSetupModal(false)" style="border-radius:13px">
-      <div class="sr-ico sr-ico--lock"></div>
+      <div class="sr-ico sr-ico--lock">${_SVG_LOCK}</div>
       <div style="flex:1">
         <div class="sr-lbl">Set Up App Lock PIN</div>
         <div class="sr-sub">Required before locking any app</div>
@@ -1270,7 +1274,7 @@ function renderAppLockSettings() {
   }
   return `
   <div class="sr" onclick="openChangePinModal()" style="border-radius:13px 13px 0 0">
-    <div class="sr-ico sr-ico--lock"></div>
+    <div class="sr-ico sr-ico--lock">${_SVG_LOCK}</div>
     <div style="flex:1">
       <div class="sr-lbl">Change PIN</div>
       <div class="sr-sub">Tap to change your app lock PIN</div>
@@ -1278,7 +1282,7 @@ function renderAppLockSettings() {
     <div class="sr-chev">›</div>
   </div>
   <div class="sr" style="border-radius:0 0 13px 13px;border-top:none">
-    <div class="sr-ico" style="background:rgba(108,99,255,.12);color:var(--p2)">👆</div>
+    <div class="sr-ico" style="background:rgba(108,99,255,.12);color:var(--p2)">${_SVG_FINGERPRINT}</div>
     <div style="flex:1">
       <div class="sr-lbl">Fingerprint / Face Unlock</div>
       <div class="sr-sub">Use biometric to unlock apps</div>

@@ -309,6 +309,11 @@ var Mood = (function () {
 
   function selectMood(mood, prefix) {
     prefix = prefix || (_mode === 'onboarding' ? 'ob' : 'mp');
+    // FIX: renderOnboardingFaces() sets _mode='onboarding', but obInitMoodFaces()
+    // calls it with 'ob-mood-face-row' while the template element is 'ob-mood-row',
+    // so _q() returns null, the function bails early, and _mode stays 'popup'.
+    // Derive mode from the explicit prefix instead — 'ob' always means onboarding.
+    if (prefix === 'ob') _mode = 'onboarding';
     _selectedMood = mood;
     var m = MOODS[mood];
 
@@ -441,7 +446,11 @@ var Mood = (function () {
   }
 
   function _obSyncMoodState(mood) {
-    if (typeof window._obMoodId !== 'undefined') window._obMoodId = mood;
+    // FIX P1: _obMoodId in app-onboarding.js is declared with `let`, so it is
+    // NOT accessible via window._obMoodId (only `var` top-level declarations
+    // are added to window). Write to S.onboardingMood as the cross-module sync
+    // channel instead; finishOb() and obUpdateNamePreview() read it as fallback.
+    if (typeof S !== 'undefined') { S.onboardingMood = mood; saveS(); }
     var btn = _q('ob2-next-btn');
     if (btn) btn.disabled = false;
     var input = _q('ob-name-input');
@@ -489,8 +498,18 @@ var Mood = (function () {
   function getMoodHistory(days) {
     days = days || 30;
     var hist = _getHistory();
-    if (days > 7 && typeof ProTier !== 'undefined' && !ProTier.isPro) return hist.slice(0, 7);
-    return hist.slice(0, days);
+    // FIX P2: gate by calendar-day cutoff, not entry count.
+    // hist.slice(0, 7) returns 7 most-recent *entries* regardless of dates;
+    // a sparse logger could receive data older than 7 days through the free
+    // gate. Filter by ISO date string comparison instead (lexicographic sort
+    // works correctly for YYYY-MM-DD).
+    var limitDays = (typeof ProTier !== 'undefined' && !ProTier.isPro) ? 7 : days;
+    var cutoff    = new Date();
+    cutoff.setDate(cutoff.getDate() - limitDays);
+    var cutoffStr = cutoff.getFullYear() + '-'
+      + String(cutoff.getMonth() + 1).padStart(2, '0') + '-'
+      + String(cutoff.getDate()).padStart(2, '0');
+    return hist.filter(function (e) { return e.d >= cutoffStr; });
   }
 
   function getMoodForDay(dateStr) {
@@ -503,6 +522,35 @@ var Mood = (function () {
     var e = _getTodayEntry();
     return e ? e.m : null;
   }
+
+  // ── Event-driven re-check ─────────────────────────────────────────────────
+  // checkMorningPrompt() is called once on initial Home render. If the app
+  // was already open before 7 AM the check returns early and nothing
+  // re-triggers it when the clock crosses into the 7–11 AM window.
+  // Fix: also fire on every Home tab activation and on app-foreground resume.
+  (function _attachPromptListeners() {
+    // Re-check whenever the user switches to the Home tab
+    document.addEventListener('tabchange', function (e) {
+      if (e.detail && e.detail.tab === 'home') {
+        setTimeout(checkMorningPrompt, 400);
+      }
+      // Re-render settings mood section on every Settings tab visit.
+      // applySettings() (which calls renderSettingsSection) runs at parse-time
+      // and on showApp() — both fire before onboarding completes. When the
+      // user navigates to Settings after finishing onboarding the section is
+      // stale and still shows "Log today's mood" even though the mood was
+      // saved during finishOb(). Refreshing here keeps it in sync.
+      if (e.detail && e.detail.tab === 'settings') {
+        setTimeout(renderSettingsSection, 0);
+      }
+    });
+    // Re-check when app returns to foreground (e.g. unlocked past 7 AM)
+    document.addEventListener('visibilitychange', function () {
+      if (!document.hidden) {
+        setTimeout(checkMorningPrompt, 600);
+      }
+    });
+  }());
 
   return {
     show: show,
