@@ -407,6 +407,14 @@ class AppBridge(private val context: Context, private val webView: WebView) {
     @JavascriptInterface fun setBedtimeDnd(enable: Boolean)    = bedtime.setBedtimeDnd(enable)
     @JavascriptInterface fun isDndPolicyGranted()              = bedtime.isDndPolicyGranted()
     @JavascriptInterface fun setBedtimeGrayscale(enable:Boolean)= bedtime.setBedtimeGrayscale(enable)
+
+    // ── Quiet Hours ────────────────────────────────────────────────────────────
+    @JavascriptInterface fun getQuietHoursSettings()           = quietHours.getQuietHoursSettings()
+    @JavascriptInterface fun saveQuietHoursSettings(j: String) = quietHours.saveQuietHoursSettings(j)
+    @JavascriptInterface fun getQuietHoursState()              = quietHours.getQuietHoursState()
+    @JavascriptInterface fun endQuietHoursNow()                = quietHours.endQuietHoursNow()
+    @JavascriptInterface fun pauseQuietHours(mins: Int)        = quietHours.pauseQuietHours(mins)
+
     // ── Screen Filter delegations ──────────────────────────────────────────────
     @JavascriptInterface fun getScreenFilterSettings()             = bedtime.getScreenFilterSettings()
     @JavascriptInterface fun saveScreenFilterSettings(j: String)   = bedtime.saveScreenFilterSettings(j)
