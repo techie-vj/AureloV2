@@ -1,5 +1,8 @@
 package com.javikastudio.tidyapp
 
+import android.animation.AnimatorSet
+import android.animation.ObjectAnimator
+import android.animation.ValueAnimator
 import android.content.Intent
 import android.graphics.Canvas
 import android.graphics.Color
@@ -9,13 +12,15 @@ import android.graphics.Path
 import android.graphics.Shader
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
+import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
-import android.text.InputType
 import android.view.Gravity
 import android.view.View
 import android.view.WindowManager
+import android.view.animation.DecelerateInterpolator
+import android.view.animation.OvershootInterpolator
 import android.widget.*
 import androidx.appcompat.app.AppCompatActivity
 import androidx.biometric.BiometricManager
@@ -31,192 +36,464 @@ import java.security.MessageDigest
  *   1. If biometric available + enabled → show BiometricPrompt immediately
  *   2. On biometric failure/cancel → fall back to PIN entry
  *   3. Correct PIN → finish() → locked app becomes visible
- *   4. Wrong PIN → show error, allow retry
+ *   4. Wrong PIN → show error + shake animation, allow retry
  *
- * Key design decisions:
- *   - Full-screen AppCompatActivity (not SYSTEM_ALERT_WINDOW) → harder to bypass
- *   - FLAG_SECURE prevents screenshots of the lock screen
- *   - showWhenLocked + turnScreenOn in Manifest handles lock screen scenario
- *   - Tracks currentLockedPackage so AppMonitorService doesn't re-launch in a loop
- *
- * Fix 3: unlockSuccess() now brings the locked app's task to the front via
- *   FLAG_ACTIVITY_REORDER_TO_FRONT before finishing, so Aurelo no longer
- *   surfaces instead of the unlocked app when Aurelo was in the background.
+ * UI: Consistent with FocusBlockingEngine / IntentionEngine overlays:
+ *   - Dark gradient backdrop (#10182A → #060912)
+ *   - Aurelo wordmark + "APP LOCK" label at top
+ *   - App icon + name chip in centre
+ *   - 4-dot PIN indicator (filled/empty circles)
+ *   - Custom 3×4 numpad — no system keyboard
+ *   - Biometric / fingerprint shortcut row at bottom
  */
 class AppLockActivity : AppCompatActivity() {
 
     companion object {
-        /** Package currently being locked. Set on start, cleared on destroy. */
         @Volatile var currentLockedPackage: String = ""
-
-        /**
-         * Packages unlocked this session mapped to their unlock timestamp.
-         * Cleared when the package moves to background AFTER the unlock so it
-         * re-locks on the next open. Background events that pre-date the unlock
-         * timestamp (i.e. the bg event from AppLockActivity covering the locked
-         * app) are ignored so they don't immediately re-trigger the lock screen.
-         */
-        val sessionUnlockedApps: MutableMap<String, Long> = java.util.Collections.synchronizedMap(mutableMapOf())
+        val sessionUnlockedApps: MutableMap<String, Long> =
+            java.util.Collections.synchronizedMap(mutableMapOf())
     }
 
-    private var lockedPackage: String = ""
-    private var biometricEnabled: Boolean = true
+    private var lockedPackage    = ""
+    private var biometricEnabled = true
     private lateinit var securePrefs: android.content.SharedPreferences
 
-    private lateinit var pinInput: EditText
-    private lateinit var errorText: TextView
+    // PIN state
+    private val MAX_PIN_LEN = 6          // supports 4–6 digit PINs
+    private val pinBuffer   = StringBuilder()
+
+    // UI refs updated after digit input
+    private lateinit var dotContainer: LinearLayout
+    private lateinit var errorLabel:   TextView
+    private var pinLength: Int = 4          // actual stored PIN length
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
-        window.setFlags(WindowManager.LayoutParams.FLAG_SECURE, WindowManager.LayoutParams.FLAG_SECURE)
+        window.setFlags(
+            WindowManager.LayoutParams.FLAG_SECURE,
+            WindowManager.LayoutParams.FLAG_SECURE
+        )
 
         lockedPackage    = intent.getStringExtra("locked_package") ?: ""
         biometricEnabled = intent.getBooleanExtra("biometric_enabled", true)
         securePrefs      = SensitivePrefs.get(this)
-
         currentLockedPackage = lockedPackage
+
+        // Determine stored PIN length so we know how many dots to show
+        val storedHash = securePrefs.getString(APP_LOCK_PIN_HASH, null)
+        pinLength = if (storedHash != null) 4 else 4   // default 4; could be read from prefs
+
         buildUI()
 
-        // Android 13+ predictive back gesture support
-        onBackPressedDispatcher.addCallback(this, object : androidx.activity.OnBackPressedCallback(true) {
-            override fun handleOnBackPressed() {
-                startActivity(Intent(Intent.ACTION_MAIN).apply {
-                    addCategory(Intent.CATEGORY_HOME)
-                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
-                })
-            }
-        })
+        onBackPressedDispatcher.addCallback(
+            this, object : androidx.activity.OnBackPressedCallback(true) {
+                override fun handleOnBackPressed() { goHome() }
+            })
 
-        if (biometricEnabled && isBiometricAvailable()) {
-            showBiometricPrompt()
-        }
+        if (biometricEnabled && isBiometricAvailable()) showBiometricPrompt()
     }
 
     override fun onNewIntent(intent: Intent?) {
         super.onNewIntent(intent)
-        // Handle re-launch for a different locked package without full recreation
         val newPkg = intent?.getStringExtra("locked_package") ?: return
         if (newPkg != lockedPackage) {
             lockedPackage = newPkg
             currentLockedPackage = newPkg
-            pinInput.text.clear()
-            errorText.visibility = View.INVISIBLE
+            resetPin()
         }
     }
 
     override fun onDestroy() {
         super.onDestroy()
-        if (currentLockedPackage == lockedPackage) {
-            currentLockedPackage = ""
-        }
+        if (currentLockedPackage == lockedPackage) currentLockedPackage = ""
     }
 
-    // Back button sends user to home — not to the locked app
-    @Suppress("OVERRIDE_DEPRECATION")
-    override fun onBackPressed() {
-        val homeIntent = Intent(Intent.ACTION_MAIN).apply {
-            addCategory(Intent.CATEGORY_HOME)
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK
-        }
-        startActivity(homeIntent)
-    }
+    // ── UI construction ───────────────────────────────────────────────────────
 
-    // ── Build UI programmatically (no layout XML needed) ──────────────────────
     private fun buildUI() {
-        val dp = { v: Int -> (v * resources.displayMetrics.density + 0.5f).toInt() }
+        val dp: (Int) -> Int = { v -> (v * resources.displayMetrics.density + 0.5f).toInt() }
 
-        val root = LinearLayout(this).apply {
+        // ── Root: full-screen frame with gradient ─────────────────────────────
+        val root = FrameLayout(this).apply {
+            background = GradientDrawable(
+                GradientDrawable.Orientation.TOP_BOTTOM,
+                intArrayOf(0xFF0D1525.toInt(), 0xFF060912.toInt())
+            )
+            clipChildren = false
+            clipToPadding = false
+        }
+
+        // ── Top: wordmark + "APP LOCK" label — pinned to top ─────────────────
+        val topBlock = buildTopBlock(dp)
+        root.addView(topBlock, FrameLayout.LayoutParams(
+            FrameLayout.LayoutParams.WRAP_CONTENT,
+            FrameLayout.LayoutParams.WRAP_CONTENT
+        ).apply {
+            gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
+            topMargin = dp(if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) 56 else 40)
+        })
+
+        // ── Centre content: app chip + PIN + numpad + bio — vertically centred ─
+        val content = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER_HORIZONTAL
+            clipChildren = false
+            clipToPadding = false
+        }
+
+        // App icon + name chip
+        content.addView(buildAppChip(dp), LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.WRAP_CONTENT,
+            LinearLayout.LayoutParams.WRAP_CONTENT
+        ).apply {
+            gravity = Gravity.CENTER_HORIZONTAL
+            bottomMargin = dp(36)
+        })
+
+        // Unlock hint label
+        content.addView(TextView(this).apply {
+            text = "Enter PIN to unlock"
+            textSize = 13f
+            setTextColor(Color.parseColor("#4A5570"))
             gravity = Gravity.CENTER
-            setBackgroundColor(Color.parseColor("#0D0F14"))
-            setPadding(dp(32), dp(48), dp(32), dp(48))
-        }
+            letterSpacing = 0.04f
+        }, LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.WRAP_CONTENT,
+            LinearLayout.LayoutParams.WRAP_CONTENT
+        ).apply {
+            gravity = Gravity.CENTER_HORIZONTAL
+            bottomMargin = dp(20)
+        })
 
-        // ── Aurelo wordmark (top, matching other overlay layouts) ─────────────
-        val wordmarkRow = buildWordmark(dp)
-        root.addView(wordmarkRow,
-            LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT).also {
-                it.gravity = Gravity.CENTER_HORIZONTAL
-                it.bottomMargin = dp(36)
-            })
+        // PIN dot row
+        dotContainer = buildDotRow(dp)
+        content.addView(dotContainer, LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.WRAP_CONTENT,
+            LinearLayout.LayoutParams.WRAP_CONTENT
+        ).apply {
+            gravity = Gravity.CENTER_HORIZONTAL
+            bottomMargin = dp(4)
+        })
 
-        // Lock icon
-        root.addView(TextView(this).apply {
-            text = "🔒"; textSize = 48f; gravity = Gravity.CENTER
-        }, lp(dp, bottomMargin = 8))
-
-        // App name
-        root.addView(TextView(this).apply {
-            text = getAppName(lockedPackage)
-            textSize = 20f; gravity = Gravity.CENTER
-            setTextColor(Color.parseColor("#E8EAF0"))
-            typeface = Typeface.DEFAULT_BOLD
-        }, lp(dp, bottomMargin = 4))
-
-        // Subtitle
-        root.addView(TextView(this).apply {
-            text = "This app is locked"
-            textSize = 13f; gravity = Gravity.CENTER
-            setTextColor(Color.parseColor("#7C8490"))
-        }, lp(dp, bottomMargin = 40))
-
-        // PIN input
-        pinInput = EditText(this).apply {
-            hint = "Enter PIN"
-            setHintTextColor(Color.parseColor("#4A5068"))
-            setTextColor(Color.WHITE)
-            textSize = 24f; gravity = Gravity.CENTER; letterSpacing = 0.3f
-            inputType = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_VARIATION_PASSWORD
-            maxLines = 1
-            background = GradientDrawable().apply {
-                setColor(Color.parseColor("#1A1F2E"))
-                cornerRadius = dp(10).toFloat()
-                setStroke(dp(1), Color.parseColor("#2E3447"))
-            }
-            setPadding(dp(16), dp(14), dp(16), dp(14))
-            setOnEditorActionListener { _, _, _ -> attemptPinUnlock(); true }
-        }
-        root.addView(pinInput, lp(dp, bottomMargin = 12))
-
-        // Error label
-        errorText = TextView(this).apply {
-            text = ""; textSize = 12f; gravity = Gravity.CENTER
+        // Error label — reserves height so layout doesn't shift on show
+        errorLabel = TextView(this).apply {
+            text = ""
+            textSize = 13f
+            gravity = Gravity.CENTER
             setTextColor(Color.parseColor("#E86B5F"))
             visibility = View.INVISIBLE
+            minHeight = dp(22)
         }
-        root.addView(errorText, lp(dp, bottomMargin = 16))
+        content.addView(errorLabel, LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.WRAP_CONTENT,
+            LinearLayout.LayoutParams.WRAP_CONTENT
+        ).apply {
+            gravity = Gravity.CENTER_HORIZONTAL
+            bottomMargin = dp(20)
+        })
 
-        // Unlock button
-        root.addView(Button(this).apply {
-            text = "Unlock"; textSize = 15f; setTextColor(Color.WHITE)
-            background = GradientDrawable().apply {
-                setColor(Color.parseColor("#6C63FF")); cornerRadius = dp(10).toFloat()
-            }
-            setPadding(dp(16), dp(14), dp(16), dp(14))
-            setOnClickListener { attemptPinUnlock() }
-        }, lp(dp, bottomMargin = 16))
+        // Numpad
+        content.addView(buildNumpad(dp), LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.WRAP_CONTENT,
+            LinearLayout.LayoutParams.WRAP_CONTENT
+        ).apply {
+            gravity = Gravity.CENTER_HORIZONTAL
+        })
 
-        // Biometric button (only shown if available)
+        // Biometric button
         if (biometricEnabled && isBiometricAvailable()) {
-            root.addView(Button(this).apply {
-                text = "Use fingerprint / face"; textSize = 13f
-                setTextColor(Color.parseColor("#7C8490"))
-                background = null
-                setOnClickListener { showBiometricPrompt() }
-            }, lp(dp))
+            content.addView(buildBiometricButton(dp), LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply {
+                gravity = Gravity.CENTER_HORIZONTAL
+                topMargin = dp(20)
+            })
         }
+
+        root.addView(content, FrameLayout.LayoutParams(
+            FrameLayout.LayoutParams.WRAP_CONTENT,
+            FrameLayout.LayoutParams.WRAP_CONTENT
+        ).apply {
+            gravity = Gravity.CENTER
+        })
 
         setContentView(root)
+
+        // Entrance animation: slide up + fade in
+        root.alpha = 0f
+        root.translationY = dp(24).toFloat()
+        root.animate().alpha(1f).translationY(0f)
+            .setDuration(300).setInterpolator(DecelerateInterpolator()).start()
     }
 
-    /**
-     * Builds the "Aurelo" wordmark row (arch logo + "URELO" text) consistent
-     * with buildAureloWordmarkView() in AppMonitorService and other overlays.
-     */
+    // ── Top block: wordmark + subtitle ───────────────────────────────────────
+
+    private fun buildTopBlock(dp: (Int) -> Int): View {
+        val col = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER_HORIZONTAL
+            clipChildren = false
+            clipToPadding = false
+        }
+        // Explicit WRAP_CONTENT params so wordmark is never constrained / clipped
+        col.addView(buildWordmark(dp), LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.WRAP_CONTENT,
+            LinearLayout.LayoutParams.WRAP_CONTENT
+        ).apply { gravity = Gravity.CENTER_HORIZONTAL })
+        // "APP LOCK" pill badge
+        col.addView(TextView(this).apply {
+            text = "APP LOCK"
+            textSize = 10f
+            letterSpacing = 0.22f
+            setTextColor(Color.parseColor("#8EA2FF"))
+            typeface = Typeface.DEFAULT_BOLD
+            gravity = Gravity.CENTER
+            setPadding(dp(10), dp(4), dp(10), dp(5))
+            background = GradientDrawable().apply {
+                cornerRadius = dp(10).toFloat()
+                setColor(0x148EA2FF.toInt())
+            }
+        }, LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.WRAP_CONTENT,
+            LinearLayout.LayoutParams.WRAP_CONTENT
+        ).apply { topMargin = dp(8); gravity = Gravity.CENTER_HORIZONTAL })
+        return col
+    }
+
+    // ── App chip: frosted card with icon emoji + app name + lock badge ────────
+
+    private fun buildAppChip(dp: (Int) -> Int): View {
+        val appName = getAppName(lockedPackage)
+
+        val card = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER_HORIZONTAL
+            setPadding(dp(28), dp(20), dp(28), dp(20))
+            background = GradientDrawable().apply {
+                setColor(0x12FFFFFF)
+                cornerRadius = dp(20).toFloat()
+                setStroke(dp(1), 0x20FFFFFF)
+            }
+        }
+
+        // App icon (best-effort via PackageManager; fallback to lock emoji)
+        val iconView = TextView(this).apply {
+            val icon = runCatching {
+                val pm = packageManager
+                val drawable = pm.getApplicationIcon(lockedPackage)
+                drawable
+            }.getOrNull()
+            if (icon != null) {
+                // Show actual icon centered
+                val size = dp(52)
+                icon.setBounds(0, 0, size, size)
+                setCompoundDrawables(null, icon, null, null)
+                text = ""
+                gravity = Gravity.CENTER
+            } else {
+                text = "🔒"
+                textSize = 32f
+                gravity = Gravity.CENTER
+            }
+        }
+        card.addView(iconView, LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.WRAP_CONTENT,
+            LinearLayout.LayoutParams.WRAP_CONTENT
+        ).apply { gravity = Gravity.CENTER_HORIZONTAL; bottomMargin = dp(10) })
+
+        // App name
+        card.addView(TextView(this).apply {
+            text = appName
+            textSize = 16f
+            setTextColor(Color.parseColor("#E8EAF0"))
+            typeface = Typeface.DEFAULT_BOLD
+            maxLines = 1
+            gravity = Gravity.CENTER
+            ellipsize = android.text.TextUtils.TruncateAt.END
+        }, LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.WRAP_CONTENT,
+            LinearLayout.LayoutParams.WRAP_CONTENT
+        ).apply { gravity = Gravity.CENTER_HORIZONTAL; bottomMargin = dp(4) })
+
+        // Lock status label
+        card.addView(TextView(this).apply {
+            text = "This app is locked"
+            textSize = 11f
+            setTextColor(Color.parseColor("#4A5570"))
+            gravity = Gravity.CENTER
+            letterSpacing = 0.02f
+        }, LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.WRAP_CONTENT,
+            LinearLayout.LayoutParams.WRAP_CONTENT
+        ).apply { gravity = Gravity.CENTER_HORIZONTAL })
+
+        return card
+    }
+
+    // ── PIN dot row ───────────────────────────────────────────────────────────
+
+    private fun buildDotRow(dp: (Int) -> Int): LinearLayout {
+        val row = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER
+            clipChildren = false
+            clipToPadding = false
+            // Extra padding so stroke is never clipped at edges
+            setPadding(dp(4), dp(4), dp(4), dp(4))
+        }
+        repeat(4) {   // show 4 dots (standard PIN length)
+            val dot = View(this).apply {
+                background = GradientDrawable().apply {
+                    shape = GradientDrawable.OVAL
+                    setColor(0x22FFFFFF)
+                    setStroke(dp(2), 0x44FFFFFF)
+                }
+            }
+            row.addView(dot, LinearLayout.LayoutParams(dp(14), dp(14)).apply {
+                marginStart = dp(10); marginEnd = dp(10)
+            })
+        }
+        return row
+    }
+
+    private fun refreshDots() {
+        val filled = pinBuffer.length
+        val total  = dotContainer.childCount
+        for (i in 0 until total) {
+            val dot = dotContainer.getChildAt(i) as View
+            (dot.background as GradientDrawable).apply {
+                if (i < filled) {
+                    setColor(0xFF8EA2FF.toInt())
+                    setStroke(0, Color.TRANSPARENT)
+                } else {
+                    setColor(0x33FFFFFF)
+                    setStroke((resources.displayMetrics.density + 0.5f).toInt(), 0x55FFFFFF)
+                }
+            }
+        }
+    }
+
+    // ── Numpad 3×4 grid ───────────────────────────────────────────────────────
+
+    private fun buildNumpad(dp: (Int) -> Int): LinearLayout {
+        val grid = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER
+            clipChildren = false
+            clipToPadding = false
+        }
+        val rows = listOf(
+            listOf("1", "2", "3"),
+            listOf("4", "5", "6"),
+            listOf("7", "8", "9"),
+            listOf("", "0", "⌫")
+        )
+        for (row in rows) {
+            val rowView = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER
+                clipChildren = false
+                clipToPadding = false
+            }
+            for (label in row) {
+                val btn = buildNumKey(label, dp)
+                // topMargin prevents the oval stroke at y=0 being clipped by parent
+                rowView.addView(btn, LinearLayout.LayoutParams(dp(74), dp(74)).apply {
+                    marginStart = dp(10); marginEnd = dp(10)
+                    topMargin = dp(4); bottomMargin = dp(4)
+                })
+            }
+            grid.addView(rowView)
+        }
+        return grid
+    }
+
+    private fun buildNumKey(label: String, dp: (Int) -> Int): View {
+        if (label.isEmpty()) return View(this)   // spacer
+
+        val normalBg = { GradientDrawable().apply {
+            shape = GradientDrawable.OVAL
+            setColor(0x14FFFFFF)
+            setStroke(dp(1), 0x28FFFFFF)
+        }}
+        val pressedBg = { GradientDrawable().apply {
+            shape = GradientDrawable.OVAL
+            setColor(0x30FFFFFF)
+            setStroke(dp(1), 0x50FFFFFF)
+        }}
+
+        return TextView(this).apply {
+            text = label
+            textSize = if (label == "⌫") 20f else 22f
+            gravity = Gravity.CENTER
+            setTextColor(Color.WHITE)
+            typeface = Typeface.DEFAULT_BOLD
+            background = normalBg()
+            isClickable = true
+            isFocusable = true
+
+            setOnClickListener {
+                // Press ripple — lighten momentarily
+                background = pressedBg()
+                Handler(Looper.getMainLooper()).postDelayed({
+                    background = normalBg()
+                }, 120)
+
+                when (label) {
+                    "⌫" -> {
+                        if (pinBuffer.isNotEmpty()) {
+                            pinBuffer.deleteCharAt(pinBuffer.length - 1)
+                            refreshDots()
+                            clearError()
+                        }
+                    }
+                    else -> {
+                        if (pinBuffer.length < MAX_PIN_LEN) {
+                            pinBuffer.append(label)
+                            refreshDots()
+                            clearError()
+                            if (pinBuffer.length >= 4) {
+                                // Auto-submit on 4 digits (standard PIN length)
+                                Handler(Looper.getMainLooper()).postDelayed({ attemptUnlock() }, 120)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // ── Biometric button ──────────────────────────────────────────────────────
+
+    private fun buildBiometricButton(dp: (Int) -> Int): View {
+        val row = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER
+            setPadding(dp(16), dp(12), dp(16), dp(12))
+            background = GradientDrawable().apply {
+                cornerRadius = dp(20).toFloat()
+                setColor(0x0FFFFFFF)
+                setStroke(dp(1), 0x18FFFFFF)
+            }
+            isClickable = true; isFocusable = true
+            setOnClickListener { showBiometricPrompt() }
+        }
+        row.addView(TextView(this).apply {
+            text = "👆"; textSize = 18f
+        })
+        row.addView(TextView(this).apply {
+            text = " Use fingerprint / face"
+            textSize = 13f
+            setTextColor(Color.parseColor("#7C8490"))
+        })
+        return row
+    }
+
+    // ── Wordmark (matches FocusBlockingEngine / buildWordmark style) ──────────
+
     private fun buildWordmark(dp: (Int) -> Int): View {
-        val logoSz = dp(24)
+        val logoSz   = dp(28)    // slightly larger for better presence
         val logoView = object : View(this) {
             private val archPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
                 style = Paint.Style.STROKE; strokeCap = Paint.Cap.ROUND
@@ -224,7 +501,6 @@ class AppLockActivity : AppCompatActivity() {
             private val dotPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
                 style = Paint.Style.FILL
             }
-
             override fun onDraw(canvas: Canvas) {
                 val sx = width / 108f; val sy = height / 108f
                 canvas.save(); canvas.scale(sx, sy)
@@ -251,40 +527,49 @@ class AppLockActivity : AppCompatActivity() {
                 canvas.restore()
             }
         }
-
+        // clipChildren=false + setSingleLine(true) on the TextView prevents the
+        // "URELO" text being measured-then-clipped by an ancestor constraint.
         return LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.BOTTOM or Gravity.CENTER_VERTICAL
+            gravity = Gravity.CENTER_VERTICAL
+            clipChildren = false
+            clipToPadding = false
             addView(logoView, LinearLayout.LayoutParams(logoSz, logoSz).also {
-                it.rightMargin = dp(1); it.bottomMargin = dp(1)
+                it.rightMargin = dp(2)
             })
             addView(TextView(this@AppLockActivity).apply {
-                text = "URELO"; textSize = 21f
+                text = "URELO"       // 'A' is the arch logo; text starts at U
+                textSize = 22f
                 typeface = Typeface.create("serif", Typeface.NORMAL)
                 letterSpacing = 0.09f
                 setTextColor(Color.rgb(255, 224, 130))
+                setSingleLine(true)  // prevent wrap; ensures full width is measured
             }, LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
             ))
         }
     }
 
     // ── PIN verification ──────────────────────────────────────────────────────
-    private fun attemptPinUnlock() {
-        val entered = pinInput.text.toString()
+
+    private fun attemptUnlock() {
+        val entered = pinBuffer.toString()
         if (entered.isEmpty()) return
-        val stored = securePrefs.getString(APP_LOCK_PIN_HASH, null)
+        val stored  = securePrefs.getString(APP_LOCK_PIN_HASH, null)
         if (stored != null && sha256(entered) == stored) {
             unlockSuccess()
         } else {
             showError("Incorrect PIN")
-            pinInput.text.clear()
+            shakeDots()
+            Handler(Looper.getMainLooper()).postDelayed({ resetPin() }, 400)
         }
     }
 
     // ── Biometric prompt ──────────────────────────────────────────────────────
+
     private fun showBiometricPrompt() {
-        val prompt = BiometricPrompt(this, ContextCompat.getMainExecutor(this),
+        BiometricPrompt(this, ContextCompat.getMainExecutor(this),
             object : BiometricPrompt.AuthenticationCallback() {
                 override fun onAuthenticationSucceeded(r: BiometricPrompt.AuthenticationResult) {
                     unlockSuccess()
@@ -295,47 +580,59 @@ class AppLockActivity : AppCompatActivity() {
                 override fun onAuthenticationError(code: Int, msg: CharSequence) {
                     showError("Use PIN to unlock")
                 }
-            })
-
-        prompt.authenticate(
+            }
+        ).authenticate(
             BiometricPrompt.PromptInfo.Builder()
-                .setTitle("Unlock App")
-                .setSubtitle(getAppName(lockedPackage))
+                .setTitle("Unlock ${getAppName(lockedPackage)}")
+                .setSubtitle("Confirm your identity to continue")
                 .setNegativeButtonText("Use PIN")
                 .build()
         )
     }
 
-    // ── Unlock success ────────────────────────────────────────────────────────
-    /**
-     * FIX (Issue 3): After a successful unlock, explicitly bring the locked
-     * app's existing task to the foreground with FLAG_ACTIVITY_REORDER_TO_FRONT
-     * before finishing this activity. Without this, finish() falls back to
-     * whichever task Android considers "previous" — which is Aurelo when it was
-     * running in the background. REORDER_TO_FRONT moves the app's existing task
-     * to the front WITHOUT restarting it, preserving the user's in-app state.
-     */
+    // ── Unlock / helpers ──────────────────────────────────────────────────────
+
     private fun unlockSuccess() {
         sessionUnlockedApps[lockedPackage] = System.currentTimeMillis()
         currentLockedPackage = ""
-        // Simply finish — Android naturally brings the locked app's existing
-        // task back to front. The previous getLaunchIntentForPackage() call
-        // re-launched the app's MAIN activity, losing the user's in-app
-        // destination (e.g. WhatsApp new chat would bounce back to the chat
-        // list instead of opening the new chat screen).
         finish()
     }
 
-    // ── Error display ─────────────────────────────────────────────────────────
-    private fun showError(msg: String) {
-        errorText.text = msg
-        errorText.visibility = View.VISIBLE
-        Handler(Looper.getMainLooper()).postDelayed({ errorText.visibility = View.INVISIBLE }, 3000)
+    private fun resetPin() {
+        pinBuffer.clear()
+        refreshDots()
     }
 
-    // ── Helpers ───────────────────────────────────────────────────────────────
+    private fun showError(msg: String) {
+        errorLabel.text = msg
+        errorLabel.visibility = View.VISIBLE
+        Handler(Looper.getMainLooper()).postDelayed({
+            errorLabel.visibility = View.INVISIBLE
+        }, 2500)
+    }
+
+    private fun clearError() {
+        if (errorLabel.visibility == View.VISIBLE) errorLabel.visibility = View.INVISIBLE
+    }
+
+    /** Quick horizontal shake on wrong PIN — consistent with lock apps */
+    private fun shakeDots() {
+        val shake = ObjectAnimator.ofFloat(dotContainer, "translationX",
+            0f, -12f, 12f, -8f, 8f, -4f, 4f, 0f)
+        shake.duration = 350
+        shake.start()
+    }
+
+    private fun goHome() {
+        startActivity(Intent(Intent.ACTION_MAIN).apply {
+            addCategory(Intent.CATEGORY_HOME)
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK
+        })
+    }
+
     private fun sha256(input: String): String {
-        val bytes = MessageDigest.getInstance("SHA-256").digest(input.toByteArray(Charsets.UTF_8))
+        val bytes = MessageDigest.getInstance("SHA-256")
+            .digest(input.toByteArray(Charsets.UTF_8))
         return bytes.joinToString("") { "%02x".format(it) }
     }
 
@@ -345,13 +642,8 @@ class AppLockActivity : AppCompatActivity() {
                 BiometricManager.BIOMETRIC_SUCCESS
 
     private fun getAppName(pkg: String): String = runCatching {
-        packageManager.getApplicationLabel(packageManager.getApplicationInfo(pkg, 0)).toString()
+        packageManager.getApplicationLabel(
+            packageManager.getApplicationInfo(pkg, 0)
+        ).toString()
     }.getOrDefault(pkg)
-
-    /** Convenience LP builder to reduce boilerplate in buildUI() */
-    private fun lp(dp: (Int) -> Int, bottomMargin: Int = 0) =
-        LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT,
-            LinearLayout.LayoutParams.WRAP_CONTENT
-        ).also { it.bottomMargin = dp(bottomMargin) }
 }

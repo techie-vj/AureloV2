@@ -1000,37 +1000,76 @@ function confirmDelCat(){ if(editingCat) confirmDelCatByName(editingCat); }
  * 6c: renderAppLockSettings() — shown in the App Lock settings section
  * ========================================================================= */
 
-/* ── 6b: PIN setup modal ───────────────────────────────────────────────── */
+/* ── 6b: PIN setup modal — custom numpad, consistent with AppLockActivity ──
+ *
+ * Two-step flow:
+ *   Step 1 — "Enter PIN"   : user taps 4 digits → auto-advances to step 2
+ *   Step 2 — "Confirm PIN" : user re-enters same 4 digits → saves
+ *
+ * No system keyboard. 4-dot indicator + 3×4 numpad grid.
+ * Biometric toggle shown on step 2 before final save.
+ * ─────────────────────────────────────────────────────────────────────────── */
+
+/* Internal state for the numpad flow */
+var _pinStep     = 1;   // 1 = enter, 2 = confirm
+var _pinBuf1     = '';  // digits from step 1
+var _pinBuf2     = '';  // digits from step 2
+var _pinIsChange = false;
+
 function openPinSetupModal(isChange) {
+  _pinIsChange = isChange;
+  _pinStep  = 1;
+  _pinBuf1  = '';
+  _pinBuf2  = '';
+
   if (!document.getElementById('pin-setup-modal')) {
     const html = `
     <div id="pin-setup-modal" class="modal-bg">
-      <div class="sheet">
+      <div class="sheet" style="max-height:92vh;overflow:hidden">
         <div class="sheet-handle"></div>
         <div class="sheet-hdr">
           <div class="sheet-title" id="pin-modal-title">Set App Lock PIN</div>
           <div onclick="closeModal('pin-setup-modal')"
                style="cursor:pointer;padding:6px 10px;color:var(--t3);font-size:18px;line-height:1">✕</div>
         </div>
-        <div class="sheet-body" style="padding:20px 20px 40px">
-          <p style="color:var(--t2);font-size:13px;line-height:1.55;margin-bottom:18px;font-family:var(--ff-m)">
-            Create a 4–8 digit PIN to lock apps. You can also use fingerprint or face unlock.
-          </p>
-          <input id="pin-input-1" type="password" inputmode="numeric"
-            maxlength="8" placeholder="Enter PIN"
-            style="width:100%;padding:13px 14px;font-size:15px;letter-spacing:4px;text-align:center;
-                   background:var(--s2);border:1px solid var(--border2);border-radius:12px;
-                   color:var(--t1);box-sizing:border-box;margin-bottom:12px;
-                   outline:none;font-family:var(--ff-m)"/>
-          <input id="pin-input-2" type="password" inputmode="numeric"
-            maxlength="8" placeholder="Confirm PIN"
-            style="width:100%;padding:13px 14px;font-size:15px;letter-spacing:4px;text-align:center;
-                   background:var(--s2);border:1px solid var(--border2);border-radius:12px;
-                   color:var(--t1);box-sizing:border-box;margin-bottom:20px;
-                   outline:none;font-family:var(--ff-m)"/>
-          <div style="display:flex;align-items:center;gap:12px;padding:13px 15px;
-                      background:var(--s1);border:1px solid var(--border);border-radius:12px;
-                      margin-bottom:18px">
+        <div class="sheet-body" style="padding:0 20px 32px">
+
+          <!-- Step label -->
+          <div id="pin-step-label"
+               style="text-align:center;font-family:var(--ff-m);font-size:11px;
+                      letter-spacing:.12em;color:var(--t3);margin:14px 0 20px;
+                      text-transform:uppercase">
+            Enter a 4-digit PIN
+          </div>
+
+          <!-- Dot indicator -->
+          <div id="pin-dots"
+               style="display:flex;justify-content:center;gap:14px;margin-bottom:12px">
+            <div class="pin-dot" data-idx="0"></div>
+            <div class="pin-dot" data-idx="1"></div>
+            <div class="pin-dot" data-idx="2"></div>
+            <div class="pin-dot" data-idx="3"></div>
+          </div>
+
+          <!-- Error label -->
+          <div id="pin-error"
+               style="text-align:center;font-family:var(--ff-m);font-size:12px;
+                      color:#E86B5F;min-height:18px;margin-bottom:10px;
+                      visibility:hidden">
+            &nbsp;
+          </div>
+
+          <!-- Numpad grid -->
+          <div id="pin-numpad"
+               style="display:grid;grid-template-columns:repeat(3,1fr);
+                      gap:10px;max-width:264px;margin:0 auto 20px">
+          </div>
+
+          <!-- Biometric toggle — hidden until step 2 -->
+          <div id="pin-bio-row"
+               style="display:none;align-items:center;gap:12px;padding:13px 15px;
+                      background:var(--s1);border:1px solid var(--border);
+                      border-radius:12px;margin-bottom:4px">
             <div style="flex:1">
               <div style="font-size:14px;font-weight:600">Fingerprint / Face Unlock</div>
               <div style="font-family:var(--ff-m);font-size:11px;color:var(--t3);margin-top:2px">
@@ -1041,32 +1080,167 @@ function openPinSetupModal(isChange) {
               <div class="tog-knob"></div>
             </div>
           </div>
-          <button onclick="savePinSetup()"
-            style="width:100%;padding:15px;border-radius:14px;border:none;cursor:pointer;
-                   background:linear-gradient(135deg,var(--p),var(--c));color:#fff;
-                   font-family:var(--ff-d);font-size:16px;min-height:50px">
-            Set PIN
-          </button>
+
         </div>
       </div>
-    </div>`;
+    </div>
+    <style>
+      .pin-dot {
+        width: 13px; height: 13px; border-radius: 50%;
+        background: rgba(255,255,255,.12);
+        border: 1.5px solid rgba(255,255,255,.28);
+        transition: background .15s, border-color .15s, transform .1s;
+      }
+      .pin-dot.filled {
+        background: var(--p2);
+        border-color: var(--p2);
+        transform: scale(1.1);
+      }
+      .pin-key {
+        height: 62px; border-radius: 50%;
+        background: rgba(255,255,255,.07);
+        border: 1px solid rgba(255,255,255,.1);
+        display: flex; align-items: center; justify-content: center;
+        font-size: 22px; font-weight: 700; color: var(--t1);
+        cursor: pointer; user-select: none;
+        transition: background .12s, transform .1s;
+        -webkit-tap-highlight-color: transparent;
+      }
+      .pin-key:active { background: rgba(255,255,255,.18); transform: scale(.93); }
+      .pin-key.del { font-size: 20px; }
+      .pin-key.spacer { background: transparent; border-color: transparent; cursor: default; }
+      @keyframes pinShake {
+        0%,100%{ transform:translateX(0) }
+        20%{ transform:translateX(-10px) }
+        40%{ transform:translateX(10px) }
+        60%{ transform:translateX(-6px) }
+        80%{ transform:translateX(6px) }
+      }
+      .pin-shake { animation: pinShake .35s ease; }
+    </style>`;
     document.body.insertAdjacentHTML('beforeend', html);
+    _pinBuildNumpad();
   }
-  // Update title + clear inputs on every open
-  const titleEl = document.getElementById('pin-modal-title');
-  if (titleEl) titleEl.textContent = isChange ? 'Change App Lock PIN' : 'Set App Lock PIN';
-  const p1 = document.getElementById('pin-input-1');
-  const p2 = document.getElementById('pin-input-2');
-  if (p1) p1.value = '';
-  if (p2) p2.value = '';
-  // Sync biometric toggle state
+
+  // Reset state on every open
+  _pinStep = 1; _pinBuf1 = ''; _pinBuf2 = '';
+  _pinSyncUI();
+
+  // Sync biometric toggle
   const bioTog = document.getElementById('pin-bio-tog');
   if (bioTog && IS_NATIVE) {
     const bioOn = N.isBiometricEnabled();
     bioTog.classList.toggle('on', bioOn);
     bioTog.classList.toggle('off', !bioOn);
   }
+
   openModal('pin-setup-modal');
+}
+
+function _pinBuildNumpad() {
+  const grid = document.getElementById('pin-numpad');
+  if (!grid) return;
+  const keys = ['1','2','3','4','5','6','7','8','9','','0','⌫'];
+  grid.innerHTML = keys.map(k => {
+    if (k === '') return `<div class="pin-key spacer"></div>`;
+    if (k === '⌫') return `<div class="pin-key del" onclick="_pinKey('⌫')">⌫</div>`;
+    return `<div class="pin-key" onclick="_pinKey('${k}')">${k}</div>`;
+  }).join('');
+}
+
+function _pinKey(k) {
+  const buf = _pinStep === 1 ? '_pinBuf1' : '_pinBuf2';
+  if (k === '⌫') {
+    if (_pinStep === 1) _pinBuf1 = _pinBuf1.slice(0, -1);
+    else                _pinBuf2 = _pinBuf2.slice(0, -1);
+    _pinClearError();
+  } else {
+    const cur = _pinStep === 1 ? _pinBuf1 : _pinBuf2;
+    if (cur.length >= 4) return;   // max 4 digits
+    if (_pinStep === 1) _pinBuf1 += k;
+    else                _pinBuf2 += k;
+  }
+  _pinRefreshDots();
+
+  // Auto-advance / auto-submit on 4th digit
+  const len = (_pinStep === 1 ? _pinBuf1 : _pinBuf2).length;
+  if (len === 4) {
+    setTimeout(() => {
+      if (_pinStep === 1) {
+        // Advance to confirm step
+        _pinStep = 2;
+        _pinSyncUI();
+      } else {
+        // Validate & save
+        _pinTrySave();
+      }
+    }, 150);
+  }
+}
+
+function _pinRefreshDots() {
+  const filled = (_pinStep === 1 ? _pinBuf1 : _pinBuf2).length;
+  document.querySelectorAll('#pin-setup-modal .pin-dot').forEach((d, i) => {
+    d.classList.toggle('filled', i < filled);
+  });
+}
+
+function _pinSyncUI() {
+  // Title
+  const titleEl = document.getElementById('pin-modal-title');
+  if (titleEl) titleEl.textContent = _pinIsChange ? 'Change App Lock PIN' : 'Set App Lock PIN';
+
+  // Step label
+  const lbl = document.getElementById('pin-step-label');
+  if (lbl) lbl.textContent = _pinStep === 1 ? 'Enter a 4-digit PIN' : 'Confirm your PIN';
+
+  // Dots — reset to empty
+  document.querySelectorAll('#pin-setup-modal .pin-dot').forEach(d => d.classList.remove('filled'));
+
+  // Biometric row — show only on step 2
+  const bioRow = document.getElementById('pin-bio-row');
+  if (bioRow) bioRow.style.display = _pinStep === 2 ? 'flex' : 'none';
+
+  _pinClearError();
+}
+
+function _pinShowError(msg) {
+  const el = document.getElementById('pin-error');
+  if (!el) return;
+  el.textContent = msg;
+  el.style.visibility = 'visible';
+  // Shake dots
+  const dotsEl = document.getElementById('pin-dots');
+  if (dotsEl) {
+    dotsEl.classList.remove('pin-shake');
+    void dotsEl.offsetWidth;  // reflow to restart animation
+    dotsEl.classList.add('pin-shake');
+    setTimeout(() => dotsEl.classList.remove('pin-shake'), 400);
+  }
+}
+
+function _pinClearError() {
+  const el = document.getElementById('pin-error');
+  if (el) { el.textContent = '\u00a0'; el.style.visibility = 'hidden'; }
+}
+
+function _pinTrySave() {
+  if (_pinBuf1 !== _pinBuf2) {
+    _pinShowError("PINs don't match — try again");
+    // Reset to step 1
+    setTimeout(() => { _pinStep = 1; _pinBuf1 = ''; _pinBuf2 = ''; _pinSyncUI(); }, 600);
+    return;
+  }
+  if (!IS_NATIVE) { toast('PIN setup requires the native app', 'warn'); return; }
+  const ok = N.setPin(_pinBuf1);
+  if (ok) {
+    closeModal('pin-setup-modal');
+    toast('App Lock PIN set ✓', 'success');
+    const wrap = document.getElementById('app-lock-settings-wrap');
+    if (wrap) wrap.innerHTML = renderAppLockSettings();
+  } else {
+    toast('Could not save PIN — secure storage unavailable', 'error');
+  }
 }
 
 function pinToggleBiometric(tog) {
@@ -1076,24 +1250,8 @@ function pinToggleBiometric(tog) {
   if (IS_NATIVE) N.setBiometricEnabled(!isOn);
 }
 
-function savePinSetup() {
-  const pin1 = document.getElementById('pin-input-1').value.trim();
-  const pin2 = document.getElementById('pin-input-2').value.trim();
-  if (pin1.length < 4)        { toast('PIN must be at least 4 digits', 'warn'); return; }
-  if (!/^\d+$/.test(pin1))    { toast('PIN must be digits only', 'warn'); return; }
-  if (pin1 !== pin2)           { toast('PINs do not match', 'warn'); return; }
-  if (!IS_NATIVE)              { toast('PIN setup requires the native app', 'warn'); return; }
-  const ok = N.setPin(pin1);
-  if (ok) {
-    closeModal('pin-setup-modal');
-    toast('App Lock PIN set ✓', 'success');
-    // Re-render App Lock settings so it switches to 'Change PIN'
-    const wrap = document.getElementById('app-lock-settings-wrap');
-    if (wrap) wrap.innerHTML = renderAppLockSettings();
-  } else {
-    toast('Could not save PIN — secure storage unavailable', 'error');
-  }
-}
+// Keep savePinSetup as no-op alias (not called anywhere but kept for safety)
+function savePinSetup() { _pinTrySave(); }
 
 /* ── 6c: App Lock settings rows (PIN + biometric toggle) ───────────────── */
 function renderAppLockSettings() {

@@ -213,6 +213,9 @@ class AppMonitorService : Service() {
             // ── App Lock detection ───────────────────────────────────────────────
             // Detect locked app in foreground and launch AppLockActivity on top.
             // Guard: skip if AppLockActivity itself is already showing for this package.
+            // Permission guard (consistent with IntentionEngine / FocusBlockingEngine /
+            // TimerBlockingEngine): if SYSTEM_ALERT_WINDOW is not granted we cannot draw
+            // on top, so fall back to a high-priority notification instead.
             if (currentFgPkg.isNotEmpty() && currentFgPkg != packageName) {
                 val alreadyLocking = AppLockActivity.currentLockedPackage == currentFgPkg
                 if (!alreadyLocking && !AppLockActivity.sessionUnlockedApps.containsKey(currentFgPkg)) {
@@ -225,14 +228,35 @@ class AppMonitorService : Service() {
                             (0 until arr.length()).map { arr.getString(it) }.toSet()
                         }.getOrDefault(emptySet())
                         if (lockedApps.contains(currentFgPkg)) {
-                            val lockIntent = Intent(this@AppMonitorService, AppLockActivity::class.java).apply {
-                                flags = Intent.FLAG_ACTIVITY_NEW_TASK or
-                                        Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
-                                putExtra("locked_package", currentFgPkg)
-                                putExtra("biometric_enabled",
-                                    prefs.getBoolean(APP_LOCK_BIOMETRIC_ENABLED, true))
+                            if (!canDrawOverlay()) {
+                                // No overlay permission — show fallback notification so the
+                                // user is still alerted that a locked app was opened.
+                                val appName = runCatching {
+                                    packageManager.getApplicationLabel(
+                                        packageManager.getApplicationInfo(currentFgPkg, 0)
+                                    ).toString()
+                                }.getOrDefault(currentFgPkg)
+                                val lockFallbackNotif = androidx.core.app.NotificationCompat
+                                    .Builder(this@AppMonitorService, CHANNEL_ID)
+                                    .setSmallIcon(android.R.drawable.ic_lock_lock)
+                                    .setColor(0xFF6C63FF.toInt())
+                                    .setContentTitle("🔒 Locked app opened")
+                                    .setContentText("$appName is locked. Grant 'Display over other apps' so Aurelo can block it.")
+                                    .setPriority(androidx.core.app.NotificationCompat.PRIORITY_HIGH)
+                                    .setCategory(androidx.core.app.NotificationCompat.CATEGORY_ALARM)
+                                    .setAutoCancel(true)
+                                    .build()
+                                nm.notify(NOTIF_ID + 5, lockFallbackNotif)
+                            } else {
+                                val lockIntent = Intent(this@AppMonitorService, AppLockActivity::class.java).apply {
+                                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or
+                                            Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
+                                    putExtra("locked_package", currentFgPkg)
+                                    putExtra("biometric_enabled",
+                                        prefs.getBoolean(APP_LOCK_BIOMETRIC_ENABLED, true))
+                                }
+                                startActivity(lockIntent)
                             }
-                            startActivity(lockIntent)
                         }
                     }
                 }
