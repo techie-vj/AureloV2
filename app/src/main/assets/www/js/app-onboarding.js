@@ -297,7 +297,7 @@ function obInitMoodFaces() {
 // ── Step 2 — Name ─────────────────────────────────────────────
 const _OB_MOOD_LINES = {
   // New 5-mood system
-  awful:     'Rough start — Aurelo will show you exactly what\'s draining you.',
+  Rough:     'Rough start — Aurelo will show you exactly what\'s draining you.',
   low:       'Totally valid. Small wins add up — let\'s find yours.',
   okay:      'Fair enough. Your score builds automatically from here.',
   good:      'That energy shows. Let\'s channel it into your score.',

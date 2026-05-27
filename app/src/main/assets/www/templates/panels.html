@@ -4,8 +4,18 @@
      Body is rendered by app-quiet-hours.js when the panel opens. -->
 <div class="panel" id="quiet-hours-panel">
     <div class="panel-hdr">
-        <div class="panel-back" onclick="closeQuietHoursPanel()">←</div>
-        <div class="panel-title">🔕 Quiet Hours</div>
+        <div class="panel-back" onclick="closeQuietHoursPanel()">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+        </div>
+        <div style="display:flex;align-items:center;gap:9px;flex:1">
+            <div style="width:32px;height:32px;border-radius:9px;background:rgba(108,99,255,.15);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--p2,#a79fff)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+            </div>
+            <div>
+                <div class="panel-title" style="font-size:17px;line-height:1.1">Quiet Hours</div>
+                <div id="qh-panel-subtitle" style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);margin-top:1px">Schedule DND</div>
+            </div>
+        </div>
         <div></div>
     </div>
     <div class="panel-body" id="quiet-hours-body"></div>

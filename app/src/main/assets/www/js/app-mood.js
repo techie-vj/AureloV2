@@ -23,7 +23,7 @@ var Mood = (function () {
   var _audioCtx       = null;
 
   var MOODS = {
-    awful: {
+    rough: {
       face: '😞', label: 'Rough', sub: 'Hang in there — you\'ve got this.',
       c1: '#ef4444', c2: '#f97316', cr: '239,68,68', pattern: [40, 20, 40], tone: [180, 'sine']
     },
@@ -46,7 +46,7 @@ var Mood = (function () {
   };
 
   var MOOD_TAGS = {
-    awful: ['😣 Overwhelmed', '😔 Burned out', '🛌 Resting', '📉 Heavy day', '💬 Need support'],
+    rough: ['😣 Overwhelmed', '😔 Burned out', '🛌 Resting', '📉 Heavy day', '💬 Need support'],
     low:   ['😴 Tired', '🧠 Unfocused', '🌧️ Sluggish', '📆 Busy', '🫂 Need space'],
     okay:  ['✅ Fine', '🧘 Calm', '📋 Routine', '☕ Caffeinated', '🔍 Distracted'],
     good:  ['💪 Productive', '😊 Positive', '🎯 Focused', '👥 Connected', '🏃 Active'],
@@ -461,29 +461,54 @@ var Mood = (function () {
     var el = _q('mood-settings-section');
     if (!el) return;
 
-    var todayEntry  = _getTodayEntry();
-    var enabled     = typeof S !== 'undefined' ? !S.moodCheckInDisabled : true;
-    var moodLabel   = todayEntry ? (MOODS[todayEntry.m] || {}).label || todayEntry.m : null;
-    var moodColor   = todayEntry ? (MOODS[todayEntry.m] || {}).c1 || 'var(--t2)' : 'var(--t2)';
+    var todayEntry = _getTodayEntry();
+    var enabled    = typeof S !== 'undefined' ? !S.moodCheckInDisabled : true;
+    var logged     = !!todayEntry;
+    var moodData   = logged ? (MOODS[todayEntry.m] || null) : null;
 
-    el.innerHTML =
-      '<div class="sr">' +
-        '<div class="sr-ico" style="background:rgba(155,149,255,.15);color:var(--p2)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 13s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg></div>' +
+    // ── Top row: icon + title + toggle
+    var sub = logged
+      ? (moodData ? '<span style="color:' + moodData.c1 + ';font-weight:700">' + moodData.face + '\u00a0' + moodData.label + '</span> &middot; logged today' : 'Logged today')
+      : (enabled ? 'Not logged yet today' : 'Off');
+
+    var topRow =
+      '<div class="sr" style="border-bottom:' + (!logged && enabled ? '1px solid var(--border2)' : 'none') + ';cursor:default">' +
+        '<div class="sr-ico" style="background:rgba(155,149,255,.15);color:var(--p2)">' +
+          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
+            '<circle cx="12" cy="12" r="10"/><path d="M8 13s1.5 2 4 2 4-2 4-2"/>' +
+            '<line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/>' +
+          '</svg>' +
+        '</div>' +
         '<div style="flex:1">' +
           '<div class="sr-lbl">Mood Check-In</div>' +
-          '<div class="sr-sub">' +
-            (todayEntry
-              ? '<span style="color:' + moodColor + ';font-weight:600">' + moodLabel + '</span> logged today'
-              : 'Daily morning prompt · 7–11 AM') +
-          '</div>' +
+          '<div class="sr-sub">' + sub + '</div>' +
         '</div>' +
-        '<div class="tog ' + (enabled ? 'on' : '') + '" onclick="Mood.setEnabled(' + (!enabled) + ')" style="flex-shrink:0"><div class="tog-knob"></div></div>' +
-      '</div>' +
-      (!todayEntry && enabled
-        ? '<div style="padding:2px 14px 8px">' +
-            '<button class="mood-settings-log-now" onclick="Mood.openFromSettings()">+ Log today\'s mood</button>' +
-          '</div>'
-        : '');
+        '<div class="tog ' + (enabled ? 'on' : 'off') + '" onclick="Mood.setEnabled(' + (!enabled) + ')" style="flex-shrink:0"><div class="tog-knob"></div></div>' +
+      '</div>';
+
+    // ── Quick-log row: inline emoji picker, shown when not logged and enabled
+    var quickLogRow = '';
+    if (!logged && enabled) {
+      var faces = Object.keys(MOODS).map(function (k) {
+        var m = MOODS[k];
+        return '<button onclick="Mood.openFromSettings()" title="' + m.label + '" ' +
+          'style="flex:1;background:none;border:1px solid var(--border2);border-radius:10px;' +
+          'padding:8px 0 7px;cursor:pointer;display:flex;flex-direction:column;align-items:center;' +
+          'gap:3px;transition:background .14s,border-color .14s;-webkit-tap-highlight-color:transparent">' +
+          '<span style="font-size:20px;line-height:1.2">' + m.face + '</span>' +
+          '<span style="font-family:var(--ff-m);font-size:10px;color:var(--t3);font-weight:600;letter-spacing:.2px">' + m.label + '</span>' +
+          '</button>';
+      }).join('');
+
+      quickLogRow =
+        '<div style="padding:10px 15px 13px">' +
+          '<div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);' +
+                'letter-spacing:1px;text-transform:uppercase;margin-bottom:8px">How are you feeling?</div>' +
+          '<div style="display:flex;gap:5px">' + faces + '</div>' +
+        '</div>';
+    }
+
+    el.innerHTML = topRow + quickLogRow;
   }
 
   function setEnabled(val) {
@@ -513,7 +538,7 @@ var Mood = (function () {
   }
 
   function getMoodForDay(dateStr) {
-    var MAP = { awful: 1, low: 2, okay: 3, good: 4, great: 5 };
+    var MAP = { rough: 1, low: 2, okay: 3, good: 4, great: 5 };
     var entry = (_getHistory()).find(function (e) { return e.d === dateStr; });
     return entry ? (MAP[entry.m] || null) : null;
   }

@@ -49,7 +49,7 @@ var ScoreHistory = (function () {
     { id:'mood',   label:'Mood',    key:'mood_history',          cssVar:'#B09AFF', isMood:true },
   ];
 
-  /* Mood-specific zone labels (awful=0, low=25, okay=50, good=75, great=100) */
+  /* Mood-specific zone labels (rough=0, low=25, okay=50, good=75, great=100) */
   var ZONES_MOOD = [
     { lo:88, hi:101, cssVar:'#B09AFF', label:'Great' },
     { lo:63, hi:88,  cssVar:'--g',     label:'Good'  },
@@ -135,7 +135,7 @@ var ScoreHistory = (function () {
 
     /* ── Mood pillar: convert mood entries to 0-100 scale ── */
     if (pillarId === 'mood') {
-      var MOOD_VAL = { awful:0, low:25, okay:50, good:75, great:100 };
+      var MOOD_VAL = { rough:0, low:25, okay:50, good:75, great:100 };
       var entries = [];
       if (typeof Mood !== 'undefined' && typeof Mood.getMoodHistory === 'function') {
         entries = Mood.getMoodHistory(days);
@@ -1291,13 +1291,13 @@ var ScoreHistory = (function () {
         if (_pillar === 'mood') {
                   /* Mood tooltip: show label + tags + note instead of numeric score */
                   var _MOOD_META = {
-                    awful: { label:'Rough day',      color:'#F04E7A' },
+                    rough: { label:'Rough day',      color:'#F04E7A' },
                     low:   { label:'Meh...',         color:'#F7A623' },
                     okay:  { label:'Could be worse', color:'#A0A0CC' },
                     good:  { label:'Doing well',     color:'#12D48A' },
                     great: { label:'Loving it!',     color:'#9B95FF' },
                   };
-                  var _MOOD_VAL_ID = { 0:'awful', 25:'low', 50:'okay', 75:'good', 100:'great' };
+                  var _MOOD_VAL_ID = { 0:'rough', 25:'low', 50:'okay', 75:'good', 100:'great' };
                   var _moodId  = _MOOD_VAL_ID[_scrub.v] || null;
                   var _moodMeta= _moodId ? (_MOOD_META[_moodId] || {}) : {};
 

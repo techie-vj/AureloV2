@@ -131,101 +131,212 @@
 
   // ── Render ────────────────────────────────────────────────────────────────
 
+  // Returns a human-readable summary of the selected days array.
+  function _daysSummary(days) {
+    var on = days.reduce(function (acc, v, i) { if (v) acc.push(i); return acc; }, []);
+    if (on.length === 0) return 'No days';
+    if (on.length === 7) return 'Every day';
+    var weekdays = [1,2,3,4,5];
+    var weekend  = [0,6];
+    if (weekdays.every(function (i) { return days[i]; }) && !days[0] && !days[6]) return 'Weekdays';
+    if (weekend.every(function (i) { return days[i]; }) && on.length === 2) return 'Weekends';
+    var FULL = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+    return on.map(function (i) { return FULL[i]; }).join(', ');
+  }
+
+  // Returns true when end time is earlier than start (overnight window)
+  function _isOvernight(sh, sm, eh, em) {
+    return (sh * 60 + sm) >= (eh * 60 + em);
+  }
+
   function _renderPanel() {
     var body = document.getElementById('quiet-hours-body');
     if (!body || !_qhState) return;
-    var state = _getState();
+    var state   = _getState();
+    var enabled = !!_qhState.enabled;
+    var dim     = enabled ? '' : 'opacity:.42;pointer-events:none;';
 
+    // ── Update panel header subtitle ──────────────────────────────
+    var sub = document.getElementById('qh-panel-subtitle');
+    if (sub) {
+      sub.textContent = !enabled ? 'Tap to enable' :
+        state.active ? 'Active now' :
+        state.pausedUntilMs > 0 ? 'Paused' :
+        _daysSummary(_qhState.days);
+    }
+
+    // ── Status banner (active / paused) ─────────────────────────
     var statusBlock = '';
-    if (_qhState.enabled && state.active) {
+    if (enabled && state.active) {
       statusBlock =
-        '<div style="background:rgba(108,99,255,.10);border:1px solid rgba(108,99,255,.30);' +
-        'border-radius:14px;padding:14px;margin-bottom:14px">' +
-          '<div style="font-family:var(--ff-m);font-size:13px;font-weight:700;color:var(--t1);margin-bottom:4px">' +
-            '🔕 Active until ' + _fmtMs(state.endsAtMs) +
-          '</div>' +
-          '<div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);line-height:1.5;margin-bottom:10px">' +
-            'Notifications are silenced. Starred contacts and repeat callers still ring through.' +
+        '<div style="background:rgba(108,99,255,.10);border:1px solid rgba(108,99,255,.28);' +
+        'border-radius:16px;padding:14px 16px;margin-bottom:16px">' +
+          '<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">' +
+            '<div style="width:28px;height:28px;border-radius:8px;background:rgba(108,99,255,.20);' +
+                 'display:flex;align-items:center;justify-content:center;flex-shrink:0">' +
+              '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--p2,#a79fff)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><line x1="1" y1="1" x2="23" y2="23"/></svg>' +
+            '</div>' +
+            '<div style="flex:1">' +
+              '<div style="font-family:var(--ff-m);font-size:13px;font-weight:700;color:var(--t1);line-height:1.2">Active now</div>' +
+              '<div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);margin-top:1px">Ends ' + _fmtMs(state.endsAtMs) + ' · Starred contacts can still call</div>' +
+            '</div>' +
           '</div>' +
           '<div style="display:flex;gap:8px">' +
-            '<button onclick="QuietHours.endNow()" style="flex:1;padding:9px 12px;border-radius:10px;border:1px solid var(--border2);background:var(--s1);color:var(--t1);font-family:var(--ff-m);font-size:12px;font-weight:700;cursor:pointer">End now</button>' +
-            '<button onclick="QuietHours.pause30()" style="flex:1;padding:9px 12px;border-radius:10px;border:1px solid var(--border2);background:var(--s1);color:var(--t1);font-family:var(--ff-m);font-size:12px;font-weight:700;cursor:pointer">Pause 30m</button>' +
+            '<button onclick="QuietHours.endNow()" ' +
+              'style="flex:1;padding:10px;border-radius:10px;border:1px solid var(--border2);background:var(--s1);' +
+              'color:var(--t1);font-family:var(--ff-m);font-size:12px;font-weight:700;cursor:pointer">' +
+              '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" style="margin-right:5px;vertical-align:-1px"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>' +
+              'End now' +
+            '</button>' +
+            '<button onclick="QuietHours.pause30()" ' +
+              'style="flex:1;padding:10px;border-radius:10px;border:1px solid var(--border2);background:var(--s1);' +
+              'color:var(--t1);font-family:var(--ff-m);font-size:12px;font-weight:700;cursor:pointer">' +
+              '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" style="margin-right:5px;vertical-align:-1px"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>' +
+              'Pause 30 min' +
+            '</button>' +
           '</div>' +
         '</div>';
-    } else if (_qhState.enabled && state.pausedUntilMs > 0) {
+    } else if (enabled && state.pausedUntilMs > 0) {
       statusBlock =
-        '<div style="background:rgba(247,166,35,.10);border:1px solid rgba(247,166,35,.30);' +
-        'border-radius:14px;padding:14px;margin-bottom:14px">' +
-          '<div style="font-family:var(--ff-m);font-size:13px;font-weight:700;color:var(--t1);margin-bottom:4px">' +
-            '⏸ Paused' +
+        '<div style="background:rgba(247,166,35,.09);border:1px solid rgba(247,166,35,.28);' +
+        'border-radius:16px;padding:14px 16px;margin-bottom:16px;display:flex;align-items:center;gap:10px">' +
+          '<div style="width:28px;height:28px;border-radius:8px;background:rgba(247,166,35,.18);' +
+               'display:flex;align-items:center;justify-content:center;flex-shrink:0">' +
+            '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#f7a623" stroke-width="2.5" stroke-linecap="round"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>' +
           '</div>' +
-          '<div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);line-height:1.5">' +
-            'Resumes ' + _fmtMs(state.pausedUntilMs) +
+          '<div>' +
+            '<div style="font-family:var(--ff-m);font-size:13px;font-weight:700;color:var(--t1);line-height:1.2">Paused</div>' +
+            '<div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);margin-top:1px">Resumes ' + _fmtMs(state.pausedUntilMs) + '</div>' +
           '</div>' +
         '</div>';
     }
 
+    // ── Enable row ───────────────────────────────────────────────
     var enabledRow =
-      '<div class="sr" onclick="QuietHours.toggle()" style="border-bottom:1px solid var(--border2)">' +
-        '<div class="sr-ico sr-ico--moon" style="background:rgba(108,99,255,.15);width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:17px">🔕</div>' +
+      '<div class="sr" onclick="QuietHours.toggle()" ' +
+          'style="border-bottom:1px solid var(--border2);border-radius:0">' +
+        '<div class="sr-ico sr-ico--moon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><line x1="1" y1="1" x2="23" y2="23"/></svg></div>' +
         '<div style="flex:1">' +
           '<div class="sr-lbl">Enable Quiet Hours</div>' +
-          '<div class="sr-sub">' +
-            (_qhState.enabled ? 'On — schedules DND on selected days' : 'Off')  +
+          '<div class="sr-sub" id="qh-enable-sub">' +
+            (enabled ? 'Schedules DND on selected days' : 'Off') +
           '</div>' +
         '</div>' +
-        '<div class="tog ' + (_qhState.enabled ? 'on' : '') + '" id="qh-tog-enabled">' +
+        '<div class="tog ' + (enabled ? 'on' : 'off') + '" id="qh-tog-enabled">' +
           '<div class="tog-knob"></div>' +
         '</div>' +
       '</div>';
 
-    var timesRow =
-      '<div style="padding:14px 4px;border-bottom:1px solid var(--border2);' +
-      (_qhState.enabled ? '' : 'opacity:.45;pointer-events:none;') + '">' +
-        '<div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);letter-spacing:1.2px;text-transform:uppercase;margin-bottom:10px">Window</div>' +
-        '<div style="display:flex;gap:8px;align-items:center;justify-content:space-between">' +
-          '<button onclick="QuietHours.editStart()" style="flex:1;padding:14px;border-radius:12px;border:1px solid var(--border2);background:var(--s1);color:var(--t1);font-family:var(--ff-m);font-size:14px;font-weight:700;cursor:pointer;text-align:left">' +
-            '<div style="font-size:var(--text-2xs);color:var(--t3);margin-bottom:2px">From</div>' +
-            _fmt(_qhState.startHour, _qhState.startMin) +
-          '</button>' +
-          '<div style="color:var(--t3);font-size:18px">→</div>' +
-          '<button onclick="QuietHours.editEnd()" style="flex:1;padding:14px;border-radius:12px;border:1px solid var(--border2);background:var(--s1);color:var(--t1);font-family:var(--ff-m);font-size:14px;font-weight:700;cursor:pointer;text-align:left">' +
-            '<div style="font-size:var(--text-2xs);color:var(--t3);margin-bottom:2px">To</div>' +
-            _fmt(_qhState.endHour, _qhState.endMin) +
-          '</button>' +
-        '</div>' +
+    // ── Preset chips ─────────────────────────────────────────────
+    var PRESETS = [
+      { label: 'Work',    sh: 9,  sm: 0, eh: 17, em: 0, days: [false,true,true,true,true,true,false] },
+      { label: 'Evening', sh: 19, sm: 0, eh: 22, em: 0, days: [true,true,true,true,true,true,true] },
+      { label: 'Night',   sh: 22, sm: 0, eh: 7,  em: 0, days: [true,true,true,true,true,true,true] },
+      { label: 'Focus',   sh: 8,  sm: 0, eh: 12, em: 0, days: [false,true,true,true,true,true,false] }
+    ];
+    function _presetActive(p) {
+      return _qhState.startHour === p.sh && _qhState.startMin === p.sm &&
+             _qhState.endHour   === p.eh && _qhState.endMin   === p.em &&
+             p.days.every(function (v, i) { return !!_qhState.days[i] === v; });
+    }
+    var presetChips = PRESETS.map(function (p, idx) {
+      var isOn = _presetActive(p);
+      return '<button onclick="QuietHours.applyPreset(' + idx + ')" ' +
+        'style="padding:7px 13px;border-radius:99px;cursor:pointer;white-space:nowrap;transition:all .15s;' +
+        'font-family:var(--ff-m);font-size:var(--text-2xs);font-weight:700;' +
+        (isOn
+          ? 'background:var(--p);border:1px solid var(--p);color:#fff;'
+          : 'background:var(--s1);border:1px solid var(--border2);color:var(--t2);') +
+        '">' + p.label + '</button>';
+    }).join('');
+    var presetsRow =
+      '<div style="padding:14px 0;' + dim + '">' +
+        '<div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);' +
+             'letter-spacing:1.1px;text-transform:uppercase;margin-bottom:9px">Quick Presets</div>' +
+        '<div style="display:flex;gap:7px;flex-wrap:wrap">' + presetChips + '</div>' +
       '</div>';
 
+    // ── Time window ──────────────────────────────────────────────
+    var overnight   = _isOvernight(_qhState.startHour, _qhState.startMin, _qhState.endHour, _qhState.endMin);
+    var overnightBadge = overnight
+      ? '<div style="display:inline-flex;align-items:center;gap:4px;margin-top:7px;' +
+             'padding:3px 8px;border-radius:6px;background:rgba(108,99,255,.12);' +
+             'border:1px solid rgba(108,99,255,.22)">' +
+          '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--p2,#a79fff)" stroke-width="2.5" stroke-linecap="round"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>' +
+          '<span style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--p2,#a79fff);font-weight:600">Overnight window</span>' +
+        '</div>'
+      : '';
+    var timesRow =
+      '<div style="padding:16px 0;border-top:1px solid var(--border2);' + dim + '">' +
+        '<div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);' +
+             'letter-spacing:1.1px;text-transform:uppercase;margin-bottom:10px">Window</div>' +
+        '<div style="display:grid;grid-template-columns:1fr auto 1fr;gap:8px;align-items:center">' +
+          '<button onclick="QuietHours.editStart()" ' +
+            'style="padding:13px 14px;border-radius:13px;border:1px solid var(--border2);background:var(--s1);' +
+            'color:var(--t1);font-family:var(--ff-m);cursor:pointer;text-align:left;transition:border-color .15s">' +
+            '<div style="font-size:var(--text-2xs);color:var(--t3);font-weight:600;margin-bottom:3px">FROM</div>' +
+            '<div style="font-size:17px;font-weight:700;letter-spacing:-.3px">' + _fmt(_qhState.startHour, _qhState.startMin) + '</div>' +
+          '</button>' +
+          '<div style="display:flex;flex-direction:column;align-items:center;gap:3px">' +
+            '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--t3)" stroke-width="2" stroke-linecap="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>' +
+          '</div>' +
+          '<button onclick="QuietHours.editEnd()" ' +
+            'style="padding:13px 14px;border-radius:13px;border:1px solid var(--border2);background:var(--s1);' +
+            'color:var(--t1);font-family:var(--ff-m);cursor:pointer;text-align:left;transition:border-color .15s">' +
+            '<div style="font-size:var(--text-2xs);color:var(--t3);font-weight:600;margin-bottom:3px">TO</div>' +
+            '<div style="font-size:17px;font-weight:700;letter-spacing:-.3px">' + _fmt(_qhState.endHour, _qhState.endMin) + '</div>' +
+          '</button>' +
+        '</div>' +
+        overnightBadge +
+      '</div>';
+
+    // ── Days ─────────────────────────────────────────────────────
+    var DAY_FULL = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
     var dayPills = '';
     for (var i = 0; i < 7; i++) {
       var on = !!_qhState.days[i];
       dayPills +=
         '<button onclick="QuietHours.toggleDay(' + i + ')" ' +
-          'style="flex:1;padding:10px 0;border-radius:99px;cursor:pointer;' +
-          'font-family:var(--ff-m);font-size:13px;font-weight:700;' +
+          'title="' + DAY_FULL[i] + '" ' +
+          'style="flex:1;padding:9px 0;border-radius:10px;cursor:pointer;transition:all .15s;' +
+          'font-family:var(--ff-m);font-size:12px;font-weight:700;' +
           (on
             ? 'background:var(--p);border:1px solid var(--p);color:#fff;'
-            : 'background:transparent;border:1px solid var(--border2);color:var(--t3);') +
+            : 'background:var(--s1);border:1px solid var(--border2);color:var(--t3);') +
           '">' + DAY_LABELS[i] + '</button>';
     }
     var daysRow =
-      '<div style="padding:14px 4px;border-bottom:1px solid var(--border2);' +
-      (_qhState.enabled ? '' : 'opacity:.45;pointer-events:none;') + '">' +
-        '<div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);letter-spacing:1.2px;text-transform:uppercase;margin-bottom:10px">Days</div>' +
-        '<div style="display:flex;gap:6px">' + dayPills + '</div>' +
+      '<div style="padding:0 0 16px;border-bottom:1px solid var(--border2);' + dim + '">' +
+        '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">' +
+          '<div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);' +
+               'letter-spacing:1.1px;text-transform:uppercase">Days</div>' +
+          '<div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--p2,var(--p));font-weight:600">' +
+            _daysSummary(_qhState.days) +
+          '</div>' +
+        '</div>' +
+        '<div style="display:flex;gap:5px">' + dayPills + '</div>' +
       '</div>';
 
+    // ── Info block ───────────────────────────────────────────────
     var helpBlock =
-      '<div style="padding:16px 4px 4px;font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);line-height:1.6">' +
-        '<strong style="color:var(--t2)">What this does:</strong> ' +
-        'Silences notifications during the selected window using your phone\'s Do Not Disturb. ' +
-        'Starred contacts and repeat callers can still reach you.<br><br>' +
-        '<strong style="color:var(--t2)">For sleep,</strong> use ' +
-        '<span style="color:var(--p);cursor:pointer;text-decoration:underline" onclick="QuietHours._openBedtime()">Bedtime Mode</span> ' +
-        'instead — it adds wind-down, screen filter, and a morning summary.' +
+      '<div style="margin-top:16px;background:var(--s1);border:1px solid var(--border2);' +
+           'border-radius:14px;padding:13px 14px">' +
+        '<div style="display:flex;align-items:flex-start;gap:10px">' +
+          '<div style="width:26px;height:26px;border-radius:7px;background:rgba(108,99,255,.12);' +
+               'display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px">' +
+            '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--p2,#a79fff)" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>' +
+          '</div>' +
+          '<div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);line-height:1.65">' +
+            'Silences notifications using Do Not Disturb. ' +
+            'Starred contacts &amp; repeat callers still ring through.<br>' +
+            '<span style="color:var(--t2);font-weight:600">For sleep wind-down</span> use ' +
+            '<span style="color:var(--p);cursor:pointer;font-weight:600" onclick="QuietHours._openBedtime()">Bedtime Mode</span> ' +
+            'instead — it adds screen filter &amp; a morning summary.' +
+          '</div>' +
+        '</div>' +
       '</div>';
 
-    body.innerHTML = statusBlock + enabledRow + timesRow + daysRow + helpBlock;
+    body.innerHTML = statusBlock + enabledRow + presetsRow + timesRow + daysRow + helpBlock;
   }
 
   // ── Mutators ──────────────────────────────────────────────────────────────
@@ -235,6 +346,21 @@
     _saveCfg(_qhState);
     _renderPanel();
     if (typeof updateQuietHoursSub === 'function') updateQuietHoursSub();
+  }
+
+  function applyPreset(idx) {
+    var PRESETS = [
+      { sh: 9,  sm: 0, eh: 17, em: 0, days: [false,true,true,true,true,true,false] },
+      { sh: 19, sm: 0, eh: 22, em: 0, days: [true,true,true,true,true,true,true] },
+      { sh: 22, sm: 0, eh: 7,  em: 0, days: [true,true,true,true,true,true,true] },
+      { sh: 8,  sm: 0, eh: 12, em: 0, days: [false,true,true,true,true,true,false] }
+    ];
+    var p = PRESETS[idx];
+    if (!p || !_qhState) return;
+    _qhState.startHour = p.sh; _qhState.startMin = p.sm;
+    _qhState.endHour   = p.eh; _qhState.endMin   = p.em;
+    _qhState.days      = p.days.slice();
+    _commit();
   }
 
   function toggleEnabled() {
@@ -394,6 +520,7 @@
     close:       closeQuietHoursPanel,
     toggle:      toggleEnabled,
     toggleDay:   toggleDay,
+    applyPreset: applyPreset,
     editStart:   editStart,
     editEnd:     editEnd,
     endNow:      endNow,

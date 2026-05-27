@@ -85,3 +85,7 @@
 [data-theme="light"] .sr-pro-title{background:linear-gradient(90deg,#5b52d6,#0a9e68);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
 [data-theme="light"] .sr-pro-pill.purple{background:rgba(108,99,255,.15);color:#5b52d6}
 [data-theme="light"] .sr-pro-pill.green{background:rgba(18,212,138,.18);color:#0a9e68}
+
+/* ── Toggle — light theme off state ───────────────────────────────────────── */
+[data-theme="light"] .tog.off{background:#C0BAB2;border-color:#A8A09A;}
+[data-theme="light"] .tog.off .tog-knob{background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.22);}
