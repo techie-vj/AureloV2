@@ -307,17 +307,40 @@
     .pu-backdrop.pu-visible {
       opacity: 1; pointer-events: all;
     }
+    /* Top Right Close Button */
+        .pu-close {
+          position: absolute;
+          top: 20px;
+          right: 20px;
+          width: 32px;
+          height: 32px;
+          border-radius: 50%;
+          background: var(--s2);
+          border: none;
+          color: var(--t2);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          transition: background 0.2s ease, transform 0.1s;
+          -webkit-tap-highlight-color: transparent;
+          z-index: 10;
+        }
+        .pu-close:active { transform: scale(0.9); background: var(--border2); }
     .pu-sheet {
+      position: relative;
+      padding-top: 32px;
       width: 100%; max-width: 480px;
       background: var(--s0);
       border-radius: 24px 24px 0 0;
       border: 1px solid var(--border2); border-bottom: none;
-      padding: 12px 22px max(44px, calc(env(safe-area-inset-bottom,0px) + 24px));
       transform: translateY(100%);
       transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
       box-sizing: border-box;
       will-change: transform;
       -webkit-backface-visibility: hidden; backface-visibility: hidden;
+      max-height: 92vh;
+      overflow-y: auto;
     }
     .pu-backdrop.pu-visible .pu-sheet {
       transform: translateY(0);
@@ -404,20 +427,25 @@
       background: var(--g); flex-shrink: 0;
       box-shadow: 0 0 4px rgba(18,212,138,0.5);
     }
-    .pu-cta {
-      width: 100%; padding: 15px; border-radius: 14px;
-      background: linear-gradient(135deg, var(--p), var(--c));
-      color: #fff; font-size: 15px; font-weight: 700;
-      border: none; cursor: pointer; margin-bottom: 6px;
-      letter-spacing: -0.1px;
-      transition: opacity 0.2s, transform 0.1s;
-      box-sizing: border-box;
-      box-shadow: 0 6px 20px rgba(108,99,255,0.35);
-      font-family: var(--ff-m);
-      min-height: 48px;
+    .pu-bottom-area {
+      margin-top: 20px;
+      display: flex;
+      flex-direction: column;
+      padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 16px);
     }
+
+        .pu-cta {
+          width: 100%; padding: 18px; border-radius: 16px;
+          background: linear-gradient(135deg, var(--p), var(--c));
+          color: #fff; font-size: 16px; font-weight: 700;
+          border: none; cursor: pointer;
+          letter-spacing: 0.2px;
+          transition: opacity 0.2s, transform 0.15s;
+          box-shadow: 0 8px 24px rgba(108,99,255,0.25);
+          font-family: var(--ff-b);
+        }
+        .pu-cta:active { transform: scale(0.98); }
     .pu-cta:hover { opacity: 0.9; }
-    .pu-cta:active { transform: scale(0.98); }
     .pu-cta:disabled { opacity: 0.5; cursor: not-allowed; box-shadow: none; }
     .pu-cta:focus-visible {
       outline: 2px solid var(--focus-ring-color);
@@ -429,23 +457,26 @@
       margin-bottom: 14px;
     }
     .pu-plan {
-      flex: 1; position: relative;
-      display: flex; flex-direction: column; align-items: center;
-      padding: 12px 8px 10px;
-      border-radius: 14px;
-      background: var(--s2);
-      border: 1.5px solid var(--border2);
-      cursor: pointer;
-      transition: border-color 0.15s, background 0.15s;
-      text-align: center;
-      -webkit-tap-highlight-color: transparent;
-      min-height: 48px;
-    }
+          flex: 1; position: relative;
+          display: flex; flex-direction: column; align-items: center;
+          padding: 16px 8px 14px;
+          border-radius: 16px;
+          background: var(--s1);
+          border: 2px solid transparent; /* Thicker, invisible border by default */
+          box-shadow: inset 0 0 0 1px var(--border2); /* Inner fake border */
+          cursor: pointer;
+          transition: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+          text-align: center;
+          -webkit-tap-highlight-color: transparent;
+        }
+        .pu-plan.pu-plan-selected {
+          background: rgba(108,99,255,0.06);
+          border: 2px solid var(--p);
+          box-shadow: 0 4px 12px rgba(108,99,255,0.15);
+          transform: translateY(-2px);
+        }
     .pu-plan:hover { border-color: var(--p2); }
-    .pu-plan.pu-plan-selected {
-      border-color: var(--p);
-      background: rgba(108,99,255,0.10);
-    }
+
     .pu-plan:focus-visible {
       outline: 2px solid var(--focus-ring-color);
       outline-offset: 2px;
@@ -477,29 +508,94 @@
     .pu-plan-selected .pu-plan-per   { color: var(--t2); }
     .pu-plan-selected .pu-plan-trial { color: var(--c); }
     /* Subtext line below CTA */
-    .pu-cta-sub {
-      text-align: center;
-      font-size: var(--text-2xs); color: var(--t3);
-      margin-bottom: 4px; min-height: 16px;
-      font-family: var(--ff-m);
-    }
+    /* Primary Action Group */
+        .pu-action-group {
+          display: flex;
+          flex-direction: column;
+          margin-bottom: 12px;
+        }
+
+        .pu-cta-sub {
+          text-align: center;
+          font-size: 12px; color: var(--t3);
+          margin-top: 6px; /* Tighter gap to the button */
+          min-height: 16px;
+          font-family: var(--ff-m);
+        }
+
+        /* Secondary Actions (Dismiss & Restore) */
+        .pu-secondary-actions {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 12px;
+          margin-top: 4px;
+        }
+
+        .pu-dismiss-text {
+          background: transparent;
+          border: none;
+          color: var(--t3);
+          font-size: 13px;
+          font-weight: 600;
+          font-family: var(--ff-m);
+          cursor: pointer;
+          padding: 8px 4px;
+          transition: color 0.15s;
+        }
+        .pu-dismiss-text:hover { color: var(--t2); }
+        .pu-dismiss-text:active { opacity: 0.7; }
+
+        .pu-action-dot {
+          color: var(--t3);
+          opacity: 0.5;
+          font-size: 14px;
+        }
+
+        .pu-meta-row {
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          gap: 8px;
+          margin-top: 10px;    /* was 14px — now purely for Restore purchase */
+          margin-bottom: 4px;
+        }
+
+            .pu-restore-link {
+              display: block;
+              text-align: center;
+              margin-top: 6px;
+              font-size: 13px;
+              color: var(--t3);
+              cursor: pointer;
+              text-decoration: underline;
+              font-family: var(--ff-m);
+            }
+            .pu-restore-link:active { color: var(--t1); }
+
+            .pu-meta-dot {
+              color: var(--border2);
+              font-size: 16px;
+              line-height: 1;
+            }
+
+        .pu-restore-link:hover { color: var(--t2); }
     .pu-dismiss {
       width: 100%; padding: 13px; border-radius: 14px;
-      background: transparent; color: var(--t3);
-      font-size: 13px; font-weight: 600; border: none; cursor: pointer;
+      background: transparent;
+      color: var(--t2);
+      font-size: 14px; font-weight: 600; cursor: pointer;
       box-sizing: border-box; font-family: var(--ff-m);
       min-height: 48px;
+      border: 1.5px solid var(--border2);
+      transition: background 0.15s, border-color 0.15s;
+      margin-top: 2px;
     }
     .pu-dismiss:focus-visible {
       outline: 2px solid var(--focus-ring-color);
       outline-offset: 2px;
     }
-    .pu-restore-link {
-      display: block; text-align: center; margin-top: 6px;
-      font-size: 13px; color: var(--t3); cursor: pointer;
-      text-decoration: underline; font-family: var(--ff-m);
-      padding: 8px 0; /* minimum tap target */
-    }
+
     .pu-status {
       text-align: center; font-size: 13px;
       color: var(--t2); padding: 8px 0;
@@ -585,7 +681,7 @@
   };
 
   // ── STATE ─────────────────────────────────────────────────────
-  let _backdrop, _ctaBtn, _dismissBtn, _statusEl, _restoreLink;
+  let _backdrop, _ctaBtn, _statusEl, _restoreLink;
   let _currentUpsell = null;
   let _selectedPlan  = 'annual';   // always pre-select annual
   let _injected      = false;
@@ -610,41 +706,58 @@
     _backdrop = document.createElement('div');
     _backdrop.className = 'pu-backdrop';
     _backdrop.innerHTML = `
-      <div class="pu-sheet" role="dialog" aria-modal="true">
-        <div class="pu-handle"></div>
-        <div class="pu-tag"      id="pu-tag"></div>
-        <div class="pu-headline" id="pu-headline"></div>
-        <div class="pu-data-stat" id="pu-data-stat" style="display:none">
-          <span class="pu-data-stat-icon" id="pu-data-stat-icon">📊</span>
-          <span class="pu-data-stat-text" id="pu-data-stat-text"></span>
-        </div>
-        <div class="pu-body"    id="pu-body"></div>
-        <ul  class="pu-bullets" id="pu-bullets" style="display:none"></ul>
-        <div class="pu-footer">
-          <div class="pu-privacy">🔒 No account needed. All data stays on your phone.</div>
-          <div class="pu-social-proof">
-            <span>✨ All current and future Pro features included.</span>
+          <div class="pu-sheet" role="dialog" aria-modal="true">
+            <button class="pu-close" id="pu-close" aria-label="Close">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+            </button>
+
+            <div class="pu-tag" id="pu-tag"></div>
+            <div class="pu-headline" id="pu-headline"></div>
+
+            <div class="pu-data-stat" id="pu-data-stat" style="display:none">
+              <span class="pu-data-stat-icon" id="pu-data-stat-icon">📊</span>
+              <span class="pu-data-stat-text" id="pu-data-stat-text"></span>
+            </div>
+
+            <div class="pu-body" id="pu-body"></div>
+            <ul class="pu-bullets" id="pu-bullets" style="display:none"></ul>
+
+            <div class="pu-footer">
+              <div class="pu-privacy">
+              🔒 No account needed. All data stays on your phone.</div>
+              <div class="pu-social-proof">
+                <div class="pu-social-proof-dot"></div>
+                <span>All current and future Pro features included.</span>
+              </div>
+            </div>
+
+            <div class="pu-plans" id="pu-plans"></div>
+            <div class="pu-status" id="pu-status"></div>
+
+            <div class="pu-bottom-area">
+              <div class="pu-action-group">
+                <button class="pu-cta" id="pu-cta"></button>
+                <div class="pu-cta-sub" id="pu-cta-sub"></div>
+              </div>
+                <span class="pu-restore-link" id="pu-restore">Restore purchase</span>
+            </div>
           </div>
-        </div>
-        <div class="pu-plans"   id="pu-plans"></div>
-        <div class="pu-status"  id="pu-status"></div>
-        <button class="pu-cta"  id="pu-cta"></button>
-        <div class="pu-cta-sub" id="pu-cta-sub"></div>
-        <button class="pu-dismiss"     id="pu-dismiss"></button>
-        <span  class="pu-restore-link" id="pu-restore">Restore purchase</span>
-      </div>
-    `;
+        `;
     document.body.appendChild(_backdrop);
 
     _ctaBtn      = _backdrop.querySelector('#pu-cta');
-    _dismissBtn  = _backdrop.querySelector('#pu-dismiss');
     _statusEl    = _backdrop.querySelector('#pu-status');
     _restoreLink = _backdrop.querySelector('#pu-restore');
 
     _backdrop.addEventListener('click', function(e) {
       if (e.target === _backdrop) hide();
     });
-    _dismissBtn.addEventListener('click', hide);
+
+    const _closeBtn = _backdrop.querySelector('#pu-close');
+    if (_closeBtn) _closeBtn.addEventListener('click', hide);
 
     // BUG-4 FIX: swipe down on the sheet to dismiss.
     // Track touchstart Y on the sheet; if touchend moved down ≥72px, call hide().
@@ -834,9 +947,6 @@
           bulletsList.style.display = 'none';
       }
 
-      // Dismiss label
-      _dismissBtn.textContent = copy.dismiss || 'Not now';
-
       // Clear status
       _statusEl.textContent = '';
       _statusEl.className   = 'pu-status';
@@ -926,7 +1036,6 @@
       _ctaBtn.style.background     = 'linear-gradient(135deg,#12D48A,#0aab6e)';
       _ctaBtn.style.boxShadow      = '0 6px 20px rgba(18,212,138,0.3)';
     }
-    if (_dismissBtn)  _dismissBtn.style.display  = 'none';
     if (_restoreLink) _restoreLink.style.display = 'none';
     if (_statusEl)  { _statusEl.textContent = ''; _statusEl.className = 'pu-status'; }
 
@@ -938,7 +1047,6 @@
         _ctaBtn.style.boxShadow  = '';
         _ctaBtn.disabled         = false;
       }
-      if (_dismissBtn)  _dismissBtn.style.display  = '';
       if (_restoreLink) _restoreLink.style.display = '';
       if (plans)        plans.style.display        = '';
       if (ctaSub)       ctaSub.style.display       = '';
