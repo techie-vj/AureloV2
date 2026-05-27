@@ -54,28 +54,43 @@
 
     <!-- ── Quick stats strip (now supporting detail) ─────────────────────────── -->
     <div class="home-quick-strip" onclick="activateTab('wellness')" role="button" tabindex="0" aria-label="Open wellness details">
-        <div id="home-status-line" class="home-status-line">✅ <span id="home-status-text">On track today</span></div>
+
+        <div class="hqs-header">
+            <div id="home-status-line" class="home-status-pill">
+                <span aria-hidden="true">✅</span> <span id="home-status-text">On track today</span>
+            </div>
+        </div>
+
         <div class="home-kpi-grid">
-            <div class="home-kpi-pill">
-                <div class="home-kpi-value" id="qs-today">–</div>
+            <div class="home-kpi-item">
+                <div class="home-kpi-value primary-val" id="qs-today">–</div>
                 <div class="home-kpi-label">Screen time</div>
             </div>
-            <div class="home-kpi-pill">
+
+            <div class="hqs-divider"></div>
+
+            <div class="home-kpi-item">
                 <div class="home-kpi-value is-alert" id="qs-pickups">–</div>
                 <div class="home-kpi-label">Pickups</div>
             </div>
-            <div class="home-kpi-pill">
-                <div class="home-kpi-value is-streak" id="qs-streak">–</div>
+
+            <div class="hqs-divider"></div>
+
+            <div class="home-kpi-item">
+                <div class="hqs-val-row">
+                    <div class="home-kpi-value is-streak" id="qs-streak">12d</div>
+                </div>
                 <div class="home-kpi-label">Streak</div>
             </div>
         </div>
+
         <div class="home-progress-wrap">
-            <div class="home-goal-bar-wrap home-goal-bar-wrap--slim">
-                <div class="home-goal-bar-fill" id="home-goal-fill"></div>
-            </div>
-            <div class="home-goal-meta home-goal-meta--compact">
+            <div class="home-goal-meta">
                 <span id="home-goal-pct" class="home-goal-pct-text">0%</span>
                 <span id="home-goal-label" class="home-goal-lbl-text">of 4h goal</span>
+            </div>
+            <div class="home-goal-bar-wrap">
+                <div class="home-goal-bar-fill" id="home-goal-fill"></div>
             </div>
         </div>
     </div>

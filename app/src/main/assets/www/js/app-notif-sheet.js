@@ -206,7 +206,7 @@ var NotifSheet = (function () {
 
     return _hdr('ACHIEVEMENT', title)
       + '<div class="ns-body">'
-        + '<div class="ns-hero-block" style="background:rgba(18,212,138,0.07);border-color:rgba(18,212,138,0.2)">'
+        + '<div class="ns-hero-block" style="background:' + _rgba('--g', 0.07) + ';border-color:' + _rgba('--g', 0.2) + '">'
           + '<div class="ns-achieve-icon">🏆</div>'
           + '<div class="ns-achieve-text">' + _escHtml(body) + '</div>'
         + '</div>'
@@ -228,7 +228,7 @@ var NotifSheet = (function () {
 
     return _hdr('DAILY GOAL', title)
       + '<div class="ns-body">'
-        + '<div class="ns-hero-block" style="background:rgba(18,212,138,0.07);border-color:rgba(18,212,138,0.2)">'
+        + '<div class="ns-hero-block" style="background:' + _rgba('--g', 0.07) + ';border-color:' + _rgba('--g', 0.2) + '">'
           + '<div class="ns-achieve-icon">🎯</div>'
           + '<div class="ns-achieve-text">' + _escHtml(body) + '</div>'
         + '</div>'
