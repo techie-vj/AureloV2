@@ -202,3 +202,56 @@
 # that loads the native encryption library at runtime.
 -keep class net.sqlcipher.** { *; }
 -keep class net.sqlcipher.database.** { *; }
+
+
+# ── v2.1.0 NEW CLASSES  [OTH-02 FIX] ─────────────────────────────────────────
+# Same root cause as OTH-01 (v1.2.0 engines stripped by R8): every class that is
+# only referenced through a WebView @JavascriptInterface, an AlarmManager
+# BroadcastReceiver, or a WorkManager Worker must be explicitly kept or R8 will
+# strip it silently. Release builds appeared to work in debug because minifyEnabled
+# is false there; the stripping only manifests in production APKs.
+
+# Quiet Hours — bridge registered via addJavascriptInterface + alarm receiver
+-keep class com.javikastudio.tidyapp.QuietHoursBridge { *; }
+-keep class com.javikastudio.tidyapp.QuietHoursReceiver { *; }
+
+# DnD coordination — instantiated reflectively by BedtimeBridge and QuietHoursBridge
+-keep class com.javikastudio.tidyapp.DndController { *; }
+-keepclassmembers class com.javikastudio.tidyapp.DndController {
+    @android.webkit.JavascriptInterface <methods>;
+    public *;
+}
+
+# Sound Cues — Kotlin object called from AppMonitorService and bridge classes
+-keep class com.javikastudio.tidyapp.SoundEffects { *; }
+
+# Weekly Recap — bridge registered via addJavascriptInterface
+-keep class com.javikastudio.tidyapp.WeeklyRecapBridge { *; }
+-keepclassmembers class com.javikastudio.tidyapp.WeeklyRecapBridge {
+    @android.webkit.JavascriptInterface <methods>;
+}
+
+# Notification History & Detail Sheets — bridge registered via addJavascriptInterface
+-keep class com.javikastudio.tidyapp.NotificationBridge { *; }
+-keepclassmembers class com.javikastudio.tidyapp.NotificationBridge {
+    @android.webkit.JavascriptInterface <methods>;
+}
+
+# Mood Check-In — bridge registered via addJavascriptInterface (MoodBridge inferred)
+-keep class com.javikastudio.tidyapp.MoodBridge { *; }
+-keepclassmembers class com.javikastudio.tidyapp.MoodBridge {
+    @android.webkit.JavascriptInterface <methods>;
+}
+
+# WorkManager workers — instantiated by class name at runtime; stripping causes
+# silent job failures with no visible crash in logcat.
+-keep class com.javikastudio.tidyapp.CoachInsightWorker { *; }
+-keep class com.javikastudio.tidyapp.AureloWidgetUpdateWorker { *; }
+-keep class com.javikastudio.tidyapp.ReferralExtensionWorker { *; }
+
+# Referral — bridge + manager called from JS and WorkManager
+-keep class com.javikastudio.tidyapp.ReferralBridge { *; }
+-keepclassmembers class com.javikastudio.tidyapp.ReferralBridge {
+    @android.webkit.JavascriptInterface <methods>;
+}
+-keep class com.javikastudio.tidyapp.ReferralManager { *; }

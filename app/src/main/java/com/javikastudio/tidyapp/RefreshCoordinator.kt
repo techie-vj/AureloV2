@@ -1,6 +1,7 @@
 package com.javikastudio.tidyapp
 
 import android.content.Context
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicLong
 
 /**
@@ -14,11 +15,20 @@ object RefreshCoordinator {
     private val lastUsageRefreshMs = AtomicLong(0L)
     private val lastWidgetCacheRefreshMs = AtomicLong(0L)
 
+    // FIX: per-name atomics for tryBeginRefresh(). The previous implementation
+    // called shouldRun(lastUsageRefreshMs, ...) regardless of `name`, meaning every
+    // named caller shared and clobbered the single usage-refresh timestamp. A
+    // ConcurrentHashMap of AtomicLongs gives each caller its own independent clock
+    // without any lock contention — computeIfAbsent is atomic on ConcurrentHashMap.
+    private val namedRefreshAtomics = ConcurrentHashMap<String, AtomicLong>()
+
     fun shouldRefreshUsage(now: Long = System.currentTimeMillis()): Boolean =
         shouldRun(lastUsageRefreshMs, now, MIN_USAGE_REFRESH_MS)
 
-    fun tryBeginRefresh(name: String, minIntervalMs: Long, now: Long = System.currentTimeMillis()): Boolean =
-        shouldRun(lastUsageRefreshMs, now, minIntervalMs)
+    fun tryBeginRefresh(name: String, minIntervalMs: Long, now: Long = System.currentTimeMillis()): Boolean {
+        val atomic = namedRefreshAtomics.computeIfAbsent(name) { AtomicLong(0L) }
+        return shouldRun(atomic, now, minIntervalMs)
+    }
 
     fun tryBegin(context: Context, name: String, minIntervalMs: Long, now: Long = System.currentTimeMillis()): Boolean {
         val prefs = context.getSharedPreferences(PREFS_FILE, Context.MODE_PRIVATE)

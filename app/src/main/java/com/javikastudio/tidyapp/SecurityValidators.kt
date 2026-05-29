@@ -1,11 +1,10 @@
 package com.javikastudio.tidyapp
 
 import android.content.Context
-
 object SecurityValidators {
-    private val PACKAGE_RE  = Regex("^[a-zA-Z][a-zA-Z0-9_]*(\\.[a-zA-Z][a-zA-Z0-9_]*)+$")
+    private val PACKAGE_RE = Regex("^[a-zA-Z][a-zA-Z0-9_]*(\\.[a-zA-Z][a-zA-Z0-9_]*)+$")
     private val HTTP_URL_RE = Regex("^https?://[^\\s]+$", RegexOption.IGNORE_CASE)
-    private val MAILTO_RE   = Regex("^mailto:[^\\s]*$",   RegexOption.IGNORE_CASE)
+    private val MAILTO_RE = Regex("^mailto:[^\\s]*$", RegexOption.IGNORE_CASE)
 
     private val ASSET_ALLOWLIST = setOf(
         "www/affiliate_links.json",
@@ -30,7 +29,7 @@ object SecurityValidators {
         "focus_score_history",
         "sleep_score_history",
         "aurelo_score_history",
-        "body_score_history",           // Bug-1 FIX
+        "body_score_history",      // Bug-1 FIX: missing key caused saveScoreForToday() writes
         "focus_streak_v1",
         "home_morning_dismissed_date",
         "disc_challenge_v1",
@@ -39,7 +38,9 @@ object SecurityValidators {
         "cached_tidy_score_date",
         "deletedCategories",
         "disc_shown_v1",
-        // H7 FIX
+        // H7 FIX: The following keys were missing and caused getStringPref()/setStringPref()
+        // calls from JS to return "" silently, breaking the Coach home card, bedtime
+        // display, widget settings, and smart-alert reads from the WebView layer.
         "coach_daily_insight_json",
         "coach_daily_insight_date",
         "coach_insight_dismissed_date",
@@ -73,7 +74,39 @@ object SecurityValidators {
         "focus_last_total_mins",
         "focus_last_complete_ts",
         "referral_banner_last_shown_date",
-        // ── v2.2 new keys ────────────────────────────────────────────────────
+        // ── v2.1.0 NEW KEYS ──────────────────────────────────────────────────
+        // H7-class FIX: same class of bug as H7 above — new features added keys
+        // that were never registered here, causing all getStringPref()/setStringPref()
+        // calls from JS for these features to silently return "".
+        //
+        // Quiet Hours
+        "quiet_hours_enabled",
+        "quiet_hours_start_hour",
+        "quiet_hours_start_min",
+        "quiet_hours_end_hour",
+        "quiet_hours_end_min",
+        "quiet_hours_days",
+        "quiet_hours_active",
+        "quiet_hours_paused",
+        "quiet_hours_pause_until_ts",
+        "quiet_hours_owner_active",
+        // Sound Cues
+        "sound_cues_enabled",
+        // Mood Check-In
+        "mood_today_entry",
+        "mood_history_json",
+        "mood_prompt_dismissed_date",
+        "mood_onboarding_logged",
+        "mood_check_in_enabled",
+        // Weekly Recap
+        "last_weekly_recap_week",
+        "weekly_recap_banner_dismissed",
+        // Notification History & Detail Sheets
+        "notif_history_json",
+        "notif_unread_count",
+        "notif_sheet_last_opened",
+        // DnD coordination (DndController ownership tokens)
+        "dnd_owner_token",
         // Step goal configured by user under Settings → Health Connect.
         "hc_step_goal",
         // Streak heatmap row visibility toggles (Score History UI state).

@@ -5,6 +5,7 @@ import android.content.Context
 import android.util.Log
 import com.android.billingclient.api.*
 import kotlinx.coroutines.*
+import java.util.concurrent.atomic.AtomicInteger
 
 /**
  * BillingManager — wraps Google Play Billing Library 7.x
@@ -312,7 +313,12 @@ class BillingManager(
 
     private fun _doGetProPricing(callback: (String) -> Unit) {
         val result  = org.json.JSONObject()
-        var pending = 2  // one subs query + one inapp query
+        // FIX: AtomicInteger replaces the previous non-atomic `var pending = 2`.
+        // Both queryProductDetailsAsync callbacks fire on Play-owned background threads
+        // and can run concurrently. A plain var read-decrement-write is not thread-safe:
+        // both threads can read 1, both skip the == 0 guard, or both see 0 and double-invoke
+        // the callback. AtomicInteger.decrementAndGet() makes the check atomic.
+        val pending = AtomicInteger(2)  // one subs query + one inapp query
 
         fun annualPerMonth(micros: Long, currencyCode: String): String {
             return try {
@@ -395,8 +401,7 @@ class BillingManager(
                     Log.d(TAG, "Pricing — $planKey: $priceStr trialDays=${obj.optInt("trialDays")} hasIntro=$isIntro")
                 }
 
-            pending--
-            if (pending == 0) callback(result.toString())
+            if (pending.decrementAndGet() == 0) callback(result.toString())
         }
 
         // ── Lifetime INAPP product ────────────────────────────────────────────
@@ -418,8 +423,7 @@ class BillingManager(
                 result.put("lifetime", obj)
                 Log.d(TAG, "Pricing — lifetime: ${detail.oneTimePurchaseOfferDetails?.formattedPrice}")
             }
-            pending--
-            if (pending == 0) callback(result.toString())
+            if (pending.decrementAndGet() == 0) callback(result.toString())
         }
     }
 

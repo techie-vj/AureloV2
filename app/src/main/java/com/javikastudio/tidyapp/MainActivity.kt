@@ -256,11 +256,24 @@ class MainActivity : AppCompatActivity() {
         // without ever asking the user.  Now we check the OS permission first and, if
         // missing, request it via requestPermissions() and store the callback; the
         // callback is resolved in onRequestPermissionsResult (request code 9002).
+        // SEC-GEO FIX: origin is validated against the expected local asset origin before
+        // any permission is granted or OS dialog is triggered. An unexpected origin
+        // (e.g. injected remote URL) is denied immediately so it never receives location data
+        // even if ACCESS_COARSE_LOCATION is already held by the host app.
         webView.webChromeClient = object : android.webkit.WebChromeClient() {
             override fun onGeolocationPermissionsShowPrompt(
                 origin: String,
                 callback: android.webkit.GeolocationPermissions.Callback
             ) {
+                // Debug: Check logcat to see exactly what 'origin' is being sent
+                android.util.Log.d("Aurelo", "Origin requesting location: $origin")
+
+                // Use startsWith to handle file:/// or file:// android_asset variants
+                if (!origin.startsWith("file:///")) {
+                    android.util.Log.w("Aurelo", "Geolocation denied for unexpected origin: $origin")
+                    callback.invoke(origin, false, false)
+                    return
+                }
                 if (androidx.core.content.ContextCompat.checkSelfPermission(
                         this@MainActivity,
                         android.Manifest.permission.ACCESS_COARSE_LOCATION
