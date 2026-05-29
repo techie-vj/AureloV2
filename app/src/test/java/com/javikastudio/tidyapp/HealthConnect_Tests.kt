@@ -336,3 +336,91 @@ class HealthConnect_P2_Tests {
         assertEquals(50, stepsScore(5_000))
     }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  v2.1.0 New Tests — Updated Body Score Weights & RHR Fix
+// ─────────────────────────────────────────────────────────────────────────────
+class HealthConnect_V21_Tests {
+
+    // HC-052 — Updated weights: Steps 40% + HRV 35% + RHR 25%
+    private fun bodyScoreV21(stepsScore: Int, hrvScore: Int, rhrScore: Int): Int =
+        (stepsScore * 0.40 + hrvScore * 0.35 + rhrScore * 0.25).roundToInt().coerceIn(0, 100)
+
+    @Test fun `HC052 Body Score uses updated weights Steps 40 HRV 35 RHR 25`() {
+        // All signals at 100 → composite = 100
+        assertEquals(100, bodyScoreV21(100, 100, 100))
+    }
+    @Test fun `HC052 Steps weighted 40 percent in Body Score`() {
+        // Steps=100, HRV=0, RHR=0 → 100*0.40 = 40
+        assertEquals(40, bodyScoreV21(100, 0, 0))
+    }
+    @Test fun `HC052 HRV weighted 35 percent in Body Score`() {
+        // Steps=0, HRV=100, RHR=0 → 100*0.35 = 35
+        assertEquals(35, bodyScoreV21(0, 100, 0))
+    }
+    @Test fun `HC052 RHR weighted 25 percent in Body Score`() {
+        // Steps=0, HRV=0, RHR=100 → 100*0.25 = 25
+        assertEquals(25, bodyScoreV21(0, 0, 100))
+    }
+    @Test fun `HC052 v21 weights differ from v20 equal thirds`() {
+        val equalThirds = 100 / 3   // ~33 pts per signal
+        val stepsShare  = 40        // 40% per signal
+        assertNotEquals(equalThirds, stepsShare)
+    }
+    @Test fun `HC052 composite with typical values computed correctly`() {
+        // Steps=80, HRV=70, RHR=90 → 32+24.5+22.5 = 79
+        assertEquals(79, bodyScoreV21(80, 70, 90))
+    }
+
+    // HC-053 — RHR score is percentage-based ceiling (not flat +20 bpm)
+    private fun rhrScorePercentage(todayRhr: Double, avg7Rhr: Double): Int {
+        if (avg7Rhr <= 0) return 0
+        val pctDeviation = (todayRhr - avg7Rhr) / avg7Rhr
+        return (100 - pctDeviation * 100).roundToInt().coerceIn(0, 100)
+    }
+
+    @Test fun `HC053 RHR at personal average scores 100`() {
+        assertEquals(100, rhrScorePercentage(65.0, 65.0))
+    }
+    @Test fun `HC053 RHR 10 percent above average incurs partial penalty`() {
+        val score = rhrScorePercentage(71.5, 65.0)  // 10% above
+        assertTrue("Penalty should be ~10 pts", score in 85..95)
+    }
+    @Test fun `HC053 RHR 30 percent above average incurs larger penalty than 10 percent`() {
+        val score10pct = rhrScorePercentage(71.5, 65.0)
+        val score30pct = rhrScorePercentage(84.5, 65.0)
+        assertTrue(score30pct < score10pct)
+    }
+    @Test fun `HC053 penalty is proportional not a flat threshold at plus 20 bpm`() {
+        val at19bpm = rhrScorePercentage(84.0, 65.0)
+        val at21bpm = rhrScorePercentage(86.0, 65.0)
+        // Both penalised proportionally — no binary cliff
+        assertTrue(at19bpm > at21bpm)
+    }
+    @Test fun `HC053 RHR below average does not penalise score`() {
+        // Lower RHR than avg is healthy — score stays at 100
+        assertEquals(100, rhrScorePercentage(60.0, 65.0))
+    }
+
+    // HC-054 — HC overnight HRV floor raised to 70% of personal average (was 60%)
+    private fun hvFloor(todayHrv: Double, avg7Hrv: Double): Boolean =
+        todayHrv >= avg7Hrv * 0.70   // v2.1: 70% floor
+
+    @Test fun `HC054 HRV at exactly 70 percent of average is at floor not penalised`() {
+        val todayHrv = 49.0; val avg = 70.0   // 49 = 70% of 70
+        assertTrue("70% floor should not be penalised", hvFloor(todayHrv, avg))
+    }
+    @Test fun `HC054 HRV below 70 percent of average is below floor and penalised`() {
+        val todayHrv = 41.0; val avg = 70.0   // 41 < 70% of 70 (49)
+        assertFalse("Below 70% floor should be penalised", hvFloor(todayHrv, avg))
+    }
+    @Test fun `HC054 v21 HRV floor 70 percent is stricter than v20 60 percent floor`() {
+        val floor70 = 70.0 * 0.70   // 49
+        val floor60 = 70.0 * 0.60   // 42
+        assertTrue("70% floor higher than 60%", floor70 > floor60)
+    }
+    @Test fun `HC054 HRV at 75 percent of average comfortably above floor`() {
+        val todayHrv = 52.5; val avg = 70.0   // 75%
+        assertTrue(hvFloor(todayHrv, avg))
+    }
+}

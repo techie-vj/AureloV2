@@ -426,6 +426,64 @@ class SmartNotificationWorker(
         val (title, body, type) = bestAlert
         postAlertNotification(nm, stableId(title, body), title, body, type, pendingIntent)
 
+
+        // ── v2.2: Save streak row for today ─────────────────────────────────────
+        // Runs once per worker execution (throttled by slot key above).
+        // Computes maintained/missed/N-A for all four pillars and upserts into
+        // streak_history table in LaunchTracker SQLCipher DB.
+        try {
+            val dateFmt  = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US)
+            val todayDate = dateFmt.format(java.util.Date())
+
+            // Screen: maintained if today's screen time <= daily goal
+            val screenOk = if (goalMins > 0L) if (todayMins <= goalMins) 1 else 0 else -1
+
+            // Focus: maintained if any session completed, any mindful pause triggered,
+            // or any app timer limit reached today
+            val focusCompleted   = prefs.getInt("focus_completed_today", 0)
+            val mindfulPauses    = prefs.getInt("focus_intention_pause_count", 0)
+            // Timer hits today — stored as a running count in prefs by AppTimerBridge
+            val timerHitsToday   = prefs.getInt("timer_hits_today", 0)
+            val focusOk = if (focusCompleted > 0 || mindfulPauses > 0 || timerHitsToday > 0) 1 else 0
+
+            // Bedtime: maintained = last night kept; N/A if Bedtime Mode not enabled
+            val bedtimeEnabled = prefs.getBoolean("bedtime_enabled", false)
+            val bedtimeOk = when {
+                !bedtimeEnabled -> -1
+                prefs.getBoolean(BEDTIME_LAST_NIGHT_KEPT, false) -> 1
+                prefs.getBoolean(BEDTIME_LAST_NIGHT_HAS_DATA, false) -> 0
+                else -> -1  // no data yet for last night
+            }
+
+            // Body: maintained = steps >= stepGoal; N/A if HC not connected
+            val hcConnected = prefs.getString(HC_CONNECTED, "0") == "1"
+            val bodyOk = if (!hcConnected) {
+                -1
+            } else {
+                val stepGoal = try {
+                    val masterKey = androidx.security.crypto.MasterKey.Builder(appContext)
+                        .setKeyScheme(androidx.security.crypto.MasterKey.KeyScheme.AES256_GCM)
+                        .build()
+                    val secPrefs = androidx.security.crypto.EncryptedSharedPreferences.create(
+                        appContext,
+                        "tidyapp_secure_v1",
+                        masterKey,
+                        androidx.security.crypto.EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+                        androidx.security.crypto.EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+                    )
+                    secPrefs.getInt(HC_STEP_GOAL, BodyScoreCalculator.DEFAULT_STEP_GOAL)
+                } catch (_: Exception) { BodyScoreCalculator.DEFAULT_STEP_GOAL }
+
+                // Steps cached in prefs by HC sync; -1 = no data
+                val steps = prefs.getLong("cached_hc_steps_today", -1L).toInt()
+                if (steps < 0) -1 else if (steps >= stepGoal) 1 else 0
+            }
+
+            LaunchTracker.get(appContext).saveStreakRow(todayDate, screenOk, focusOk, bedtimeOk, bodyOk)
+        } catch (e: Exception) {
+            android.util.Log.w("StreakWorker", "saveStreakRow failed: ${e.message}")
+        }
+
         prefs.edit().putString("notif_last_slot_key", expectedKey).apply()
         return Result.success()
     }

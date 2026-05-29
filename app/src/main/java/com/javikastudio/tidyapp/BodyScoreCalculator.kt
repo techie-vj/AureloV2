@@ -6,39 +6,44 @@ package com.javikastudio.tidyapp
 // Spec §4.2.
 //
 // FIX F-15: Weights changed from equal 1/3 each to Steps 40%, HRV 35%, RHR 25%
-//           Steps is physiologically independent from HRV/RHR; equal weighting
-//           double-counted autonomic recovery signals.
-// FIX F-24: Steps ceiling now uses personal 7-day average when > 8000, so
-//           high-activity users are scored relative to their own baseline.
-// FIX F-28: RHR ceiling changed from absolute +20 bpm to percentage-based
-//           (avg * 1.40), so athletes with low RHR baselines are not penalized
-//           disproportionately for moderate elevation.
-// FIX F-25: Overnight HRV floor tightened from 40% below avg to 30% below avg,
-//           reflecting that overnight HRV is more stable than daytime HRV and
-//           should therefore have a tighter acceptable-deviation band.
+// FIX F-24: Steps ceiling uses personal 7-day average when > step goal.
+// FIX F-28: RHR ceiling is percentage-based (avg * 1.40).
+// FIX F-25: Overnight HRV floor tightened to 70% of personal average.
+//
+// v2.2: stepsScore() accepts an explicit stepGoal parameter (default 8,000).
+//       This allows users to configure their own daily step goal under
+//       Settings → Health Connect. The goal affects:
+//         • Body Score steps component: 100 pts when steps >= stepGoal
+//         • Body streak criteria (evaluated by SmartNotificationWorker)
+//       Activity modifier thresholds (Screen Score) remain hardcoded.
 // ═══════════════════════════════════════════════════════════════════════════
 
 object BodyScoreCalculator {
+
+    /** Default step goal used when no user-configured goal is available. */
+    const val DEFAULT_STEP_GOAL = 8_000
 
     /**
      * Compute a 0–100 Body Score from the three HC signals.
      *
      * Returns -1 if no HC data is available (caller should hide the pillar).
      * Partial data (some signals null) is handled by weighting available
-     * signals only — spec §4.3 "HC connected, partial data".
+     * signals only — spec §4.3.
      *
-     * F-15: weights are now Steps 40%, HRV 35%, RHR 25% (not equal thirds).
+     * v2.2: accepts optional [stepGoal] so the user's configured goal affects
+     * the steps component ceiling. Defaults to [DEFAULT_STEP_GOAL] (8,000)
+     * for callers that don't yet pass a goal (e.g. older code paths).
      */
-    fun compute(data: HCDailyData): Int {
+    fun compute(data: HCDailyData, stepGoal: Int = DEFAULT_STEP_GOAL): Int {
         if (!data.isAvailable) return -1
 
         data class Signal(val score: Int?, val weight: Float)
 
         // F-15: differentiated weights — Steps is independent; HRV+RHR are correlated
         val signals = listOf(
-            Signal(stepsScore(data), weight = 0.40f),   // most independent signal
-            Signal(hrvScore(data),   weight = 0.35f),   // autonomic recovery
-            Signal(rhrScore(data),   weight = 0.25f),   // correlated with HRV — lower weight
+            Signal(stepsScore(data, stepGoal), weight = 0.40f),
+            Signal(hrvScore(data),             weight = 0.35f),
+            Signal(rhrScore(data),             weight = 0.25f),
         ).filter { it.score != null }
 
         if (signals.isEmpty()) return -1
@@ -50,15 +55,13 @@ object BodyScoreCalculator {
 
     // ── HRV sub-score ────────────────────────────────────────────────────────
     // Full 100 when hrv >= 7-day personal average.
-    // F-25: floor tightened to avg * 0.70 (30% below avg) from avg * 0.50
-    // (50% below avg). Overnight HRV is more stable — tighter floor is correct.
+    // F-25: floor tightened to avg * 0.70 (30% below avg).
 
     fun hrvScore(data: HCDailyData): Int? {
         val hrv = data.hrvToday   ?: return null
         val avg = data.avgHrv7d   ?: return null
         if (avg <= 0f) return null
         if (hrv >= avg) return 100
-        // F-25: floor tightened from 50% to 70% of average
         val floor = avg * 0.70f
         if (hrv <= floor) return 0
         return (((hrv - floor) / (avg - floor)) * 100f).toInt().coerceIn(0, 100)
@@ -66,42 +69,49 @@ object BodyScoreCalculator {
 
     // ── RHR sub-score ────────────────────────────────────────────────────────
     // Full 100 when rhr <= 7-day personal average.
-    // F-28: ceiling changed from absolute +20 bpm to percentage-based (avg * 1.40).
-    // Example: avg RHR 45 → ceiling 63 bpm; avg RHR 70 → ceiling 98 bpm.
-    // Prevents athletes with low baselines from reaching 0 too easily.
+    // F-28: ceiling = avg * 1.40 (percentage-based, not flat +20 bpm).
 
     fun rhrScore(data: HCDailyData): Int? {
         val rhr = data.restingHrToday?.toFloat() ?: return null
         val avg = data.avgRhr7d                  ?: return null
         if (avg <= 0f) return null
         if (rhr <= avg) return 100
-        // F-28: percentage-based ceiling = 40% above personal average
         val ceiling = avg * 1.40f
         if (rhr >= ceiling) return 0
         return ((1f - (rhr - avg) / (ceiling - avg)) * 100f).toInt().coerceIn(0, 100)
     }
 
     // ── Steps sub-score ──────────────────────────────────────────────────────
-    // F-24: ceiling uses personal 7-day average when > 8000 steps.
-    //       A runner who averages 15k steps gets full credit at 15k, not 8k.
-    // Base floor stays at 2 000 steps (absolute, not personal — below 2k is sedentary
-    // for virtually everyone regardless of personal baseline).
+    // v2.2: [stepGoal] replaces the hardcoded 8,000 ceiling.
+    //       Ceiling is max(stepGoal, personal 7-day average) so high-activity
+    //       users are still scored relative to their own baseline.
+    //       Floor stays at 2,000 steps (absolute sedentary threshold).
 
-    fun stepsScore(data: HCDailyData): Int? {
+    fun stepsScore(data: HCDailyData, stepGoal: Int = DEFAULT_STEP_GOAL): Int? {
         val steps = data.stepsToday
-        // FIX B1: -1 sentinel means no step records synced yet — return null
-        // so the signal is excluded from the weighted average rather than
-        // scoring as 0 (which would pull Body Score to the floor unfairly).
+        // FIX B1: -1 sentinel means no step records synced — exclude from average.
         if (steps < 0) return null
 
-        // F-24: use personal ceiling when available and greater than 8000
-        val ceiling = if (data.avgSteps7d != null && data.avgSteps7d > 8_000f)
+        // Use the larger of user's step goal and personal 7-day average (F-24).
+        val ceiling = if (data.avgSteps7d != null && data.avgSteps7d > stepGoal.toFloat())
             data.avgSteps7d.toInt()
         else
-            8_000
+            stepGoal
 
         if (steps >= ceiling) return 100
-        if (steps <= 2_000) return 0
+        if (steps <= 2_000)   return 0
         return (((steps - 2_000).toFloat() / (ceiling - 2_000)) * 100f).toInt().coerceIn(0, 100)
+    }
+
+    /**
+     * Returns true if today's steps meet or exceed the user's configured step goal.
+     * Used by SmartNotificationWorker to determine Body streak maintained/missed.
+     * Returns null if step data is unavailable (-1 sentinel).
+     */
+    fun isBodyStreakMaintained(data: HCDailyData, stepGoal: Int = DEFAULT_STEP_GOAL): Boolean? {
+        if (!data.isAvailable) return null
+        val steps = data.stepsToday
+        if (steps < 0) return null   // no data — treat as N/A
+        return steps >= stepGoal
     }
 }

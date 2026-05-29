@@ -1,10 +1,11 @@
 package com.javikastudio.tidyapp
 
 import android.content.Context
+
 object SecurityValidators {
-    private val PACKAGE_RE = Regex("^[a-zA-Z][a-zA-Z0-9_]*(\\.[a-zA-Z][a-zA-Z0-9_]*)+$")
+    private val PACKAGE_RE  = Regex("^[a-zA-Z][a-zA-Z0-9_]*(\\.[a-zA-Z][a-zA-Z0-9_]*)+$")
     private val HTTP_URL_RE = Regex("^https?://[^\\s]+$", RegexOption.IGNORE_CASE)
-    private val MAILTO_RE = Regex("^mailto:[^\\s]*$", RegexOption.IGNORE_CASE)
+    private val MAILTO_RE   = Regex("^mailto:[^\\s]*$",   RegexOption.IGNORE_CASE)
 
     private val ASSET_ALLOWLIST = setOf(
         "www/affiliate_links.json",
@@ -29,7 +30,7 @@ object SecurityValidators {
         "focus_score_history",
         "sleep_score_history",
         "aurelo_score_history",
-        "body_score_history",      // Bug-1 FIX: missing key caused saveScoreForToday() writes
+        "body_score_history",           // Bug-1 FIX
         "focus_streak_v1",
         "home_morning_dismissed_date",
         "disc_challenge_v1",
@@ -38,9 +39,7 @@ object SecurityValidators {
         "cached_tidy_score_date",
         "deletedCategories",
         "disc_shown_v1",
-        // H7 FIX: The following keys were missing and caused getStringPref()/setStringPref()
-        // calls from JS to return "" silently, breaking the Coach home card, bedtime
-        // display, widget settings, and smart-alert reads from the WebView layer.
+        // H7 FIX
         "coach_daily_insight_json",
         "coach_daily_insight_date",
         "coach_insight_dismissed_date",
@@ -74,6 +73,14 @@ object SecurityValidators {
         "focus_last_total_mins",
         "focus_last_complete_ts",
         "referral_banner_last_shown_date",
+        // ── v2.2 new keys ────────────────────────────────────────────────────
+        // Step goal configured by user under Settings → Health Connect.
+        "hc_step_goal",
+        // Streak heatmap row visibility toggles (Score History UI state).
+        "streak_hm_screen_visible",
+        "streak_hm_focus_visible",
+        "streak_hm_bedtime_visible",
+        "streak_hm_body_visible",
     )
 
     fun isValidPackageName(value: String): Boolean = value.matches(PACKAGE_RE)

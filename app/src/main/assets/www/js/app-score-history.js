@@ -79,6 +79,10 @@ var ScoreHistory = (function () {
   var _pts        = [];
   var _n          = 0;
   var _moodDataMap = {}; // dateStr -> {m, t} for mood pillar scrub tooltip
+  // v2.2: streak heatmap state
+  var _streakData = [];   // array from AppBridge.getStreakHistory(days)
+  // Per-row visibility — persisted via setStringPref so user preference survives re-open
+  var _streakVis  = { screen: true, focus: true, bedtime: true, body: true };
 
   /* ── Color helpers ───────────────────────────────────────────── */
   function _css(varName) {
@@ -766,6 +770,9 @@ var ScoreHistory = (function () {
           /* 3. Chart */
           + chartSection
 
+          /* v2.2: Streak heatmap container */
+          +'<div id="sh-heatmap-wrap"></div>'
+
           /* 4. Window tabs */
           +'<div class="sh-win-tabs"><div class="sh-win-tabs-inner">'+winTabsHtml+'</div></div>'
 
@@ -1213,6 +1220,9 @@ var ScoreHistory = (function () {
     });
   }
 
+    /* v2.2: render streak heatmap below chart */
+    _renderHeatmap();
+
   function _doScrub(clientX) {
     var svg = document.getElementById('sh-svg');
     if (!svg || _n < 2) return;
@@ -1331,10 +1341,183 @@ var ScoreHistory = (function () {
                     + '<div class="sh-tt-grade" style="color:' + g.color + '">' + g.label + '</div>';
                 }
       }
+
+      /* v2.2: append streak info to tooltip when scrubbing */
+      if (_scrub && _streakData.length > 0) {
+        var si = Math.round((_scrub.frac) * (_streakData.length - 1));
+        si = Math.max(0, Math.min(_streakData.length - 1, si));
+        var sr = _streakData[si];
+        if (sr) {
+          var sHtml = '<div class="sh-tt-streak">';
+          var _sRows = [
+            { id:'screen',  lbl:'🔥 Screen',  col:'screen'  },
+            { id:'focus',   lbl:'🎯 Focus',   col:'focus'   },
+            { id:'bedtime', lbl:'🌙 Bedtime', col:'bedtime' },
+            { id:'body',    lbl:'💚 Body',    col:'body'    },
+          ];
+          _sRows.forEach(function(r) {
+            var p = sr[r.col] || { ok:-1, count:0 };
+            var icon = p.ok === 1 ? '✅' : p.ok === 0 ? '❌' : '—';
+            var cnt  = p.ok !== -1 ? ' ' + p.count + 'd' : '';
+            sHtml += '<div class="sh-tt-srow"><span>' + r.lbl + '</span><span>' + icon + cnt + '</span></div>';
+          });
+          sHtml += '</div>';
+          if (tt) tt.innerHTML += sHtml;
+        }
+      }
     }
 
     /* Zone highlights update */
     _updateZoneHighlights(displayScore);
+  }
+
+
+  /* ── v2.2: Streak Heatmap ────────────────────────────────────── */
+
+  var _HM_ROWS = [
+    { id:'screen',  label:'🔥', col:'screen'  },
+    { id:'focus',   label:'🎯', col:'focus'   },
+    { id:'bedtime', label:'🌙', col:'bedtime' },
+    { id:'body',    label:'💚', col:'body'    },
+  ];
+
+  /**
+   * Loads streak history from the native bridge and renders the heatmap
+   * below the score chart. Called at the end of _render().
+   * For 1Y view: tiles are weekly aggregated (52 tiles).
+   * For all other views: daily tiles.
+   */
+  function _renderHeatmap() {
+    var wrap = document.getElementById('sh-heatmap-wrap');
+    if (!wrap) return;
+
+    // Load streak data from bridge
+    var days = _wCfg().days;
+    try {
+      var raw = (typeof N !== 'undefined' && N.getStreakHistory)
+        ? N.getStreakHistory(days) : '[]';
+      _streakData = JSON.parse(raw || '[]');
+    } catch(_) { _streakData = []; }
+
+    if (_streakData.length === 0) { wrap.innerHTML = ''; return; }
+
+    // For 1Y: aggregate daily rows into weekly buckets (52 tiles)
+    var isWeekly = (_win === '1Y');
+    var tiles    = isWeekly ? _aggregateWeekly(_streakData) : _streakData;
+    var n        = tiles.length;
+    if (n === 0) { wrap.innerHTML = ''; return; }
+
+    var html = '<div class="sh-hm">';
+
+    _HM_ROWS.forEach(function(row) {
+      if (!_streakVis[row.id]) {
+        html += '<div class="sh-hm-row sh-hm-row--hidden" data-row="' + row.id + '">'
+              + '<button class="sh-hm-lbl sh-hm-lbl--off" onclick="ScoreHistory._toggleHmRow(\'' + row.id + '\')">'
+              + row.label + '</button></div>';
+        return;
+      }
+
+      html += '<div class="sh-hm-row" data-row="' + row.id + '">';
+      html += '<button class="sh-hm-lbl" onclick="ScoreHistory._toggleHmRow(\'' + row.id + '\')" title="Hide ' + row.id + ' streak">' + row.label + '</button>';
+      html += '<div class="sh-hm-tiles">';
+
+      var maxStreak = 0;
+      tiles.forEach(function(t) {
+        var p = t[row.col];
+        if (p && p.count > maxStreak) maxStreak = p.count;
+      });
+
+      tiles.forEach(function(t, i) {
+        var p   = t[row.col] || { ok: -1, count: 0 };
+        var ok  = p.ok;
+        var cnt = p.count;
+        var isPB = (cnt > 0 && cnt === maxStreak && ok === 1);
+        var cls = isPB ? 'sh-hm-tile sh-hm-tile--pb'
+                : ok === 1  ? 'sh-hm-tile sh-hm-tile--ok'
+                : ok === 0  ? 'sh-hm-tile sh-hm-tile--miss'
+                : 'sh-hm-tile sh-hm-tile--na';
+        var title = t.date + (ok === 1 ? ' ✅ ' + cnt + 'd streak' : ok === 0 ? ' ❌ missed' : ' —');
+        html += '<div class="' + cls + '" title="' + title + '" onclick="ScoreHistory._hmTileClick(' + i + ',' + n + ')"></div>';
+      });
+
+      html += '</div></div>';
+    });
+
+    html += '</div>';
+    wrap.innerHTML = html;
+  }
+
+  /** Aggregate daily StreakRows into weekly buckets for the 1Y view.
+   *  A week is "maintained" if majority of applicable days maintained. */
+  function _aggregateWeekly(rows) {
+    if (rows.length === 0) return [];
+    var weeks = [];
+    var i = 0;
+    while (i < rows.length) {
+      var chunk = rows.slice(i, i + 7);
+      var agg   = { date: chunk[0].date };
+      ['screen','focus','bedtime','body'].forEach(function(col) {
+        var ok  = 0, miss = 0, na = 0;
+        var maxCnt = 0;
+        chunk.forEach(function(r) {
+          var p = r[col] || { ok: -1, count: 0 };
+          if (p.ok === 1)  { ok++;  if (p.count > maxCnt) maxCnt = p.count; }
+          else if (p.ok === 0) miss++;
+          else na++;
+        });
+        var total = ok + miss;
+        agg[col] = {
+          ok:    total === 0 ? -1 : (ok > miss ? 1 : 0),
+          count: maxCnt
+        };
+      });
+      weeks.push(agg);
+      i += 7;
+    }
+    return weeks;
+  }
+
+  /** Sync a heatmap tile click to the chart scrub at the same relative index. */
+  function _hmTileClick(tileIdx, tileCount) {
+    if (_pts.length < 2 || tileCount < 1) return;
+    // Map tile index → chart point index proportionally
+    var chartIdx = Math.round((tileIdx / (tileCount - 1)) * (_n - 1));
+    chartIdx = Math.max(0, Math.min(_n - 1, chartIdx));
+    var pt = _pts[chartIdx];
+    if (!pt) return;
+    if (pt.v === null) {
+      // Find nearest non-null
+      for (var d = 1; d < _n; d++) {
+        var l = _pts[chartIdx - d], r = _pts[chartIdx + d];
+        if (r && r.v !== null) { pt = r; chartIdx += d; break; }
+        if (l && l.v !== null) { pt = l; chartIdx -= d; break; }
+      }
+    }
+    if (!pt || pt.v === null) return;
+    var frac = _n > 1 ? chartIdx / (_n - 1) : 0.5;
+    _scrub = { idx: chartIdx, x: pt.x, y: pt.y, v: pt.v,
+               date: _dateLabel(_win, chartIdx, _n), frac: frac };
+    _updateScrubUI();
+  }
+
+  /** Toggle visibility of a heatmap row and re-render. */
+  function _toggleHmRow(rowId) {
+    _streakVis[rowId] = !_streakVis[rowId];
+    // Persist preference
+    if (typeof N !== 'undefined' && N.setStringPref) {
+      N.setStringPref('streak_hm_' + rowId + '_visible', _streakVis[rowId] ? '1' : '0');
+    }
+    _renderHeatmap();
+  }
+
+  /** Load persisted visibility preferences (called from open()). */
+  function _loadHmVis() {
+    _HM_ROWS.forEach(function(row) {
+      if (typeof N !== 'undefined' && N.getStringPref) {
+        var v = N.getStringPref('streak_hm_' + row.id + '_visible');
+        _streakVis[row.id] = (v === '' || v === '1'); // default true
+      }
+    });
   }
 
   /* ── Public API ──────────────────────────────────────────────── */
@@ -1343,6 +1526,7 @@ var ScoreHistory = (function () {
     _win        = '7D';
     _scrub      = null;
     _isDragging = false;
+    _loadHmVis();   // v2.2: restore row visibility prefs
     _render();
   }
 
@@ -1382,7 +1566,7 @@ var ScoreHistory = (function () {
     }
   }
 
-  return { open:open, close:close, _setPillar:_setPillar, _setWin:_setWin, _share:_share };
+  return { open:open, close:close, _setPillar:_setPillar, _setWin:_setWin, _share:_share, _toggleHmRow:_toggleHmRow, _hmTileClick:_hmTileClick };
 
 })();
 

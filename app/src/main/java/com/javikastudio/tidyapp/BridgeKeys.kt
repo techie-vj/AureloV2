@@ -29,7 +29,7 @@ const val CACHED_MONTHLY_PICKUPS   = "cached_monthly_pickups"
 const val CACHED_MONTHLY_HOURLY    = "cached_monthly_hourly"
 const val CACHED_MONTHLY_APP_USAGE = "cached_monthly_app_usage"
 const val CACHED_MONTHLY_TS        = "cached_monthly_ts"
-const val CACHED_MONTHLY_MONTH     = "cached_monthly_month"   // FIX: track which month the cache belongs to
+const val CACHED_MONTHLY_MONTH     = "cached_monthly_month"
 
 // ── Daily history ─────────────────────────────────────────────────────────
 const val DAILY_HIST_MAP      = "daily_hist_map"
@@ -102,36 +102,15 @@ const val BEDTIME_LAST_NIGHT_KEPT          = "bedtime_last_night_kept"
 const val BEDTIME_LAST_NIGHT_SNOOZES       = "bedtime_last_night_snooze_count"
 const val BEDTIME_LAST_NIGHT_ATTEMPTS      = "bedtime_last_night_attempts_total"
 const val BEDTIME_LAST_NIGHT_HAS_DATA      = "bedtime_last_night_has_data"
-// Full per-app attempts JSON saved before clearAttempts() wipes it (Issue-5 fix)
 const val BEDTIME_LAST_NIGHT_ATTEMPTS_JSON = "bedtime_last_night_attempts_json"
 
-// Wind-down timestamps — written by ACTION_BEDTIME_WINDOWN, cleared on BEDTIME_ON / WINDOWN_STOP
-// BEDTIME_WINDOWN_START_TS is updated (pushed forward) when a wind-down snooze is taken,
-// so "time to bedtime" calculations based on (startTs + 30min - now) stay accurate.
 const val BEDTIME_WINDOWN_START_TS         = "bedtime_windown_start_ts"
-// Non-zero while the user has snoozed the wind-down (paused the filter fade).
-// The service poll loop restarts the filter fade when now >= this value.
 const val BEDTIME_WINDOWN_SNOOZE_UNTIL_TS  = "bedtime_windown_snooze_until_ts"
-
-// Set to true by ACTION_BEDTIME_STOP (notification "Turn Off" button) so the JS
-// render() correctly shows "Starts tomorrow" instead of "Bedtime Active" when the
-// user dismissed bedtime for the rest of the night but still wants it on future nights.
-// Cleared on BEDTIME_ON (next night's alarm) and BEDTIME_OFF (morning wake alarm).
-const val BEDTIME_SKIPPED_TONIGHT = "bedtime_skipped_tonight"
-
-// Exact epoch (ms) when tonight's BEDTIME_ON alarm will fire.
-// Written in BedtimeReceiver.BEDTIME_WINDOWN from the actual bedtime hour/minute
-// stored in settings so the countdown matches the JS bar exactly regardless of
-// how late doze-mode delivers the wind-down alarm.
-// Cleared on BEDTIME_ON (bedtime started) and WINDOWN_STOP (user turned off wind-down).
-const val BEDTIME_STARTS_AT_MS = "bedtime_starts_at_ms"
-// In-window phone usage minutes recorded at wake-up time (BEDTIME_OFF).
-// Used for the 15-minute grace period in Sleep Score computation.
+const val BEDTIME_SKIPPED_TONIGHT          = "bedtime_skipped_tonight"
+const val BEDTIME_STARTS_AT_MS             = "bedtime_starts_at_ms"
 const val BEDTIME_LAST_NIGHT_IN_WINDOW_SCREEN_MINS = "bedtime_last_night_in_window_mins"
-// Whether the user explicitly skipped bedtime tonight (distinct from missing it entirely).
 const val BEDTIME_LAST_NIGHT_SKIPPED_TONIGHT       = "bedtime_last_night_skipped_tonight"
-// Whether the bedtime auto-filter (Screen Filter) was configured and active this night.
-const val BEDTIME_LAST_NIGHT_FILTER_ACTIVE          = "bedtime_last_night_filter_active"
+const val BEDTIME_LAST_NIGHT_FILTER_ACTIVE         = "bedtime_last_night_filter_active"
 
 // ── Notifications ─────────────────────────────────────────────────────────────
 const val NOTIF_CHANNEL_ID     = "tidy_alerts"
@@ -150,43 +129,26 @@ const val STREAK_GOAL_MINS = "streak_goal_mins"
 const val ONBOARDING_DONE  = "onboarding_done"
 const val IS_PRO_USER      = "is_pro_user"
 
-// Sound cues toggle — gates SoundEffects playback. Default ON.
-// Users who upgrade from a pre-cues build get sounds on first launch and
-// can disable in Settings → Usage Controls if unwanted.
 const val SOUND_CUES_ENABLED = "sound_cues_enabled"
 
-const val HC_CONNECTED = "hc_connected"
+const val HC_CONNECTED  = "hc_connected"
+// v2.2: user-configurable daily step goal (affects Body Score steps component
+// and Body streak criteria). Default 8,000. PRO (HC is already PRO).
+const val HC_STEP_GOAL  = "hc_step_goal"
 
 const val SCREEN_FILTER_SETTINGS_V1       = "screen_filter_settings_v1"
 const val SCREEN_FILTER_ACTIVE            = "screen_filter_active"
-// CB-017: snapshot of the user's manual filter state saved at wind-down/bedtime start;
-// restored when BEDTIME_OFF fires so the manual filter is exactly as the user left it.
 const val SCREEN_FILTER_PRE_BEDTIME_STATE = "screen_filter_pre_bedtime_state"
 
 // ── Quiet Hours ─────────────────────────────────────────────────────────────
-// Minimal "schedule DND" feature distinct from Bedtime Mode. Stored in plain
-// prefs (not securePrefs) — a time window is not sensitive and keeping it out
-// of EncryptedSharedPreferences avoids the rooted-device degradation path.
-// Schema (JSON):
-//   { "enabled": true, "startHour": 9, "startMin": 0,
-//     "endHour": 17, "endMin": 0,
-//     "days": [false,true,true,true,true,true,false] }   // Sun..Sat
 const val QUIET_HOURS_SETTINGS_V1   = "quiet_hours_settings_v1"
 const val QUIET_HOURS_ACTIVE        = "quiet_hours_active"
 const val QUIET_HOURS_STARTS_AT_MS  = "quiet_hours_starts_at_ms"
 const val QUIET_HOURS_ENDS_AT_MS    = "quiet_hours_ends_at_ms"
-// Snapshot of the system InterruptionFilter taken just before Quiet Hours
-// engaged DND, so we can restore the user's prior setting at end-of-window
-// instead of unconditionally clamping back to FILTER_ALL.
 const val QUIET_HOURS_PRE_DND_FILTER  = "quiet_hours_pre_dnd_filter"
-// Set when the user taps "End now" from the persistent notification so the
-// current window does not re-arm if the device wakes inside the same window.
 const val QUIET_HOURS_SKIPPED_TODAY = "quiet_hours_skipped_today_ymd"
 const val QUIET_HOURS_SNOOZE_UNTIL_TS = "quiet_hours_snooze_until_ts"
 
-// DND ownership token — written by whichever subsystem currently holds DND
-// (bedtime / quiet_hours / "" for none). Lets a releasing subsystem avoid
-// clobbering DND if another subsystem still claims it.
 const val DND_OWNER                 = "dnd_owner_v1"
 const val DND_OWNER_NONE            = ""
 const val DND_OWNER_BEDTIME         = "bedtime"
@@ -196,6 +158,7 @@ const val DND_OWNER_QUIET_HOURS     = "quiet_hours"
 const val KEY_RATE_INSTALL_MS    = "rate_install_ms"
 const val KEY_RATE_LAST_SHOWN_MS = "rate_last_shown_ms"
 const val KEY_RATE_ATTEMPT_COUNT = "rate_attempt_count"
+
 // ── Referral ───────────────────────────────────────────────────────────────
 const val REFERRAL_MY_CODE              = "referral_my_code"
 const val REFERRAL_INSTALL_ID           = "referral_install_id"
@@ -224,36 +187,20 @@ const val REFERRAL_PENDING_NOTIF_SENT         = "referral_pending_notif_sent"
 const val REFERRAL_PENDING_EXTENSION_DAYS  = "referral_pending_ext_days"
 const val REFERRAL_EXTENSION_EXPIRY_MS     = "referral_extension_expiry_ms"
 const val REFERRAL_EXTENSION_SOURCE_PLAN   = "referral_extension_source_plan"
-// BUG-M1 FIX: tracks friends who installed but never converted after 30+ days,
-// so the "pending" counter in getStats() reflects genuine prospects only.
 const val REFERRAL_TOTAL_LAPSED            = "referral_total_lapsed"
-// BUG-M2 FIX: accumulates days across multiple pending conversions so
-// consumePendingConversionNotif() returns the correct cumulative total
-// instead of recalculating from the last recorded plan only.
 const val REFERRAL_PENDING_CONVERSION_DAYS = "referral_pending_conv_days"
 const val REFERRAL_OLDEST_INSTALL_TS = "referral_oldest_install_ts"
 const val BILLING_ACTIVE_PLAN = "billing_active_plan"
 
-// ── Referral confirmation code flow (Bug-1 fix) ─────────────────────────────
-// Generated on the referred device so the referrer can enter it to claim credit.
-const val REFERRAL_CONFIRM_CODE      = "referral_confirm_code"        // install confirmation
-const val REFERRAL_CONV_CONFIRM_CODE = "referral_conv_confirm_code"   // conversion confirmation
-const val REFERRAL_CONV_CONFIRM_PLAN = "referral_conv_confirm_plan"   // plan at conversion time
-
-// CRIT-2 FIX: permanent watermark — total days ever banked (never decremented).
-// Used by BillingBridge.recordActivatedPlan() to compute the delta when banking
-// new days, preventing already-consumed extension days from being re-banked on
-// re-subscribe (the double-banking bug).
+// ── Referral confirmation code flow ─────────────────────────────────────────
+const val REFERRAL_CONFIRM_CODE      = "referral_confirm_code"
+const val REFERRAL_CONV_CONFIRM_CODE = "referral_conv_confirm_code"
+const val REFERRAL_CONV_CONFIRM_PLAN = "referral_conv_confirm_plan"
 const val REFERRAL_TOTAL_DAYS_EVER_BANKED = "referral_total_days_ever_banked"
-
-// HIGH-3 FIX: rate-limit counters for redeemReferralCode().
-// 5 consecutive failures trigger a 60-second lockout.
 const val REF_REDEEM_FAIL_COUNT = "ref_redeem_fail_count"
 const val REF_REDEEM_LOCK_MS    = "ref_redeem_lock_ms"
 
 // ── App Lock PIN & Biometric ──────────────────────────────────────────────
-// PIN hash stored in securePrefs (EncryptedSharedPreferences).
-// Setup flag and biometric preference stored in regular prefs.
 const val APP_LOCK_PIN_HASH          = "app_lock_pin_hash_v1"
 const val APP_LOCK_BIOMETRIC_ENABLED = "app_lock_biometric_enabled"
 const val APP_LOCK_SETUP_DONE        = "app_lock_setup_done"

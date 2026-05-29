@@ -570,3 +570,95 @@
   .sh-win-tab { transition: none; }
   .sh-chip    { transition: none; }
 }
+
+/* ── v2.2: Streak Heatmap ─────────────────────────────────────────── */
+
+#sh-heatmap-wrap {
+  margin: 12px 18px 0;
+}
+
+.sh-hm {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.sh-hm-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 20px;
+}
+
+.sh-hm-row--hidden .sh-hm-tiles {
+  display: none;
+}
+
+.sh-hm-lbl {
+  width: 22px;
+  font-size: 13px;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  flex-shrink: 0;
+  opacity: 1;
+}
+
+.sh-hm-lbl--off {
+  opacity: 0.35;
+}
+
+.sh-hm-tiles {
+  display: flex;
+  flex: 1;
+  gap: 1.5px;
+  align-items: center;
+}
+
+/* Individual tile — width is fluid (flex), height fixed */
+.sh-hm-tile {
+  flex: 1;
+  height: 12px;
+  border-radius: 2px;
+  cursor: pointer;
+  transition: opacity 0.1s;
+}
+.sh-hm-tile:active { opacity: 0.7; }
+
+.sh-hm-tile--ok   { background: #3ec9a7; }           /* green  */
+.sh-hm-tile--miss { background: #e86b5f; }           /* red    */
+.sh-hm-tile--na   { background: #2a2f3e; position: relative; }
+.sh-hm-tile--na::after {
+  content: '';
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  width: 4px; height: 1px;
+  background: #4a5068;
+}
+/* Personal best tile — amber/gold instead of green */
+.sh-hm-tile--pb   { background: #e8a838; }
+
+/* ── Streak rows in scrub tooltip ─────────────────────────────────── */
+
+.sh-tt-streak {
+  margin-top: 8px;
+  padding-top: 7px;
+  border-top: 1px solid rgba(255,255,255,0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.sh-tt-srow {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: #8a9ab0;
+}
+
+.sh-tt-srow span:last-child {
+  color: #c9cdd6;
+  font-weight: 600;
+}

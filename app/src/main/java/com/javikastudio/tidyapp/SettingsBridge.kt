@@ -52,6 +52,39 @@ class SettingsBridge(
         if (!SecurityValidators.isAllowedPublicPrefKey(key)) return
         prefs.edit().putString(key, value).apply()
     }
+    @JavascriptInterface
+    fun getStreakHistory(days: Int): String {
+        val clampedDays = days.coerceIn(1, 365)
+        val rows = LaunchTracker.get(context).getStreakRows(clampedDays)
+        val arr = org.json.JSONArray()
+
+        // Build a date-keyed lookup for fast gap-filling
+        val byDate = rows.associateBy { it.date }
+        val fmt = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US)
+        val cal = java.util.Calendar.getInstance()
+
+        // Emit one entry per day from (today - clampedDays + 1) to today
+        // Missing days → all -1 (N/A) so JS sees a full dense array
+        for (i in clampedDays - 1 downTo 0) {
+            val d = java.util.Calendar.getInstance().apply { add(java.util.Calendar.DATE, -i) }
+            val dateStr = fmt.format(d.time)
+            val r = byDate[dateStr]
+
+            fun pillar(ok: Int) = org.json.JSONObject().apply {
+                put("ok",    ok)
+                put("count", 0)   // count is informational; 0 is fine for display
+            }
+
+            arr.put(org.json.JSONObject().apply {
+                put("date",    dateStr)
+                put("screen",  pillar(r?.screenOk  ?: -1))
+                put("focus",   pillar(r?.focusOk   ?: -1))
+                put("bedtime", pillar(r?.bedtimeOk ?: -1))
+                put("body",    pillar(r?.bodyOk    ?: -1))
+            })
+        }
+        return arr.toString()
+    }
     @JavascriptInterface fun getDeviceModel(): String = "${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL}"
     @JavascriptInterface fun getCountryCode(): String = java.util.Locale.getDefault().country.uppercase().ifEmpty { "US" }
     @JavascriptInterface fun getPackageName(): String = context.packageName

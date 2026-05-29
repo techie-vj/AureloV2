@@ -167,6 +167,8 @@ class AppBridge(private val context: Context, private val webView: WebView) {
     internal val coach = CoachBridge(context,webView,prefs,securePrefs,bridgeScope)
     internal val aureloScore = AureloScoreBridge(prefs, healthConnect)
     internal val weeklyRecapBridge = WeeklyRecapBridge(context,webView, prefs, bridgeScope, usage, coach)
+    // v2.2: streak history + step goal bridge
+    private val scoreHistory = ScoreHistoryBridge(context,webView,prefs,securePrefs,bridgeScope)
 
     internal val quietHoursBridge = QuietHoursBridge(context, webView, prefs)
 
@@ -551,6 +553,14 @@ class AppBridge(private val context: Context, private val webView: WebView) {
     // BUG-01 FIX: confirmation code flow delegations
     @JavascriptInterface fun getConfirmationCodes()                            = referral.getConfirmationCodes()
     @JavascriptInterface fun redeemReferralCode(code: String)                  = referral.redeemReferralCode(code)
+
+    // ── v2.2: Streak History & Step Goal ─────────────────────────────────────
+    @JavascriptInterface fun getStreakHistory(days: Int)                        = scoreHistory.getStreakHistory(days)
+    @JavascriptInterface fun saveStreakDay(date: String, screenOk: Int, focusOk: Int, bedtimeOk: Int, bodyOk: Int) = scoreHistory.saveStreakDay(date, screenOk, focusOk, bedtimeOk, bodyOk)
+    @JavascriptInterface fun getBodyStreak()                                    = scoreHistory.getBodyStreak()
+    @JavascriptInterface fun getFocusStreak()                                   = focusSession.getFocusStreak()
+    @JavascriptInterface fun getStepGoal()                                      = scoreHistory.getStepGoal()
+    @JavascriptInterface fun saveStepGoal(goal: Int)                            = scoreHistory.saveStepGoal(goal)
 
     /**
      * handleProDowngrade — called by pro-gate.js (JS side) when the Pro

@@ -681,14 +681,15 @@ function _showBodyScoreSheet() {
   // Old: (steps - 2000) / 6000 * 100 (fixed 8 000 ceiling)
   // New: ceiling = personal 7-day avg when > 8 000, else 8 000
   const stepsPct = (function() {
-    if (live.steps == null) return null;
-    const ceiling = (live.avgSteps7d != null && live.avgSteps7d > 8000)
-      ? Math.round(live.avgSteps7d) : 8000;
-    if (live.steps >= ceiling) return 100;
-    if (live.steps <= 2000) return 0;
-    return Math.min(100, Math.max(0,
-      Math.round(((live.steps - 2000) / (ceiling - 2000)) * 100)));
-  })();
+      if (live.steps == null) return null;
+      var _sg = 8000;
+      try { if (typeof window.AppBridge === 'object' && typeof window.AppBridge.getStepGoal === 'function') _sg = window.AppBridge.getStepGoal(); } catch(_) {}
+      const ceiling = _sg;
+      if (live.steps >= ceiling) return 100;
+      if (live.steps <= 2000) return 0;
+      return Math.min(100, Math.max(0,
+        Math.round(((live.steps - 2000) / (ceiling - 2000)) * 100)));
+    })();
 
   const _noData = '<span style="color:var(--t3);font-size:var(--text-xs)">No data</span>';
   const rows = [
@@ -711,9 +712,11 @@ function _showBodyScoreSheet() {
     {
       label: 'Daily Steps', icon: '🦶',
       val:  live.steps != null ? live.steps.toLocaleString() : _noData,
-      sub:  (live.avgSteps7d != null && live.avgSteps7d > 8000)
-              ? 'Goal: ' + Math.round(live.avgSteps7d).toLocaleString() + ' (your avg)'
-              : 'Goal: 8,000 steps',
+      sub:  (function() {
+              var _sg2 = 8000;
+              try { if (typeof window.AppBridge === 'object' && typeof window.AppBridge.getStepGoal === 'function') _sg2 = window.AppBridge.getStepGoal(); } catch(_) {}
+              return 'Goal: ' + _sg2.toLocaleString() + ' steps';
+            })(),
       pct:  stepsPct,
       weight: 40,
       col:  stepsPct == null ? 'var(--t3)' : stepsPct >= 100 ? 'var(--g)' : stepsPct >= 60 ? 'var(--a)' : 'var(--r)',

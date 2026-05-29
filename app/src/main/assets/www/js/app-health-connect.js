@@ -106,7 +106,12 @@ const HealthConnect = (function () {
     var rhrScore = d.restingHR <= d.avgRhr7d ? 100
       : Math.max(0, Math.round((1 - (d.restingHR - d.avgRhr7d) / (rhrCeiling - d.avgRhr7d)) * 100));
     // F-24: personal avg ceiling when avg>8000 (was fixed 8000)
-    var stepsCeiling = (d.avgSteps7d != null && d.avgSteps7d > 8000) ? d.avgSteps7d : 8000;
+    var _jsStepGoal = 8000;
+    try {
+      if (typeof window.AppBridge === 'object' && typeof window.AppBridge.getStepGoal === 'function')
+        _jsStepGoal = window.AppBridge.getStepGoal();
+    } catch(_) {}
+    var stepsCeiling = _jsStepGoal;
     var stepsScore = d.steps >= stepsCeiling ? 100
       : Math.max(0, Math.round((d.steps - 2000) / (stepsCeiling - 2000) * 100));
     // F-15: weights 40% steps / 35% HRV / 25% RHR (was equal 1/3 each)
@@ -495,8 +500,59 @@ const HealthConnect = (function () {
         + label + '</div>';
     }).join('');
 
+    var stepGoal = 8000;
+    try {
+      if (typeof window.AppBridge === 'object' && typeof window.AppBridge.getStepGoal === 'function')
+        stepGoal = window.AppBridge.getStepGoal();
+    } catch (_) {}
+
+    var stepGoalRowHtml = connected
+      ? '<div style="margin-top:14px;padding:12px 14px;background:var(--s2);border:1px solid var(--border2);border-radius:var(--rad-sm)">'
+          + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">'
+            + '<div>'
+              + '<div style="font-size:var(--text-sm);font-weight:600;color:var(--t1)">Daily Step Goal</div>'
+              + '<div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3)">Affects Body Score · 100 pts when met</div>'
+            + '</div>'
+            + '<div style="font-family:var(--ff-d);font-size:18px;font-weight:700;color:var(--hc)" id="hc-step-goal-val">' + stepGoal.toLocaleString() + ' steps</div>'
+          + '</div>'
+          + '<input type="range" min="2000" max="15000" step="500" value="' + stepGoal + '" id="hc-step-goal-slider"'
+            + ' style="width:100%;accent-color:var(--hc);cursor:pointer"'
+            + ' oninput="HealthConnect._onStepGoalChange(this.value)"'
+            + ' onchange="HealthConnect._onStepGoalSave(this.value)">'
+          + '<div style="display:flex;justify-content:space-between;font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);margin-top:2px">'
+            + '<span>2,000</span><span>15,000</span>'
+          + '</div>'
+        + '</div>'
+      : '';
+
+    var stepGoal = 8000;
+    try {
+      if (typeof window.AppBridge === 'object' && typeof window.AppBridge.getStepGoal === 'function')
+        stepGoal = window.AppBridge.getStepGoal();
+    } catch (_) {}
+
+    var stepGoalRowHtml = connected
+      ? '<div style="margin-top:14px;padding:12px 14px;background:var(--s2);border:1px solid var(--border2);border-radius:var(--rad-sm)">'
+          + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">'
+            + '<div>'
+              + '<div style="font-size:var(--text-sm);font-weight:600;color:var(--t1)">Daily Step Goal</div>'
+              + '<div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3)">Affects Body Score · 100 pts when met</div>'
+            + '</div>'
+            + '<div style="font-family:var(--ff-d);font-size:18px;font-weight:700;color:var(--hc)" id="hc-step-goal-val">' + stepGoal.toLocaleString() + ' steps</div>'
+          + '</div>'
+          + '<input type="range" min="2000" max="15000" step="500" value="' + stepGoal + '" id="hc-step-goal-slider"'
+            + ' style="width:100%;accent-color:var(--hc);cursor:pointer"'
+            + ' oninput="HealthConnect._onStepGoalChange(this.value)"'
+            + ' onchange="HealthConnect._onStepGoalSave(this.value)">'
+          + '<div style="display:flex;justify-content:space-between;font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3);margin-top:2px">'
+            + '<span>2,000</span><span>15,000</span>'
+          + '</div>'
+        + '</div>'
+      : '';
+
     var actionHtml = connected
-      ? '<div style="display:flex;gap:8px;margin-top:14px">'
+      ? stepGoalRowHtml
+        + '<div style="display:flex;gap:8px;margin-top:10px">'
           + '<button type="button" onclick="HealthConnect.syncNow()" '
           + 'style="flex:1;padding:11px;border-radius:var(--rad-sm);background:var(--s3);'
           + 'border:1px solid var(--border2);color:var(--t2);font-family:var(--ff-m);'
@@ -586,6 +642,22 @@ const HealthConnect = (function () {
       '</div>';
   }
 
+  function _onStepGoalChange(val) {
+    var el = document.getElementById('hc-step-goal-val');
+    if (el) el.textContent = parseInt(val, 10).toLocaleString() + ' steps';
+  }
+
+  function _onStepGoalSave(val) {
+    var goal = parseInt(val, 10);
+    try {
+      if (typeof window.AppBridge === 'object' && typeof window.AppBridge.saveStepGoal === 'function')
+        window.AppBridge.saveStepGoal(goal);
+    } catch(_) {}
+    _onStepGoalChange(val);
+    if (typeof toast === 'function') toast('Step goal updated to ' + goal.toLocaleString(), 'success');
+    if (typeof renderAureloScore === 'function') renderAureloScore();
+  }
+
   /* ── Public API ─────────────────────────────────────────────── */
   return {
     isConnected:            isConnected,
@@ -600,9 +672,18 @@ const HealthConnect = (function () {
     renderSettingsCard:     renderSettingsCard,
     renderHomeBanner:       renderHomeBanner,
     _onConnectTap:          _onConnectTap,
+    _onStepGoalChange: _onStepGoalChange,
+    _onStepGoalSave:   _onStepGoalSave,
     /** Opens HC system settings (API 34+) or Play Store (API 26–33). */
     openHCSettings: function () {
       try { window.AppBridge.openHCSettings(); } catch (_) {}
+    },
+    getStepGoal: function() {
+      try {
+        if (typeof window.AppBridge === 'object' && typeof window.AppBridge.getStepGoal === 'function')
+          return window.AppBridge.getStepGoal();
+      } catch(_) {}
+      return 8000;
     },
     /**
      * Called by pro-gate.js when Pro subscription expires.

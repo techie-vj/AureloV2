@@ -118,7 +118,7 @@ class HealthConnectBridge(
 
     /** Body pillar score 0–100, or -1 if HC not connected / data missing. */
     @JavascriptInterface
-    fun getHCBodyScore(): Int = BodyScoreCalculator.compute(_cachedData)
+    fun getHCBodyScore(): Int = BodyScoreCalculator.compute(_cachedData, _stepGoal())
 
     /**
      * Activity modifier for Screen Score.
@@ -248,7 +248,7 @@ class HealthConnectBridge(
             // HC data immediately — without requiring an app restart.
             syncInBackground { fresh ->
                 _cachedData = fresh
-                val bodyScore = BodyScoreCalculator.compute(fresh)
+                val bodyScore = BodyScoreCalculator.compute(fresh, _stepGoal())
                 // Invalidate cached tab insights so the next tab visit re-generates
                 // with HC-aware data (Body Score pillar now active, HC signals fed in).
                 coachBridge?.clearTabInsightCache()
@@ -345,6 +345,15 @@ class HealthConnectBridge(
         }
     }
 
+    @JavascriptInterface
+    fun getStepGoal(): Int = _stepGoal()
+
+    @JavascriptInterface
+    fun saveStepGoal(goal: Int) {
+        val clamped = goal.coerceIn(2_000, 15_000)
+        securePrefs.edit().putInt(HC_STEP_GOAL, clamped).apply()
+    }
+
     /**
      * Called from AppBridge when the app resumes so data stays fresh.
      * Also reconciles the HC_CONNECTED flag against the permissions actually
@@ -402,7 +411,7 @@ class HealthConnectBridge(
 
         if (isConnected) {
             refreshCachedData()
-            val bodyScore = BodyScoreCalculator.compute(_cachedData)
+            val bodyScore = BodyScoreCalculator.compute(_cachedData, _stepGoal())
             notifyJsPermissionResult(granted = true, score = bodyScore)
         } else {
             _cachedData = HCDailyData(isAvailable = false)
@@ -465,4 +474,15 @@ class HealthConnectBridge(
             onComplete(fresh)
         }
     }
+    // ── v2.2: Step Goal ───────────────────────────────────────────────────────
+
+    /**
+     * Helper — reads the user-configured step goal from EncryptedSharedPreferences.
+     * Falls back to BodyScoreCalculator.DEFAULT_STEP_GOAL (8,000) if not set.
+     * Called by getHCBodyScore() and by SmartNotificationWorker for Body streak.
+     */
+    internal fun _stepGoal(): Int =
+        securePrefs.getInt(HC_STEP_GOAL, BodyScoreCalculator.DEFAULT_STEP_GOAL)
+
+
 }

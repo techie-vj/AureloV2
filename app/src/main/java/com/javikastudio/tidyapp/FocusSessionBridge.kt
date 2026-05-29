@@ -309,6 +309,22 @@ class FocusSessionBridge(
 
     internal fun currentWeekId(): String = SimpleDateFormat("yyyy-'W'ww", Locale.US).format(Date())
 
+
+    // ── v2.2: Focus streak read ───────────────────────────────────────────────
+
+    /**
+     * Returns the current consecutive Focus streak count.
+     * Reads from the streak_history table in LaunchTracker.
+     * A day is maintained when any focus activity occurred:
+     *   • at least 1 session started, OR
+     *   • at least 1 mindful pause triggered, OR
+     *   • at least 1 app timer limit reached.
+     * Written nightly by SmartNotificationWorker.
+     */
+    @JavascriptInterface
+    fun getFocusStreak(): Int =
+        LaunchTracker.get(context).getCurrentStreakForColumn("focus_ok")
+
     companion object {
         // F-06: new daily stat keys
         const val KEY_FOCUS_DATE              = "focus_date_v1"

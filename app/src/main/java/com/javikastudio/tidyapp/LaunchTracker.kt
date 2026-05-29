@@ -44,12 +44,26 @@ enum class TimeSlot {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+//  StreakRow — one day's streak state for all four pillars
+//  ok values: 1 = maintained (green), 0 = missed (red), -1 = N/A (grey)
+// ─────────────────────────────────────────────────────────────────────────────
+data class StreakRow(
+    val date: String,     // yyyy-MM-dd
+    val screenOk: Int,    // 1 | 0 | -1
+    val focusOk: Int,
+    val bedtimeOk: Int,
+    val bodyOk: Int
+)
+
+// ─────────────────────────────────────────────────────────────────────────────
 //  SQLite schema
 // ─────────────────────────────────────────────────────────────────────────────
-private const val DB_NAME         = "tidyapp_launches.db"
-private const val DB_VERSION      = 3  // P1-05: v3 adds score_history table (was in plain prefs)
-private const val TABLE           = "launch_events"
+private const val DB_NAME          = "tidyapp_launches.db"
+// v2.2: bumped to 4 — adds streak_history table
+private const val DB_VERSION       = 4
+private const val TABLE            = "launch_events"
 private const val SCORE_HIST_TABLE = "score_history"
+private const val STREAK_HIST_TABLE = "streak_history"
 
 /**
  * SEC-09 FIX: Updated for SQLCipher 4.6.1.
@@ -62,11 +76,11 @@ private class LaunchDatabase(ctx: Context, passphrase: ByteArray)
     passphrase,
     null,
     DB_VERSION,
-    DB_VERSION, // This is the 'minimumSupportedVersion' argument I missed!
+    DB_VERSION,
     null,
     null,
     false
-){
+) {
     override fun onCreate(db: SQLiteDatabase) {
         db.execSQL("""
             CREATE TABLE IF NOT EXISTS $TABLE (
@@ -80,7 +94,7 @@ private class LaunchDatabase(ctx: Context, passphrase: ByteArray)
         """.trimIndent())
         db.execSQL("CREATE INDEX IF NOT EXISTS idx_slot_pkg ON $TABLE(time_slot, package_name)")
         db.execSQL("CREATE INDEX IF NOT EXISTS idx_ts ON $TABLE(timestamp)")
-        // P1-05: score history stored in SQLCipher instead of plain SharedPreferences
+        // P1-05: score history in SQLCipher
         db.execSQL("""
             CREATE TABLE IF NOT EXISTS $SCORE_HIST_TABLE (
                 pref_key    TEXT    PRIMARY KEY NOT NULL,
@@ -88,6 +102,17 @@ private class LaunchDatabase(ctx: Context, passphrase: ByteArray)
                 updated_at  INTEGER NOT NULL
             )
         """.trimIndent())
+        // v2.2: streak history — daily maintained/missed/N-A per pillar
+        db.execSQL("""
+            CREATE TABLE IF NOT EXISTS $STREAK_HIST_TABLE (
+                date        TEXT    PRIMARY KEY NOT NULL,
+                screen_ok   INTEGER NOT NULL DEFAULT -1,
+                focus_ok    INTEGER NOT NULL DEFAULT -1,
+                bedtime_ok  INTEGER NOT NULL DEFAULT -1,
+                body_ok     INTEGER NOT NULL DEFAULT -1
+            )
+        """.trimIndent())
+        db.execSQL("CREATE INDEX IF NOT EXISTS idx_streak_date ON $STREAK_HIST_TABLE(date)")
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
@@ -97,7 +122,6 @@ private class LaunchDatabase(ctx: Context, passphrase: ByteArray)
             return
         }
         if (oldVersion < 3) {
-            // P1-05: add score_history table without wiping existing launch_events data
             db.execSQL("""
                 CREATE TABLE IF NOT EXISTS $SCORE_HIST_TABLE (
                     pref_key    TEXT    PRIMARY KEY NOT NULL,
@@ -105,6 +129,19 @@ private class LaunchDatabase(ctx: Context, passphrase: ByteArray)
                     updated_at  INTEGER NOT NULL
                 )
             """.trimIndent())
+        }
+        if (oldVersion < 4) {
+            // v2.2: add streak_history without wiping existing data
+            db.execSQL("""
+                CREATE TABLE IF NOT EXISTS $STREAK_HIST_TABLE (
+                    date        TEXT    PRIMARY KEY NOT NULL,
+                    screen_ok   INTEGER NOT NULL DEFAULT -1,
+                    focus_ok    INTEGER NOT NULL DEFAULT -1,
+                    bedtime_ok  INTEGER NOT NULL DEFAULT -1,
+                    body_ok     INTEGER NOT NULL DEFAULT -1
+                )
+            """.trimIndent())
+            db.execSQL("CREATE INDEX IF NOT EXISTS idx_streak_date ON $STREAK_HIST_TABLE(date)")
         }
     }
 }
@@ -127,6 +164,9 @@ class LaunchTracker private constructor(context: Context) {
 
         private const val PREFS_PASSPHRASE = "tidyapp_launch_key_v1"
         private const val KEY_PASSPHRASE   = "db_passphrase"
+
+        // Retention period for streak history — matches Score History (365 days)
+        private const val STREAK_RETENTION_DAYS = 365L
     }
 
     // ── Encrypted DB open ─────────────────────────────────────────────────────
@@ -134,25 +174,17 @@ class LaunchTracker private constructor(context: Context) {
         val appCtx = context.applicationContext
         val passphrase = derivePassphrase(appCtx)
         try {
-            // FIX: loadLibs() is removed in SQLCipher 4.5+.
-            // We use System.loadLibrary to manually trigger the native load
-            // and resolve the "No implementation found" runtime error.
             System.loadLibrary("sqlcipher")
         } catch (e: UnsatisfiedLinkError) {
             Log.e("LaunchTracker", "SQLCipher native library not found", e)
         }
         return try {
-            // In 4.6.1, we pass the passphrase to the constructor and call writableDatabase
             LaunchDatabase(appCtx, passphrase).writableDatabase
         } finally {
-            // Security: Clear the sensitive byte array from memory
             passphrase.fill(0)
         }
     }
 
-    /**
-     * Derives (or generates on first run) a stable 32-byte passphrase.
-     */
     private fun derivePassphrase(context: Context): ByteArray {
         return try {
             val masterKey = androidx.security.crypto.MasterKey.Builder(context)
@@ -196,9 +228,9 @@ class LaunchTracker private constructor(context: Context) {
         val slot = when (hour) {
             in 6..8   -> TimeSlot.MORNING
             in 9..10  -> TimeSlot.COMMUTE
-            in 11..13 -> TimeSlot.MIDDAY    // Added TimeSlot.
-            in 14..16 -> TimeSlot.AFTERNOON // Added TimeSlot.
-            in 17..20 -> TimeSlot.EVENING   // Added TimeSlot.
+            in 11..13 -> TimeSlot.MIDDAY
+            in 14..16 -> TimeSlot.AFTERNOON
+            in 17..20 -> TimeSlot.EVENING
             else      -> TimeSlot.NIGHT
         }
         val dateStr    = fmt.format(Date(timestamp))
@@ -275,9 +307,7 @@ class LaunchTracker private constructor(context: Context) {
         return if (file.exists()) file.length() / 1024L else 0L
     }
 
-    // In LaunchTracker.kt
     fun totalRows(): Long {
-        // FIX: Use .use {} to automatically close the statement after execution
         return db.compileStatement("SELECT COUNT(*) FROM $TABLE").use { statement ->
             statement.simpleQueryForLong()
         }
@@ -285,6 +315,8 @@ class LaunchTracker private constructor(context: Context) {
 
     fun clearAll() {
         db.delete(TABLE, null, null)
+        db.delete(SCORE_HIST_TABLE, null, null)
+        db.delete(STREAK_HIST_TABLE, null, null)
         runCatching { db.execSQL("VACUUM") }
     }
 
@@ -295,11 +327,6 @@ class LaunchTracker private constructor(context: Context) {
     ): Int {
         val since = System.currentTimeMillis() - 30L * 24 * 60 * 60 * 1000L
 
-        // FIX Issue 11 (SEC-02): use parameterized binds instead of string
-        // interpolation. dayOfWeek is a typed Int so SQL injection is impossible,
-        // but interpolation is still a code-smell and makes the boundary behaviour
-        // (0 and 8 → no day filter) invisible to static analysis. Separate arg
-        // arrays make the two paths explicit and compile-time checkable.
         val dayClause: String
         val totalArgs: Array<String>
         val appArgs:   Array<String>
@@ -308,7 +335,7 @@ class LaunchTracker private constructor(context: Context) {
             totalArgs = arrayOf(slot.name, since.toString(), dayOfWeek.toString())
             appArgs   = arrayOf(slot.name, packageName, since.toString(), dayOfWeek.toString())
         } else {
-            dayClause = ""          // boundary values 0 and 8 intentionally drop the filter
+            dayClause = ""
             totalArgs = arrayOf(slot.name, since.toString())
             appArgs   = arrayOf(slot.name, packageName, since.toString())
         }
@@ -343,7 +370,7 @@ class LaunchTracker private constructor(context: Context) {
             arrayOf(dayOfWeek.toString())
         ).use { if (it.moveToFirst()) it.getInt(0) else 0 }
 
-    // ── Score History (P1-05 FIX: encrypted SQLCipher, was plain SharedPreferences) ──
+    // ── Score History ─────────────────────────────────────────────────────────
 
     fun getScoreHistory(key: String): String =
         db.rawQuery(
@@ -358,5 +385,83 @@ class LaunchTracker private constructor(context: Context) {
             put("updated_at", System.currentTimeMillis())
         }
         db.insertWithOnConflict(SCORE_HIST_TABLE, null, cv, SQLiteDatabase.CONFLICT_REPLACE)
+    }
+
+    // ── Streak History (v2.2) ─────────────────────────────────────────────────
+    //
+    // ok values: 1 = maintained, 0 = missed, -1 = N/A (feature off / disconnected)
+    // Retention: 365 days (matches Score History)
+
+    /**
+     * Upsert a streak row for the given date.
+     * Called from SmartNotificationWorker nightly (which has all context needed).
+     * Uses CONFLICT_REPLACE so re-running the worker on the same day is idempotent.
+     */
+    fun saveStreakRow(date: String, screenOk: Int, focusOk: Int, bedtimeOk: Int, bodyOk: Int) {
+        val cv = ContentValues().apply {
+            put("date",       date)
+            put("screen_ok",  screenOk.coerceIn(-1, 1))
+            put("focus_ok",   focusOk.coerceIn(-1, 1))
+            put("bedtime_ok", bedtimeOk.coerceIn(-1, 1))
+            put("body_ok",    bodyOk.coerceIn(-1, 1))
+        }
+        db.insertWithOnConflict(STREAK_HIST_TABLE, null, cv, SQLiteDatabase.CONFLICT_REPLACE)
+        pruneOldStreakRows()
+    }
+
+    /**
+     * Returns streak rows sorted ascending by date, for the past [days] days.
+     * Missing days (no row) are not synthesised — the caller handles gaps.
+     */
+    fun getStreakRows(days: Int): List<StreakRow> {
+        val cutoffMs  = System.currentTimeMillis() - days.toLong() * 86_400_000L
+        val cutoffDate = fmt.format(Date(cutoffMs))
+        val result = mutableListOf<StreakRow>()
+        db.rawQuery(
+            "SELECT date, screen_ok, focus_ok, bedtime_ok, body_ok " +
+                    "FROM $STREAK_HIST_TABLE WHERE date >= ? ORDER BY date ASC",
+            arrayOf(cutoffDate)
+        ).use { c ->
+            while (c.moveToNext()) {
+                result += StreakRow(
+                    date      = c.getString(0),
+                    screenOk  = c.getInt(1),
+                    focusOk   = c.getInt(2),
+                    bedtimeOk = c.getInt(3),
+                    bodyOk    = c.getInt(4)
+                )
+            }
+        }
+        return result
+    }
+
+    /**
+     * Returns the current consecutive streak count for a single pillar column.
+     * Walks backward from today counting maintained (ok=1) days,
+     * skipping N/A days (ok=-1) and stopping on the first missed day (ok=0).
+     */
+    fun getCurrentStreakForColumn(column: String): Int {
+        require(column in setOf("screen_ok", "focus_ok", "bedtime_ok", "body_ok"))
+        var count = 0
+        db.rawQuery(
+            "SELECT $column FROM $STREAK_HIST_TABLE ORDER BY date DESC LIMIT 365",
+            null
+        ).use { c ->
+            while (c.moveToNext()) {
+                val v = c.getInt(0)
+                when {
+                    v == 1  -> count++        // maintained — extend streak
+                    v == -1 -> { /* N/A — skip but don't break */ }
+                    else    -> return count   // missed — streak ends
+                }
+            }
+        }
+        return count
+    }
+
+    private fun pruneOldStreakRows() {
+        val cutoffMs   = System.currentTimeMillis() - STREAK_RETENTION_DAYS * 86_400_000L
+        val cutoffDate = fmt.format(Date(cutoffMs))
+        db.delete(STREAK_HIST_TABLE, "date < ?", arrayOf(cutoffDate))
     }
 }
