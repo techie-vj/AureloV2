@@ -429,7 +429,13 @@ function _onAureloPillarTap(pillar) {
                  typeof HealthConnect.isConnected === 'function' &&
                  HealthConnect.isConnected();
     if (!hcOk) { typeof openSettingsWithHC==='function' ? openSettingsWithHC() : activateTab('settings'); }
-    else { _showBodyScoreSheet(); }
+    else {
+      // ISSUE-23 FIX: pass the score from the current home computation so the
+      // sheet header always shows the same number as the pillar tile.
+      let _currentBodyScore = null;
+      try { const _s = _computeAureloScore(); _currentBodyScore = _s && _s.body; } catch(_) {}
+      _showBodyScoreSheet(_currentBodyScore);
+    }
     return;
   }
   if (pillar === 'focus') { if (typeof FocusScore!=='undefined') { FocusScore.openFocusScoreSheet(); return; } }
@@ -625,12 +631,32 @@ function closeAureloScoreSheet() {
   setTimeout(() => { backdrop.remove(); _scoreSheetOpen = false; }, 300);
 }
 
-/* ═══ _showBodyScoreSheet — unchanged from v2.0 ══════════════ */
-function _showBodyScoreSheet() {
+/* ═══ _showBodyScoreSheet — ISSUE-23 FIX ══════════════════════
+ * Previously called HealthConnect.getBodyScore() independently, which could
+ * return a different (fresher or older) value than the cached score shown on
+ * the home tile (computed via FocusScore.calculateAurelo → hcBodyScore).
+ * Fix: compute via the same _computeAureloScore() path and pass the result
+ * into the sheet. Falls back to HealthConnect.getBodyScore() if unavailable.
+ */
+function _showBodyScoreSheet(homeBodyScore) {
   document.getElementById('body-score-sheet-backdrop')?.remove();
   if (typeof HealthConnect === 'undefined' || !HealthConnect.isConnected()) return;
 
-  const bodyScore  = HealthConnect.getBodyScore();
+  // ISSUE-23 FIX: prefer the score already shown on the home tile (passed by
+  // caller) so the sheet header always matches the pillar tile value.
+  var bodyScore;
+  if (homeBodyScore != null && homeBodyScore >= 0) {
+    bodyScore = homeBodyScore;
+  } else {
+    // Fallback: recompute via same path as home tile
+    try {
+      var s = _computeAureloScore();
+      bodyScore = (s && s.body != null && s.body >= 0) ? s.body : HealthConnect.getBodyScore();
+    } catch (_) {
+      bodyScore = HealthConnect.getBodyScore();
+    }
+  }
+
   // Save to history so ScoreHistory chart can show Body trends over time
   if (bodyScore >= 0 && typeof _saveScoreForToday === 'function') {
     _saveScoreForToday('body_score_history', bodyScore);

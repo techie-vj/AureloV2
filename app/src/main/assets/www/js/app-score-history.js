@@ -81,8 +81,6 @@ var ScoreHistory = (function () {
   var _moodDataMap = {}; // dateStr -> {m, t} for mood pillar scrub tooltip
   // v2.2: streak heatmap state
   var _streakData = [];   // array from AppBridge.getStreakHistory(days)
-  // Per-row visibility — persisted via setStringPref so user preference survives re-open
-  var _streakVis  = { screen: true, focus: true, bedtime: true, body: true };
 
   /* ── Color helpers ───────────────────────────────────────────── */
   function _css(varName) {
@@ -809,6 +807,9 @@ var ScoreHistory = (function () {
       if (existingTitle && newTitle) existingTitle.textContent = newTitle.textContent;
       _bindScrub();
       _updateZoneHighlights(avg);
+      /* ISSUE-22 FIX: render heatmap after DOM swap (was incorrectly called in
+         module scope where sh-heatmap-wrap does not yet exist). */
+      _renderHeatmap();
       return;
     }
     if (existing && existing.parentNode) existing.parentNode.removeChild(existing);
@@ -828,6 +829,8 @@ var ScoreHistory = (function () {
       }
       _bindScrub();
       _updateZoneHighlights(avg);
+      /* ISSUE-22 FIX: render heatmap after DOM is injected and animating. */
+      _renderHeatmap();
     });
   }
 
@@ -1220,9 +1223,6 @@ var ScoreHistory = (function () {
     });
   }
 
-    /* v2.2: render streak heatmap below chart */
-    _renderHeatmap();
-
   function _doScrub(clientX) {
     var svg = document.getElementById('sh-svg');
     if (!svg || _n < 2) return;
@@ -1342,27 +1342,22 @@ var ScoreHistory = (function () {
                 }
       }
 
-      /* v2.2: append streak info to tooltip when scrubbing */
+      /* v2.2: append streak info for active pillar to tooltip when scrubbing */
       if (_scrub && _streakData.length > 0) {
-        var si = Math.round((_scrub.frac) * (_streakData.length - 1));
-        si = Math.max(0, Math.min(_streakData.length - 1, si));
-        var sr = _streakData[si];
-        if (sr) {
-          var sHtml = '<div class="sh-tt-streak">';
-          var _sRows = [
-            { id:'screen',  lbl:'🔥 Screen',  col:'screen'  },
-            { id:'focus',   lbl:'🎯 Focus',   col:'focus'   },
-            { id:'bedtime', lbl:'🌙 Bedtime', col:'bedtime' },
-            { id:'body',    lbl:'💚 Body',    col:'body'    },
-          ];
-          _sRows.forEach(function(r) {
-            var p = sr[r.col] || { ok:-1, count:0 };
+        var hmMeta2 = _HM_PILLAR_COL[_pillar] || null;
+        if (hmMeta2) {
+          var si = Math.round((_scrub.frac) * (_streakData.length - 1));
+          si = Math.max(0, Math.min(_streakData.length - 1, si));
+          var sr = _streakData[si];
+          if (sr) {
+            var p = sr[hmMeta2.col] || { ok:-1, count:0 };
             var icon = p.ok === 1 ? '✅' : p.ok === 0 ? '❌' : '—';
-            var cnt  = p.ok !== -1 ? ' ' + p.count + 'd' : '';
-            sHtml += '<div class="sh-tt-srow"><span>' + r.lbl + '</span><span>' + icon + cnt + '</span></div>';
-          });
-          sHtml += '</div>';
-          if (tt) tt.innerHTML += sHtml;
+            var cnt  = p.ok !== -1 ? ' ' + p.count + 'd streak' : '';
+            var sHtml = '<div class="sh-tt-streak">';
+            sHtml += '<div class="sh-tt-srow"><span>' + hmMeta2.label + '</span><span>' + icon + cnt + '</span></div>';
+            sHtml += '</div>';
+            if (tt) tt.innerHTML += sHtml;
+          }
         }
       }
     }
@@ -1374,77 +1369,140 @@ var ScoreHistory = (function () {
 
   /* ── v2.2: Streak Heatmap ────────────────────────────────────── */
 
-  var _HM_ROWS = [
-    { id:'screen',  label:'🔥', col:'screen'  },
-    { id:'focus',   label:'🎯', col:'focus'   },
-    { id:'bedtime', label:'🌙', col:'bedtime' },
-    { id:'body',    label:'💚', col:'body'    },
-  ];
+  /* Map pillar id → which streak column to show */
+  var _HM_PILLAR_COL = {
+  screen:  { col:'screen',  label:'🔥 Screen streak'  },
+  focus:   { col:'focus',   label:'🎯 Focus streak'   },
+  sleep:   { col:'bedtime', label:'🌙 Bedtime streak' },
+    body:    { col:'body',    label:'💚 Body streak'    },
+    aurelo:  null, // no single column — hide heatmap for composite
+    mood:    null,
+  };
 
   /**
-   * Loads streak history from the native bridge and renders the heatmap
-   * below the score chart. Called at the end of _render().
-   * For 1Y view: tiles are weekly aggregated (52 tiles).
-   * For all other views: daily tiles.
+   * Renders the streak heatmap below the score chart.
+   *
+   * Layout adapts per window — like GitHub contribution graph:
+   *   7D  → single row of 7 large squares (most prominent)
+   *   30D → 5 week-columns × 7 rows (calendar grid, Mon–Sun)
+   *   90D → 13 week-columns × 7 rows
+   *   1Y  → 52 week-columns × 7 rows (full GitHub-style year)
+   *
+   * Each tile is square, gap is uniform, weeks run left→right,
+   * days run top→bottom (Mon=0 … Sun=6).
    */
   function _renderHeatmap() {
     var wrap = document.getElementById('sh-heatmap-wrap');
     if (!wrap) return;
 
-    // Load streak data from bridge
+    var hmMeta = _HM_PILLAR_COL[_pillar] || null;
+    if (!hmMeta) { wrap.innerHTML = ''; return; }
+
     var days = _wCfg().days;
+    var colorRaw = _colorRaw();
+
     try {
       var raw = (typeof N !== 'undefined' && N.getStreakHistory)
         ? N.getStreakHistory(days) : '[]';
       _streakData = JSON.parse(raw || '[]');
-    } catch(_) { _streakData = []; }
+    } catch (e) { _streakData = []; }
+
+    if (_streakData.length === 0) {
+      var scoreData = _getData(_pillar, days);
+      var today0 = new Date();
+      _streakData = scoreData.map(function(v, i) {
+        var d = new Date(today0); d.setDate(today0.getDate() - (days - 1 - i));
+        var tile = { date: d.toISOString().slice(0, 10) };
+        ['screen','focus','bedtime','body'].forEach(function(c) {
+          tile[c] = v !== null ? { ok: v >= 70 ? 1 : 0, count: 0 } : { ok: -1, count: 0 };
+        });
+        return tile;
+      });
+    }
 
     if (_streakData.length === 0) { wrap.innerHTML = ''; return; }
 
-    // For 1Y: aggregate daily rows into weekly buckets (52 tiles)
-    var isWeekly = (_win === '1Y');
-    var tiles    = isWeekly ? _aggregateWeekly(_streakData) : _streakData;
-    var n        = tiles.length;
-    if (n === 0) { wrap.innerHTML = ''; return; }
+    var n = _streakData.length;
+    var winId = _win;
 
-    var html = '<div class="sh-hm">';
+    // Scale: _pts.x is in SVG viewBox space (SVG_W=375), but SVG is rendered at containerW
+    var containerW = wrap.getBoundingClientRect().width || SVG_W;
+    var scale = containerW / SVG_W;
 
-    _HM_ROWS.forEach(function(row) {
-      if (!_streakVis[row.id]) {
-        html += '<div class="sh-hm-row sh-hm-row--hidden" data-row="' + row.id + '">'
-              + '<button class="sh-hm-lbl sh-hm-lbl--off" onclick="ScoreHistory._toggleHmRow(\'' + row.id + '\')">'
-              + row.label + '</button></div>';
-        return;
-      }
+    // Map streak index to the correct _pts index (most recent days)
+    var offset = _pts.length - n;
+    function tileX(i) {
+      var ptIdx = Math.max(0, Math.min(_pts.length - 1, offset + i));
+      return _pts[ptIdx].x * scale;  // convert SVG coords to real pixels
+    }
 
-      html += '<div class="sh-hm-row" data-row="' + row.id + '">';
-      html += '<button class="sh-hm-lbl" onclick="ScoreHistory._toggleHmRow(\'' + row.id + '\')" title="Hide ' + row.id + ' streak">' + row.label + '</button>';
-      html += '<div class="sh-hm-tiles">';
+    // Tile width = spacing between adjacent pts * scale, minus gap
+    var GAP = 2;
+    var slotPx = _pts.length > 1 ? (_pts[1].x - _pts[0].x) * scale : 56 * scale;
+    var TILE_W = Math.max(4, slotPx - GAP);
+    if (winId === '7D') TILE_W = Math.min(TILE_W, 24);
+    var TILE_H = winId === '7D' ? 18 : 12;
+    var LABEL_H = winId === '7D' ? 14 : 0;
+    var HM_H = LABEL_H + TILE_H + 12;
+    var rx = Math.min(3, TILE_W * 0.25);
 
-      var maxStreak = 0;
-      tiles.forEach(function(t) {
-        var p = t[row.col];
-        if (p && p.count > maxStreak) maxStreak = p.count;
-      });
-
-      tiles.forEach(function(t, i) {
-        var p   = t[row.col] || { ok: -1, count: 0 };
-        var ok  = p.ok;
-        var cnt = p.count;
-        var isPB = (cnt > 0 && cnt === maxStreak && ok === 1);
-        var cls = isPB ? 'sh-hm-tile sh-hm-tile--pb'
-                : ok === 1  ? 'sh-hm-tile sh-hm-tile--ok'
-                : ok === 0  ? 'sh-hm-tile sh-hm-tile--miss'
-                : 'sh-hm-tile sh-hm-tile--na';
-        var title = t.date + (ok === 1 ? ' ✅ ' + cnt + 'd streak' : ok === 0 ? ' ❌ missed' : ' —');
-        html += '<div class="' + cls + '" title="' + title + '" onclick="ScoreHistory._hmTileClick(' + i + ',' + n + ')"></div>';
-      });
-
-      html += '</div></div>';
+    var maxStreak = 0;
+    _streakData.forEach(function(t) {
+      var p = t[hmMeta.col]; if (p && p.count > maxStreak) maxStreak = p.count;
     });
 
-    html += '</div>';
-    wrap.innerHTML = html;
+    var todayD = new Date();
+    var dayLbls7 = ['Su','Mo','Tu','We','Th','Fr','Sa'];
+    var rects = '';
+
+    _streakData.forEach(function(t, i) {
+      var p = t[hmMeta.col] || { ok: -1, count: 0 };
+      var isPB = (p.count > 0 && p.count === maxStreak && p.ok === 1);
+      var isToday = (i === n - 1);
+      var cx = tileX(i);
+      var x = cx - TILE_W / 2;
+      var fill = _hmFill(p.ok, isPB, isToday, colorRaw);
+
+      if (winId === '7D') {
+        var d7 = new Date(todayD); d7.setDate(todayD.getDate() - (n - 1 - i));
+        var dlbl = isToday ? 'Today' : dayLbls7[d7.getDay()];
+        rects += '<text x="' + cx.toFixed(1) + '" y="' + (LABEL_H - 2) + '"'
+          + ' text-anchor="middle" font-family="var(--ff-m)" font-size="7"'
+          + ' fill="' + (isToday ? colorRaw : 'var(--t3)') + '"'
+          + ' font-weight="' + (isToday ? 700 : 400) + '">' + dlbl + '</text>';
+      }
+
+      rects += '<rect x="' + x.toFixed(2) + '" y="' + LABEL_H + '"'
+        + ' width="' + TILE_W.toFixed(2) + '" height="' + TILE_H + '" rx="' + rx.toFixed(2) + '"'
+        + ' fill="' + fill + '"'
+        + (isToday ? ' stroke="' + colorRaw + '" stroke-width="1" stroke-opacity="0.6"' : '')
+        + ' style="cursor:pointer"'
+        + ' onclick="ScoreHistory._hmTileClick(' + i + ',' + n + ')"'
+        + '><title>' + _hmTip(t, hmMeta.col, isPB) + '</title></rect>';
+    });
+
+    var legend = '<text x="' + (DX0 * scale).toFixed(1) + '" y="' + (LABEL_H + TILE_H + 10) + '"'
+      + ' font-family="var(--ff-m)" font-size="7.5" fill="var(--t3)">' + hmMeta.label + '</text>';
+
+    wrap.innerHTML = '<svg width="' + containerW.toFixed(1) + '" height="' + HM_H + '"'
+      + ' style="display:block;overflow:visible;margin-top:6px">'
+      + rects + legend + '</svg>';
+  }
+
+  /* Shared fill colour for a heatmap tile */
+  function _hmFill(ok, isPB, isToday, colorRaw) {
+    if (isPB)       return colorRaw;
+    if (ok === 1)   return _rgba(_pCfg().cssVar, isToday ? 0.75 : 0.50);
+    if (ok === 0)   return _rgba('--r', 0.28);
+    return _rgba('--t3', 0.10);
+  }
+
+  /* Tooltip text for a tile */
+  function _hmTip(t, col, isPB) {
+    var p = t[col] || { ok: -1, count: 0 };
+    return (t.date || '')
+      + (p.ok === 1 ? ' streak ' + p.count + 'd' : p.ok === 0 ? ' missed' : ' no data')
+      + (isPB ? ' (best)' : '');
   }
 
   /** Aggregate daily StreakRows into weekly buckets for the 1Y view.
@@ -1500,24 +1558,15 @@ var ScoreHistory = (function () {
     _updateScrubUI();
   }
 
-  /** Toggle visibility of a heatmap row and re-render. */
+  /** Toggle heatmap visibility (kept for API compat — no-op in new design). */
   function _toggleHmRow(rowId) {
-    _streakVis[rowId] = !_streakVis[rowId];
-    // Persist preference
-    if (typeof N !== 'undefined' && N.setStringPref) {
-      N.setStringPref('streak_hm_' + rowId + '_visible', _streakVis[rowId] ? '1' : '0');
-    }
+    // Visibility is now implicit from the active pillar — no per-row toggle needed.
     _renderHeatmap();
   }
 
-  /** Load persisted visibility preferences (called from open()). */
+  /** Load persisted visibility preferences (no-op in new single-row design). */
   function _loadHmVis() {
-    _HM_ROWS.forEach(function(row) {
-      if (typeof N !== 'undefined' && N.getStringPref) {
-        var v = N.getStringPref('streak_hm_' + row.id + '_visible');
-        _streakVis[row.id] = (v === '' || v === '1'); // default true
-      }
-    });
+    // No per-row visibility prefs in the new pillar-mapped design.
   }
 
   /* ── Public API ──────────────────────────────────────────────── */

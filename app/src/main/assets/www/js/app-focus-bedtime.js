@@ -1481,7 +1481,13 @@ window.FocusBedtime = (function () {
      * Safe to call even when bedtime was already off.
      */
     disableOnDowngrade: function () {
-      if (!S.settings.bedtime) return; // already off — nothing to do
+      // FIX #4: Invalidate the config cache before checking so we read the
+      // authoritative native state rather than a potentially stale JS copy.
+      // Without this, bedtime stays on if it was enabled from the native side
+      // (e.g. Settings → Bedtime) without going through the JS toggle path.
+      _bedtimeCfgCacheTs = 0;
+      var cfg = _getBedtimeCfg();
+      if (!cfg.enabled && !S.settings.bedtime) return; // already off — nothing to do
       _doDisableBedtime();
     },
   };

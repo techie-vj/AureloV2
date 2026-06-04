@@ -74,6 +74,36 @@ function referFriend(){
   else if (navigator.share) navigator.share({ url: link }).catch(()=>{});
 }
 
+/**
+ * shareAurelo - simple app-link share with branded share card.
+ * Generates a share card image (if available) then opens the system share sheet.
+ * Falls back to plain text share if card generation is unavailable.
+ */
+function shareAurelo() {
+  // Try to generate the branded referral share card first
+  if (typeof shareCard === 'function') {
+    try {
+      shareCard('referral', { simple: true });
+      return;
+    } catch (_) {}
+  }
+  // Fallback: plain app link share
+  var msg = 'Check out Aurelo - the privacy-first digital wellbeing app for Android! '
+    + TIDY_APP_STORE_URL;
+  if (IS_NATIVE && typeof N.shareText === 'function') {
+    N.shareText(msg);
+  } else if (navigator.share) {
+    navigator.share({ title: 'Aurelo', text: msg, url: TIDY_APP_STORE_URL }).catch(function(){});
+  } else {
+    try {
+      navigator.clipboard.writeText(TIDY_APP_STORE_URL);
+      toast('Link copied to clipboard', 'success');
+    } catch (_) {
+      toast('Share not available', 'warn');
+    }
+  }
+}
+
 /** Populates the mini stats row on the Settings referral card. */
 function renderReferralSettingsStats() {
   const statsRow = document.getElementById('settings-referral-stats');

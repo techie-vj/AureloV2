@@ -39,8 +39,8 @@
         </div>
     </div>
 
-    <!-- Refer a Friend — above Daily Goal, right after integrations -->
-    <div class="sg" style="margin-bottom:24px" id="settings-referral-card">
+    <!-- Refer a Friend card — HIDDEN (code preserved, UI replaced by shareAurelo below) -->
+    <div class="sg" style="margin-bottom:24px;display:none" id="settings-referral-card">
         <div class="sg-lbl">Referral</div>
         <div class="sr" onclick="referFriend()" style="background:linear-gradient(135deg,rgba(18,212,138,.07),rgba(108,99,255,.05));border-radius:14px">
             <div class="sr-ico sr-ico--gift" style="background:rgba(18,212,138,.15)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12v10H4V12"/><rect x="2" y="7" width="20" height="5" rx="2"/><path d="M12 22V7"/><path d="M12 7H7.5a2.5 2.5 0 010-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 000-5C13 2 12 7 12 7z"/></svg></div>
@@ -65,6 +65,21 @@
                 <div id="srs-days" style="font-family:var(--ff-d);font-size:16px;font-weight:700;color:var(--g)">0</div>
                 <div style="font-family:var(--ff-m);font-size:var(--text-2xs);color:var(--t3)">Days earned</div>
             </div>
+        </div>
+    </div>
+
+    <!-- Share Aurelo — simple app-link share card -->
+    <div class="sg" style="margin-bottom:24px" id="settings-share-card">
+        <div class="sg-lbl">Share</div>
+        <div class="sr" onclick="shareAurelo()" style="background:linear-gradient(135deg,rgba(108,99,255,.07),rgba(5,200,232,.05));border-radius:14px">
+            <div class="sr-ico sr-ico--share">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+            </div>
+            <div style="flex:1">
+                <div class="sr-lbl">Share Aurelo</div>
+                <div class="sr-sub">Spread the word · Share the app link</div>
+            </div>
+            <span class="sr-chev">›</span>
         </div>
     </div>
 

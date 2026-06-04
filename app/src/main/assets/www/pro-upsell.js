@@ -329,7 +329,8 @@
         .pu-close:active { transform: scale(0.9); background: var(--border2); }
     .pu-sheet {
       position: relative;
-      padding-top: 32px;
+      /* FIX #2: add horizontal padding so content isn't edge-to-edge, matching score sheets */
+      padding: 32px 20px 0;
       width: 100%; max-width: 480px;
       background: var(--s0);
       border-radius: 24px 24px 0 0;
