@@ -16,7 +16,7 @@ android {
         applicationId  "com.javikastudio.tidyapp"
         minSdk         26   // Android 8.0 — covers 95%+ of devices
         targetSdk      36
-        versionCode    17
+        versionCode    16
         versionName    "3.0.0"
         buildConfigField "String", "RSA_KEY", "\"${props['PRODUCTION_RSA_KEY'] ?: ''}\""
     }
@@ -90,7 +90,7 @@ dependencies {
     implementation("io.github.kdroidfilter:gplayscrapper:0.3.2")
     implementation "androidx.lifecycle:lifecycle-runtime-ktx:2.10.0"
     // For billing
-    implementation 'com.android.billingclient:billing-ktx:7.1.1'
+    implementation 'com.android.billingclient:billing-ktx:9.1.0'
     // Health Connect — read-only consumer: sleep, HRV, steps, resting HR, mindfulness
     // Spec §2.2: implementation "androidx.health.connect:connect-client:1.1.0-alpha07"
     implementation 'androidx.health.connect:connect-client:1.2.0-alpha04'

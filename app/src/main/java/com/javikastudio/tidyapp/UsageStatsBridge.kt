@@ -91,11 +91,13 @@ class UsageStatsBridge(
             val events = usm().queryEvents(weekStart, now)
             val ev = UsageEvents.Event()
             val timeMap = mutableMapOf<String, Long>(); val fgStart = mutableMapOf<String, Long>()
+            val screenOffsWeek = mutableListOf<Long>()
             val MAX_MS = 4 * 60 * 60_000L
             while (events.hasNextEvent()) {
                 events.getNextEvent(ev)
                 if (ev.packageName == context.packageName) continue
                 when (ev.eventType) {
+                    UsageEvents.Event.KEYGUARD_SHOWN -> screenOffsWeek.add(ev.timeStamp)
                     UsageEvents.Event.MOVE_TO_FOREGROUND -> fgStart[ev.packageName] = ev.timeStamp
                     UsageEvents.Event.MOVE_TO_BACKGROUND -> {
                         val start = fgStart.remove(ev.packageName) ?: continue
@@ -104,7 +106,14 @@ class UsageStatsBridge(
                     }
                 }
             }
-            fgStart.forEach { (pkg, start) -> if (isKnownUserPackage(pkg)) { val ms = (now - start).coerceAtMost(MAX_MS); timeMap[pkg] = (timeMap[pkg] ?: 0L) + ms } }
+            screenOffsWeek.sort()
+            // FIX: cap orphaned sessions at the next screen-lock instead of "now".
+            fgStart.forEach { (pkg, start) ->
+                if (isKnownUserPackage(pkg)) {
+                    val end = capOrphanedSessionEnd(start, now, screenOffsWeek)
+                    val ms = (end - start).coerceIn(0L, MAX_MS); timeMap[pkg] = (timeMap[pkg] ?: 0L) + ms
+                }
+            }
             val arr = JSONArray()
             timeMap.entries.filter { it.value > 60_000L }.sortedByDescending { it.value }.forEach { (pkg, ms) ->
                 runCatching { val info = pm.getApplicationInfo(pkg, 0); arr.put(JSONObject().apply { put("packageName", pkg); put("name", pm.getApplicationLabel(info).toString()); put("iconUrl","app-icon://$pkg"); put("weeklyMinutes", ms / 60_000L) }) }
@@ -360,11 +369,16 @@ class UsageStatsBridge(
         val events = usm().queryEvents(dayStart, now); val ev = UsageEvents.Event()
         val timeMap = mutableMapOf<String, Long>(); val fgStart = mutableMapOf<String, Long>()
         val hourMap = LongArray(24); var pickups = 0; var firstPickupTs = 0L
+        // FIX (screen-time inflation): track screen-lock events so an orphaned
+        // foreground session (missing MOVE_TO_BACKGROUND) can be capped at the
+        // last known lock time instead of running all the way to "now".
+        val screenOffs = mutableListOf<Long>()
         while (events.hasNextEvent()) {
             events.getNextEvent(ev)
             if (ev.packageName == context.packageName) continue
             when (ev.eventType) {
                 UsageEvents.Event.KEYGUARD_HIDDEN -> { pickups++; if (firstPickupTs == 0L) firstPickupTs = ev.timeStamp }
+                UsageEvents.Event.KEYGUARD_SHOWN -> screenOffs.add(ev.timeStamp)
                 UsageEvents.Event.MOVE_TO_FOREGROUND -> fgStart[ev.packageName] = ev.timeStamp
                 UsageEvents.Event.MOVE_TO_BACKGROUND -> {
                     val start = fgStart.remove(ev.packageName) ?: continue
@@ -375,8 +389,12 @@ class UsageStatsBridge(
             }
         }
         val MAX_SESSION_MS = 4 * 60 * 60_000L
+        screenOffs.sort()
         fgStart.forEach { (pkg, start) ->
-            val ms = (now - start).coerceAtMost(MAX_SESSION_MS); timeMap[pkg] = (timeMap[pkg] ?: 0L) + ms
+            // FIX: cap orphaned session at the next screen-lock after it started,
+            // instead of assuming the app stayed open until "now".
+            val end = capOrphanedSessionEnd(start, now, screenOffs)
+            val ms = (end - start).coerceIn(0L, MAX_SESSION_MS); timeMap[pkg] = (timeMap[pkg] ?: 0L) + ms
             val hour = Calendar.getInstance().apply { timeInMillis = start }.get(Calendar.HOUR_OF_DAY)
             hourMap[hour] += ms / 60_000L
         }
@@ -402,12 +420,14 @@ class UsageStatsBridge(
             val dayStart = Calendar.getInstance().apply { timeInMillis = now; add(Calendar.DAY_OF_YEAR,-i); set(Calendar.HOUR_OF_DAY,0); set(Calendar.MINUTE,0); set(Calendar.SECOND,0); set(Calendar.MILLISECOND,0) }.timeInMillis
             val dayEnd = if (i == 0) now else dayStart + 86_400_000L
             val foregroundStart = mutableMapOf<String,Long>(); val totalMs = mutableMapOf<String,Long>(); var pickups = 0
+            val screenOffsDay = mutableListOf<Long>()
             runCatching {
                 val events = usm.queryEvents(dayStart, dayEnd); val event = UsageEvents.Event()
                 while (events.hasNextEvent()) {
                     events.getNextEvent(event); val pkg = event.packageName
                     if (pkg == context.packageName) continue
                     if (event.eventType == UsageEvents.Event.KEYGUARD_HIDDEN) { pickups++; continue }
+                    if (event.eventType == UsageEvents.Event.KEYGUARD_SHOWN) { screenOffsDay.add(event.timeStamp); continue }
                     if (!isKnownUserPackage(pkg)) continue
                     when (event.eventType) {
                         UsageEvents.Event.MOVE_TO_FOREGROUND -> foregroundStart[pkg] = event.timeStamp
@@ -415,7 +435,13 @@ class UsageStatsBridge(
                     }
                 }
                 val boundary = if (i == 0) now else dayEnd
-                foregroundStart.forEach { (pkg, start) -> totalMs[pkg] = (totalMs[pkg] ?: 0L) + (boundary - start).coerceAtMost(MAX_MS) }
+                screenOffsDay.sort()
+                // FIX: cap orphaned (still-open) sessions at the next screen-lock
+                // instead of running them all the way to the day boundary.
+                foregroundStart.forEach { (pkg, start) ->
+                    val end = capOrphanedSessionEnd(start, boundary, screenOffsDay)
+                    totalMs[pkg] = (totalMs[pkg] ?: 0L) + (end - start).coerceIn(0L, MAX_MS)
+                }
             }
             val dayPickups = if (i == 0) prefs.getInt(CACHED_PICKUPS, pickups) else pickups
             val totalMins = totalMs.values.sum() / 60_000L
@@ -450,16 +476,21 @@ class UsageStatsBridge(
         // queryEvents() reliably covers ~7 days on most devices; use 6 to stay
         // safely inside the buffer on stricter OEMs.
         val eventsCutoff = (now - 6L * 86_400_000L).coerceAtLeast(monthStart)
+        // FIX (Monthly/Weekly mismatch): use the whole calendar day of eventsCutoff
+        // as the Phase1/Phase2 split so no single day is ever processed by both
+        // phases (previously the boundary day could be double-counted).
+        val cutoffDay = Calendar.getInstance().apply { timeInMillis = eventsCutoff }.get(Calendar.DAY_OF_MONTH)
 
         val dayTotalMs  = mutableMapOf<Int, Long>()
         val pkgTotalMs  = mutableMapOf<String, Long>()
         val dayPickups  = mutableMapOf<Int, Int>()
         val hourTotalMs = LongArray(24)
 
-        // ── Phase 1: queryUsageStats(INTERVAL_DAILY) for the full month ───────
-        // This API is not subject to the ~7-day event-buffer limit, so it fills
-        // in screen-time totals for all days older than eventsCutoff.
-        // It does NOT give pickup counts or hourly detail — those come from Phase 2.
+        // ── Phase 1: queryUsageStats(INTERVAL_DAILY) for days before cutoffDay ─
+        // Not subject to the ~7-day event-buffer limit, so it fills in totals for
+        // older days. Its totals run slightly lower than raw event reconstruction
+        // (acceptable for older days) — no longer used for the last ~6 days,
+        // which was the source of Monthly reading lower than Weekly (see Phase 2).
         runCatching {
             val dailyStats = usm().queryUsageStats(
                 UsageStatsManager.INTERVAL_DAILY, monthStart, eventsCutoff
@@ -471,59 +502,66 @@ class UsageStatsBridge(
                 // Guard: only accept stats that belong to the current month/year
                 if (statCal.get(Calendar.MONTH) != month || statCal.get(Calendar.YEAR) != year) continue
                 val d = statCal.get(Calendar.DAY_OF_MONTH)
-                // Only apply Phase 1 to days outside the precise events window
-                val dayStartTs = (statCal.clone() as Calendar).apply {
-                    set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0)
-                    set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
-                }.timeInMillis
-                if (dayStartTs >= eventsCutoff) continue   // Phase 2 will cover this day precisely
+                if (d >= cutoffDay) continue   // Phase 2 covers this day precisely
                 dayTotalMs[d]  = (dayTotalMs[d]  ?: 0L) + stat.totalTimeInForeground
                 pkgTotalMs[stat.packageName] =
                     (pkgTotalMs[stat.packageName] ?: 0L) + stat.totalTimeInForeground
             }
         }
 
-        // ── Phase 2: queryEvents() for the last ~6 days ───────────────────────
-        // More precise session-boundary tracking; also captures pickups and
-        // per-hour detail. Overrides Phase 1 for any day it covers.
-        val fgStart = mutableMapOf<String, Long>()
+        // ── Phase 2: per-day queryEvents() for cutoffDay..today ────────────────
+        // FIX: previously ran ONE combined queryEvents() call across the whole
+        // trailing window. Any session already open when that window started had
+        // no matching MOVE_TO_FOREGROUND in range, so its MOVE_TO_BACKGROUND hit
+        // the `?: continue` guard and was silently dropped — undercounting
+        // exactly the recent days users compare against the Weekly view. This now
+        // mirrors buildWeeklyBreakdown(): one bounded query per calendar day with
+        // its own orphan-session capping, so Monthly and Weekly produce identical
+        // totals for the same days.
         runCatching {
-            val events = usm().queryEvents(eventsCutoff, now)
-            val ev     = UsageEvents.Event()
-            while (events.hasNextEvent()) {
-                events.getNextEvent(ev)
-                if (ev.packageName == context.packageName) continue
-                when (ev.eventType) {
-                    UsageEvents.Event.KEYGUARD_HIDDEN -> {
-                        val d = Calendar.getInstance().apply { timeInMillis = ev.timeStamp }
-                            .get(Calendar.DAY_OF_MONTH)
-                        dayPickups[d] = (dayPickups[d] ?: 0) + 1
-                    }
-                    UsageEvents.Event.MOVE_TO_FOREGROUND -> {
-                        if (isKnownUserPackage(ev.packageName)) fgStart[ev.packageName] = ev.timeStamp
-                    }
-                    UsageEvents.Event.MOVE_TO_BACKGROUND -> {
-                        val start = fgStart.remove(ev.packageName) ?: continue
-                        val ms    = (ev.timeStamp - start).coerceAtMost(MAX_MS)
-                        val d     = Calendar.getInstance().apply { timeInMillis = start }
-                            .get(Calendar.DAY_OF_MONTH)
-                        val hour  = Calendar.getInstance().apply { timeInMillis = start }
-                            .get(Calendar.HOUR_OF_DAY)
-                        dayTotalMs[d]  = (dayTotalMs[d]  ?: 0L) + ms
-                        pkgTotalMs[ev.packageName] = (pkgTotalMs[ev.packageName] ?: 0L) + ms
-                        hourTotalMs[hour] += ms
+            for (d in cutoffDay..today) {
+                val dayStartTs = Calendar.getInstance().apply {
+                    set(Calendar.YEAR, year); set(Calendar.MONTH, month); set(Calendar.DAY_OF_MONTH, d)
+                    set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
+                }.timeInMillis
+                val isTodayLoop = d == today
+                val dayEndTs = if (isTodayLoop) now else dayStartTs + 86_400_000L
+
+                val fgStartDay    = mutableMapOf<String, Long>()
+                val screenOffsDay = mutableListOf<Long>()
+                val events = usm().queryEvents(dayStartTs, dayEndTs)
+                val ev = UsageEvents.Event()
+                while (events.hasNextEvent()) {
+                    events.getNextEvent(ev)
+                    if (ev.packageName == context.packageName) continue
+                    when (ev.eventType) {
+                        UsageEvents.Event.KEYGUARD_HIDDEN -> dayPickups[d] = (dayPickups[d] ?: 0) + 1
+                        UsageEvents.Event.KEYGUARD_SHOWN  -> screenOffsDay.add(ev.timeStamp)
+                        UsageEvents.Event.MOVE_TO_FOREGROUND -> {
+                            if (isKnownUserPackage(ev.packageName)) fgStartDay[ev.packageName] = ev.timeStamp
+                        }
+                        UsageEvents.Event.MOVE_TO_BACKGROUND -> {
+                            val start = fgStartDay.remove(ev.packageName) ?: continue
+                            val ms    = (ev.timeStamp - start).coerceAtMost(MAX_MS)
+                            val hour  = Calendar.getInstance().apply { timeInMillis = start }.get(Calendar.HOUR_OF_DAY)
+                            dayTotalMs[d] = (dayTotalMs[d] ?: 0L) + ms
+                            pkgTotalMs[ev.packageName] = (pkgTotalMs[ev.packageName] ?: 0L) + ms
+                            hourTotalMs[hour] += ms
+                        }
                     }
                 }
+                screenOffsDay.sort()
+                val boundary = if (isTodayLoop) now else dayEndTs
+                // FIX: cap orphaned sessions at the next screen-lock instead of "now"/day-end.
+                fgStartDay.forEach { (pkg, start) ->
+                    val end  = capOrphanedSessionEnd(start, boundary, screenOffsDay)
+                    val ms   = (end - start).coerceIn(0L, MAX_MS)
+                    val hour = Calendar.getInstance().apply { timeInMillis = start }.get(Calendar.HOUR_OF_DAY)
+                    dayTotalMs[d] = (dayTotalMs[d] ?: 0L) + ms
+                    pkgTotalMs[pkg] = (pkgTotalMs[pkg] ?: 0L) + ms
+                    hourTotalMs[hour] += ms
+                }
             }
-        }
-
-        // Handle apps still in foreground at query time
-        fgStart.forEach { (pkg, start) ->
-            val ms   = (now - start).coerceAtMost(MAX_MS)
-            val hour = Calendar.getInstance().apply { timeInMillis = start }.get(Calendar.HOUR_OF_DAY)
-            dayTotalMs[today]  = (dayTotalMs[today]  ?: 0L) + ms
-            pkgTotalMs[pkg]    = (pkgTotalMs[pkg]    ?: 0L) + ms
-            hourTotalMs[hour] += ms
         }
 
         // ── Build output arrays ───────────────────────────────────────────────
@@ -620,16 +658,23 @@ class UsageStatsBridge(
         return runCatching {
             val now = System.currentTimeMillis(); val events = usm().queryEvents(dayStart, dayEnd)
             val ev = UsageEvents.Event(); val fgStart = mutableMapOf<String,Long>(); val totalMs = mutableMapOf<String,Long>()
+            val screenOffsDay = mutableListOf<Long>()
             val MAX_MS = 4 * 60 * 60_000L
             while (events.hasNextEvent()) {
                 events.getNextEvent(ev); if (ev.packageName == context.packageName) continue
                 when (ev.eventType) {
+                    UsageEvents.Event.KEYGUARD_SHOWN -> screenOffsDay.add(ev.timeStamp)
                     UsageEvents.Event.MOVE_TO_FOREGROUND -> fgStart[ev.packageName] = ev.timeStamp
                     UsageEvents.Event.MOVE_TO_BACKGROUND -> { val start = fgStart.remove(ev.packageName) ?: continue; totalMs[ev.packageName] = (totalMs[ev.packageName] ?: 0L) + (ev.timeStamp - start).coerceAtMost(MAX_MS) }
                 }
             }
             val boundary = if (isToday) now else dayEnd
-            fgStart.forEach { (pkg, start) -> val ms = (boundary - start).coerceAtMost(MAX_MS); totalMs[pkg] = (totalMs[pkg] ?: 0L) + ms }
+            screenOffsDay.sort()
+            // FIX: cap orphaned sessions at the next screen-lock instead of the raw boundary.
+            fgStart.forEach { (pkg, start) ->
+                val end = capOrphanedSessionEnd(start, boundary, screenOffsDay)
+                val ms = (end - start).coerceIn(0L, MAX_MS); totalMs[pkg] = (totalMs[pkg] ?: 0L) + ms
+            }
             totalMs.values.sum() / 60_000L
         }.getOrElse { 0L }
     }
@@ -675,6 +720,24 @@ class UsageStatsBridge(
         "Games" to listOf("com.supercell.brawlstars" to "Brawl Stars","com.mojang.minecraftpe" to "Minecraft"),
         "Tools & Utilities" to listOf("com.nordvpn.android" to "NordVPN","org.mozilla.firefox" to "Firefox","com.bitwarden.mobile" to "Bitwarden")
     )
+
+    // ── Orphaned session capping ──────────────────────────────────────────────
+    /**
+     * FIX (screen-time inflation bug): an "orphaned" foreground session is a
+     * MOVE_TO_FOREGROUND event with no matching MOVE_TO_BACKGROUND inside the
+     * query window. The OS can drop or delay the background event — most
+     * commonly when the user locks the screen (power button) instead of
+     * explicitly switching apps, or under aggressive battery/app-standby
+     * throttling. Previously this was treated as "app still open", running the
+     * session all the way to `boundary` (now, or end-of-day), which could
+     * inflate totals by hours from a single missed event. Now the session is
+     * capped at the next KEYGUARD_SHOWN (screen-lock) event after it started,
+     * if one occurred before `boundary`.
+     */
+    private fun capOrphanedSessionEnd(start: Long, boundary: Long, sortedScreenOffs: List<Long>): Long {
+        val lockAfterStart = sortedScreenOffs.firstOrNull { it > start && it < boundary }
+        return lockAfterStart ?: boundary
+    }
 
     // ── Shared helpers ────────────────────────────────────────────────────────
     internal fun fmtM(mins: Long): String {

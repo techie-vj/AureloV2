@@ -240,7 +240,8 @@ class BillingManager(
                     .build()
             )).build()
 
-        billingClient?.queryProductDetailsAsync(params) { result, list ->
+        billingClient?.queryProductDetailsAsync(params) { result, queryResult ->
+            val list = queryResult.productDetailsList
             if (result.responseCode == BillingClient.BillingResponseCode.OK && list.isNotEmpty()) {
                 _launchWithDetails(activity, list.first(), basePlanId = null)
             } else {
@@ -271,7 +272,8 @@ class BillingManager(
                     .build()
             )).build()
 
-        billingClient?.queryProductDetailsAsync(params) { result, list ->
+        billingClient?.queryProductDetailsAsync(params) { result, queryResult ->
+            val list = queryResult.productDetailsList
             if (result.responseCode != BillingClient.BillingResponseCode.OK || list.isEmpty()) {
                 Log.w(TAG, "Subscription product query failed for '$plan': ${result.debugMessage}")
                 listener.onBillingError(result.responseCode, "Could not load plan details")
@@ -337,7 +339,8 @@ class BillingManager(
                     .build()
             )).build()
 
-        billingClient?.queryProductDetailsAsync(subsParams) { _, subsList ->
+        billingClient?.queryProductDetailsAsync(subsParams) { _, subsQueryResult ->
+            val subsList = subsQueryResult.productDetailsList
             val offerDetails = subsList.firstOrNull()?.subscriptionOfferDetails.orEmpty()
 
             // FIX: Group by basePlanId so each base plan is processed exactly once.
@@ -413,7 +416,8 @@ class BillingManager(
                     .build()
             )).build()
 
-        billingClient?.queryProductDetailsAsync(inappParams) { _, inappList ->
+        billingClient?.queryProductDetailsAsync(inappParams) { _, inappQueryResult ->
+            val inappList = inappQueryResult.productDetailsList
             inappList.firstOrNull()?.let { detail ->
                 val obj = org.json.JSONObject()
                 obj.put("price",     detail.oneTimePurchaseOfferDetails?.formattedPrice ?: "")

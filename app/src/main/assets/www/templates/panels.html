@@ -77,39 +77,39 @@
         </div>
         <div style="font-family:var(--ff-m);font-size:var(--text-2xs);letter-spacing:2px;text-transform:uppercase;color:var(--t3);margin-bottom:8px">PERMISSIONS</div>
         <div class="sr" onclick="tapPerm('usage')" style="margin-bottom:6px">
-            <div class="sr-ico" style="background:rgba(108,99,255,.15)">📊</div>
+            <div class="sr-ico sr-ico--chart" style="background:rgba(108,99,255,.15)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></div>
             <div style="flex:1"><div class="sr-lbl">Usage Access</div><div class="sr-sub">Required for screen time tracking</div></div>
             <div class="perm-badge no" id="perm-usage">Check</div><span class="sr-chev">›</span>
         </div>
         <div class="sr" onclick="tapPerm('notif')" style="margin-bottom:6px">
-            <div class="sr-ico" style="background:rgba(5,200,232,.12)">🔔</div>
+            <div class="sr-ico sr-ico--bell" style="background:rgba(5,200,232,.12)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg></div>
             <div style="flex:1"><div class="sr-lbl">Notifications</div><div class="sr-sub">Goal and limit alerts</div></div>
             <div class="perm-badge no" id="perm-notif">Check</div><span class="sr-chev">›</span>
         </div>
         <div class="sr" onclick="tapPerm('dnd')" style="margin-bottom:6px">
-            <div class="sr-ico" style="background:rgba(18,212,138,.12)">🌙</div>
+            <div class="sr-ico sr-ico--moon" style="background:rgba(18,212,138,.12)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg></div>
             <div style="flex:1"><div class="sr-lbl">Do Not Disturb</div><div class="sr-sub" id="perm-dnd-sub">Required for Bedtime Mode</div></div>
             <div class="perm-badge no" id="perm-dnd">Check</div><span class="sr-chev">›</span>
         </div>
         <div class="sr" onclick="tapPerm('overlay')" style="margin-bottom:16px">
-            <div class="sr-ico" style="background:rgba(108,99,255,.12)">🪟</div>
+            <div class="sr-ico sr-ico--layers" style="background:rgba(108,99,255,.12)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg></div>
             <div style="flex:1"><div class="sr-lbl">Display Over Other Apps</div><div class="sr-sub" id="perm-overlay-sub">Required for Focus Mode, timers &amp; Mindful prompts</div></div>
             <div class="perm-badge no" id="perm-overlay">Check</div><span class="sr-chev">›</span>
         </div>
         <div style="font-family:var(--ff-m);font-size:var(--text-2xs);letter-spacing:2px;text-transform:uppercase;color:var(--t3);margin-bottom:8px">DATA</div>
         <div class="sr" onclick="confirmClearData()">
-            <div class="sr-ico" style="background:rgba(240,78,122,.12)">🗑️</div>
+            <div class="sr-ico sr-ico--trash" style="background:rgba(240,78,122,.12)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg></div>
             <div style="flex:1"><div class="sr-lbl">Clear All Data</div><div class="sr-sub">Reset categories, limits, and history</div></div>
             <span class="sr-chev">›</span>
         </div>
         <div style="font-family:var(--ff-m);font-size:var(--text-2xs);letter-spacing:2px;text-transform:uppercase;color:var(--t3);margin-bottom:8px;margin-top:16px">LEGAL</div>
         <div class="sr" onclick="AppBridge.openUrl('https://sites.google.com/view/tidyapp-privacy-policy')">
-            <div class="sr-ico" style="background:rgba(18,212,138,.12)">🔒</div>
+            <div class="sr-ico sr-ico--lock" style="background:rgba(18,212,138,.12)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg></div>
             <div style="flex:1"><div class="sr-lbl">Privacy Policy</div><div class="sr-sub">How we handle your data</div></div>
             <span class="sr-chev">›</span>
         </div>
         <div class="sr" onclick="AppBridge.openUrl('https://sites.google.com/view/tidyapp-terms-and-conditions')">
-            <div class="sr-ico" style="background:rgba(108,99,255,.12)">📜</div>
+            <div class="sr-ico sr-ico--doc" style="background:rgba(108,99,255,.12)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></div>
             <div style="flex:1"><div class="sr-lbl">Terms & Conditions</div><div class="sr-sub">Terms governing your use of Aurelo</div></div>
             <span class="sr-chev">›</span>
         </div>

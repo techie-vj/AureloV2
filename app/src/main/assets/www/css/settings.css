@@ -55,6 +55,10 @@
 .sr-ico--sparkle{ background:rgba(247,201,72,.15);   color:#F7C948; }
 .sr-ico--person { background:rgba(108,99,255,.15);   color:var(--p2); }
 .sr-ico--share  { background:rgba(108,99,255,.15);   color:var(--p2); }
+.sr-ico--chart  { background:rgba(108,99,255,.15);   color:var(--p2); }
+.sr-ico--layers { background:rgba(108,99,255,.14);   color:var(--p2); }
+.sr-ico--trash  { background:rgba(240,78,122,.14);   color:var(--r); }
+.sr-ico--doc    { background:rgba(108,99,255,.14);   color:var(--p2); }
 
 .sr-lbl{font-size:14px;font-weight:600;flex:1}
 .sr-sub{font-size: var(--text-2xs);color:var(--t3);margin-top:1px;font-family:var(--ff-m)}
