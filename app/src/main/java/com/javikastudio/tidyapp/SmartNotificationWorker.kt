@@ -49,11 +49,23 @@ class SmartNotificationWorker(
 
     override fun doWork(): Result {
 
-        // ── Guard: smart alerts must be enabled by the user ─────────────────────
-        if (!prefs.getBoolean(SMART_ALERTS_ENABLED, true)) return Result.success()
-
         // ── Guard: usage permission required ─────────────────────────────────
         if (!hasUsagePermission()) return Result.success()
+
+        // ── Score / Streak History (v2.1 fix) ────────────────────────────────
+        // This MUST run every cycle regardless of notification settings, so
+        // Aurelo Score / Screen Score / streak history keep accumulating even
+        // when the app is never opened. Previously this save only happened
+        // below, gated behind `if (!posted) return` — i.e. only on days where
+        // a screen-time/pickup alert tier actually escalated. On a normal day
+        // (no escalation) the worker returned early and streak_history never
+        // got a row, so background score/streak calculation silently stalled
+        // whenever the app stayed closed. Decoupled here so it always runs
+        // once per calendar day, independent of Smart Alerts / posted alerts.
+        saveDailyStreakRow()
+
+        // ── Guard: smart alerts must be enabled by the user ─────────────────────
+        if (!prefs.getBoolean(SMART_ALERTS_ENABLED, true)) return Result.success()
 
         // ── Guard: notification permission required (Android 13+) ────────────
         if (!hasNotificationPermission()) return Result.success()
@@ -62,8 +74,21 @@ class SmartNotificationWorker(
         val pendingIntent = buildLaunchIntent()
         val cal         = java.util.Calendar.getInstance()
         val hour        = cal.get(java.util.Calendar.HOUR_OF_DAY)
-        val todayMins   = prefs.getLong(CACHED_TOTAL_MINS, 0L)
-        val pickups     = prefs.getInt(CACHED_PICKUPS, 0)
+        // FIX (stale cross-day notifications): CACHED_TOTAL_MINS/CACHED_PICKUPS are
+        // only refreshed while the app is in the foreground (every 30s). If the app
+        // hasn't been opened yet today, this worker would otherwise read YESTERDAY's
+        // leftover total and misreport it as "today" (e.g. a stale 5h fired as
+        // "High Screen Time" when today's real usage is only 1h30m). Validate the
+        // cache actually belongs to today before trusting it; treat as 0 otherwise
+        // so every downstream guard (recap, streak risk, personal best, tiered
+        // alerts) naturally skips instead of alerting on the wrong day's number.
+        val usageTs      = prefs.getLong(CACHED_USAGE_TS, 0L)
+        val usageCal     = java.util.Calendar.getInstance().apply { timeInMillis = usageTs }
+        val usageIsToday = usageTs > 0L &&
+            usageCal.get(java.util.Calendar.YEAR) == cal.get(java.util.Calendar.YEAR) &&
+            usageCal.get(java.util.Calendar.DAY_OF_YEAR) == cal.get(java.util.Calendar.DAY_OF_YEAR)
+        val todayMins   = if (usageIsToday) prefs.getLong(CACHED_TOTAL_MINS, 0L) else 0L
+        val pickups     = if (usageIsToday) prefs.getInt(CACHED_PICKUPS, 0) else 0
         val goalMins    = prefs.getInt(STREAK_GOAL_MINS, 240).toLong()
         val userName    = (prefs.getString("user_name", "") ?: "").trim()
 
@@ -369,28 +394,40 @@ class SmartNotificationWorker(
 
         ensureAlertChannel(nm)
 
-        val alerts = mutableListOf<Triple<String, String, String>>() // title, body, type
+        // ── Screen-time / pickup tier alert ────────────────────────────────────
+        // FIX (duplicate "High Screen Time" notifications):
+        //  1. Fixed notification IDs (SCREEN_ALERT_NOTIF_ID / PICKUP_ALERT_NOTIF_ID)
+        //     instead of a hash of the ever-changing body text — a re-fire now
+        //     REPLACES the existing card in the shade instead of stacking a new one.
+        //  2. Escalation-only re-fire: each category only posts again once per day
+        //     if its tier has increased since the last post (e.g. "Daily Goal
+        //     Exceeded" -> "High Screen Time"). A same-tier repeat across time
+        //     slots is suppressed entirely instead of re-posting the same alert.
 
-        // Screen-time vs goal
-        when {
-            todayMins > goalMins * 1.75 ->
-                alerts += Triple(
-                    "High Screen Time 🔴",
-                    "${fmtM(todayMins)} today — ${fmtM(todayMins - goalMins)} over your ${fmtM(goalMins)} goal.",
-                    "warn"
-                )
-            todayMins > goalMins ->
-                alerts += Triple(
-                    "Daily Goal Exceeded ⚠️",
-                    "${fmtM(todayMins)} used — ${fmtM(todayMins - goalMins)} over your ${fmtM(goalMins)} goal.",
-                    "warn"
-                )
-            todayMins > goalMins * 0.75 ->
-                alerts += Triple(
-                    "Screen Time Update 📊",
-                    "${fmtM(todayMins)} used. Only ${fmtM(goalMins - todayMins)} left under your goal.",
-                    "info"
-                )
+        // Screen-time tier: 0 none, 1 "Update" (>75%), 2 "Exceeded" (>goal), 3 "High" (>1.75x)
+        val screenTier = when {
+            todayMins > goalMins * 1.75 -> 3
+            todayMins > goalMins        -> 2
+            todayMins > goalMins * 0.75 -> 1
+            else                        -> 0
+        }
+        val screenAlert: Triple<String, String, String>? = when (screenTier) {
+            3 -> Triple(
+                "High Screen Time 🔴",
+                "${fmtM(todayMins)} today — ${fmtM(todayMins - goalMins)} over your ${fmtM(goalMins)} goal.",
+                "warn"
+            )
+            2 -> Triple(
+                "Daily Goal Exceeded ⚠️",
+                "${fmtM(todayMins)} used — ${fmtM(todayMins - goalMins)} over your ${fmtM(goalMins)} goal.",
+                "warn"
+            )
+            1 -> Triple(
+                "Screen Time Update 📊",
+                "${fmtM(todayMins)} used. Only ${fmtM(goalMins - todayMins)} left under your goal.",
+                "info"
+            )
+            else -> null
         }
 
         // Pickup frequency
@@ -407,33 +444,73 @@ class SmartNotificationWorker(
             intervalMins < 60 -> "once every ${intervalMins}m"
             else              -> "once every ${intervalMins / 60}h ${intervalMins % 60}m"
         }
-        when {
-            pickups > 80 ->
-                alerts += Triple(
-                    "High Pickup Count 📲",
-                    "$pickups pickups today — $intervalLabel on average, $perHourOfUse times per hour of screen time. Try batching your checks.",
-                    "warn"
-                )
-            pickups > 50 ->
-                alerts += Triple(
-                    "Frequent Pickups 🔔",
-                    "$pickups checks today ($intervalLabel on average). Batching your phone use helps maintain focus.",
-                    "info"
-                )
+        // Pickup tier: 0 none, 1 "Frequent" (>50), 2 "High" (>80)
+        val pickupTier = when {
+            pickups > 80 -> 2
+            pickups > 50 -> 1
+            else         -> 0
+        }
+        val pickupAlert: Triple<String, String, String>? = when (pickupTier) {
+            2 -> Triple(
+                "High Pickup Count 📲",
+                "$pickups pickups today — $intervalLabel on average, $perHourOfUse times per hour of screen time. Try batching your checks.",
+                "warn"
+            )
+            1 -> Triple(
+                "Frequent Pickups 🔔",
+                "$pickups checks today ($intervalLabel on average). Batching your phone use helps maintain focus.",
+                "info"
+            )
+            else -> null
         }
 
-        val bestAlert = alerts.firstOrNull() ?: return Result.success()
-        val (title, body, type) = bestAlert
-        postAlertNotification(nm, stableId(title, body), title, body, type, pendingIntent)
+        // Escalation check against what was already sent today for each category
+        val lastScreenDate = prefs.getString("screen_alert_sent_date", "") ?: ""
+        val lastScreenTier = if (lastScreenDate == todayDate) prefs.getInt("screen_alert_sent_tier", 0) else 0
+        val lastPickupDate = prefs.getString("pickup_alert_sent_date", "") ?: ""
+        val lastPickupTier = if (lastPickupDate == todayDate) prefs.getInt("pickup_alert_sent_tier", 0) else 0
 
+        // Screen-time takes priority over pickup, matching the previous behaviour.
+        val posted = when {
+            screenAlert != null && screenTier > lastScreenTier -> {
+                val (title, body, type) = screenAlert
+                postAlertNotification(nm, SCREEN_ALERT_NOTIF_ID, title, body, type, pendingIntent)
+                prefs.edit().putString("screen_alert_sent_date", todayDate).putInt("screen_alert_sent_tier", screenTier).apply()
+                true
+            }
+            pickupAlert != null && pickupTier > lastPickupTier -> {
+                val (title, body, type) = pickupAlert
+                postAlertNotification(nm, PICKUP_ALERT_NOTIF_ID, title, body, type, pendingIntent)
+                prefs.edit().putString("pickup_alert_sent_date", todayDate).putInt("pickup_alert_sent_tier", pickupTier).apply()
+                true
+            }
+            else -> false
+        }
+        if (!posted) return Result.success()
 
-        // ── v2.2: Save streak row for today ─────────────────────────────────────
-        // Runs once per worker execution (throttled by slot key above).
-        // Computes maintained/missed/N-A for all four pillars and upserts into
-        // streak_history table in LaunchTracker SQLCipher DB.
+        prefs.edit().putString("notif_last_slot_key", expectedKey).apply()
+        return Result.success()
+    }
+
+    // ── v2.1 fix: Score / Streak history save, decoupled from notifications ──
+    // Computes maintained/missed/N-A for all four pillars and upserts into the
+    // streak_history table in LaunchTracker SQLCipher DB. Called unconditionally
+    // from the top of doWork() (guarded only by its own once-per-day dedup
+    // below), so Aurelo Score / Screen Score / streak keep updating in the
+    // background even when the app is never opened and even if no alert tier
+    // escalates that day (previously this only ran when `posted == true`).
+    private fun saveDailyStreakRow() {
         try {
             val dateFmt  = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US)
             val todayDate = dateFmt.format(java.util.Date())
+
+            // Once-per-calendar-day guard — the worker fires every 2h, we only
+            // need to (re)write this row once per day once data is available.
+            val lastSavedDate = prefs.getString("streak_row_saved_date", "") ?: ""
+            if (lastSavedDate == todayDate) return
+
+            val goalMins  = prefs.getInt(STREAK_GOAL_MINS, 240).toLong()
+            val todayMins = prefs.getLong(CACHED_TOTAL_MINS, 0L)
 
             // Screen: maintained if today's screen time <= daily goal
             val screenOk = if (goalMins > 0L) if (todayMins <= goalMins) 1 else 0 else -1
@@ -480,12 +557,10 @@ class SmartNotificationWorker(
             }
 
             LaunchTracker.get(appContext).saveStreakRow(todayDate, screenOk, focusOk, bedtimeOk, bodyOk)
+            prefs.edit().putString("streak_row_saved_date", todayDate).apply()
         } catch (e: Exception) {
             android.util.Log.w("StreakWorker", "saveStreakRow failed: ${e.message}")
         }
-
-        prefs.edit().putString("notif_last_slot_key", expectedKey).apply()
-        return Result.success()
     }
 
     // ── Notification channels ─────────────────────────────────────────────────
@@ -656,6 +731,11 @@ class SmartNotificationWorker(
         const val WORK_NAME             = "tidy_smart_notifs"
         // Prefs keys owned by the weekly recap notification path
         const val WEEKLY_RECAP_NOTIF_ID       = 5006
+        // Fixed IDs for the tiered screen-time / pickup alerts — using a fixed ID
+        // per category (not a hash of the body text) means an escalated re-fire
+        // REPLACES the existing shade card instead of stacking a duplicate.
+        const val SCREEN_ALERT_NOTIF_ID   = 5007
+        const val PICKUP_ALERT_NOTIF_ID   = 5008
         const val LAST_WEEKLY_RECAP_WEEK  = "last_weekly_recap_week"
         const val EXTRA_OPEN_WEEKLY_RECAP = "open_weekly_recap"
         const val EXTRA_OPEN_NOTIFICATIONS = "open_notifications"

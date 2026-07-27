@@ -59,46 +59,12 @@ class AureloWidgetUpdateWorker(
                 set(Calendar.SECOND, 0);      set(Calendar.MILLISECOND, 0)
             }.timeInMillis
 
-            // ── Use queryEvents (FOREGROUND/BACKGROUND pairs) instead of
-            //    queryUsageStats so we never count still-open sessions.
-            //    queryUsageStats.totalTimeInForeground includes the current
-            //    in-progress session time which inflates the widget counter
-            //    while the phone sits idle with an app "open".
-            val events  = usm.queryEvents(dayStart, now)
-            val ev      = android.app.usage.UsageEvents.Event()
-            val timeMap = mutableMapOf<String, Long>()
-            val fgStart = mutableMapOf<String, Long>()
-            val MAX_SESSION_MS = 4 * 60 * 60_000L   // cap any single session at 4h
-            var pickups  = 0
-
-            while (events.hasNextEvent()) {
-                events.getNextEvent(ev)
-                if (ev.packageName == appContext.packageName) continue
-                when (ev.eventType) {
-                    android.app.usage.UsageEvents.Event.KEYGUARD_HIDDEN -> {
-                        // Each screen unlock = one pickup — matches iOS/Digital Wellbeing definition
-                        pickups++
-                    }
-                    android.app.usage.UsageEvents.Event.MOVE_TO_FOREGROUND -> {
-                        fgStart[ev.packageName] = ev.timeStamp
-                    }
-                    android.app.usage.UsageEvents.Event.MOVE_TO_BACKGROUND -> {
-                        val start = fgStart.remove(ev.packageName) ?: continue
-                        val ms = (ev.timeStamp - start).coerceAtMost(MAX_SESSION_MS)
-                        timeMap[ev.packageName] = (timeMap[ev.packageName] ?: 0L) + ms
-                    }
-                }
-            }
-            // Apps still in foreground right now — add elapsed time (capped at MAX_SESSION_MS)
-            // Only count if the session started within the last 4h to avoid runaway totals
-            fgStart.forEach { (pkg, start) ->
-                val elapsed = (now - start).coerceAtMost(MAX_SESSION_MS)
-                timeMap[pkg] = (timeMap[pkg] ?: 0L) + elapsed
-            }
-
-            val totalMin = timeMap
-                .filter { isUserApp(it.key, appContext.packageManager) }
-                .values.sum() / 60_000L
+            // Shared with UsageStatsBridge.buildUsageSnapshot() — see UsageCalculator.kt.
+            // This worker runs every 15 min independently of app-foreground state, which
+            // is exactly why a previous divergent copy of this logic here (missing the
+            // day-elapsed ceiling) kept overwriting the correctly-clamped value from
+            // buildUsageSnapshot(), producing the 12h/22h/34h+ notification bug.
+            val result = UsageCalculator.computeToday(appContext, usm, dayStart, now, ::isUserApp)
 
             val ghostCount = runCatching {
                 org.json.JSONArray(prefs.getString(CACHED_GHOSTS, "[]") ?: "[]").length()
@@ -108,8 +74,8 @@ class AureloWidgetUpdateWorker(
             val streakDays = runCatching { computeStreak(usm, goalMins) }.getOrElse { 0 }
 
             prefs.edit()
-                .putLong(CACHED_TOTAL_MINS,   totalMin)
-                .putInt (CACHED_PICKUPS,       pickups)
+                .putLong(CACHED_TOTAL_MINS,   result.totalMins)
+                .putInt (CACHED_PICKUPS,       result.pickups)
                 .putInt (CACHED_GHOST_COUNT,   ghostCount)
                 .putInt (CACHED_STREAK_DAYS,   streakDays)
                 .putLong(CACHED_USAGE_TS,      now)
@@ -386,50 +352,23 @@ class AureloWidgetUpdateWorker(
                     set(Calendar.SECOND, 0);      set(Calendar.MILLISECOND, 0)
                 }.timeInMillis
 
-                val events  = usm.queryEvents(dayStart, now)
-                val ev      = android.app.usage.UsageEvents.Event()
-                val timeMap = mutableMapOf<String, Long>()
-                val fgStart = mutableMapOf<String, Long>()
-                val MAX_SESSION_MS = 4 * 60 * 60_000L
-                var pickups       = 0
-                var firstPickupTs = 0L
-
-                while (events.hasNextEvent()) {
-                    events.getNextEvent(ev)
-                    if (ev.packageName == context.packageName) continue
-                    when (ev.eventType) {
-                        android.app.usage.UsageEvents.Event.KEYGUARD_HIDDEN -> {
-                            pickups++
-                            if (firstPickupTs == 0L) firstPickupTs = ev.timeStamp
-                        }
-                        android.app.usage.UsageEvents.Event.MOVE_TO_FOREGROUND -> {
-                            fgStart[ev.packageName] = ev.timeStamp
-                        }
-                        android.app.usage.UsageEvents.Event.MOVE_TO_BACKGROUND -> {
-                            val start = fgStart.remove(ev.packageName) ?: continue
-                            val ms = (ev.timeStamp - start).coerceAtMost(MAX_SESSION_MS)
-                            timeMap[ev.packageName] = (timeMap[ev.packageName] ?: 0L) + ms
-                        }
-                    }
-                }
-                fgStart.forEach { (pkg, start) ->
-                    timeMap[pkg] = (timeMap[pkg] ?: 0L) + (now - start).coerceAtMost(MAX_SESSION_MS)
+                // Shared with UsageStatsBridge.buildUsageSnapshot() / refreshCaches()
+                // above — see UsageCalculator.kt.
+                val result = UsageCalculator.computeToday(context, usm, dayStart, now) { pkg ->
+                    isUserApp(pkg, context.packageManager)
                 }
 
-                val totalMin = timeMap
-                    .filter { isUserApp(it.key, context.packageManager) }   // ← add this line
-                    .values.sum() / 60_000L
                 val goalMins = prefs.getInt(STREAK_GOAL_MINS, 240).toLong()
                 val streakDays = runCatching {
                     computeStreakStatic(context, usm, goalMins)
                 }.getOrElse { prefs.getInt(CACHED_STREAK_DAYS, 0) }
 
                 val editor = prefs.edit()
-                    .putLong(CACHED_TOTAL_MINS,  totalMin)
-                    .putInt (CACHED_PICKUPS,      pickups)
+                    .putLong(CACHED_TOTAL_MINS,  result.totalMins)
+                    .putInt (CACHED_PICKUPS,      result.pickups)
                     .putInt (CACHED_STREAK_DAYS,  streakDays)
                     .putLong(CACHED_USAGE_TS,     now)
-                if (firstPickupTs > 0L) editor.putLong("cached_first_pickup_ts", firstPickupTs)
+                if (result.firstPickupTs > 0L) editor.putLong("cached_first_pickup_ts", result.firstPickupTs)
                 editor.apply()
             }
         }

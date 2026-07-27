@@ -78,6 +78,10 @@ class UsageStatsBridge(
             .putLong  (CACHED_TOTAL_MINS,     snapshot.optLong  ("totalMins",  0L))
             .putInt   (CACHED_PICKUPS,        snapshot.optInt   ("pickups",    0))
             .putLong  (CACHED_FIRST_PICKUP_TS,snapshot.optLong  ("firstPickupTs", 0L))
+            // FIX (stale cross-day notifications): stamp when this snapshot was taken
+            // so SmartNotificationWorker can detect a cache that's carried over from a
+            // previous day (app not opened today) and avoid trusting it.
+            .putLong  (CACHED_USAGE_TS,       System.currentTimeMillis())
             .apply()
         return snapshot.toString()
     }
@@ -336,6 +340,8 @@ class UsageStatsBridge(
             .putLong  (CACHED_TOTAL_MINS,     snapshot.optLong  ("totalMins",  0L))
             .putInt   (CACHED_PICKUPS,        snapshot.optInt   ("pickups",    0))
             .putLong  (CACHED_FIRST_PICKUP_TS,snapshot.optLong  ("firstPickupTs", 0L))
+            // FIX (stale cross-day notifications): stamp snapshot time (see refreshUsageData()).
+            .putLong  (CACHED_USAGE_TS,       System.currentTimeMillis())
         ed.putString(CACHED_WEEKLY, buildWeeklyBreakdown())
         val ghostTs = prefs.getLong(CACHED_GHOSTS_TS, 0L)
         if (System.currentTimeMillis() - ghostTs > 2 * 3_600_000L) {
@@ -366,47 +372,18 @@ class UsageStatsBridge(
     @Suppress("DEPRECATION")
     internal fun buildUsageSnapshot(): JSONObject {
         val now = System.currentTimeMillis(); val dayStart = startOfToday()
-        val events = usm().queryEvents(dayStart, now); val ev = UsageEvents.Event()
-        val timeMap = mutableMapOf<String, Long>(); val fgStart = mutableMapOf<String, Long>()
-        val hourMap = LongArray(24); var pickups = 0; var firstPickupTs = 0L
-        // FIX (screen-time inflation): track screen-lock events so an orphaned
-        // foreground session (missing MOVE_TO_BACKGROUND) can be capped at the
-        // last known lock time instead of running all the way to "now".
-        val screenOffs = mutableListOf<Long>()
-        while (events.hasNextEvent()) {
-            events.getNextEvent(ev)
-            if (ev.packageName == context.packageName) continue
-            when (ev.eventType) {
-                UsageEvents.Event.KEYGUARD_HIDDEN -> { pickups++; if (firstPickupTs == 0L) firstPickupTs = ev.timeStamp }
-                UsageEvents.Event.KEYGUARD_SHOWN -> screenOffs.add(ev.timeStamp)
-                UsageEvents.Event.MOVE_TO_FOREGROUND -> fgStart[ev.packageName] = ev.timeStamp
-                UsageEvents.Event.MOVE_TO_BACKGROUND -> {
-                    val start = fgStart.remove(ev.packageName) ?: continue
-                    val ms = ev.timeStamp - start; timeMap[ev.packageName] = (timeMap[ev.packageName] ?: 0L) + ms
-                    val hour = Calendar.getInstance().apply { timeInMillis = start }.get(Calendar.HOUR_OF_DAY)
-                    hourMap[hour] += ms / 60_000L
-                }
-            }
-        }
-        val MAX_SESSION_MS = 4 * 60 * 60_000L
-        screenOffs.sort()
-        fgStart.forEach { (pkg, start) ->
-            // FIX: cap orphaned session at the next screen-lock after it started,
-            // instead of assuming the app stayed open until "now".
-            val end = capOrphanedSessionEnd(start, now, screenOffs)
-            val ms = (end - start).coerceIn(0L, MAX_SESSION_MS); timeMap[pkg] = (timeMap[pkg] ?: 0L) + ms
-            val hour = Calendar.getInstance().apply { timeInMillis = start }.get(Calendar.HOUR_OF_DAY)
-            hourMap[hour] += ms / 60_000L
-        }
-        val totalMins = timeMap.filter { isKnownUserPackage(it.key) }.values.sum() / 60_000L
+        // Shared with AureloWidgetUpdateWorker.refreshCaches()/refreshCachesStatic() —
+        // see UsageCalculator.kt. Prevents the two paths drifting out of sync again
+        // (the root cause of the 12h/22h/34h+ notification bug).
+        val result = UsageCalculator.computeToday(context, usm(), dayStart, now, ::isKnownUserPackage)
         val topApps = JSONArray()
-        timeMap.entries.filter { it.value > 60_000L && isKnownUserPackage(it.key) }.sortedByDescending { it.value }.forEach { (pkg, ms) ->
+        result.timeMap.entries.filter { it.value > 60_000L && isKnownUserPackage(it.key) }.sortedByDescending { it.value }.forEach { (pkg, ms) ->
             runCatching { val info = pm.getApplicationInfo(pkg, 0); topApps.put(JSONObject().apply { put("packageName",pkg); put("name",pm.getApplicationLabel(info).toString()); put("iconUrl","app-icon://$pkg"); put("totalMinutes",ms/60_000L); put("lastUsed",now) }) }
         }
-        val hourly = JSONArray(); hourMap.forEachIndexed { h, m -> hourly.put(JSONObject().apply { put("hour",h); put("minutes",m) }) }
+        val hourly = JSONArray(); result.hourMins.forEachIndexed { h, m -> hourly.put(JSONObject().apply { put("hour",h); put("minutes",m) }) }
         return JSONObject().apply {
             put("topAppsJson", topApps.toString()); put("hourlyJson", hourly.toString())
-            put("totalMins", totalMins); put("pickups", pickups); put("firstPickupTs", firstPickupTs)
+            put("totalMins", result.totalMins); put("pickups", result.pickups); put("firstPickupTs", result.firstPickupTs)
             put("topApps", topApps); put("hourly", hourly)
         }
     }
@@ -734,10 +711,8 @@ class UsageStatsBridge(
      * capped at the next KEYGUARD_SHOWN (screen-lock) event after it started,
      * if one occurred before `boundary`.
      */
-    private fun capOrphanedSessionEnd(start: Long, boundary: Long, sortedScreenOffs: List<Long>): Long {
-        val lockAfterStart = sortedScreenOffs.firstOrNull { it > start && it < boundary }
-        return lockAfterStart ?: boundary
-    }
+    private fun capOrphanedSessionEnd(start: Long, boundary: Long, sortedScreenOffs: List<Long>): Long =
+        UsageCalculator.capOrphanedSessionEnd(start, boundary, sortedScreenOffs)
 
     // ── Shared helpers ────────────────────────────────────────────────────────
     internal fun fmtM(mins: Long): String {
