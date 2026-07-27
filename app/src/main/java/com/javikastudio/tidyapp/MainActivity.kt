@@ -107,11 +107,10 @@ class MainActivity : AppCompatActivity() {
         // repeatedly — write is idempotent.
         AppCtxHolder.init(applicationContext)
 
-        // Full-screen colours — set before setContentView so they apply to the first frame
-        window.statusBarColor     = Color.TRANSPARENT
-        window.navigationBarColor = Color.TRANSPARENT
         // NOTE: BUG-07 fullscreen/insets setup is applied AFTER setContentView() below,
         // because WindowInsetsController requires the DecorView to be attached first.
+        // Deprecated statusBarColor/navigationBarColor calls removed — edge-to-edge
+        // (setDecorFitsSystemWindows below) already makes both bars transparent.
 
         webView = WebView(this).apply {
             settings.apply {
@@ -157,22 +156,14 @@ class MainActivity : AppCompatActivity() {
         // got a coloured strip at the top/bottom instead of true edge-to-edge.
         androidx.core.view.WindowCompat.setDecorFitsSystemWindows(window, false)
 
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
-            window.decorView.post {
-                window.insetsController?.let { ctrl ->
-                    ctrl.hide(android.view.WindowInsets.Type.statusBars())
-                    ctrl.systemBarsBehavior =
-                        android.view.WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-                }
-            }
-        } else {
-            @Suppress("DEPRECATION")
-            window.decorView.systemUiVisibility = (
-                    View.SYSTEM_UI_FLAG_LAYOUT_STABLE          or
-                            View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN      or
-                            View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION or
-                            View.SYSTEM_UI_FLAG_FULLSCREEN
-                    )
+        // UI-05 FIX v2: replaced API-branching statusBar/SYSTEM_UI_FLAG code with the
+        // androidx.core compat controller — works uniformly on API 21+, no deprecated
+        // View.SYSTEM_UI_FLAG_* calls, and no separate pre-R code path to maintain.
+        window.decorView.post {
+            val ctrl = androidx.core.view.WindowCompat.getInsetsController(window, window.decorView)
+            ctrl.hide(androidx.core.view.WindowInsetsCompat.Type.statusBars())
+            ctrl.systemBarsBehavior =
+                androidx.core.view.WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
         }
 
         bridge = AppBridge(this, webView)

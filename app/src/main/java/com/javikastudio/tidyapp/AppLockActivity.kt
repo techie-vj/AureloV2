@@ -81,6 +81,16 @@ class AppLockActivity : AppCompatActivity() {
             WindowManager.LayoutParams.FLAG_SECURE,
             WindowManager.LayoutParams.FLAG_SECURE
         )
+        // UI-05 FIX: this Activity previously had no edge-to-edge setup, unlike
+        // MainActivity — inconsistent handling across Activities triggers Play
+        // Console's "edge-to-edge may not display for all users" warning.
+        androidx.core.view.WindowCompat.setDecorFitsSystemWindows(window, false)
+        window.decorView.post {
+            val ctrl = androidx.core.view.WindowCompat.getInsetsController(window, window.decorView)
+            ctrl.hide(androidx.core.view.WindowInsetsCompat.Type.statusBars())
+            ctrl.systemBarsBehavior =
+                androidx.core.view.WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        }
 
         lockedPackage    = intent.getStringExtra("locked_package") ?: ""
         biometricEnabled = intent.getBooleanExtra("biometric_enabled", true)
