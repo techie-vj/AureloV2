@@ -36,6 +36,16 @@ class EntitlementRepository(private val context: Context) {
         // Cache is valid for 7 days offline — after that, Play re-confirms on next connect
         private const val CACHE_TTL_MS = 7L * 24 * 60 * 60 * 1000
         const val REVOCATION_GRACE_MS  = 72L * 60 * 60 * 1000  // 72 h
+
+        /**
+         * Pure grace-period boundary check, extracted for unit testing
+         * (Phase 2 test-quality fix) so PS-023/PS-024 can call the real logic
+         * without needing a Context/Keystore-backed EncryptedSharedPreferences.
+         * True when [lastConfirmedMs] is within [graceMs] of [nowMs].
+         * lastConfirmedMs = 0 means Pro was never confirmed on this device — always false.
+         */
+        fun isWithinGrace(lastConfirmedMs: Long, nowMs: Long, graceMs: Long = REVOCATION_GRACE_MS): Boolean =
+            lastConfirmedMs > 0L && (nowMs - lastConfirmedMs) < graceMs
         // Mirror constants for the main prefs file (tidyapp_v6).
         // Kept private so the billing package stays self-contained; no import of BridgeKeys needed.
         // EntitlementRepository is now the SINGLE write point for IS_PRO_USER in both stores,
@@ -111,10 +121,8 @@ class EntitlementRepository(private val context: Context) {
      * not a genuine lapse. AppBridge skips destructive downgrade cleanup when this is true.
      * Returns false if Pro was never confirmed on this device (free user / fresh install).
      */
-    fun isWithinRevocationGrace(): Boolean {
-        val last = lastProConfirmedMs
-        return last > 0L && (System.currentTimeMillis() - last) < REVOCATION_GRACE_MS
-    }
+    fun isWithinRevocationGrace(): Boolean =
+        Companion.isWithinGrace(lastProConfirmedMs, System.currentTimeMillis())
 
     /**
      * Called by BillingManager after a verified purchase or purchase query.

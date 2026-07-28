@@ -248,44 +248,29 @@ class AureloScoreBridge(
         val bodyScore = BodyScoreCalculator.compute(hcData)
         val hcActive  = bodyScore >= 0
 
-        val swScreen: Int; val swFocus: Int; val swSleep: Int; val swBody: Int
-        if (hcActive) {
-            swSleep  = if (sleepEnabled) 20 else 0
-            swScreen = if (sleepEnabled) 35 else 46
-            swFocus  = if (sleepEnabled) 30 else 39
-            swBody   = 15
-        } else {
-            swSleep  = if (sleepEnabled) 25 else 0
-            swScreen = if (sleepEnabled) 40 else 55
-            swFocus  = if (sleepEnabled) 35 else 45
-            swBody   = 0
-        }
-
-        data class Part(val score: Int, val weight: Int)
-        val parts = buildList {
-            if (screenScore >= 0) add(Part(screenScore, swScreen))
-            if (focusScore  >= 0) add(Part(focusScore,  swFocus))
-            if (sleepEnabled)     add(Part(sleepScore,  swSleep))
-            if (hcActive)         add(Part(bodyScore,   swBody))
-        }
-
-        val totalW    = parts.sumOf { it.weight }
-        val composite = if (totalW == 0) -1
-        else (parts.sumOf { it.score * it.weight }.toFloat() / totalW)
-            .toInt().coerceIn(0, 100)
+        // F-23: weight-table + weighted-average logic extracted into
+        // AureloScoreComposer (pure, unit-tested — no Android dependencies).
+        val result = AureloScoreComposer.compose(
+            screenScore  = screenScore,
+            focusScore   = focusScore,
+            sleepScore   = sleepScore,
+            sleepEnabled = sleepEnabled,
+            bodyScore    = bodyScore,
+            hcActive     = hcActive,
+        )
 
         return JSONObject().apply {
-            put("score",       composite)
+            put("score",       result.score)
             put("screenScore", screenScore)
             put("focusScore",  focusScore)
             put("sleepScore",  sleepScore)
             put("hcBodyScore", bodyScore)
             put("hcActive",    hcActive)
             put("sleepEnabled",sleepEnabled)
-            put("swScreen",    swScreen)
-            put("swFocus",     swFocus)
-            put("swSleep",     swSleep)
-            put("swBody",      swBody)
+            put("swScreen",    result.weights.screen)
+            put("swFocus",     result.weights.focus)
+            put("swSleep",     result.weights.sleep)
+            put("swBody",      result.weights.body)
         }.toString()
     }
 

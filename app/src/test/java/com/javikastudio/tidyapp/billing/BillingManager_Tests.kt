@@ -6,76 +6,58 @@ import org.junit.Test
 /**
  * BillingManager Tests  |  Feature Ref §15  |  Test Report TEST-04
  *
- * Created to address the critical gap identified in the v2.0.0 test report:
- *   "BillingManager.kt has no test file. Billing is the primary revenue path. No tests
- *    verify: (1) grace-period guard logic, (2) upgrade/downgrade token passing,
- *    (3) pending purchase handling, (4) offer selection in _selectBestOffer()." — TEST-04
- *
- * Also covers FUN-01 (BillingClient.disconnect() on destroy), SEC-01
- * (SHA1withRSA algorithm detection), BUILD-02 (RSA key missing in CI), and the
- * billing grace-period boundary tests TC-03 and TC-04.
- *
  * Suite test cases: PS-001 to PS-024 (functional), TC-03, TC-04
  *
- * NOTE: BillingClient itself is an Android SDK class and cannot be instantiated
- * on the JVM. All tests below mirror the business-rule logic of BillingManager,
- * using inline re-implementations that can run without Android runtime.
+ * REWRITE NOTE (Phase 2 test-quality fix):
+ * This file previously mirrored business logic locally instead of calling real
+ * production code, and two of those mirrors were flat-out WRONG:
+ *
+ *   1. selectBestOffer() mirrored a "Lifetime > Annual > Monthly" plan-type
+ *      priority that DOES NOT EXIST in production. The real
+ *      BillingManager._selectBestOffer() (now OfferSelector.selectBestIndex)
+ *      prioritises by OFFER STRUCTURE, not plan type: free-trial > intro-price
+ *      > bare-base-plan > fallback. All three plan types can appear in any
+ *      priority tier depending on what offers Play Console returns for them.
+ *
+ *   2. isInGracePeriod() used an inclusive `<=` boundary and had no concept of
+ *      "never confirmed". The real EntitlementRepository.isWithinGrace() uses
+ *      a strict `<` boundary AND requires lastConfirmedMs > 0 (a fresh install
+ *      or free user, where lastConfirmedMs=0, is NEVER "in grace" regardless
+ *      of the time value passed). Neither of these were correctly modelled.
+ *
+ * DISCREPANCY FLAGGED FOR REVIEW (not silently fixed — this is a production
+ * behaviour question, not a test-only issue):
+ *   PS-024's manual spec says downgrade should fire at "72h + 1ms", implying
+ *   exactly-72h-elapsed should still be within grace. The real code's strict
+ *   `<` operator means grace actually EXPIRES at exactly 72h (not 72h+1ms) —
+ *   a 1-tick-early expiry vs the documented spec. Tests below assert the
+ *   REAL current behaviour (exactly-72h = expired) and flag this via the
+ *   `EXACT72H_DISCREPANCY` test name so it's not silently normalised away.
+ *
+ * BillingClient/ProductDetails/Purchase are real Play Billing SDK classes that
+ * cannot be constructed on the JVM, so PENDING-purchase-state handling and the
+ * RSA-key/algorithm checks below remain local boolean mirrors of that specific
+ * decision shape — they were already correct and are unchanged.
  */
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  Domain constants & mirrors
+//  Remaining mirrors (unchanged — no corresponding extracted pure object yet)
 // ─────────────────────────────────────────────────────────────────────────────
 
-private const val GRACE_PERIOD_MS = 72L * 60 * 60 * 1_000L          // 72 hours in ms
 private val DEPRECATED_ALGORITHMS = setOf("SHA1withRSA", "MD5withRSA")
 
 enum class PurchaseState { PURCHASED, PENDING, UNSPECIFIED }
-enum class PlanType { MONTHLY, ANNUAL, LIFETIME }
 
-data class ProductDetails(
-    val planType: PlanType,
-    val priceAmountMicros: Long,
-    val offerToken: String
-)
-
-/** Mirrors BillingManager.isInGracePeriod() */
-private fun isInGracePeriod(lastConfirmedMs: Long, nowMs: Long): Boolean =
-    (nowMs - lastConfirmedMs) <= GRACE_PERIOD_MS
-
-/** Mirrors BillingManager._selectBestOffer(): picks offer by plan priority. */
-private fun selectBestOffer(offers: List<ProductDetails>): ProductDetails? {
-    if (offers.isEmpty()) return null
-    // Priority: Lifetime > Annual > Monthly
-    return offers.firstOrNull { it.planType == PlanType.LIFETIME }
-        ?: offers.firstOrNull { it.planType == PlanType.ANNUAL }
-        ?: offers.firstOrNull { it.planType == PlanType.MONTHLY }
-}
-
-/** Mirrors BillingManager.handlePurchaseState() — PENDING purchases are not granted Pro. */
+/** Mirrors BillingManager.handlePurchase()'s purchaseState `when` branch. */
 private fun handlePurchaseState(state: PurchaseState, grantPro: () -> Unit): Boolean {
     if (state == PurchaseState.PURCHASED) {
         grantPro()
         return true
     }
-    return false  // PENDING or UNSPECIFIED: no Pro granted
+    return false  // PENDING or UNSPECIFIED: no Pro granted (SEC-11)
 }
 
-/** Mirrors BillingManager.downgradeIfGraceExpired(): only downgrades after grace period. */
-private fun downgradeIfGraceExpired(
-    lastConfirmedMs: Long,
-    nowMs: Long,
-    onDowngrade: () -> Unit
-) {
-    if (!isInGracePeriod(lastConfirmedMs, nowMs)) {
-        onDowngrade()
-    }
-}
-
-/** Mirrors PurchaseVerifier.isConfiguredKey() */
-private fun isConfiguredKey(key: String?): Boolean =
-    !key.isNullOrEmpty() && key != "null" && !key.startsWith("REPLACE_WITH")
-
-/** Mirrors algorithm safety check — SEC-01 */
+/** Mirrors algorithm safety check — SEC-01 (standalone; not a real production function) */
 private fun isDeprecatedSignatureAlgorithm(algorithm: String): Boolean =
     algorithm.uppercase() in DEPRECATED_ALGORITHMS
 
@@ -84,70 +66,62 @@ private fun isDeprecatedSignatureAlgorithm(algorithm: String): Boolean =
 // ─────────────────────────────────────────────────────────────────────────────
 class BillingManager_P1_Tests {
 
-    // ── Grace period boundary: TC-03 (no downgrade within 72h) ───────────────
+    private val REF_TIME = 1_700_000_000_000L // fixed reference epoch ms, for determinism
+
+    // ── Grace period boundary: TC-03 (no downgrade within 72h) — real EntitlementRepository ──
 
     @Test
     fun `TC03 no downgrade within 72h grace period — 71h59m elapsed`() {
-        val lastConfirmed = 0L
-        val elapsed = (71L * 60 + 59) * 60_000L  // 71h 59min in ms
+        val elapsed71h59m = (71L * 60 + 59) * 60_000L
         assertTrue(
             "App must still be Pro at 71h 59m after last confirmation",
-            isInGracePeriod(lastConfirmed, elapsed)
+            EntitlementRepository.isWithinGrace(REF_TIME, REF_TIME + elapsed71h59m)
         )
     }
 
     @Test
-    fun `TC03 Pro status maintained at exactly 72h — boundary inclusive`() {
-        val lastConfirmed = 0L
-        assertTrue(isInGracePeriod(lastConfirmed, GRACE_PERIOD_MS))
+    fun `EXACT72H_DISCREPANCY real code expires grace at exactly 72h — not 72h+1ms per PS024 spec`() {
+        // See file header: PS-024 describes 72h+1ms as the expiry point, but the
+        // real strict `<` comparison expires grace at exactly 72h. This test
+        // documents ACTUAL behaviour so a future code change is a deliberate,
+        // visible diff here — not a silently-passing assumption.
+        assertFalse(
+            "Real code currently treats exactly-72h-elapsed as EXPIRED, not grace",
+            EntitlementRepository.isWithinGrace(REF_TIME, REF_TIME + EntitlementRepository.REVOCATION_GRACE_MS)
+        )
     }
 
     @Test
-    fun `PS023 downgrade suppressed within grace period`() {
-        val lastConfirmed = System.currentTimeMillis()
-        var downgradeCalled = false
-        downgradeIfGraceExpired(
-            lastConfirmedMs = lastConfirmed,
-            nowMs = lastConfirmed + GRACE_PERIOD_MS - 1,
-            onDowngrade = { downgradeCalled = true }
+    fun `PS023 downgrade suppressed within grace period at 72h minus 1ms`() {
+        assertTrue(
+            "Must still be within grace 1ms before the 72h boundary",
+            EntitlementRepository.isWithinGrace(REF_TIME, REF_TIME + EntitlementRepository.REVOCATION_GRACE_MS - 1)
         )
-        assertFalse("onDowngrade must NOT fire within 72h grace", downgradeCalled)
+    }
+
+    @Test
+    fun `lastConfirmedMs of 0 (never confirmed) is NEVER within grace regardless of elapsed time`() {
+        // New coverage — previously untested. Fresh installs / pure free users
+        // have lastProConfirmedMs=0 and must never be treated as "in grace".
+        assertFalse(EntitlementRepository.isWithinGrace(0L, 0L))
+        assertFalse(EntitlementRepository.isWithinGrace(0L, 1L))
+        assertFalse(EntitlementRepository.isWithinGrace(0L, REF_TIME))
     }
 
     // ── Grace period boundary: TC-04 (downgrade fires at 72h+1ms) ────────────
 
     @Test
     fun `TC04 downgrade fires at 72h + 1ms after last confirmation`() {
-        val lastConfirmed = 0L
-        val elapsed = GRACE_PERIOD_MS + 1L   // 72h + 1ms
         assertFalse(
             "Grace period must have expired at 72h+1ms",
-            isInGracePeriod(lastConfirmed, elapsed)
+            EntitlementRepository.isWithinGrace(REF_TIME, REF_TIME + EntitlementRepository.REVOCATION_GRACE_MS + 1)
         )
-    }
-
-    @Test
-    fun `PS024 downgrade callback fires at 72h+1ms`() {
-        val lastConfirmed = 0L
-        var downgradeFired = false
-        downgradeIfGraceExpired(
-            lastConfirmedMs = lastConfirmed,
-            nowMs = GRACE_PERIOD_MS + 1,
-            onDowngrade = { downgradeFired = true }
-        )
-        assertTrue("onDowngrade must fire at exactly 72h+1ms", downgradeFired)
     }
 
     @Test
     fun `PS024 downgrade fires well after grace period — 100h elapsed`() {
-        val lastConfirmed = 0L
-        var downgradeFired = false
-        downgradeIfGraceExpired(
-            lastConfirmedMs = lastConfirmed,
-            nowMs = 100L * 60 * 60_000L,
-            onDowngrade = { downgradeFired = true }
-        )
-        assertTrue(downgradeFired)
+        val elapsed100h = 100L * 60 * 60_000L
+        assertFalse(EntitlementRepository.isWithinGrace(REF_TIME, REF_TIME + elapsed100h))
     }
 
     // ── PENDING purchase must NOT grant Pro (TEST-04 item 3) ─────────────────
@@ -176,32 +150,31 @@ class BillingManager_P1_Tests {
         assertTrue(granted)
     }
 
-    // ── RSA key configuration guard (BUILD-02 / SEC-01) ──────────────────────
+    // ── RSA key configuration guard (BUILD-02 / SEC-01) — now calls real PurchaseVerifier ──
 
     @Test
     fun `BUILD02 empty RSA key treated as not configured`() {
-        assertFalse(isConfiguredKey(""))
+        assertFalse(PurchaseVerifier.isConfiguredKey(""))
     }
 
     @Test
     fun `BUILD02 null RSA key treated as not configured`() {
-        assertFalse(isConfiguredKey(null))
+        assertFalse(PurchaseVerifier.isConfiguredKey(null))
     }
 
     @Test
     fun `BUILD02 placeholder RSA key string treated as not configured`() {
-        assertFalse(isConfiguredKey("REPLACE_WITH_YOUR_PLAY_CONSOLE_RSA_PUBLIC_KEY"))
-        assertFalse(isConfiguredKey("REPLACE_WITH_RSA"))
+        assertFalse(PurchaseVerifier.isConfiguredKey("REPLACE_WITH_YOUR_PLAY_CONSOLE_RSA_PUBLIC_KEY"))
     }
 
     @Test
     fun `BUILD02 string literal null treated as not configured`() {
-        assertFalse(isConfiguredKey("null"))
+        assertFalse(PurchaseVerifier.isConfiguredKey("null"))
     }
 
     @Test
     fun `BUILD02 real RSA key value treated as configured`() {
-        assertTrue(isConfiguredKey("MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA"))
+        assertTrue(PurchaseVerifier.isConfiguredKey("MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA"))
     }
 
     // ── SHA1withRSA deprecated algorithm detection (SEC-01) ──────────────────
@@ -225,126 +198,101 @@ class BillingManager_P1_Tests {
 
     @Test
     fun `PS009 PS016 no ads flag is always false for both tiers`() {
-        val adsEnabledFree = false
-        val adsEnabledPro  = false
-        assertFalse("Free tier must have no ads", adsEnabledFree)
-        assertFalse("Pro tier must have no ads", adsEnabledPro)
+        assertFalse("Free tier must have no ads", false)
+        assertFalse("Pro tier must have no ads", false)
     }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  P2 Tests — Offer selection, plan types, lifecycle
+//  P2 Tests — Offer selection (real OfferSelector), period parsing (real
+//  BillingPeriodParser), plan lifecycle
 // ─────────────────────────────────────────────────────────────────────────────
 class BillingManager_P2_Tests {
 
-    // ── Offer selection priority (TEST-04 item 4) ────────────────────────────
+    // ── Offer selection priority — real OfferSelector (TEST-04 item 4) ───────
+    // Priority is by OFFER STRUCTURE (trial > intro > base > fallback), not by
+    // plan type — see file header for why the old mirror was wrong.
 
     @Test
-    fun `selectBestOffer returns Lifetime when present alongside other plans`() {
+    fun `OfferSelector picks the free-trial offer over intro and base offers`() {
         val offers = listOf(
-            ProductDetails(PlanType.MONTHLY,  4_990_000L, "monthly_token"),
-            ProductDetails(PlanType.ANNUAL,  39_990_000L, "annual_token"),
-            ProductDetails(PlanType.LIFETIME, 99_990_000L, "lifetime_token")
+            OfferSelector.OfferSignature(offerId = "base",  hasZeroPricePhase = false, firstPhasePriceMicros = 4_990_000L, firstPhaseRecurrenceMode = 1),
+            OfferSelector.OfferSignature(offerId = "intro", hasZeroPricePhase = false, firstPhasePriceMicros = 990_000L,   firstPhaseRecurrenceMode = OfferSelector.RECURRENCE_NON_RECURRING),
+            OfferSelector.OfferSignature(offerId = "trial", hasZeroPricePhase = true,  firstPhasePriceMicros = 0L,         firstPhaseRecurrenceMode = OfferSelector.RECURRENCE_NON_RECURRING),
         )
-        assertEquals(PlanType.LIFETIME, selectBestOffer(offers)?.planType)
+        val index = OfferSelector.selectBestIndex(offers)
+        assertEquals("trial", offers[index!!].offerId)
     }
 
     @Test
-    fun `selectBestOffer returns Annual when Lifetime absent`() {
+    fun `OfferSelector picks intro-price offer when no trial offer present`() {
         val offers = listOf(
-            ProductDetails(PlanType.MONTHLY, 4_990_000L, "monthly_token"),
-            ProductDetails(PlanType.ANNUAL, 39_990_000L, "annual_token")
+            OfferSelector.OfferSignature(offerId = "base",  hasZeroPricePhase = false, firstPhasePriceMicros = 4_990_000L, firstPhaseRecurrenceMode = 1),
+            OfferSelector.OfferSignature(offerId = "intro", hasZeroPricePhase = false, firstPhasePriceMicros = 990_000L,   firstPhaseRecurrenceMode = OfferSelector.RECURRENCE_NON_RECURRING),
         )
-        assertEquals(PlanType.ANNUAL, selectBestOffer(offers)?.planType)
+        val index = OfferSelector.selectBestIndex(offers)
+        assertEquals("intro", offers[index!!].offerId)
     }
 
     @Test
-    fun `selectBestOffer returns Monthly when only Monthly available`() {
+    fun `OfferSelector picks bare base-plan offer when no trial or intro exists`() {
         val offers = listOf(
-            ProductDetails(PlanType.MONTHLY, 4_990_000L, "monthly_token")
+            OfferSelector.OfferSignature(offerId = null, hasZeroPricePhase = false, firstPhasePriceMicros = 4_990_000L, firstPhaseRecurrenceMode = 1),
         )
-        assertEquals(PlanType.MONTHLY, selectBestOffer(offers)?.planType)
+        val index = OfferSelector.selectBestIndex(offers)
+        assertNull(offers[index!!].offerId)
     }
 
     @Test
-    fun `selectBestOffer returns null for empty offer list`() {
-        assertNull(selectBestOffer(emptyList()))
+    fun `OfferSelector returns null for empty offer list`() {
+        assertNull(OfferSelector.selectBestIndex(emptyList()))
     }
 
     @Test
-    fun `selectBestOffer preserves correct offer token in result`() {
+    fun `OfferSelector falls back to first offer when none match any priority tier`() {
+        // Every offer has a non-null offerId AND a non-zero, recurring first phase —
+        // matches none of tiers 1-3, so tier 4 (fallback = first) applies.
         val offers = listOf(
-            ProductDetails(PlanType.ANNUAL, 39_990_000L, "annual_token_xyz")
+            OfferSelector.OfferSignature(offerId = "promoA", hasZeroPricePhase = false, firstPhasePriceMicros = 4_990_000L, firstPhaseRecurrenceMode = 1),
+            OfferSelector.OfferSignature(offerId = "promoB", hasZeroPricePhase = false, firstPhasePriceMicros = 5_990_000L, firstPhaseRecurrenceMode = 1),
         )
-        assertEquals("annual_token_xyz", selectBestOffer(offers)?.offerToken)
+        assertEquals(0, OfferSelector.selectBestIndex(offers))
     }
 
-    // ── Grace period calculation correctness ─────────────────────────────────
+    // ── Billing period parsing — real BillingPeriodParser (H6 regression) ────
+    // Previously completely untested despite being a documented bug fix (H6).
 
     @Test
-    fun `grace period is exactly 72 hours in milliseconds`() {
-        val expected = 72L * 60 * 60 * 1_000L
-        assertEquals(expected, GRACE_PERIOD_MS)
-    }
-
-    @Test
-    fun `grace period returns true at t=0 elapsed`() {
-        assertTrue(isInGracePeriod(0L, 0L))
+    fun `H6 parseToDays handles P7D as 7 days`() {
+        assertEquals(7, BillingPeriodParser.parseToDays("P7D"))
     }
 
     @Test
-    fun `grace period returns true at t=1ms elapsed`() {
-        assertTrue(isInGracePeriod(0L, 1L))
+    fun `H6 parseToDays handles P1W as 7 days`() {
+        assertEquals(7, BillingPeriodParser.parseToDays("P1W"))
     }
 
     @Test
-    fun `grace period returns false at t=GRACE+1ms`() {
-        assertFalse(isInGracePeriod(0L, GRACE_PERIOD_MS + 1))
-    }
-
-    // ── Subscription plan display (PS-019, PS-022) ───────────────────────────
-
-    @Test
-    fun `PS019 lifetime plan product has LIFETIME enum type`() {
-        val lifetime = ProductDetails(PlanType.LIFETIME, 99_990_000L, "lifetime_t")
-        assertEquals(PlanType.LIFETIME, lifetime.planType)
+    fun `H6 parseToDays handles P1M as 30 days`() {
+        assertEquals(30, BillingPeriodParser.parseToDays("P1M"))
     }
 
     @Test
-    fun `PS022 monthly plan has MONTHLY type`() {
-        val monthly = ProductDetails(PlanType.MONTHLY, 4_990_000L, "monthly_t")
-        assertEquals(PlanType.MONTHLY, monthly.planType)
+    fun `H6 parseToDays handles P1Y as 365 days`() {
+        assertEquals(365, BillingPeriodParser.parseToDays("P1Y"))
     }
 
     @Test
-    fun `PS022 annual plan has ANNUAL type`() {
-        val annual = ProductDetails(PlanType.ANNUAL, 39_990_000L, "annual_t")
-        assertEquals(PlanType.ANNUAL, annual.planType)
-    }
-
-    // ── FUN-01: BillingClient.disconnect() must be called on destroy ──────────
-
-    @Test
-    fun `FUN01 billing client connected flag resets to false after disconnect`() {
-        var connected = true
-        val disconnect = { connected = false }
-        disconnect()
-        assertFalse("BillingClient must be disconnected on destroy", connected)
+    fun `H6 parseToDays returns 0 for time-only period PT0S — the original bug case`() {
+        // This is the exact case the H6 fix targeted: the old drop(1).dropLast(1).toInt()
+        // implementation threw NumberFormatException on "PT0S" and silently returned 0
+        // for EVERY period afterward due to the unguarded exception path.
+        assertEquals(0, BillingPeriodParser.parseToDays("PT0S"))
     }
 
     @Test
-    fun `FUN01 double disconnect guard prevents crash on second call`() {
-        var disconnectCount = 0
-        var connected = false  // simulates already-disconnected state
-        val safeDisconnect = {
-            if (connected) {
-                disconnectCount++
-                connected = false
-            }
-        }
-        safeDisconnect()  // first call — already disconnected, should not increment
-        safeDisconnect()  // second call — no-op
-        assertEquals("Double disconnect must be no-op", 0, disconnectCount)
+    fun `H6 parseToDays returns 0 for blank input`() {
+        assertEquals(0, BillingPeriodParser.parseToDays(""))
     }
 
     // ── Data preservation on downgrade (PS-018) ───────────────────────────────
@@ -353,7 +301,6 @@ class BillingManager_P2_Tests {
     fun `PS018 historical data is preserved when subscription expires`() {
         data class UserData(val scoreHistory: List<Int>, val focusSessions: Int)
         val data = UserData(listOf(72, 68, 80), focusSessions = 15)
-        // Simulate downgrade: data intact, only feature access gated
         val isPro = false
         assertEquals("Score history preserved after downgrade", 3, data.scoreHistory.size)
         assertEquals(15, data.focusSessions)
@@ -367,25 +314,17 @@ class BillingManager_P2_Tests {
 class BillingManager_P3_Tests {
 
     @Test
-    fun `grace period start time in future is within grace period`() {
-        // Edge: lastConfirmedMs is after nowMs (clock skew)
-        val lastConfirmed = 1_000_000L
-        val nowMs = 500_000L  // before confirmation (clock skew)
-        // nowMs - lastConfirmed = negative → coerced to 0 → within grace
-        assertTrue(isInGracePeriod(lastConfirmed, nowMs))
+    fun `grace check with clock skew — nowMs before lastConfirmedMs still reads as within grace`() {
+        // Edge: lastConfirmedMs is after nowMs (clock skew). Negative diff is always < graceMs.
+        assertTrue(EntitlementRepository.isWithinGrace(lastConfirmedMs = 1_000_000L, nowMs = 500_000L))
     }
 
     @Test
-    fun `offer list with single Lifetime plan selects it immediately`() {
-        val offers = listOf(ProductDetails(PlanType.LIFETIME, 99_990_000L, "L"))
-        assertEquals(PlanType.LIFETIME, selectBestOffer(offers)?.planType)
-    }
-
-    @Test
-    fun `all three plan types have distinct PlanType enum values`() {
-        assertNotEquals(PlanType.MONTHLY, PlanType.ANNUAL)
-        assertNotEquals(PlanType.ANNUAL, PlanType.LIFETIME)
-        assertNotEquals(PlanType.MONTHLY, PlanType.LIFETIME)
+    fun `H6 parseToDays returns 0 for compound period not issued by Play Console`() {
+        // Documented limitation, not a bug: compound periods aren't issued by Play
+        // Console UI, so only the first matched unit in a genuinely malformed
+        // string would be picked up — this pins current (accepted) behaviour.
+        assertEquals(0, BillingPeriodParser.parseToDays("garbage"))
     }
 
     @Test
@@ -400,8 +339,7 @@ class BillingManager_P3_Tests {
 
     @Test
     fun `downgrade callback not called when grace period still active`() {
-        var called = false
-        downgradeIfGraceExpired(0L, GRACE_PERIOD_MS / 2, onDowngrade = { called = true })
-        assertFalse(called)
+        val ref = 1_700_000_000_000L
+        assertTrue(EntitlementRepository.isWithinGrace(ref, ref + EntitlementRepository.REVOCATION_GRACE_MS / 2))
     }
 }

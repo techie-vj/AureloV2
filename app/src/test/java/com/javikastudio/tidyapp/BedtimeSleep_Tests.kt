@@ -8,6 +8,15 @@ import kotlin.math.roundToInt
  * Bedtime Mode & Sleep Score Tests  |  Feature Ref §7
  * P1: BM-001–BM-004, BM-010–BM-012, BM-019–BM-020, BM-026–BM-030, BM-032–BM-034, BM-036–BM-038
  * P2: BM-005–BM-009, BM-013–BM-018, BM-021–BM-025, BM-031, BM-035, BM-039–BM-041
+ *
+ * PARTIAL REWRITE NOTE (Phase 1 test-quality fix):
+ * sleepScore() below (base 80/25 + snooze/attempt deductions + streak bonus) mirrors
+ * logic that lives inside AureloScoreBridge/BedtimeBridge, which require Android
+ * SharedPreferences to instantiate — out of scope for this pass, left as a
+ * documented-behaviour mirror for now (tracked as Phase 2 work).
+ * sleepBlended() has been REMOVED and replaced with real calls to
+ * com.javikastudio.tidyapp.SleepScoreEnhancer.blend() (BM-017/BM-018 below),
+ * which IS a pure Kotlin object and requires no Android dependencies.
  */
 
 private fun sleepScore(kept: Boolean, snooze: Int = 0, attempts: Int = 0, streak: Int = 0): Int {
@@ -18,8 +27,17 @@ private fun sleepScore(kept: Boolean, snooze: Int = 0, attempts: Int = 0, streak
     return (base - snDed - attDed + bonus).coerceIn(0, 100)
 }
 
-private fun sleepBlended(adherence: Int, hcDuration: Int, hcHrv: Int) =
-    (adherence * 0.60 + hcDuration * 0.25 + hcHrv * 0.15).roundToInt().coerceIn(0, 100)
+private fun hcData(
+    isAvailable: Boolean = true,
+    sleepDurationHours: Float? = null,
+    overnightHrvMs: Float? = null,
+    avgOvernightHrv7d: Float? = null,
+): HCDailyData = HCDailyData(
+    isAvailable = isAvailable,
+    sleepDurationHours = sleepDurationHours,
+    overnightHrvMs = overnightHrvMs,
+    avgOvernightHrv7d = avgOvernightHrv7d,
+)
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  P1 Tests
@@ -178,15 +196,25 @@ class BedtimeSleep_P2_Tests {
         val bonus = (1 * 3).coerceAtMost(20); assertEquals(3, bonus)
     }
 
-    // BM-017 — HC blend
+    // BM-017 — HC blend (now calling real SleepScoreEnhancer.blend())
     @Test fun `BM017 Sleep Score blended 60pct adherence 25pct duration 15pct HRV`() {
-        // 80*0.60 + 90*0.25 + 80*0.15 = 48+22.5+12 = 82.5 → 83
-        assertEquals(83, sleepBlended(80, 90, 80))
+        // bedtime=80(60%), duration 8h=100pts(25%), overnightHRV at avg=100pts(15%)
+        val result = SleepScoreEnhancer.blend(
+            bedtimeModeScore = 80,
+            data = hcData(sleepDurationHours = 8f, overnightHrvMs = 50f, avgOvernightHrv7d = 50f)
+        )
+        // 80*0.60 + 100*0.25 + 100*0.15 = 48+25+15 = 88
+        assertEquals(88, result.score)
+        assertTrue(result.isHCEnhanced)
     }
 
     // BM-018 — HC blend ceiling
     @Test fun `BM018 blended Sleep Score ceiling is 100`() {
-        assertEquals(100, sleepBlended(100, 100, 100))
+        val result = SleepScoreEnhancer.blend(
+            bedtimeModeScore = 100,
+            data = hcData(sleepDurationHours = 8f, overnightHrvMs = 60f, avgOvernightHrv7d = 50f)
+        )
+        assertEquals(100, result.score)
     }
 
     // BM-021 — Screen Filter separate bedtime settings

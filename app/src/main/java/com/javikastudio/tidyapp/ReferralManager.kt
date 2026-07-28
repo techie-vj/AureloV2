@@ -125,7 +125,7 @@ object ReferralManager {
         // equality check always returned false, allowing a self-referral on
         // reinstall before the code was first generated.
         val myCode = getMyReferralCode(prefs)
-        if (incomingCode == myCode) return
+        if (isSelfReferral(incomingCode, myCode)) return
 
         val now = System.currentTimeMillis()
         // BUG-REF-2 FIX: compute the 14-day extension expiry immediately so
@@ -680,6 +680,15 @@ object ReferralManager {
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
+
+    /**
+     * Pure self-referral guard used by processReferrerString() (ST-031/SEC-05).
+     * Extracted for unit testing (Phase 2 test-quality fix) — processReferrerString()
+     * itself requires a real Context to construct EntitlementRepository/WorkManager,
+     * but the guard predicate itself is trivial and needs neither.
+     */
+    internal fun isSelfReferral(incomingCode: String, myCode: String): Boolean =
+        incomingCode == myCode
 
     private fun canGrantInstallReward(prefs: SharedPreferences): Boolean {
         val now = Calendar.getInstance()

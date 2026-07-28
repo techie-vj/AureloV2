@@ -140,17 +140,16 @@ class WellnessAnalytics_P2_Tests {
         assertTrue(subTabs.contains("Pickups"))
     }
 
-    // WA-009 — activity modifier +5 appears in breakdown
+    // WA-009 — activity modifier +5 (real ScreenScoreEnhancer, was an inline stub)
     @Test fun `WA009 HC activity modifier +5 visible in Screen Score breakdown at 10000 steps`() {
-        val steps    = 10_000
-        val modifier = if (steps >= 10_000) 5 else 0
-        assertEquals(5, modifier)
+        val data = HCDailyData(isAvailable = true, stepsToday = 10_000)
+        assertEquals(5, ScreenScoreEnhancer.modifier(data).modifier)
     }
 
-    // WA-010 — activity modifier +3
+    // WA-010 — activity modifier +3 (real ScreenScoreEnhancer)
     @Test fun `WA010 HC activity modifier +3 at 8000 to 9999 steps`() {
-        val modifier = if (8_000 in 8_000..9_999) 3 else 0
-        assertEquals(3, modifier)
+        val data = HCDailyData(isAvailable = true, stepsToday = 8_000)
+        assertEquals(3, ScreenScoreEnhancer.modifier(data).modifier)
     }
 
     // WA-011 — Screen Score 3 weighted components

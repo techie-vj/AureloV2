@@ -447,26 +447,19 @@ class BillingManager(
     private fun _selectBestOffer(
         offers: List<ProductDetails.SubscriptionOfferDetails>
     ): ProductDetails.SubscriptionOfferDetails? {
-        if (offers.isEmpty()) return null
-
-        // 1. Free trial — any phase has zero price
-        offers.firstOrNull { offer ->
-            offer.pricingPhases.pricingPhaseList.any { it.priceAmountMicros == 0L }
-        }?.let { return it }
-
-        // 2. Introductory price — first phase is discounted but non-zero and non-recurring
-        offers.firstOrNull { offer ->
-            val first = offer.pricingPhases.pricingPhaseList.firstOrNull()
-            first != null
-                    && first.priceAmountMicros > 0L
-                    && first.recurrenceMode == RECURRENCE_NON_RECURRING
-        }?.let { return it }
-
-        // 3. Base plan offer (no promotional offer ID attached)
-        offers.firstOrNull { it.offerId == null }?.let { return it }
-
-        // 4. Fallback — take whatever is first
-        return offers.first()
+        // Phase 2 test-quality fix: decision logic moved to OfferSelector (pure,
+        // unit-tested). This just maps real SDK objects to plain signatures.
+        val signatures = offers.map { offer ->
+            val phases = offer.pricingPhases.pricingPhaseList
+            OfferSelector.OfferSignature(
+                offerId = offer.offerId,
+                hasZeroPricePhase = phases.any { it.priceAmountMicros == 0L },
+                firstPhasePriceMicros = phases.firstOrNull()?.priceAmountMicros,
+                firstPhaseRecurrenceMode = phases.firstOrNull()?.recurrenceMode,
+            )
+        }
+        val index = OfferSelector.selectBestIndex(signatures) ?: return null
+        return offers[index]
     }
 
     /**
@@ -475,23 +468,7 @@ class BillingManager(
      * Compound periods (e.g. P2W3D) are not handled by Play Console UI so
      * this simple parser covers all currently issued billing periods.
      */
-    private fun parsePeriodToDays(period: String): Int {
-        // H6 FIX: Previous implementation used drop(1).dropLast(1).toInt() which fails
-        // for compound periods like "P2W3D" and throws NumberFormatException for "PT0S"
-        // (zero-duration), both silently returning 0 and showing "0-day trial" on paywall.
-        // Now uses regex extraction so each component is parsed independently.
-        if (period.isBlank()) return 0
-        return try {
-            val upper = period.uppercase()
-            // "PT..." indicates a time-only duration (seconds/minutes) with no day value
-            if (upper.startsWith("PT")) return 0
-            val years  = Regex("(\\d+)Y").find(upper)?.groupValues?.get(1)?.toIntOrNull() ?: 0
-            val months = Regex("(\\d+)M").find(upper)?.groupValues?.get(1)?.toIntOrNull() ?: 0
-            val weeks  = Regex("(\\d+)W").find(upper)?.groupValues?.get(1)?.toIntOrNull() ?: 0
-            val days   = Regex("(\\d+)D").find(upper)?.groupValues?.get(1)?.toIntOrNull() ?: 0
-            years * 365 + months * 30 + weeks * 7 + days
-        } catch (e: Exception) { 0 }
-    }
+    private fun parsePeriodToDays(period: String): Int = BillingPeriodParser.parseToDays(period)
 
     // ── Private helpers ───────────────────────────────────────────
 

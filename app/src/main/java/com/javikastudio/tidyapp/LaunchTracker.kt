@@ -167,6 +167,18 @@ class LaunchTracker private constructor(context: Context) {
 
         // Retention period for streak history — matches Score History (365 days)
         private const val STREAK_RETENTION_DAYS = 365L
+
+        /**
+         * Pure boundary check for the day_of_week SQL filter (PP-030 / SEC-02).
+         * Valid Calendar.DAY_OF_WEEK values are 1..7 (SUNDAY..SATURDAY). Out-of-range
+         * values (sentinel -1, or malformed 0/8) must NOT be interpolated into the
+         * query — they resolve to an empty (no-op) filter clause rather than
+         * throwing or matching unintended rows.
+         * Extracted for unit testing (Phase 2 test-quality fix) — the surrounding
+         * methods need a live SQLCipher-backed Context and can't run on the JVM.
+         */
+        internal fun dayOfWeekFilterClause(dayOfWeek: Int): String =
+            if (dayOfWeek in 1..7) " AND day_of_week = ?" else ""
     }
 
     // ── Encrypted DB open ─────────────────────────────────────────────────────
@@ -327,15 +339,13 @@ class LaunchTracker private constructor(context: Context) {
     ): Int {
         val since = System.currentTimeMillis() - 30L * 24 * 60 * 60 * 1000L
 
-        val dayClause: String
+        val dayClause: String = dayOfWeekFilterClause(dayOfWeek)
         val totalArgs: Array<String>
         val appArgs:   Array<String>
         if (dayOfWeek in 1..7) {
-            dayClause = " AND day_of_week = ?"
             totalArgs = arrayOf(slot.name, since.toString(), dayOfWeek.toString())
             appArgs   = arrayOf(slot.name, packageName, since.toString(), dayOfWeek.toString())
         } else {
-            dayClause = ""
             totalArgs = arrayOf(slot.name, since.toString())
             appArgs   = arrayOf(slot.name, packageName, since.toString())
         }

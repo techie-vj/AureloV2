@@ -102,7 +102,7 @@ class SmartNotificationWorker(
             ensureRecapChannel(nm)
             val todayStr = "${cal.get(java.util.Calendar.YEAR)}-${cal.get(java.util.Calendar.DAY_OF_YEAR)}"
             val lastRecapDate = prefs.getString("recap_sent_date", "") ?: ""
-            if (lastRecapDate != todayStr && todayMins > 0L) {
+            if (shouldPostDailyRecap(lastRecapDate, todayStr, todayMins)) {
                 val streakDays  = prefs.getInt(CACHED_STREAK_DAYS, 0)
                 val overMin     = (todayMins - goalMins).coerceAtLeast(0)
                 val underMin    = (goalMins - todayMins).coerceAtLeast(0)
@@ -739,5 +739,15 @@ class SmartNotificationWorker(
         const val LAST_WEEKLY_RECAP_WEEK  = "last_weekly_recap_week"
         const val EXTRA_OPEN_WEEKLY_RECAP = "open_weekly_recap"
         const val EXTRA_OPEN_NOTIFICATIONS = "open_notifications"
+
+        /**
+         * Pure daily-recap dedup guard (SN-022 / FUN-06). Extracted for unit
+         * testing (Phase 2 test-quality fix) — doWork() itself needs a full
+         * WorkManager/NotificationManager/Context environment and can't run on
+         * the JVM. Recap is postable only once per calendar day (todayStr,
+         * formatted "yyyy-DDD") and only once meaningful usage data exists.
+         */
+        internal fun shouldPostDailyRecap(lastRecapDate: String, todayStr: String, todayMins: Long): Boolean =
+            lastRecapDate != todayStr && todayMins > 0L
     }
 }
